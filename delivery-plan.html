@@ -28,28 +28,28 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Roboto,Arial,
 .app-header h1{font-size:1.02rem;color:var(--slate);font-weight:700;letter-spacing:-.01em}
 .app-header p{font-size:.78rem;color:var(--mid);margin-top:.1rem}
 
-.container{max-width:1120px;margin:0 auto;padding:2rem}
+.container{max-width:1120px;margin:0 auto;padding:1.5rem 2rem 1rem}
 
 /* Cards */
 .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
-  box-shadow:var(--shadow);padding:1.25rem 1.4rem;margin-bottom:1.25rem}
+  box-shadow:var(--shadow);padding:1.1rem 1.4rem;margin-bottom:1rem}
 .card-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.6rem;margin-bottom:1rem}
 .card-head .title{font-size:.72rem;font-weight:700;color:var(--slate);text-transform:uppercase;letter-spacing:.06em}
 .card-head .sub{font-size:.74rem;color:var(--mid);font-weight:500;text-transform:none;letter-spacing:0;margin-left:.5rem}
 
 /* Upload */
-.upload-card{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:1.5rem}
-.upload-area{border:2px dashed #CBD5DC;border-radius:12px;padding:2.75rem 2rem;text-align:center;cursor:pointer;
+.upload-card{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:1.1rem}
+.upload-area{border:2px dashed #CBD5DC;border-radius:12px;padding:1.75rem 2rem;text-align:center;cursor:pointer;
   transition:border-color .18s,background .18s;background:#FCFDFE}
 .upload-area:hover,.upload-area.dragover{background:var(--teal-tint);border-color:var(--teal)}
-.upload-icon{width:56px;height:56px;border-radius:14px;background:var(--teal-tint);
-  display:flex;align-items:center;justify-content:center;margin:0 auto 1rem}
-.upload-icon svg{width:26px;height:26px;stroke:var(--teal)}
-.upload-title{font-size:1.15rem;color:var(--charcoal);font-weight:700;letter-spacing:-.01em}
-.upload-sub{font-size:.85rem;color:var(--mid);margin-top:.35rem}
+.upload-icon{width:46px;height:46px;border-radius:12px;background:var(--teal-tint);
+  display:flex;align-items:center;justify-content:center;margin:0 auto .7rem}
+.upload-icon svg{width:22px;height:22px;stroke:var(--teal)}
+.upload-title{font-size:1.05rem;color:var(--charcoal);font-weight:700;letter-spacing:-.01em}
+.upload-sub{font-size:.83rem;color:var(--mid);margin-top:.3rem}
 .upload-sub .link{color:var(--teal);font-weight:600;cursor:pointer}
 .upload-area input[type=file]{display:none}
-.upload-foot{display:flex;justify-content:flex-end;margin-top:1rem}
+.upload-foot{display:flex;justify-content:flex-end;margin-top:.85rem}
 
 /* Config grid */
 .config{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:1.1rem}
@@ -132,6 +132,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Roboto,Arial,
 .error{background:#FFF4F2;color:#B42318;padding:.9rem 1.1rem;border-radius:10px;border:1px solid #FDD;border-left:4px solid #DE350B;margin-bottom:1.25rem;font-size:.85rem}
 .hint-note{margin-bottom:1rem;font-size:.82rem;color:#42526E;background:#F4F6F7;border-left:3px solid #A5ADBA;padding:.6rem .85rem;border-radius:0 8px 8px 0}
 .section-label{font-size:.72rem;font-weight:700;color:var(--slate);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.6rem}
+.app-footer{max-width:1120px;margin:.5rem auto 2rem;padding:0 2rem;text-align:center;font-size:.78rem;color:var(--mid)}
 </style>
 </head>
 <body>
@@ -235,6 +236,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Roboto,Arial,
     </div>
   </section>
 </div>
+
+<footer class="app-footer">Dreamt up by Christian, built with Claude &mdash; a human + AI double act 🤝</footer>
 
 <script>
 (function(){
