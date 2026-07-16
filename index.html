@@ -50,10 +50,13 @@ body{font-family:'Inter',Arial,sans-serif;background:#fff;color:#1A1A1A;line-hei
 .task-table tbody tr.off td:not(.cbcol){text-decoration:line-through}
 .task-table input[type=checkbox]{accent-color:#00A9CE;width:15px;height:15px;cursor:pointer}
 .sb{display:inline-block;padding:.15rem .5rem;border-radius:3px;font-size:.7rem;font-weight:600}
-.sb-d{background:#007A99;color:#fff}
-.sb-p{background:#00A9CE;color:#fff}
-.sb-n{background:#E6F6FA;color:#3D3D3D;border:1px solid #00A9CE}
-.sb-b{background:#1A1A1A;color:#fff}
+.sb-d{background:#36B37E;color:#fff}
+.sb-p{background:#2684FF;color:#fff}
+.sb-n{background:#F4F5F7;color:#42526E;border:1px solid #A5ADBA}
+.sb-b{background:#DE350B;color:#fff}
+.task-table tbody tr.offplan td:not(.cbcol){color:#97A0AF}
+.tag-offplan{display:inline-block;margin-left:.4rem;font-size:.62rem;font-weight:700;color:#97A0AF;border:1px solid #C1C7D0;border-radius:3px;padding:0 .3rem;vertical-align:middle;text-transform:uppercase;letter-spacing:.03em}
+.hint-note{margin:.5rem 0;font-size:.78rem;color:#42526E;background:#F4F5F7;border-left:3px solid #A5ADBA;padding:.55rem .8rem;border-radius:0 4px 4px 0}
 .preview-container{margin:1rem 0;overflow-x:auto}
 .slide-frame{display:inline-block;box-shadow:0 2px 12px rgba(0,0,0,.12);border-radius:4px;overflow:hidden}
 .slide{position:relative;width:1000px;height:563px;background:#fff;transform-origin:top left;overflow:hidden}
@@ -136,6 +139,7 @@ body{font-family:'Inter',Arial,sans-serif;background:#fff;color:#1A1A1A;line-hei
     </div>
 
     <h3 class="section-title">Slide Preview</h3>
+    <div id="hidden-note" class="hint-note hidden"></div>
     <div class="preview-container">
       <div class="slide-frame"><div class="slide" id="slide-preview"></div></div>
     </div>
@@ -155,14 +159,22 @@ var C = {
   midGrey:'6B6B6B', lightGrey:'F4F4F4', white:'FFFFFF'
 };
 
+// Status colours use widely-recognised software-delivery conventions
+// (green=done, blue=in progress, grey=not started, red=blocked) so the
+// states read at a glance rather than as shades of one brand colour.
+var S = {
+  green:'36B37E', blue:'2684FF', grey:'DFE1E6', greyLine:'A5ADBA',
+  red:'DE350B', purple:'6554C0'
+};
 var STATUS_FILL = {
-  'Done':        {fill:C.tealDark},
-  'In Progress': {fill:C.teal},
-  'Not Started': {fill:C.tealTint, line:C.teal},
-  'Blocked':     {fill:C.charcoal}
+  'Done':        {fill:S.green},
+  'In Progress': {fill:S.blue},
+  'Not Started': {fill:S.grey, line:S.greyLine},
+  'Blocked':     {fill:S.red}
 };
 var DEFAULT_FILL = {fill:C.teal};
 var SINGLE_FILL = {fill:C.teal};
+var MILESTONE_FILL = {fill:S.purple};
 
 var SLIDE_W=13.333, SLIDE_H=7.5, PX=75;
 var TITLE_X=0.5, TITLE_Y=0.35, TITLE_W=12, TITLE_H=0.55;
@@ -317,7 +329,7 @@ function autoSprintRange(data){
 }
 
 function barColorFor(t,mode){
-  if(t.milestone)return {fill:C.green};
+  if(t.milestone)return MILESTONE_FILL;
   if(mode==='single')return SINGLE_FILL;
   return STATUS_FILL[t.status]||DEFAULT_FILL;
 }
@@ -330,16 +342,35 @@ function computeLayout(data){
   if(!vis.length)vis=autoSprintRange(data);
   var tasks=data.tasks.filter(function(t){return t.selected!==false});
 
-  var nS=vis.length, nT=tasks.length;
+  var nS=vis.length;
   var chartR=SLIDE_W-MARGIN_R;
   var chartW=chartR-CHART_L;
   var colW=chartW/nS;
-  var availH=SLIDE_H-ROWS_Y-0.35;
-  var rowH=nT?Math.max(MIN_ROW_H,Math.min(MAX_ROW_H,availH/nT)):MAX_ROW_H;
-  var barH=rowH*0.6;
 
   var dates=computeDates(sprints,data.startSprint,data.startDate);
   var visGlobal=vis.map(function(s){return sprints.indexOf(s)});
+
+  // Resolve each selected task's bar span within the visible sprints.
+  // Tasks that fall entirely outside the selected window have no bar and
+  // are auto-hidden from the plan (kept in `hidden` for a graceful note).
+  var placed=[],hidden=[];
+  tasks.forEach(function(t){
+    var gs=sprints.indexOf(t.startSprint),ge=sprints.indexOf(t.endSprint);
+    var firstPos=-1,lastPos=-1;
+    if(gs>=0&&ge>=0&&ge>=gs){
+      for(var k=0;k<vis.length;k++){
+        var g=visGlobal[k];
+        if(g>=gs&&g<=ge){if(firstPos<0)firstPos=k;lastPos=k}
+      }
+    }
+    if(firstPos>=0)placed.push({task:t,firstPos:firstPos,lastPos:lastPos});
+    else hidden.push(t);
+  });
+
+  var nT=placed.length;
+  var availH=SLIDE_H-ROWS_Y-0.35;
+  var rowH=nT?Math.max(MIN_ROW_H,Math.min(MAX_ROW_H,availH/nT)):MAX_ROW_H;
+  var barH=rowH*0.6;
 
   // month headers
   var months=[],curMK=null;
@@ -361,22 +392,14 @@ function computeLayout(data){
       x:CHART_L+i*colW,w:colW,bg:i%2===0?C.lightGrey:C.white};
   });
 
-  // rows
+  // rows (only tasks with a bar in the visible window)
   var mg=0.02;
-  var rows=tasks.map(function(t,i){
-    var gs=sprints.indexOf(t.startSprint),ge=sprints.indexOf(t.endSprint);
-    var firstPos=-1,lastPos=-1;
-    if(gs>=0&&ge>=0&&ge>=gs){
-      for(var k=0;k<vis.length;k++){
-        var g=visGlobal[k];
-        if(g>=gs&&g<=ge){if(firstPos<0)firstPos=k;lastPos=k}
-      }
-    }
-    var has=firstPos>=0;
+  var rows=placed.map(function(o,i){
+    var t=o.task;
     var fc=barColorFor(t,data.colorMode);
     return {task:t,y:ROWS_Y+i*rowH,bg:i%2===0?C.lightGrey:C.white,
-      barX:has?CHART_L+firstPos*colW+mg:null,
-      barW:has?(lastPos-firstPos+1)*colW-2*mg:0,
+      barX:CHART_L+o.firstPos*colW+mg,
+      barW:(o.lastPos-o.firstPos+1)*colW-2*mg,
       barY:ROWS_Y+i*rowH+(rowH-barH)/2,barH:barH,barColor:fc};
   });
 
@@ -398,7 +421,7 @@ function computeLayout(data){
   return {vis:vis,nS:nS,nT:nT,colW:colW,rowH:rowH,barH:barH,chartR:chartR,
     chart:{x:ROW_BG_X,y:ROWS_Y,w:chartR-ROW_BG_X,h:nT*rowH},
     months:months,sHdrs:sHdrs,rows:rows,nowLine:nowLine,dates:dates,
-    colorMode:data.colorMode};
+    hidden:hidden,colorMode:data.colorMode};
 }
 
 // ===== PREVIEW =====
@@ -588,15 +611,15 @@ function legendFor(mode){
   if(mode==='single'){
     return [
       {label:'Scheduled',color:C.teal},
-      {label:'Milestone',color:C.green}
+      {label:'Milestone',color:S.purple}
     ];
   }
   return [
-    {label:'Done',color:C.tealDark},
-    {label:'In Progress',color:C.teal},
-    {label:'Not Started',color:C.tealTint,border:C.teal},
-    {label:'Blocked',color:C.charcoal},
-    {label:'Milestone',color:C.green}
+    {label:'Done',color:S.green},
+    {label:'In Progress',color:S.blue},
+    {label:'Not Started',color:S.grey,border:S.greyLine},
+    {label:'Blocked',color:S.red},
+    {label:'Milestone',color:S.purple}
   ];
 }
 
@@ -655,6 +678,7 @@ function buildTaskTable(){
   tb.innerHTML='';
   currentData.tasks.forEach(function(t,idx){
     var tr=document.createElement('tr');
+    tr.setAttribute('data-i',idx);
     if(t.selected===false)tr.className='off';
     tr.innerHTML='<td class="cbcol"><input type="checkbox" data-i="'+idx+'"'+(t.selected!==false?' checked':'')+'></td>'
       +'<td>'+escH(t.name)+'</td><td>'+statusBadge(t.status)+'</td><td>'
@@ -687,8 +711,43 @@ function updateUI(){
   if(di)currentData.startDate=fromInput(di);
   var nd=document.getElementById('cfg-now-date').value;
   currentData.nowDate=nd?fromInput(nd):null;
-  try{currentLayout=computeLayout(currentData);renderPreview(currentLayout,currentData);clearError()}
+  try{
+    currentLayout=computeLayout(currentData);
+    renderPreview(currentLayout,currentData);
+    renderHiddenNote(currentLayout.hidden);
+    clearError();
+  }
   catch(e){showError('Layout error: '+e.message)}
+}
+
+// Reflect auto-hidden tasks (selected but outside the chosen sprints):
+// tag their table rows and show a graceful summary above the preview.
+function renderHiddenNote(hidden){
+  var hiddenSet={};
+  (hidden||[]).forEach(function(t){hiddenSet[currentData.tasks.indexOf(t)]=true});
+  document.querySelectorAll('#task-tbody tr').forEach(function(tr){
+    var i=+tr.getAttribute('data-i');
+    var isHidden=!!hiddenSet[i];
+    tr.classList.toggle('offplan',isHidden);
+    var name=tr.children[1];
+    var existing=name.querySelector('.tag-offplan');
+    if(isHidden&&!existing){
+      var tag=document.createElement('span');
+      tag.className='tag-offplan';tag.textContent='off-plan';
+      name.appendChild(tag);
+    }else if(!isHidden&&existing){existing.remove()}
+  });
+  var note=document.getElementById('hidden-note');
+  if(hidden&&hidden.length){
+    var names=hidden.map(function(t){return t.name}).join(', ');
+    var many=hidden.length>1;
+    note.textContent=hidden.length+' task'+(many?'s':'')
+      +' fall'+(many?'':'s')+' outside the selected sprints and '+(many?'are':'is')
+      +' hidden from the slide: '+names+'. Select the relevant sprints above to show '+(many?'them':'it')+'.';
+    note.classList.remove('hidden');
+  }else{
+    note.classList.add('hidden');
+  }
 }
 
 function defaultNowDate(data){
@@ -786,7 +845,7 @@ function init(){
 
   document.getElementById('btn-download').addEventListener('click',function(){
     if(currentLayout&&currentData){
-      if(!currentLayout.nT){showError('Select at least one task to include.');return}
+      if(!currentLayout.nT){showError('No tasks fall within the selected sprints. Adjust the sprint or task selection to include at least one task.');return}
       generatePPTX(currentLayout,currentData);
     }
   });
