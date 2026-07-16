@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Delivery Plan to PPTX — dnata</title>
+<title>Delivery Plan Generator</title>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
 <style>
@@ -21,8 +21,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Roboto,Arial,
 /* Header */
 .app-header{background:var(--card);border-bottom:1px solid var(--line);padding:1.1rem 2rem}
 .app-header .inner{max-width:1120px;margin:0 auto;display:flex;align-items:center;gap:.9rem}
-.logo{font-size:1.55rem;font-weight:800;color:var(--teal);letter-spacing:-.02em;line-height:1}
-.logo-div{width:1px;height:30px;background:var(--line)}
 .app-header h1{font-size:1.02rem;color:var(--slate);font-weight:700;letter-spacing:-.01em}
 .app-header p{font-size:.78rem;color:var(--mid);margin-top:.1rem}
 
@@ -136,8 +134,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Roboto,Arial,
 <body>
 <header class="app-header">
   <div class="inner">
-    <span class="logo">dnata</span>
-    <div class="logo-div"></div>
     <div>
       <h1>Delivery Plan Generator</h1>
       <p>Turn an Excel delivery plan into a branded PowerPoint Gantt chart</p>
