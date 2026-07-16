@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Delivery Plan Generator</title>
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI1MTIiIGhlaWdodD0iNTEyIiB2aWV3Qm94PSIwIDAgMTAwIDEwMCI+CiAgPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiIHJ4PSIyMiIgZmlsbD0iIzFkMWQxZiI+PC9yZWN0PgogIDxyZWN0IHg9IjkiIHk9IjM0IiB3aWR0aD0iMTQiIGhlaWdodD0iMTQiIHJ4PSIzIiBmaWxsPSIjMzVjMzc1Ij48L3JlY3Q+CiAgPHJlY3QgeD0iMjUiIHk9IjM0IiB3aWR0aD0iMTQiIGhlaWdodD0iMTQiIHJ4PSIzIiBmaWxsPSIjMzVjMzc1IiBvcGFjaXR5PSIuNTUiPjwvcmVjdD4KICA8cmVjdCB4PSI5IiB5PSI1MCIgd2lkdGg9IjE0IiBoZWlnaHQ9IjE0IiByeD0iMyIgZmlsbD0iIzM1YzM3NSIgb3BhY2l0eT0iLjU1Ij48L3JlY3Q+CiAgPHJlY3QgeD0iMjUiIHk9IjUwIiB3aWR0aD0iMTQiIGhlaWdodD0iMTQiIHJ4PSIzIiBmaWxsPSIjMzVjMzc1Ij48L3JlY3Q+CiAgPHBhdGggZD0iTTQzIDQ1IEw1NCA0NSBMNTQgMzkgTDY0IDUwIEw1NCA2MSBMNTQgNTUgTDQzIDU1IFoiIGZpbGw9IiNmZjdhNDUiPjwvcGF0aD4KICA8cmVjdCB4PSI2NiIgeT0iNDAiIHdpZHRoPSIyNyIgaGVpZ2h0PSIyMCIgcng9IjMiIGZpbGw9IiNmZjdhNDUiPjwvcmVjdD4KICA8cmVjdCB4PSI3MCIgeT0iNDQiIHdpZHRoPSIxNCIgaGVpZ2h0PSIyLjQiIHJ4PSIxLjIiIGZpbGw9IiMxZDFkMWYiPjwvcmVjdD4KICA8cmVjdCB4PSI3MCIgeT0iNDkiIHdpZHRoPSIxOSIgaGVpZ2h0PSIyLjQiIHJ4PSIxLjIiIGZpbGw9IiMxZDFkMWYiIG9wYWNpdHk9Ii42Ij48L3JlY3Q+CiAgPHJlY3QgeD0iNzAiIHk9IjU0IiB3aWR0aD0iMTkiIGhlaWdodD0iMi40IiByeD0iMS4yIiBmaWxsPSIjMWQxZDFmIiBvcGFjaXR5PSIuNiI+PC9yZWN0Pgo8L3N2Zz4=">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI1MTIiIGhlaWdodD0iNTEyIiB2aWV3Qm94PSIwIDAgMTAwIDEwMCI+CiAgPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiIHJ4PSIyMiIgZmlsbD0iI2ZmZmZmZiI+PC9yZWN0PgogIDxyZWN0IHg9IjkiIHk9IjM0IiB3aWR0aD0iMTQiIGhlaWdodD0iMTQiIHJ4PSIzIiBmaWxsPSIjMWU4MjRjIj48L3JlY3Q+CiAgPHJlY3QgeD0iMjUiIHk9IjM0IiB3aWR0aD0iMTQiIGhlaWdodD0iMTQiIHJ4PSIzIiBmaWxsPSIjMWU4MjRjIiBvcGFjaXR5PSIuNTUiPjwvcmVjdD4KICA8cmVjdCB4PSI5IiB5PSI1MCIgd2lkdGg9IjE0IiBoZWlnaHQ9IjE0IiByeD0iMyIgZmlsbD0iIzFlODI0YyIgb3BhY2l0eT0iLjU1Ij48L3JlY3Q+CiAgPHJlY3QgeD0iMjUiIHk9IjUwIiB3aWR0aD0iMTQiIGhlaWdodD0iMTQiIHJ4PSIzIiBmaWxsPSIjMWU4MjRjIj48L3JlY3Q+CiAgPHBhdGggZD0iTTQzIDQ1IEw1NCA0NSBMNTQgMzkgTDY0IDUwIEw1NCA2MSBMNTQgNTUgTDQzIDU1IFoiIGZpbGw9IiNkMjU4MmIiPjwvcGF0aD4KICA8cmVjdCB4PSI2NiIgeT0iNDAiIHdpZHRoPSIyNyIgaGVpZ2h0PSIyMCIgcng9IjMiIGZpbGw9IiNkMjU4MmIiPjwvcmVjdD4KICA8cmVjdCB4PSI3MCIgeT0iNDQiIHdpZHRoPSIxNCIgaGVpZ2h0PSIyLjQiIHJ4PSIxLjIiIGZpbGw9IiNmZmZmZmYiPjwvcmVjdD4KICA8cmVjdCB4PSI3MCIgeT0iNDkiIHdpZHRoPSIxOSIgaGVpZ2h0PSIyLjQiIHJ4PSIxLjIiIGZpbGw9IiNmZmZmZmYiIG9wYWNpdHk9Ii42Ij48L3JlY3Q+CiAgPHJlY3QgeD0iNzAiIHk9IjU0IiB3aWR0aD0iMTkiIGhlaWdodD0iMi40IiByeD0iMS4yIiBmaWxsPSIjZmZmZmZmIiBvcGFjaXR5PSIuNiI+PC9yZWN0Pgo8L3N2Zz4=">
 
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
@@ -48,7 +48,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Roboto,Arial,
 .upload-title{font-size:1.15rem;color:var(--charcoal);font-weight:700;letter-spacing:-.01em}
 .upload-sub{font-size:.85rem;color:var(--mid);margin-top:.35rem}
 .upload-sub .link{color:var(--teal);font-weight:600;cursor:pointer}
-.upload-sub .dot{margin:0 .45rem;color:#C2CCD3}
 .upload-area input[type=file]{display:none}
 .upload-foot{display:flex;justify-content:flex-end;margin-top:1rem}
 
@@ -157,7 +156,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Roboto,Arial,
           </svg>
         </div>
         <div class="upload-title">Drop your Excel file here</div>
-        <div class="upload-sub">or <span class="link">browse</span><span class="dot">·</span>.xlsx</div>
+        <div class="upload-sub">or <span class="link">browse</span> (.xlsx)</div>
         <input type="file" id="file-input" accept=".xlsx,.xls">
       </div>
       <div class="upload-foot">
