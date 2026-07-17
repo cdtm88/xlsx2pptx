@@ -483,7 +483,7 @@ function computeLayout(data){
   var sectioned=placed.some(function(o){return o.task.section});
   var order=null;
   if(sectioned){
-    var gmap={}; order=[];
+    var gmap=Object.create(null); order=[];
     placed.forEach(function(o){
       var key=o.task.section||'';
       if(!(key in gmap)){gmap[key]={name:key,items:[]};order.push(gmap[key])}
@@ -759,7 +759,7 @@ function generatePPTX(L,data){
     });
   }
 
-  var fn=data.title.replace(/[^a-zA-Z0-9\s]/g,'').replace(/\s+/g,'_')+'.pptx';
+  var fn=(data.title.replace(/[^a-zA-Z0-9\s]/g,'').replace(/\s+/g,'_').replace(/^_+|_+$/g,'')||'Delivery_Plan')+'.pptx';
   pptx.writeFile({fileName:fn}).catch(function(e){showError('PPTX error: '+e.message)});
 }
 
@@ -792,7 +792,8 @@ function clearError(){document.getElementById('error-msg').classList.add('hidden
 function escH(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML}
 
 function statusBadge(s){
-  var cls={Done:'sb-d','In Progress':'sb-p','Not Started':'sb-n',Blocked:'sb-b',Milestone:'sb-m'}[s]||'';
+  var M={Done:'sb-d','In Progress':'sb-p','Not Started':'sb-n',Blocked:'sb-b',Milestone:'sb-m'};
+  var cls=Object.prototype.hasOwnProperty.call(M,s)?M[s]:'';
   return s?'<span class="sb '+cls+'">'+escH(s)+'</span>':'';
 }
 
