@@ -109,6 +109,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Roboto,Arial,
 .task-table input[type=checkbox]{accent-color:var(--teal);width:16px;height:16px;cursor:pointer}
 .tag-offplan{display:inline-block;margin-left:.45rem;font-size:.6rem;font-weight:700;color:#97A0AF;border:1px solid #D3D9DE;
   border-radius:4px;padding:.05rem .35rem;vertical-align:middle;text-transform:uppercase;letter-spacing:.04em}
+.tag-nodate{display:inline-block;margin-left:.45rem;font-size:.6rem;font-weight:700;color:#B25E00;border:1px solid #F0C48A;
+  border-radius:4px;padding:.05rem .35rem;vertical-align:middle;text-transform:uppercase;letter-spacing:.04em}
 .sb{display:inline-block;padding:.16rem .55rem;border-radius:5px;font-size:.7rem;font-weight:600}
 .sb-d{background:#36B37E;color:#fff}
 .sb-p{background:#2684FF;color:#fff}
@@ -131,6 +133,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Roboto,Arial,
 .hidden{display:none!important}
 .error{background:#FFF4F2;color:#B42318;padding:.9rem 1.1rem;border-radius:10px;border:1px solid #FDD;border-left:4px solid #DE350B;margin-bottom:1.25rem;font-size:.85rem}
 .hint-note{margin-bottom:1rem;font-size:.82rem;color:#42526E;background:#F4F6F7;border-left:3px solid #A5ADBA;padding:.6rem .85rem;border-radius:0 8px 8px 0}
+.note-block{margin-bottom:.55rem}
+.note-block:last-child{margin-bottom:0}
+.note-lead{font-weight:600}
+.note-list{margin:.25rem 0 .15rem 1.15rem;padding:0}
+.note-list li{font-size:.8rem;margin:.05rem 0}
+.hint-note .link-btn{font-size:.78rem;padding:.1rem 0}
 .section-label{font-size:.72rem;font-weight:700;color:var(--slate);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.6rem}
 .app-footer{max-width:1120px;margin:.5rem auto 2rem;padding:0 2rem;text-align:center;font-size:.78rem;color:var(--mid)}
 </style>
@@ -267,17 +275,19 @@ var SINGLE_FILL = {fill:C.teal};
 var MILESTONE_FILL = {fill:S.amber};
 
 var SLIDE_W=13.333, SLIDE_H=7.5, PX=75;
-var TITLE_X=0.5, TITLE_Y=0.35, TITLE_W=12, TITLE_H=0.55;
+var TITLE_X=0.59, TITLE_Y=0.35, TITLE_W=12.15, TITLE_H=0.55;
 var MONTH_Y=1.07, MONTH_H=0.26;
 var SPRINT_Y=1.33, SPRINT_H=0.30;
 var ROWS_Y=1.63;
-var ROW_BG_X=0.99;
-var LABEL_X=1.04, LABEL_W=2.45;
-var CHART_L=3.54, MARGIN_R=0.45;
+var LEFT_M=0.59, MARGIN_R=0.59;        // ~15mm page margins (fit PowerPoint themes)
+var SEC_X=LEFT_M, SEC_W=0.44;          // section sidebar
+var ROW_BG_X=LEFT_M;
+var LABEL_X=LEFT_M+SEC_W+0.16, LABEL_W=2.30;
+var CHART_L=LABEL_X+LABEL_W+0.14;
 var BAR_RADIUS=0.04;
 var MIN_ROW_H=0.18, MAX_ROW_H=0.25;
-var SEC_X=0.42, SEC_W=0.48;
-var SECTION_COLORS=[C.tealDark,C.slate,C.midGrey,C.teal];
+// Section band palette: brand teals + green (no near-black)
+var SECTION_COLORS=['007A99','00A9CE','5BB85D','005A73'];
 
 // Blank .xlsx template (original file with sample rows cleared; all
 // formatting, conditional-formatting rules, formulas and named ranges intact)
@@ -453,18 +463,20 @@ function computeLayout(data){
   // Resolve each selected task's bar span within the visible sprints.
   // Tasks that fall entirely outside the selected window have no bar and
   // are auto-hidden from the plan (kept in `hidden` for a graceful note).
-  var placed=[],hidden=[];
+  var placed=[],hidden=[],undated=[];
   tasks.forEach(function(t){
     var gs=sprints.indexOf(t.startSprint),ge=sprints.indexOf(t.endSprint);
+    var valid=gs>=0&&ge>=0&&ge>=gs;
     var firstPos=-1,lastPos=-1;
-    if(gs>=0&&ge>=0&&ge>=gs){
+    if(valid){
       for(var k=0;k<vis.length;k++){
         var g=visGlobal[k];
         if(g>=gs&&g<=ge){if(firstPos<0)firstPos=k;lastPos=k}
       }
     }
     if(firstPos>=0)placed.push({task:t,firstPos:firstPos,lastPos:lastPos});
-    else hidden.push(t);
+    else if(valid)hidden.push(t);   // valid dates, outside visible range
+    else undated.push(t);           // missing/invalid start or end sprint
   });
 
   // group placed tasks by section (first-appearance order; unsectioned last)
@@ -547,7 +559,7 @@ function computeLayout(data){
   return {vis:vis,nS:nS,nT:nT,colW:colW,rowH:rowH,barH:barH,chartR:chartR,
     chart:{x:ROW_BG_X,y:ROWS_Y,w:chartR-ROW_BG_X,h:nT*rowH},
     months:months,sHdrs:sHdrs,rows:rows,nowLine:nowLine,dates:dates,
-    bands:bands,hidden:hidden,colorMode:data.colorMode};
+    bands:bands,hidden:hidden,undated:undated,colorMode:data.colorMode};
 }
 
 // ===== PREVIEW =====
@@ -578,7 +590,10 @@ function renderPreview(L,data){
     var band=dv(SEC_X,b.y,SEC_W,b.h,b.color,'border-radius:'+p(0.03)+'px;overflow:hidden;');
     var sp=document.createElement('span');
     sp.textContent=b.name;
-    sp.style.cssText='left:50%;top:50%;transform:translate(-50%,-50%) rotate(-90deg);white-space:nowrap;color:#fff;font-size:'+p(0.1)+'px;font-weight:700;';
+    var fs=Math.min(0.1,Math.max(0.068,b.h/4));
+    sp.style.cssText='left:50%;top:50%;width:'+p(Math.max(0.2,b.h-0.06))+'px;'
+      +'transform:translate(-50%,-50%) rotate(-90deg);white-space:normal;text-align:center;'
+      +'line-height:1.05;color:#fff;font-size:'+p(fs)+'px;font-weight:700;';
     band.appendChild(sp);
   });
 
@@ -658,7 +673,9 @@ function generatePPTX(L,data){
 
   (L.bands||[]).forEach(function(b){
     slide.addShape(pptx.shapes.ROUNDED_RECTANGLE,{x:SEC_X,y:b.y,w:SEC_W,h:b.h,fill:{color:b.color},rectRadius:0.03});
-    slide.addText(b.name,{x:SEC_X,y:b.y,w:SEC_W,h:b.h,fontSize:9,fontFace:'Arial',color:'FFFFFF',bold:true,align:'center',valign:'middle',rotate:270});
+    var cx=SEC_X+SEC_W/2, cy=b.y+b.h/2, bw=b.h, bh=SEC_W;
+    slide.addText(b.name,{x:cx-bw/2,y:cy-bh/2,w:bw,h:bh,rotate:270,
+      fontSize:9,fontFace:'Arial',color:'FFFFFF',bold:true,align:'center',valign:'middle'});
   });
 
   for(var i=0;i<=L.nS;i++){
@@ -861,7 +878,7 @@ function updateUI(){
   try{
     currentLayout=computeLayout(currentData);
     renderPreview(currentLayout,currentData);
-    renderHiddenNote(currentLayout.hidden);
+    renderHiddenNote(currentLayout.hidden,currentLayout.undated);
     clearError();
   }
   catch(e){showError('Layout error: '+e.message)}
@@ -869,32 +886,51 @@ function updateUI(){
 
 // Reflect auto-hidden tasks (selected but outside the chosen sprints):
 // tag their table rows and show a graceful summary above the preview.
-function renderHiddenNote(hidden){
-  var hiddenSet={};
-  (hidden||[]).forEach(function(t){hiddenSet[currentData.tasks.indexOf(t)]=true});
+function renderHiddenNote(hidden,undated){
+  hidden=hidden||[]; undated=undated||[];
+  var hset={},uset={};
+  hidden.forEach(function(t){hset[currentData.tasks.indexOf(t)]=true});
+  undated.forEach(function(t){uset[currentData.tasks.indexOf(t)]=true});
   document.querySelectorAll('#task-tbody tr').forEach(function(tr){
     var i=+tr.getAttribute('data-i');
-    var isHidden=!!hiddenSet[i];
-    tr.classList.toggle('offplan',isHidden);
     var name=tr.children[1];
-    var existing=name.querySelector('.tag-offplan');
-    if(isHidden&&!existing){
-      var tag=document.createElement('span');
-      tag.className='tag-offplan';tag.textContent='off-plan';
-      name.appendChild(tag);
-    }else if(!isHidden&&existing){existing.remove()}
+    function tag(cls,txt,on){
+      var ex=name.querySelector('.'+cls);
+      if(on&&!ex){var s=document.createElement('span');s.className=cls;s.textContent=txt;name.appendChild(s)}
+      else if(!on&&ex)ex.remove();
+    }
+    tr.classList.toggle('offplan',!!hset[i]||!!uset[i]);
+    tag('tag-offplan','off-plan',!!hset[i]);
+    tag('tag-nodate','no dates',!!uset[i]);
   });
   var note=document.getElementById('hidden-note');
-  if(hidden&&hidden.length){
-    var names=hidden.map(function(t){return t.name}).join(', ');
-    var many=hidden.length>1;
-    note.textContent=hidden.length+' task'+(many?'s':'')
-      +' fall'+(many?'':'s')+' outside the selected sprints and '+(many?'are':'is')
-      +' hidden from the slide: '+names+'. Widen the sprint range above to show '+(many?'them':'it')+'.';
-    note.classList.remove('hidden');
-  }else{
-    note.classList.add('hidden');
+  note.innerHTML='';
+  function block(items,lead){
+    if(!items.length)return;
+    var wrap=document.createElement('div'); wrap.className='note-block';
+    var ld=document.createElement('div'); ld.className='note-lead'; ld.textContent=lead; wrap.appendChild(ld);
+    var ul=document.createElement('ul'); ul.className='note-list';
+    items.forEach(function(t,idx){
+      var li=document.createElement('li'); li.textContent=t.name;
+      if(idx>=5)li.className='extra hidden';
+      ul.appendChild(li);
+    });
+    wrap.appendChild(ul);
+    if(items.length>5){
+      var extra=items.length-5;
+      var btn=document.createElement('button'); btn.className='link-btn'; btn.textContent='See '+extra+' more';
+      btn.addEventListener('click',function(){
+        var showing=ul.querySelectorAll('li.extra.hidden').length===0;
+        ul.querySelectorAll('li.extra').forEach(function(li){li.classList.toggle('hidden',showing)});
+        btn.textContent=showing?('See '+extra+' more'):'See less';
+      });
+      wrap.appendChild(btn);
+    }
+    note.appendChild(wrap);
   }
+  block(hidden,hidden.length+' task'+(hidden.length>1?'s':'')+' outside the selected sprints \u2014 widen the range to include:');
+  block(undated,undated.length+' task'+(undated.length>1?'s':'')+' with no start/end sprint \u2014 can\u2019t be placed:');
+  note.classList.toggle('hidden', !hidden.length && !undated.length);
 }
 
 function defaultNowDate(data){
