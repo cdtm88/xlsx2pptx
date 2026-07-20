@@ -287,7 +287,7 @@ var STATUS_FILL = {
   'Blocked':     {fill:S.red}
 };
 var DEFAULT_FILL = {fill:C.teal};
-var SINGLE_FILL = {fill:C.teal};
+var SINGLE_FILL = {fill:C.midGrey};
 var MILESTONE_FILL = {fill:S.amber};
 
 var SLIDE_W=13.333, SLIDE_H=7.5, PX=75;
@@ -670,7 +670,7 @@ function renderPreview(L,data){
     dv(nl.x,nl.y1,0,nl.y2-nl.y1,null,
       'border-left:2px solid #'+C.green+';z-index:5;');
     tx(nl.x-0.18,nl.y2+0.01,0.36,0.12,'Today',
-      'justify-content:center;font-size:'+p(0.065)+'px;color:#'+C.green+';font-style:italic;z-index:5;');
+      'justify-content:center;font-size:'+p(0.065)+'px;color:#'+C.charcoal+';font-style:italic;z-index:5;');
   }
 
   dv(L.chart.x,L.chart.y,L.chart.w,L.chart.h,null,'border:1px solid #D0D0D0;pointer-events:none;');
@@ -773,7 +773,7 @@ function generatePPTX(L,data){
     });
     slide.addText('Today',{
       x:nl.x-0.25,y:nl.y2+0.02,w:0.5,h:0.15,
-      fontSize:7,fontFace:'Arial',color:C.green,italic:true,align:'center',valign:'top'
+      fontSize:7,fontFace:'Arial',color:C.charcoal,italic:true,align:'center',valign:'top'
     });
   }
 
@@ -807,7 +807,7 @@ function generatePPTX(L,data){
 function legendFor(mode){
   if(mode==='single'){
     return [
-      {label:'Scheduled',color:C.teal},
+      {label:'Scheduled',color:C.midGrey},
       {label:'Milestone',color:S.amber}
     ];
   }
