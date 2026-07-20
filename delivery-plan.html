@@ -527,19 +527,33 @@ function computeLayout(data){
     });
   }
 
-  // month headers
-  var months=[],curMK=null;
-  vis.forEach(function(s,i){
-    var d=dates[s]; if(!d)return;
-    var mk=d.getFullYear()*12+d.getMonth();
-    if(mk!==curMK){
-      if(months.length)months[months.length-1].w=CHART_L+i*colW-months[months.length-1].x;
-      months.push({name:fmtMonth(d),x:CHART_L+i*colW,w:colW,
-        color:months.length%2===0?C.tealDark:C.teal});
-      curMK=mk;
+  // month headers aligned to real calendar days (month boundaries placed
+  // proportionally within the sprint columns, like the Today line)
+  function dateToX(dt){
+    for(var mi=0;mi<vis.length;mi++){
+      var sd=dates[vis[mi]]; if(!sd)continue;
+      var dur=sprintDur(vis[mi]),end=addDays(sd,dur);
+      if(dt<sd)return CHART_L+mi*colW;
+      if(dt<end)return CHART_L+(mi+(dt-sd)/(dur*864e5))*colW;
     }
-  });
-  if(months.length)months[months.length-1].w=CHART_L+nS*colW-months[months.length-1].x;
+    return CHART_L+vis.length*colW;
+  }
+  var months=[];
+  var mSpanStart=dates[vis[0]];
+  var mLast=vis[vis.length-1], mSpanEnd=dates[mLast]?addDays(dates[mLast],sprintDur(mLast)):null;
+  if(mSpanStart&&mSpanEnd){
+    var mCur=new Date(mSpanStart.getFullYear(),mSpanStart.getMonth(),1),mIdx=0;
+    while(mCur<mSpanEnd){
+      var mNext=new Date(mCur.getFullYear(),mCur.getMonth()+1,1);
+      var segS=mCur<mSpanStart?mSpanStart:mCur, segE=mNext>mSpanEnd?mSpanEnd:mNext;
+      var mx0=dateToX(segS),mw=dateToX(segE)-mx0;
+      var mFull=fmtMonth(mCur);
+      var mShort=mCur.toLocaleDateString('en-GB',{month:'short'})+" '"+String(mCur.getFullYear()).slice(2);
+      var mLabel=mw>=mFull.length*0.072?mFull:(mw>=mShort.length*0.072?mShort:'');
+      months.push({name:mLabel,x:mx0,w:mw,color:mIdx%2===0?C.tealDark:C.teal});
+      mIdx++; mCur=mNext;
+    }
+  }
 
   // sprint headers
   var sHdrs=vis.map(function(s,i){
@@ -625,7 +639,7 @@ function renderPreview(L,data){
 
   L.months.forEach(function(m){
     var d=dv(m.x,MONTH_Y,m.w,MONTH_H,m.color,
-      'display:flex;align-items:center;justify-content:center;color:#fff;font-size:'
+      'display:flex;align-items:center;justify-content:center;color:#fff;overflow:hidden;font-size:'
       +p(0.1)+'px;font-weight:700;');
     d.textContent=m.name;
   });
@@ -713,7 +727,7 @@ function generatePPTX(L,data){
 
   L.months.forEach(function(m){
     slide.addShape(pptx.shapes.RECTANGLE,{x:m.x,y:MONTH_Y,w:m.w,h:MONTH_H,fill:{color:m.color}});
-    slide.addText(m.name,{
+    if(m.name)slide.addText(m.name,{
       x:m.x,y:MONTH_Y,w:m.w,h:MONTH_H,
       fontSize:10,fontFace:'Arial',color:C.white,bold:true,align:'center',valign:'middle'
     });
