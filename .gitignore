@@ -1,0 +1,17 @@
+# Node — installed transiently only for local Playwright testing, never shipped
+node_modules/
+package.json
+package-lock.json
+npm-debug.log*
+
+# Transient test scripts and generated outputs (the app itself is delivery-plan.html)
+/*.mjs
+/index_test.html
+/*.pptx
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+*.swp
+.vscode/
+.idea/
