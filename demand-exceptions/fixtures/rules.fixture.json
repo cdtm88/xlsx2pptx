@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-07-21T09:00:00Z",
+  "label": "ART1 Sample Delivery Services FY26/27 (test fixture)",
+  "staff": {
+    "S100101": {
+      "name": "Alice T",
+      "approvedDemands": ["PVE9001001", "PVE9001002", "PVE9001003"]
+    },
+    "S100202": {
+      "name": "Priya R",
+      "approvedDemands": ["PVE9001001", "PVE9001003"]
+    },
+    "S100303": {
+      "name": "Marcus L",
+      "approvedDemands": ["PVE9001001", "PVE9001002", "PVE9001003"]
+    },
+    "S100404": {
+      "name": "Steve D",
+      "approvedDemands": ["PVE9001001", "PVE9001003"]
+    }
+  }
+}
