@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light only">
-<title>waqti-exceptions</title>
+<title>Waqti Exceptions</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMiIgaGVpZ2h0PSIzMiIgdmlld0JveD0iMCAwIDMyIDMyIj48cmVjdCB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHJ4PSI3IiBmaWxsPSIjMDBBOUNFIi8+PHBhdGggZD0iTTkgMTYuNSBsNCA0IEwyMyAxMSIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjMiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPjwvc3ZnPg==">
 <style>
   :root{
@@ -17,15 +17,14 @@
     color-scheme: light only;
   }
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  html{overflow-y:scroll}                       /* keep a constant scrollbar gutter so views do not shift */
   body{font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;
     background:var(--bg);color:var(--charcoal);line-height:1.5;-webkit-font-smoothing:antialiased}
 
   /* Header */
   .app-header{background:var(--card);border-bottom:1px solid var(--line);padding:1rem 0}
   .app-header .inner{max-width:1120px;margin:0 auto;padding:0 2rem;display:flex;align-items:center;gap:.9rem}
-  .wordmark{font-weight:800;font-size:1.25rem;color:var(--teal-dark);letter-spacing:-.02em;line-height:1}
-  .logo-div{width:1px;height:30px;background:var(--line)}
-  .app-header h1{font-size:1.02rem;color:var(--slate);font-weight:700;letter-spacing:-.01em}
+  .app-header h1{font-size:1.15rem;color:var(--slate);font-weight:800;letter-spacing:-.01em}
   .app-header p{font-size:.78rem;color:var(--mid);margin-top:.1rem}
   .app-header .spacer{flex:1}
   .ver{font-size:.66rem;font-weight:700;color:var(--teal-dark);background:var(--teal-tint);border:1px solid #BFE8F2;padding:.15rem .5rem;border-radius:20px;letter-spacing:.02em}
@@ -84,15 +83,18 @@
 
   /* Tables */
   .table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px}
+  #exceptionsWrap.table-wrap{max-height:340px;overflow-y:auto}
   table.data{width:100%;border-collapse:collapse;font-size:.85rem;background:#fff}
-  #exceptionsWrap.table-wrap{max-height:320px;overflow-y:auto}
   table.data thead th{background:var(--teal-dark);color:#fff;padding:.6rem .85rem;text-align:left;font-weight:700;font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;position:sticky;top:0;z-index:1}
   table.data thead th.num{text-align:right}
+  table.data thead th.chk,table.data td.chk{width:56px;text-align:center;padding-left:.4rem;padding-right:.4rem}
   table.data td{padding:.55rem .85rem;border-bottom:1px solid var(--line-soft);color:var(--charcoal)}
   table.data tbody tr:nth-child(even) td{background:var(--light-grey)}
   table.data tbody tr:last-child td{border-bottom:none}
+  table.data tbody tr.excluded td:not(.chk){opacity:.38;text-decoration:line-through}
   table.data td.num{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
   table.data .sid{color:var(--mid);font-size:.74rem;font-weight:500}
+  table.data input[type=checkbox]{accent-color:var(--teal);width:16px;height:16px;cursor:pointer}
 
   /* Rules grid */
   .grid-scroll{overflow:auto;max-height:420px;border:1px solid var(--line);border-radius:10px}
@@ -119,16 +121,17 @@
   .copymsg.fail{color:#A8321F}
   .rich-frame{border:1px solid var(--line);border-radius:10px;padding:1rem;background:#fff;overflow-x:auto;max-height:460px;overflow-y:auto}
   .hidden{display:none!important}
-  .app-footer{max-width:1120px;margin:.5rem auto 2rem;padding:0 2rem;text-align:center;font-size:.76rem;color:var(--mid)}
+  .app-footer{max-width:1120px;margin:.5rem auto 2rem;padding:0 2rem;text-align:center;font-size:.78rem;color:var(--mid)}
   .stack-2{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
   @media (max-width:760px){.stack-2{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
+<script type="application/json" id="embeddedRules"></script>
 <header class="app-header">
   <div class="inner">
     <div>
-      <h1>waqti-exceptions</h1>
+      <h1>Waqti Exceptions</h1>
       <p>Timesheet bookings made against demands a person is not approved for</p>
     </div>
     <div class="spacer"></div>
@@ -153,7 +156,7 @@
     <div id="parseStatus" style="margin-top:.8rem;"></div>
 
     <div id="mapper" class="hidden" style="margin-top:1rem;">
-      <div class="section-label" style="font-size:.74rem;font-weight:700;color:var(--slate);margin-bottom:.4rem;">Map the required columns</div>
+      <div style="font-size:.74rem;font-weight:700;color:var(--slate);margin-bottom:.4rem;">Map the required columns</div>
       <p class="sub">Not all expected headers were found. Match each field to a column, then confirm. Recharge Cost is optional.</p>
       <div id="mapperFields" style="margin-top:.5rem;"></div>
       <div class="controls-row" style="margin-top:.7rem;"><button type="button" class="btn btn-primary" id="mapperConfirm">Confirm mapping</button></div>
@@ -171,6 +174,7 @@
     <div class="kpi-row" id="statsWrap"></div>
     <div id="clearWrap"></div>
     <div class="table-wrap" id="exceptionsWrap"></div>
+    <p class="sub hidden" id="excludeHint" style="margin-top:.5rem;">Untick a row to leave it out of the email. It stays in the totals above.</p>
     <div id="unmatchedWrap"></div>
     <div id="dqWrap"></div>
     <div class="note" id="limitNote"><strong>Known limitation.</strong> No time-bounded approvals in this version. Someone who legitimately moved onto a demand mid-month shows false exceptions for the earlier period, and someone who left a demand shows none after they left. Treat the output as month-level only.</div>
@@ -184,16 +188,8 @@
         <button type="button" id="segPlain">Plain text</button>
       </div>
     </div>
-    <div class="stack-2">
-      <div><label class="field" for="periodInput">Period</label><input type="text" id="periodInput"></div>
-      <div><label class="field" for="deadlineInput">Deadline</label><input type="date" id="deadlineInput"></div>
-    </div>
-    <label class="field" for="introInput">Opening line</label>
-    <textarea id="introInput" rows="2"></textarea>
-    <label class="field" for="closingInput">Closing action (use {deadline} where the date should go)</label>
-    <textarea id="closingInput" rows="2"></textarea>
-
-    <div style="margin-top:1rem;">
+    <p class="sub" style="margin:-.4rem 0 .8rem;">Wording, period and deadline are edited in <button type="button" class="mini-btn" id="openSettingsBtn2">Settings</button>.</p>
+    <div>
       <textarea id="plainArea" class="mono hidden" rows="15" readonly aria-label="Plain text email body"></textarea>
       <div class="rich-frame" id="richPreview" aria-label="Rich email preview"></div>
     </div>
@@ -220,7 +216,9 @@
       <input type="file" id="importInput" accept=".json,application/json" class="hidden">
       <button type="button" class="btn btn-ghost" id="exportBtn">Export rules</button>
       <button type="button" class="btn btn-ghost" id="templateBtn">Download template</button>
+      <button type="button" class="btn btn-ghost" id="bakeBtn">Save tool with rules</button>
     </div>
+    <p class="sub" id="bakeMsg" style="margin:.2rem 0 .4rem;"></p>
 
     <p class="sub" id="gridHint" style="margin:.6rem 0;">Load an export to see the staff-by-demand grid. Tick a cell to approve that person for that demand.</p>
     <div class="grid-scroll" id="gridWrap"></div>
@@ -234,9 +232,20 @@
     </div>
     <div id="jsonError" class="err hidden"></div>
   </section>
+
+  <section class="card">
+    <div class="card-head"><span class="title">Email text</span><span class="sub">Wording used in both email flavours.</span></div>
+    <div class="stack-2">
+      <div><label class="field" for="periodInput">Period</label><input type="text" id="periodInput"></div>
+      <div><label class="field" for="deadlineInput">Deadline</label><input type="date" id="deadlineInput"></div>
+    </div>
+    <label class="field" for="introInput">Opening line</label>
+    <textarea id="introInput" rows="2"></textarea>
+    <label class="field" for="closingInput">Closing action (use {deadline} where the date should go)</label>
+    <textarea id="closingInput" rows="2"></textarea>
+  </section>
 </div>
 
-<p class="app-footer" style="margin-bottom:.4rem;">Runs entirely in your browser. No file you load ever leaves this machine. Rules autosave to this browser only; the exported rules.json is the real source of truth.</p>
 <footer class="app-footer">Dreamt up by Christian, built with Claude &mdash; a human + AI double act 🤝</footer>
 <script>/*! SheetJS xlsx 0.18.5 (mini build — xlsx read only) vendored inline for offline use */
 /*! xlsx.js (C) 2013-present SheetJS -- http://sheetjs.com */
@@ -411,7 +420,8 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
   }
 
   // buildEmail(result, options) -> { text, html, nameSimplified }
-  // Columns: Staff name, Feature name, Hours booked (matching the exceptions table).
+  // The table is split by demand: each demand is a subtitle over a
+  // Staff / Feature / Hours table for that demand's exception rows.
   function buildEmail(result, options) {
     options = options || {};
     var period = options.period || (result.period && result.period.label) || "";
@@ -420,24 +430,39 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
     var closing = (options.closing || "Please correct these in the timesheet system by {deadline}.").replace(/\{deadline\}/g, deadline);
     var ex = result.exceptions || [];
     var total = fmtHrs(result.stats ? result.stats.exceptionHours : 0);
-    var people = ex.length;
+    var people = result.stats ? result.stats.staffAffected : ex.length;
     var nameSimplified = false;
 
-    var rows = [];
+    // flatten to rows carrying their demand, then group by demand code
+    var byDemand = {};
     ex.forEach(function (g) {
       g.lines.forEach(function (l) {
-        rows.push({ name: g.name || g.staffId, staffId: g.staffId, feature: l.featureDesc || l.featureCode, hours: l.hours });
+        var d = byDemand[l.demandCode];
+        if (!d) { d = byDemand[l.demandCode] = { code: l.demandCode, desc: l.demandDesc || "", rows: [], hours: 0 }; }
+        if (!d.desc && l.demandDesc) d.desc = l.demandDesc;
+        d.rows.push({ name: g.name || g.staffId, staffId: g.staffId, feature: l.featureDesc || l.featureCode, hours: l.hours });
+        d.hours += l.hours;
+      });
+    });
+    var demands = Object.keys(byDemand).map(function (k) { return byDemand[k]; });
+    demands.sort(function (a, b) { if (b.hours !== a.hours) return b.hours - a.hours; return a.code < b.code ? -1 : (a.code > b.code ? 1 : 0); });
+    demands.forEach(function (d) {
+      d.rows.sort(function (a, b) { if (a.name !== b.name) return a.name < b.name ? -1 : 1; return a.feature < b.feature ? -1 : (a.feature > b.feature ? 1 : 0); });
+    });
+
+    // global column widths for aligned plain text
+    var wName = "Staff".length, wFeat = "Feature".length, wH = "Hours".length;
+    demands.forEach(function (d) {
+      d.rows.forEach(function (r) {
+        var n = toWin1252(r.name), f = toWin1252(r.feature);
+        if (n.changed || f.changed) nameSimplified = true;
+        wName = Math.max(wName, n.text.length);
+        wFeat = Math.max(wFeat, f.text.length);
+        wH = Math.max(wH, (fmtHrs(r.hours) + " hrs").length);
       });
     });
 
-    // ---- plain text (3 aligned columns) ----
-    var pRows = rows.map(function (r) {
-      var n = toWin1252(r.name); if (n.changed) nameSimplified = true;
-      var f = toWin1252(r.feature); if (f.changed) nameSimplified = true;
-      return { name: n.text, feature: f.text, hours: fmtHrs(r.hours) + " hrs" };
-    });
-    var wName = "Staff".length, wFeat = "Feature".length, wH = "Hours".length;
-    pRows.forEach(function (r) { wName = Math.max(wName, r.name.length); wFeat = Math.max(wFeat, r.feature.length); wH = Math.max(wH, r.hours.length); });
+    // ---- plain text ----
     var L = [];
     L.push("Timesheet corrections needed: " + period);
     L.push("");
@@ -445,10 +470,17 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
     L.push("");
     L.push("Total to correct: " + total + " hours across " + people + (people === 1 ? " person." : " people."));
     L.push("");
-    L.push(pad("Staff", wName) + "  " + pad("Feature", wFeat) + "  " + padStart("Hours", wH));
-    L.push(rep("-", wName) + "  " + rep("-", wFeat) + "  " + rep("-", wH));
-    pRows.forEach(function (r) { L.push(pad(r.name, wName) + "  " + pad(r.feature, wFeat) + "  " + padStart(r.hours, wH)); });
-    L.push("");
+    demands.forEach(function (d) {
+      var dt = toWin1252(d.code + (d.desc ? " - " + d.desc : "")); if (dt.changed) nameSimplified = true;
+      L.push(dt.text);
+      L.push(pad("Staff", wName) + "  " + pad("Feature", wFeat) + "  " + padStart("Hours", wH));
+      L.push(rep("-", wName) + "  " + rep("-", wFeat) + "  " + rep("-", wH));
+      d.rows.forEach(function (r) {
+        var n = toWin1252(r.name).text, f = toWin1252(r.feature).text;
+        L.push(pad(n, wName) + "  " + pad(f, wFeat) + "  " + padStart(fmtHrs(r.hours) + " hrs", wH));
+      });
+      L.push("");
+    });
     L.push(closing);
     var safe = toWin1252(L.join("\n"));
     if (safe.changed) nameSimplified = true;
@@ -464,13 +496,16 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
     h.push('<p style="background:#ffffff;color:#007A99;margin:0 0 10px;font-weight:bold;font-size:15px;">Timesheet corrections needed: ' + escHtml(period) + '</p>');
     h.push('<p style="background:#ffffff;color:#1a1a1a;margin:0 0 10px;">' + escHtml(intro).replace(/\n/g, "<br>") + '</p>');
     h.push('<p style="background:#ffffff;color:#1a1a1a;margin:0 0 14px;">Total to correct: <strong>' + escHtml(total) + ' hours</strong> across ' + people + (people === 1 ? " person." : " people.") + '</p>');
-    h.push('<table role="presentation" cellspacing="0" cellpadding="0" style="border-collapse:collapse;background:#ffffff;width:100%;">');
-    h.push('<tr><th style="' + th + '">Staff</th><th style="' + th + '">Feature</th><th style="' + thR + '">Hours</th></tr>');
-    rows.forEach(function (r, i) {
-      var c = (i % 2 === 1) ? tdA : td;
-      h.push('<tr><td style="' + c + '">' + escHtml(r.name) + '</td><td style="' + c + '">' + escHtml(r.feature) + '</td><td style="' + c + 'text-align:right;font-weight:bold;">' + escHtml(fmtHrs(r.hours)) + ' hrs</td></tr>');
+    demands.forEach(function (d) {
+      h.push('<p style="background:#ffffff;color:#007A99;margin:16px 0 6px;font-weight:bold;font-size:13.5px;">' + escHtml(d.code + (d.desc ? " - " + d.desc : "")) + '</p>');
+      h.push('<table role="presentation" cellspacing="0" cellpadding="0" style="border-collapse:collapse;background:#ffffff;width:100%;">');
+      h.push('<tr><th style="' + th + '">Staff</th><th style="' + th + '">Feature</th><th style="' + thR + '">Hours</th></tr>');
+      d.rows.forEach(function (r, i) {
+        var c = (i % 2 === 1) ? tdA : td;
+        h.push('<tr><td style="' + c + '">' + escHtml(r.name) + '</td><td style="' + c + '">' + escHtml(r.feature) + '</td><td style="' + c + 'text-align:right;font-weight:bold;">' + escHtml(fmtHrs(r.hours)) + ' hrs</td></tr>');
+      });
+      h.push('</table>');
     });
-    h.push('</table>');
     h.push('<p style="background:#ffffff;color:#1a1a1a;margin:14px 0 0;">' + escHtml(closing) + '</p>');
     h.push('</div>');
 
@@ -538,7 +573,7 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
 (function () {
   "use strict";
 
-  var VERSION = "v1.2.1";
+  var VERSION = "v1.3.0";
   var LS_KEY = "waqti-exceptions:v1";
   var $ = function (id) { return document.getElementById(id); };
   $("version").textContent = VERSION;
@@ -554,14 +589,16 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
     buffer: null, fileName: "", mapping: null, parsed: null,
     rules: { label: "", staff: {}, generatedAt: null },
     source: "none", loadedAt: null,
-    lastResult: null, lastEmail: null, emailMode: "plain"
+    lastResult: null, lastEmail: null, emailMode: "plain", excluded: {}
   };
+  function keyOf(staffId, l) { return staffId + " " + l.demandCode + " " + l.featureCode; }
 
   /* ---------- view switching ---------- */
   function goSettings() { hide($("view-main")); show($("view-settings")); hide($("navSettings")); show($("navDone")); window.scrollTo(0, 0); }
   function goMain() { show($("view-main")); hide($("view-settings")); show($("navSettings")); hide($("navDone")); window.scrollTo(0, 0); }
   $("navSettings").addEventListener("click", goSettings);
   $("openSettingsBtn").addEventListener("click", goSettings);
+  $("openSettingsBtn2").addEventListener("click", goSettings);
   $("navDone").addEventListener("click", goMain);
 
   /* ---------- persistence ---------- */
@@ -602,7 +639,7 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
     catch (e) { showParseError("Could not parse " + state.fileName + ": " + e.message + "\nPreviously loaded data is unchanged."); return; }
     if (result.needsMapping) { renderMapper(result); return; }
     hide($("mapper"));
-    state.parsed = result; state.mapping = mapping;
+    state.parsed = result; state.mapping = mapping; state.excluded = {};
     $("fileNameSub").textContent = state.fileName;
     renderParseStatus();
     renderRules(true);
@@ -662,6 +699,7 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
     var srcTxt;
     if (state.source === "import") srcTxt = "Active rules: imported file" + (when ? ", loaded " + when : "") + ". The imported file wins over any autosave.";
     else if (state.source === "autosave") srcTxt = "Active rules: restored from this browser's autosave" + (when ? " (" + when + ")" : "") + ". Import a rules.json to override.";
+    else if (state.source === "file") srcTxt = "Active rules: baked into this HTML file. Edits autosave to this browser and can be re-baked with Save tool with rules.";
     else if (state.source === "edited") srcTxt = "Active rules: edited in this session, autosaved to this browser.";
     else srcTxt = "No rules loaded yet. Import a rules.json, edit the grid, or download a template.";
     $("rulesSource").textContent = srcTxt;
@@ -782,18 +820,29 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
 
     if (s.exceptionLineCount === 0) {
       $("clearWrap").innerHTML = '<div class="panel clear"><strong>All clear.</strong> No bookings against unapproved demands for staff in the rules. The copy button is disabled because there is nothing to send.</div>';
-      $("exceptionsWrap").innerHTML = ""; $("exceptionsWrap").className = "";
+      $("exceptionsWrap").innerHTML = ""; $("exceptionsWrap").className = ""; hide($("excludeHint"));
     } else {
       $("clearWrap").innerHTML = "";
       $("exceptionsWrap").className = "table-wrap";
-      var html = '<table class="data"><thead><tr><th>Staff name</th><th>Feature name</th><th class="num">Hours booked</th></tr></thead><tbody>';
+      var html = '<table class="data"><thead><tr><th class="chk">Send</th><th>Staff name</th><th>Feature name</th><th class="num">Hours booked</th></tr></thead><tbody>';
       result.exceptions.forEach(function (g) {
         g.lines.forEach(function (l) {
-          html += "<tr><td><strong>" + esc(g.name || g.staffId) + '</strong> <span class="sid">' + esc(g.staffId) + "</span></td><td>" + esc(l.featureDesc || l.featureCode) + '</td><td class="num">' + l.hours.toFixed(1) + "</td></tr>";
+          var key = keyOf(g.staffId, l), off = !!state.excluded[key];
+          html += '<tr class="' + (off ? "excluded" : "") + '"><td class="chk"><input type="checkbox" data-key="' + esc(key) + '"' + (off ? "" : " checked") + ' aria-label="Include this row in the email"></td>' +
+            "<td><strong>" + esc(g.name || g.staffId) + '</strong> <span class="sid">' + esc(g.staffId) + "</span></td><td>" + esc(l.featureDesc || l.featureCode) + '</td><td class="num">' + l.hours.toFixed(1) + "</td></tr>";
         });
       });
       html += "</tbody></table>";
       $("exceptionsWrap").innerHTML = html;
+      show($("excludeHint"));
+      $("exceptionsWrap").querySelectorAll('input[type=checkbox]').forEach(function (cb) {
+        cb.addEventListener("change", function () {
+          var k = cb.getAttribute("data-key");
+          if (cb.checked) delete state.excluded[k]; else state.excluded[k] = 1;
+          var tr = cb.closest("tr"); if (tr) tr.classList.toggle("excluded", !cb.checked);
+          renderEmail();
+        });
+      });
     }
 
     if (result.unmatchedStaff.length) {
@@ -850,17 +899,33 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
     renderEmail();
   }
   function currentOptions() { return { period: $("periodInput").value, deadline: fmtDeadline($("deadlineInput").value), intro: $("introInput").value, closing: $("closingInput").value }; }
+  // exceptions minus the rows the user unticked, with totals recomputed for the email
+  function includedResult() {
+    var base = state.lastResult; if (!base) return null;
+    var exc = base.exceptions.map(function (g) {
+      var lines = g.lines.filter(function (l) { return !state.excluded[keyOf(g.staffId, l)]; });
+      return { staffId: g.staffId, name: g.name, lines: lines };
+    }).filter(function (g) { return g.lines.length > 0; });
+    var hours = 0, staffSet = {}, lc = 0;
+    exc.forEach(function (g) { staffSet[g.staffId] = 1; g.lines.forEach(function (l) { hours += l.hours; lc++; }); });
+    return { exceptions: exc, period: base.period, stats: { exceptionHours: Math.round(hours * 100) / 100, staffAffected: Object.keys(staffSet).length, exceptionLineCount: lc } };
+  }
   function renderEmail() {
-    var hasEx = state.lastResult && state.lastResult.stats.exceptionLineCount > 0;
-    if (!state.lastResult) {
+    var inc = includedResult();
+    if (!inc) {
       $("plainArea").value = ""; $("richPreview").innerHTML = '<span class="sub">Load an export and set up rules to build the email.</span>';
-      $("copyBtn").disabled = true; $("nameNote").textContent = ""; return;
+      $("copyBtn").disabled = true; $("nameNote").textContent = ""; state.lastEmail = null; return;
     }
-    var email = buildEmail(state.lastResult, currentOptions());
+    if (inc.stats.exceptionLineCount === 0) {
+      var msg = (state.lastResult && state.lastResult.stats.exceptionLineCount > 0) ? "Every exception row is unticked, so there is nothing to send." : "No exceptions to email.";
+      $("plainArea").value = msg; $("richPreview").innerHTML = '<span class="sub">' + esc(msg) + "</span>";
+      $("copyBtn").disabled = true; $("nameNote").textContent = ""; state.lastEmail = null; return;
+    }
+    var email = buildEmail(inc, currentOptions());
     state.lastEmail = email;
     $("plainArea").value = email.text;
     $("richPreview").innerHTML = email.html;
-    $("copyBtn").disabled = !hasEx;
+    $("copyBtn").disabled = false;
     $("nameNote").textContent = email.nameSimplified ? "Note: at least one name or feature label contained a character outside Windows-1252 and was simplified for the plain-text copy." : "";
   }
   ["periodInput", "introInput", "closingInput"].forEach(function (id) { $(id).addEventListener("input", renderEmail); });
@@ -910,8 +975,38 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
   drop.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); $("fileInput").click(); } });
   $("fileInput").addEventListener("change", function (ev) { var f = ev.target.files && ev.target.files[0]; if (f) readFile(f); ev.target.value = ""; });
 
+  /* ---------- embedded rules (baked into the file) ---------- */
+  function loadEmbedded() {
+    try {
+      var el = document.getElementById("embeddedRules");
+      if (!el) return false;
+      var txt = (el.textContent || "").trim();
+      if (!txt || txt === "{}") return false;
+      var parsed = parseRules(txt);
+      state.rules = { label: parsed.label, staff: parsed.staff, generatedAt: parsed.generatedAt };
+      state.source = "file"; state.loadedAt = null;
+      return true;
+    } catch (e) { return false; }
+  }
+  function bakeTool() {
+    var el = document.getElementById("embeddedRules");
+    var prevEmbed = el.textContent;
+    el.textContent = serialiseRules(state.rules).replace(/</g, "\\u003c");
+    // clear heavy dynamic regions so the saved copy is lean; restored right after
+    var clearIds = ["exceptionsWrap", "richPreview", "gridWrap", "extrasWrap", "unmatchedWrap", "dqWrap", "parseStatus", "banner", "statsWrap", "clearWrap", "fallbackWrap", "mapperFields"];
+    var saved = {};
+    clearIds.forEach(function (id) { var n = $(id); saved[id] = n.innerHTML; n.innerHTML = ""; });
+    var html = "<!doctype html>\n" + document.documentElement.outerHTML;
+    el.textContent = prevEmbed;
+    clearIds.forEach(function (id) { $(id).innerHTML = saved[id]; });
+    download("waqti-exceptions.html", html, "text/html");
+    var m = $("bakeMsg"); m.textContent = "Saved a copy of the tool with your current rules baked in. Open that file to start pre-configured."; setTimeout(function () { if (m.textContent) m.textContent = ""; }, 7000);
+  }
+  $("bakeBtn").addEventListener("click", bakeTool);
+
   /* ---------- init ---------- */
   loadLocal();
+  if (rulesEmpty()) loadEmbedded();
   setMode("rich");
   renderRules(true);
   renderPreview();
