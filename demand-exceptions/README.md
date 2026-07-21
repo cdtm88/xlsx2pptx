@@ -5,14 +5,14 @@ file that takes a timesheet export plus a per-person approved-demand allowlist a
 a copy-paste email listing every booking made against a demand the person is not approved
 for.
 
-The tool is built and lives at the repo root as **`../waqt-exceptions.html`**. This folder
+The tool is built and lives at the repo root as **`../waqti-exceptions.html`**. This folder
 holds the reviewed brief, the review, and the verified test data the tool is checked
 against. It follows the same single-file, inline-vendored, fully-offline pattern as
 `../delivery-plan.html` in this repo.
 
 ## Verifying the build
 
-Open `../waqt-exceptions.html` directly from disk (works over `file://`, offline). Drop a
+Open `../waqti-exceptions.html` directly from disk (works over `file://`, offline). Drop a
 fixture from `fixtures/`, import `fixtures/rules.fixture.json`, and compare against
 `fixtures/EXPECTED.md`. Both fixtures were run through the built tool's `parseExport` /
 `applyRules` / `buildEmail` functions and reproduce `EXPECTED.md` exactly, with zero
