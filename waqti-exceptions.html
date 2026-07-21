@@ -362,7 +362,7 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
       if (approved.indexOf(b.demandCode) !== -1) return;
       if (!groups[b.staffId]) groups[b.staffId] = { staffId: b.staffId, name: staff[b.staffId].name || "", totalHours: 0, lines: {} };
       var g = groups[b.staffId];
-      var key = b.demandCode + " " + b.featureCode;
+      var key = b.demandCode + "\u0000" + b.featureCode;
       var line = g.lines[key];
       if (!line) { line = { demandCode: b.demandCode, demandDesc: b.demandDesc, featureCode: b.featureCode, featureDesc: b.featureDesc, hours: 0, lineCount: 0, earliestDay: b.workDay, latestDay: b.workDay, _min: dayVal(b.workDay), _max: dayVal(b.workDay) }; g.lines[key] = line; }
       if (b.hours !== null) { line.hours += b.hours; g.totalHours += b.hours; }
@@ -573,7 +573,7 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
 (function () {
   "use strict";
 
-  var VERSION = "v1.3.0";
+  var VERSION = "v1.3.1";
   var LS_KEY = "waqti-exceptions:v1";
   var $ = function (id) { return document.getElementById(id); };
   $("version").textContent = VERSION;
@@ -589,9 +589,9 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
     buffer: null, fileName: "", mapping: null, parsed: null,
     rules: { label: "", staff: {}, generatedAt: null },
     source: "none", loadedAt: null,
-    lastResult: null, lastEmail: null, emailMode: "plain", excluded: {}
+    lastResult: null, lastEmail: null, emailMode: "plain", excluded: {}, lineKeys: []
   };
-  function keyOf(staffId, l) { return staffId + " " + l.demandCode + " " + l.featureCode; }
+  function keyOf(staffId, l) { return staffId + "\u0000" + l.demandCode + "\u0000" + l.featureCode; }
 
   /* ---------- view switching ---------- */
   function goSettings() { hide($("view-main")); show($("view-settings")); hide($("navSettings")); show($("navDone")); window.scrollTo(0, 0); }
@@ -824,12 +824,16 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
     } else {
       $("clearWrap").innerHTML = "";
       $("exceptionsWrap").className = "table-wrap";
+      state.lineKeys = [];
+      var idx = 0;
       var html = '<table class="data"><thead><tr><th class="chk">Send</th><th>Staff name</th><th>Feature name</th><th class="num">Hours booked</th></tr></thead><tbody>';
       result.exceptions.forEach(function (g) {
         g.lines.forEach(function (l) {
           var key = keyOf(g.staffId, l), off = !!state.excluded[key];
-          html += '<tr class="' + (off ? "excluded" : "") + '"><td class="chk"><input type="checkbox" data-key="' + esc(key) + '"' + (off ? "" : " checked") + ' aria-label="Include this row in the email"></td>' +
+          state.lineKeys.push(key);
+          html += '<tr class="' + (off ? "excluded" : "") + '"><td class="chk"><input type="checkbox" data-idx="' + idx + '"' + (off ? "" : " checked") + ' aria-label="Include this row in the email"></td>' +
             "<td><strong>" + esc(g.name || g.staffId) + '</strong> <span class="sid">' + esc(g.staffId) + "</span></td><td>" + esc(l.featureDesc || l.featureCode) + '</td><td class="num">' + l.hours.toFixed(1) + "</td></tr>";
+          idx++;
         });
       });
       html += "</tbody></table>";
@@ -837,7 +841,7 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
       show($("excludeHint"));
       $("exceptionsWrap").querySelectorAll('input[type=checkbox]').forEach(function (cb) {
         cb.addEventListener("change", function () {
-          var k = cb.getAttribute("data-key");
+          var k = state.lineKeys[+cb.getAttribute("data-idx")];
           if (cb.checked) delete state.excluded[k]; else state.excluded[k] = 1;
           var tr = cb.closest("tr"); if (tr) tr.classList.toggle("excluded", !cb.checked);
           renderEmail();
@@ -1007,6 +1011,7 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
   /* ---------- init ---------- */
   loadLocal();
   if (rulesEmpty()) loadEmbedded();
+  goMain();               // always open on the app view, even if the file was baked from Settings
   setMode("rich");
   renderRules(true);
   renderPreview();
