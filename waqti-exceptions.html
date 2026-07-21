@@ -83,7 +83,8 @@
   /* Tables */
   .table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px}
   table.data{width:100%;border-collapse:collapse;font-size:.85rem;background:#fff}
-  table.data thead th{background:var(--teal-dark);color:#fff;padding:.6rem .85rem;text-align:left;font-weight:700;font-size:.72rem;text-transform:uppercase;letter-spacing:.04em}
+  #exceptionsWrap.table-wrap{max-height:320px;overflow-y:auto}
+  table.data thead th{background:var(--teal-dark);color:#fff;padding:.6rem .85rem;text-align:left;font-weight:700;font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;position:sticky;top:0;z-index:1}
   table.data thead th.num{text-align:right}
   table.data td{padding:.55rem .85rem;border-bottom:1px solid var(--line-soft);color:var(--charcoal)}
   table.data tbody tr:nth-child(even) td{background:var(--light-grey)}
@@ -124,8 +125,6 @@
 <body>
 <header class="app-header">
   <div class="inner">
-    <span class="wordmark">dnata</span>
-    <div class="logo-div"></div>
     <div>
       <h1>waqti-exceptions</h1>
       <p>Timesheet bookings made against demands a person is not approved for</p>
@@ -179,13 +178,13 @@
     <div class="card-head">
       <span class="title">Email</span>
       <div class="seg" role="group" aria-label="Email format">
-        <button type="button" id="segPlain" class="active">Plain text</button>
-        <button type="button" id="segRich">Rich HTML</button>
+        <button type="button" id="segRich" class="active">Rich HTML</button>
+        <button type="button" id="segPlain">Plain text</button>
       </div>
     </div>
     <div class="stack-2">
       <div><label class="field" for="periodInput">Period</label><input type="text" id="periodInput"></div>
-      <div><label class="field" for="deadlineInput">Deadline</label><input type="text" id="deadlineInput" value="Friday 31 July"></div>
+      <div><label class="field" for="deadlineInput">Deadline</label><input type="date" id="deadlineInput"></div>
     </div>
     <label class="field" for="introInput">Opening line</label>
     <textarea id="introInput" rows="2"></textarea>
@@ -193,11 +192,11 @@
     <textarea id="closingInput" rows="2"></textarea>
 
     <div style="margin-top:1rem;">
-      <textarea id="plainArea" class="mono" rows="15" readonly aria-label="Plain text email body"></textarea>
-      <div class="rich-frame hidden" id="richPreview" aria-label="Rich email preview"></div>
+      <textarea id="plainArea" class="mono hidden" rows="15" readonly aria-label="Plain text email body"></textarea>
+      <div class="rich-frame" id="richPreview" aria-label="Rich email preview"></div>
     </div>
     <div class="controls-row" style="margin-top:.8rem;">
-      <button type="button" class="btn btn-primary" id="copyBtn">Copy plain text</button>
+      <button type="button" class="btn btn-primary" id="copyBtn">Copy rich email</button>
       <span class="copymsg" id="copyMsg" aria-live="polite"></span>
     </div>
     <div id="fallbackWrap"></div>
@@ -536,7 +535,7 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
 (function () {
   "use strict";
 
-  var VERSION = "v1.1.0";
+  var VERSION = "v1.2.0";
   var LS_KEY = "waqti-exceptions:v1";
   var $ = function (id) { return document.getElementById(id); };
   $("version").textContent = VERSION;
@@ -803,14 +802,51 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
     } else $("dqWrap").innerHTML = "";
   }
 
+  /* ---------- deadline: date picker defaulting to last working day of the month ---------- */
+  var deadlineUserSet = false;
+  var MONTHS3 = { jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11 };
+  var WD = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  var MO = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  function pad2(n) { return (n < 10 ? "0" : "") + n; }
+  function toYMD(d) { return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate()); }
+  function lastWorkingDay(year, month) {
+    var d = new Date(year, month + 1, 0); // last calendar day of the month
+    while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() - 1);
+    return d;
+  }
+  function periodToYM(label) {
+    if (!label) return null;
+    var parts = label.split(",").map(function (s) { return s.trim(); });
+    var last = parts[parts.length - 1];
+    var m = /^([A-Za-z]{3,})[ -](\d{2,4})$/.exec(last);
+    if (!m) return null;
+    var mi = MONTHS3[m[1].slice(0, 3).toLowerCase()];
+    if (mi === undefined) return null;
+    var yy = parseInt(m[2], 10);
+    return { year: yy < 100 ? 2000 + yy : yy, month: mi };
+  }
+  function fmtDeadline(ymd) {
+    if (!ymd) return "";
+    var p = ymd.split("-"); if (p.length !== 3) return ymd;
+    var d = new Date(parseInt(p[0], 10), parseInt(p[1], 10) - 1, parseInt(p[2], 10));
+    if (isNaN(d.getTime())) return ymd;
+    return WD[d.getDay()] + " " + d.getDate() + " " + MO[d.getMonth()];
+  }
+  function defaultDeadline() {
+    var ym = state.parsed && state.parsed.period ? periodToYM(state.parsed.period.label) : null;
+    if (!ym) { var now = new Date(); ym = { year: now.getFullYear(), month: now.getMonth() }; }
+    return toYMD(lastWorkingDay(ym.year, ym.month));
+  }
+
   /* ---------- email ---------- */
   function renderEmailControls() {
     if (state.parsed && state.parsed.period && !$("periodInput").value) $("periodInput").value = state.parsed.period.label;
+    if (!deadlineUserSet) $("deadlineInput").value = defaultDeadline();
     if (!$("introInput").value) $("introInput").value = "The following bookings were made against demands the person is not\ncurrently approved for.";
     if (!$("closingInput").value) $("closingInput").value = "Please correct these in the timesheet system by {deadline}.";
     renderEmail();
   }
-  function currentOptions() { return { period: $("periodInput").value, deadline: $("deadlineInput").value, intro: $("introInput").value, closing: $("closingInput").value }; }
+  function currentOptions() { return { period: $("periodInput").value, deadline: fmtDeadline($("deadlineInput").value), intro: $("introInput").value, closing: $("closingInput").value }; }
   function renderEmail() {
     var hasEx = state.lastResult && state.lastResult.stats.exceptionLineCount > 0;
     if (!state.lastResult) {
@@ -824,7 +860,8 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
     $("copyBtn").disabled = !hasEx;
     $("nameNote").textContent = email.nameSimplified ? "Note: at least one name or feature label contained a character outside Windows-1252 and was simplified for the plain-text copy." : "";
   }
-  ["periodInput", "deadlineInput", "introInput", "closingInput"].forEach(function (id) { $(id).addEventListener("input", renderEmail); });
+  ["periodInput", "introInput", "closingInput"].forEach(function (id) { $(id).addEventListener("input", renderEmail); });
+  $("deadlineInput").addEventListener("change", function () { deadlineUserSet = true; renderEmail(); });
 
   function setMode(mode) {
     state.emailMode = mode;
@@ -872,7 +909,7 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
 
   /* ---------- init ---------- */
   loadLocal();
-  setMode("plain");
+  setMode("rich");
   renderRules(true);
   renderPreview();
   renderEmailControls();
