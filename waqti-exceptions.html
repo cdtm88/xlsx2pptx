@@ -128,6 +128,7 @@
 </head>
 <body>
 <script type="application/json" id="embeddedRules"></script>
+<script type="application/json" id="embeddedEmail"></script>
 <header class="app-header">
   <div class="inner">
     <div>
@@ -573,7 +574,7 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
 (function () {
   "use strict";
 
-  var VERSION = "v1.3.1";
+  var VERSION = "v1.4.0";
   var LS_KEY = "waqti-exceptions:v1";
   var $ = function (id) { return document.getElementById(id); };
   $("version").textContent = VERSION;
@@ -602,7 +603,7 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
   $("navDone").addEventListener("click", goMain);
 
   /* ---------- persistence ---------- */
-  function saveLocal() { try { localStorage.setItem(LS_KEY, JSON.stringify({ rules: state.rules, source: state.source, loadedAt: state.loadedAt })); } catch (e) { } }
+  function saveLocal() { try { localStorage.setItem(LS_KEY, JSON.stringify({ rules: state.rules, source: state.source, loadedAt: state.loadedAt, email: { intro: $("introInput").value, closing: $("closingInput").value } })); } catch (e) { } }
   function loadLocal() {
     try {
       var raw = localStorage.getItem(LS_KEY); if (!raw) return;
@@ -610,6 +611,10 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
       if (obj && obj.rules && typeof obj.rules === "object") {
         state.rules = { label: obj.rules.label || "", staff: obj.rules.staff || {}, generatedAt: obj.rules.generatedAt || null };
         state.source = "autosave"; state.loadedAt = obj.loadedAt || null;
+      }
+      if (obj && obj.email && typeof obj.email === "object") {
+        if (typeof obj.email.intro === "string") $("introInput").value = obj.email.intro;
+        if (typeof obj.email.closing === "string") $("closingInput").value = obj.email.closing;
       }
     } catch (e) { }
   }
@@ -932,7 +937,7 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
     $("copyBtn").disabled = false;
     $("nameNote").textContent = email.nameSimplified ? "Note: at least one name or feature label contained a character outside Windows-1252 and was simplified for the plain-text copy." : "";
   }
-  ["periodInput", "introInput", "closingInput"].forEach(function (id) { $(id).addEventListener("input", renderEmail); });
+  ["periodInput", "introInput", "closingInput"].forEach(function (id) { $(id).addEventListener("input", function () { renderEmail(); if (id !== "periodInput") autosave(); }); });
   $("deadlineInput").addEventListener("change", function () { deadlineUserSet = true; renderEmail(); });
 
   function setMode(mode) {
@@ -992,25 +997,43 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
       return true;
     } catch (e) { return false; }
   }
+  function loadEmbeddedEmail() {
+    try {
+      var el = document.getElementById("embeddedEmail");
+      if (!el) return;
+      var txt = (el.textContent || "").trim();
+      if (!txt || txt === "{}") return;
+      var e = JSON.parse(txt);
+      if (e && typeof e === "object") {
+        if (!$("introInput").value && typeof e.intro === "string") $("introInput").value = e.intro;
+        if (!$("closingInput").value && typeof e.closing === "string") $("closingInput").value = e.closing;
+      }
+    } catch (x) { }
+  }
   function bakeTool() {
     var el = document.getElementById("embeddedRules");
     var prevEmbed = el.textContent;
     el.textContent = serialiseRules(state.rules).replace(/</g, "\\u003c");
+    var elE = document.getElementById("embeddedEmail");
+    var prevEmail = elE.textContent;
+    elE.textContent = JSON.stringify({ intro: $("introInput").value, closing: $("closingInput").value }).replace(/</g, "\\u003c");
     // clear heavy dynamic regions so the saved copy is lean; restored right after
     var clearIds = ["exceptionsWrap", "richPreview", "gridWrap", "extrasWrap", "unmatchedWrap", "dqWrap", "parseStatus", "banner", "statsWrap", "clearWrap", "fallbackWrap", "mapperFields"];
     var saved = {};
     clearIds.forEach(function (id) { var n = $(id); saved[id] = n.innerHTML; n.innerHTML = ""; });
     var html = "<!doctype html>\n" + document.documentElement.outerHTML;
     el.textContent = prevEmbed;
+    elE.textContent = prevEmail;
     clearIds.forEach(function (id) { $(id).innerHTML = saved[id]; });
     download("waqti-exceptions.html", html, "text/html");
-    var m = $("bakeMsg"); m.textContent = "Saved a copy of the tool with your current rules baked in. Open that file to start pre-configured."; setTimeout(function () { if (m.textContent) m.textContent = ""; }, 7000);
+    var m = $("bakeMsg"); m.textContent = "Saved a copy of the tool with your current rules and email wording baked in. Open that file to start pre-configured."; setTimeout(function () { if (m.textContent) m.textContent = ""; }, 7000);
   }
   $("bakeBtn").addEventListener("click", bakeTool);
 
   /* ---------- init ---------- */
   loadLocal();
   if (rulesEmpty()) loadEmbedded();
+  loadEmbeddedEmail();
   goMain();               // always open on the app view, even if the file was baked from Settings
   setMode("rich");
   renderRules(true);
