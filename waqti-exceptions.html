@@ -77,6 +77,8 @@
   .pill.amber{background:#FCEED9;color:#7A4E12;border-color:#F0D6A6}
   .pill.grey{background:#EDEFF1;color:#3D3D3D;border-color:#D8DCE0}
   .tag-amber{display:inline-block;font-size:.62rem;font-weight:700;color:#7A4E12;background:#FCEED9;border:1px solid #F0D6A6;border-radius:5px;padding:.02rem .3rem;margin-left:.3rem;vertical-align:middle;text-transform:uppercase;letter-spacing:.03em}
+  .section-title{font-size:.95rem;font-weight:700;color:var(--slate);margin:1.3rem 0 .15rem}
+  .section-desc{font-size:.78rem;color:var(--mid);margin:0 0 .55rem}
 
   /* KPIs */
   .kpi-row{display:flex;gap:1rem;flex-wrap:wrap;margin:.2rem 0 1rem}
@@ -180,8 +182,8 @@
   <section class="card" id="exceptionsCard">
     <div class="card-head"><span class="title">Exceptions</span><span id="banner"></span></div>
     <div id="clearWrap"></div>
-    <div class="table-wrap" id="exceptionsWrap"></div>
-    <p class="sub hidden" id="excludeHint" style="margin-top:.5rem;">Untick a row to leave it out of the email.</p>
+    <div id="exHead"></div>
+    <div class="table-wrap scroll" id="exceptionsWrap"></div>
     <div id="notesWrap"></div>
     <div id="dqWrap"></div>
     <div id="attnWrap"></div>
@@ -661,7 +663,7 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
 (function () {
   "use strict";
 
-  var VERSION = "v1.6.1";
+  var VERSION = "v1.7.0";
   var LS_KEY = "waqti-exceptions:v1";
   var $ = function (id) { return document.getElementById(id); };
   $("version").textContent = VERSION;
@@ -677,9 +679,10 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
     buffer: null, fileName: "", mapping: null, parsed: null,
     rules: { label: "", staff: {}, generatedAt: null },
     source: "none", loadedAt: null,
-    lastResult: null, lastEmail: null, emailMode: "plain", excluded: {}, lineKeys: []
+    lastResult: null, lastEmail: null, emailMode: "plain", excluded: {}, lineKeys: [], excludedAttn: {}, attnKeys: [], excludedMissing: {}, missingKeys: []
   };
   function keyOf(staffId, l) { return staffId + "\u0000" + l.demandCode + "\u0000" + l.featureCode; }
+  function attnKeyOf(a) { return a.reason + "\u0000" + a.staffId + "\u0000" + a.feature + "\u0000" + a.application; }
 
   /* ---------- view switching ---------- */
   function goSettings() { hide($("view-main")); show($("view-settings")); hide($("navSettings")); show($("navDone")); window.scrollTo(0, 0); }
@@ -734,7 +737,7 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
     if (result.needsMapping) { renderMapper(result); return; }
     hide($("mapper"));
     hide($("drop")); show($("replaceBtn"));
-    state.parsed = result; state.mapping = mapping; state.excluded = {};
+    state.parsed = result; state.mapping = mapping; state.excluded = {}; state.excludedAttn = {}; state.excludedMissing = {};
     $("fileNameSub").textContent = state.fileName;
     renderParseStatus();
     renderRules(true);
@@ -899,11 +902,12 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
   });
 
   /* ---------- exceptions preview ---------- */
+  function section(title, desc) { return '<div class="section-title">' + esc(title) + '</div><p class="section-desc">' + esc(desc) + "</p>"; }
   function renderPreview() {
     var banner = $("banner");
     if (!state.parsed) {
       banner.innerHTML = '<span class="sub">Load an export to see exceptions.</span>';
-      $("clearWrap").innerHTML = ""; $("exceptionsWrap").innerHTML = ""; $("notesWrap").innerHTML = ""; $("attnWrap").innerHTML = ""; $("missingWrap").innerHTML = ""; $("dqWrap").innerHTML = ""; hide($("excludeHint"));
+      ["exHead", "clearWrap", "exceptionsWrap", "notesWrap", "attnWrap", "missingWrap", "dqWrap"].forEach(function (id) { $(id).innerHTML = ""; });
       state.lastResult = null; return;
     }
     var result = applyRules(state.parsed.bookings, state.rules); result.period = state.parsed.period;
@@ -911,14 +915,15 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
     var s = result.stats;
     banner.innerHTML = '<span class="pill ok">' + s.coveredCount + " covered</span>" + (s.notInRulesCount ? '<span class="pill warn">' + s.notInRulesCount + " not in rules</span>" : "") + (s.attentionCount ? '<span class="pill amber">' + s.attentionCount + " to check</span>" : "") + (s.missingCount ? '<span class="pill grey">' + s.missingCount + " not in timesheet</span>" : "");
 
-    if (s.exceptionLineCount === 0 && s.attentionCount === 0) {
-      $("clearWrap").innerHTML = '<div class="panel clear"><strong>All clear.</strong> Nothing to send: no bookings against unapproved demands and nothing needing a check.</div>';
-      $("exceptionsWrap").innerHTML = ""; $("exceptionsWrap").className = ""; hide($("excludeHint"));
-    } else if (s.exceptionLineCount === 0) {
-      $("clearWrap").innerHTML = "";
-      $("exceptionsWrap").innerHTML = ""; $("exceptionsWrap").className = ""; hide($("excludeHint"));
+    if (s.exceptionLineCount === 0 && s.attentionCount === 0 && s.missingCount === 0) {
+      $("clearWrap").innerHTML = '<div class="panel clear"><strong>All clear.</strong> Nothing to send: no bookings against unapproved demands, nothing needing a check, and everyone has entered time.</div>';
+    } else $("clearWrap").innerHTML = "";
+
+    // ---- demand exceptions ----
+    if (s.exceptionLineCount === 0) {
+      $("exHead").innerHTML = ""; $("exceptionsWrap").innerHTML = ""; $("exceptionsWrap").className = "";
     } else {
-      $("clearWrap").innerHTML = "";
+      $("exHead").innerHTML = section("Demand exceptions", "Bookings made against demands the person is not approved for. Untick a row to leave it out of the email.");
       $("exceptionsWrap").className = "table-wrap scroll";
       state.lineKeys = [];
       var idx = 0;
@@ -935,7 +940,6 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
       });
       html += "</tbody></table>";
       $("exceptionsWrap").innerHTML = html;
-      show($("excludeHint"));
       $("exceptionsWrap").querySelectorAll('input[type=checkbox]').forEach(function (cb) {
         cb.addEventListener("change", function () {
           var k = state.lineKeys[+cb.getAttribute("data-idx")];
@@ -946,24 +950,52 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
       });
     }
 
-    // amber "needs attention" table (GEN + no-demand)
+    // ---- needs attention (GEN + no-demand), with exclude checkboxes ----
     if (result.attention.length) {
-      var a = '<div class="panel amber"><strong>Needs attention (' + result.attention.length + ').</strong> Generic (GEN) and no-demand bookings. Please check the application is assigned. These are not demand exceptions and are listed separately in the email.</div>';
-      a += '<div class="table-wrap scroll" style="margin-top:.6rem;"><table class="data amber"><thead><tr><th>Staff</th><th>Reason</th><th>Feature</th><th>Application</th><th class="num">Hours</th></tr></thead><tbody>';
+      var a = section("Needs attention (" + result.attention.length + ")", "Generic (GEN) and no-demand bookings. Please check the application is assigned. Untick a row to leave it out of the email.");
+      a += '<div class="table-wrap scroll"><table class="data amber"><thead><tr><th class="chk">Send</th><th>Staff</th><th>Reason</th><th>Feature</th><th>Application</th><th class="num">Hours</th></tr></thead><tbody>';
+      state.attnKeys = []; var ai = 0;
       result.attention.forEach(function (r) {
-        a += "<tr><td>" + esc(r.name || r.staffId) + "</td><td>" + esc(r.reason) + "</td><td>" + esc(r.feature) + "</td><td>" + esc(r.application) + '</td><td class="num">' + r.hours.toFixed(1) + "</td></tr>";
+        var k = attnKeyOf(r), off = !!state.excludedAttn[k];
+        state.attnKeys.push(k);
+        a += '<tr class="' + (off ? "excluded" : "") + '"><td class="chk"><input type="checkbox" data-attn="' + ai + '"' + (off ? "" : " checked") + ' aria-label="Include this row in the email"></td>' +
+          "<td>" + esc(r.name || r.staffId) + "</td><td>" + esc(r.reason) + "</td><td>" + esc(r.feature) + "</td><td>" + esc(r.application) + '</td><td class="num">' + r.hours.toFixed(1) + "</td></tr>";
+        ai++;
       });
       a += "</tbody></table></div>";
       $("attnWrap").innerHTML = a;
+      $("attnWrap").querySelectorAll('input[type=checkbox]').forEach(function (cb) {
+        cb.addEventListener("change", function () {
+          var k = state.attnKeys[+cb.getAttribute("data-attn")];
+          if (cb.checked) delete state.excludedAttn[k]; else state.excludedAttn[k] = 1;
+          var tr = cb.closest("tr"); if (tr) tr.classList.toggle("excluded", !cb.checked);
+          renderEmail();
+        });
+      });
     } else $("attnWrap").innerHTML = "";
 
-    // grey "not yet in the timesheet" table: staff in the rules with no bookings in this export
+    // ---- not yet in the timesheet, with exclude checkboxes ----
     if (result.missingStaff && result.missingStaff.length) {
-      var mHtml = '<div class="panel grey"><strong>Not yet in the timesheet (' + result.missingStaff.length + ').</strong> These staff are in the rules but have no bookings in this export, so they may not have entered time yet.</div>';
-      mHtml += '<div class="table-wrap scroll" style="margin-top:.6rem;"><table class="data grey"><thead><tr><th>Name</th><th>Staff ID</th></tr></thead><tbody>';
-      result.missingStaff.forEach(function (m) { mHtml += "<tr><td>" + esc(m.name || "-") + "</td><td>" + esc(m.staffId) + "</td></tr>"; });
-      mHtml += "</tbody></table></div>";
-      $("missingWrap").innerHTML = mHtml;
+      var m2 = section("Not yet in the timesheet (" + result.missingStaff.length + ")", "In the rules but with no bookings in this export, so they may not have entered time yet. Untick a row to leave it out of the email.");
+      m2 += '<div class="table-wrap scroll"><table class="data grey"><thead><tr><th class="chk">Send</th><th>Name</th><th>Staff ID</th></tr></thead><tbody>';
+      state.missingKeys = []; var mi = 0;
+      result.missingStaff.forEach(function (m) {
+        var k = m.staffId, off = !!state.excludedMissing[k];
+        state.missingKeys.push(k);
+        m2 += '<tr class="' + (off ? "excluded" : "") + '"><td class="chk"><input type="checkbox" data-miss="' + mi + '"' + (off ? "" : " checked") + ' aria-label="Include this row in the email"></td>' +
+          "<td>" + esc(m.name || "-") + "</td><td>" + esc(m.staffId) + "</td></tr>";
+        mi++;
+      });
+      m2 += "</tbody></table></div>";
+      $("missingWrap").innerHTML = m2;
+      $("missingWrap").querySelectorAll('input[type=checkbox]').forEach(function (cb) {
+        cb.addEventListener("change", function () {
+          var k = state.missingKeys[+cb.getAttribute("data-miss")];
+          if (cb.checked) delete state.excludedMissing[k]; else state.excludedMissing[k] = 1;
+          var tr = cb.closest("tr"); if (tr) tr.classList.toggle("excluded", !cb.checked);
+          renderEmail();
+        });
+      });
     } else $("missingWrap").innerHTML = "";
 
     // notes: staff not in rules, and annual leave ignored
@@ -1031,7 +1063,9 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
     }).filter(function (g) { return g.lines.length > 0; });
     var hours = 0, staffSet = {}, lc = 0;
     exc.forEach(function (g) { staffSet[g.staffId] = 1; g.lines.forEach(function (l) { hours += l.hours; lc++; }); });
-    return { exceptions: exc, attention: base.attention || [], missingStaff: base.missingStaff || [], period: base.period, stats: { exceptionHours: Math.round(hours * 100) / 100, staffAffected: Object.keys(staffSet).length, exceptionLineCount: lc } };
+    var attn = (base.attention || []).filter(function (a) { return !state.excludedAttn[attnKeyOf(a)]; });
+    var miss = (base.missingStaff || []).filter(function (m) { return !state.excludedMissing[m.staffId]; });
+    return { exceptions: exc, attention: attn, missingStaff: miss, period: base.period, stats: { exceptionHours: Math.round(hours * 100) / 100, staffAffected: Object.keys(staffSet).length, exceptionLineCount: lc } };
   }
   function renderEmail() {
     var inc = includedResult();
