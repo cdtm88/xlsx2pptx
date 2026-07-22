@@ -325,7 +325,7 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
 
     var bookings = [], excluded = 0, dataQuality = [], months = [], seen = {};
     for (var r = range.s.r + 1; r <= range.e.r; r++) {
-      var sid = txt(r, resolved.staffId).trim();
+      var sid = txt(r, resolved.staffId).trim().toUpperCase();  // staff IDs are matched case-insensitively
       if (sid === "") { excluded++; continue; }
       var sheetRow = r + 1;
       var dem = splitFirst(txt(r, resolved.demand));
@@ -428,9 +428,10 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
     Object.keys(data.staff).forEach(function (id) {
       var e = data.staff[id];
       if (!e || typeof e !== "object" || Array.isArray(e)) return;
-      if (typeof e.name === "string" && e.name.trim() !== "") { names[id] = e.name.trim(); count++; }
+      var key = String(id).toUpperCase();  // staff IDs are matched case-insensitively
+      if (typeof e.name === "string" && e.name.trim() !== "") { names[key] = e.name.trim(); count++; }
       // retain approvedDemands so an exported rules.json stays usable by Waqti Exceptions
-      if (Array.isArray(e.approvedDemands)) demands[id] = e.approvedDemands.filter(function (x) { return typeof x === "string"; });
+      if (Array.isArray(e.approvedDemands)) demands[key] = e.approvedDemands.filter(function (x) { return typeof x === "string"; });
     });
     return { label: typeof data.label === "string" ? data.label : "", names: names, demands: demands, count: count };
   }
@@ -472,7 +473,7 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
 (function () {
   "use strict";
 
-  var VERSION = "v1.3.0";
+  var VERSION = "v1.3.1";
   var $ = function (id) { return document.getElementById(id); };
   $("version").textContent = VERSION;
 
@@ -738,7 +739,8 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
   $("navDone").addEventListener("click", goMain);
 
   function saveRules() { try { localStorage.setItem(LS_KEY, JSON.stringify({ names: state.nameMap, demands: state.demandsById, label: state.rulesLabel })); } catch (e) { } }
-  function loadRules() { try { var raw = localStorage.getItem(LS_KEY); if (!raw) return; var o = JSON.parse(raw); if (o && o.names && typeof o.names === "object" && !Array.isArray(o.names)) { state.nameMap = o.names; state.rulesLabel = o.label || ""; if (o.demands && typeof o.demands === "object" && !Array.isArray(o.demands)) state.demandsById = o.demands; } } catch (e) { } }
+  function upperKeys(obj) { var out = {}; Object.keys(obj || {}).forEach(function (id) { out[String(id).toUpperCase()] = obj[id]; }); return out; }
+  function loadRules() { try { var raw = localStorage.getItem(LS_KEY); if (!raw) return; var o = JSON.parse(raw); if (o && o.names && typeof o.names === "object" && !Array.isArray(o.names)) { state.nameMap = upperKeys(o.names); state.rulesLabel = o.label || ""; if (o.demands && typeof o.demands === "object" && !Array.isArray(o.demands)) state.demandsById = upperKeys(o.demands); } } catch (e) { } }
   function download(filename, text) {
     var blob = new Blob([text], { type: "application/json" });
     var url = URL.createObjectURL(blob), a = document.createElement("a");
