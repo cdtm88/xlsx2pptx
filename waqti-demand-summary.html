@@ -107,6 +107,21 @@
   .demand-block .d-title .code{color:var(--slate)}
   .demand-block .d-subline{font-size:.76rem;color:var(--mid);font-weight:600;margin:.15rem 0 .55rem}
 
+  /* Grouped name cell (one name spanning its feature rows) */
+  table.data td.name-cell{vertical-align:top;font-weight:600;border-right:1px solid var(--line-soft)}
+  table.data td.name-cell .sid{font-weight:500}
+  table.data tbody tr.group-start td{border-top:1px solid var(--line)}
+  table.data tbody tr.group-start:first-child td{border-top:none}
+
+  /* Loaded-file bar (replaces the drop zone after upload) */
+  .loaded-bar{display:flex;align-items:center;gap:.7rem;flex-wrap:wrap;background:var(--teal-tint);border:1px solid #CFEBF3;border-radius:10px;padding:.7rem 1rem;font-size:.86rem;color:var(--slate)}
+  .loaded-bar .fname{font-weight:700;color:var(--teal-dark)}
+  .loaded-bar .spacer{flex:1}
+
+  /* Settings */
+  .rules-status{font-size:.82rem;color:var(--slate)}
+  .name-pills{margin-top:.6rem}
+
   /* Callouts / notes */
   .callout{background:var(--teal-tint);border:1px solid #CFEBF3;border-left:4px solid var(--teal);color:var(--charcoal);border-radius:0 8px 8px 0;padding:.7rem 1rem;font-size:.82rem}
   .note{background:var(--light-grey);border-left:3px solid #B4BCC4;color:var(--slate);border-radius:0 8px 8px 0;padding:.6rem .9rem;font-size:.8rem;margin:.8rem 0}
@@ -127,10 +142,12 @@
     </div>
     <div class="spacer"></div>
     <span class="ver" id="version">v0.0.0</span>
+    <button type="button" class="btn btn-ghost" id="navSettings" style="margin-left:.8rem;">Settings</button>
+    <button type="button" class="btn btn-ghost hidden" id="navDone">Back</button>
   </div>
 </header>
 
-<div class="container">
+<div class="container" id="view-main">
 
   <!-- ============ UPLOAD ============ -->
   <section class="card">
@@ -140,6 +157,11 @@
       <div class="or">or</div>
       <button type="button" class="btn btn-primary" id="browseBtn">Browse for file</button>
       <input type="file" id="fileInput" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" class="hidden">
+    </div>
+    <div class="loaded-bar hidden" id="loadedBar">
+      <span>Loaded <span class="fname" id="loadedName"></span></span>
+      <span class="spacer"></span>
+      <button type="button" class="mini-btn" id="replaceBtn">Replace file</button>
     </div>
     <div id="parseError" class="err hidden"></div>
     <div id="parseStatus" style="margin-top:.8rem;"></div>
@@ -168,11 +190,26 @@
   <!-- ============ SUMMARY ============ -->
   <section class="card hidden" id="summaryCard">
     <div class="card-head"><span class="title">Summary</span><span class="sub">Name &middot; Feature &middot; Total Hours Booked</span></div>
-    <div class="kpi-row" id="summaryKpis"></div>
     <div id="summaryBody"></div>
     <div class="note" id="dqNote" style="display:none;"></div>
   </section>
 
+</div>
+
+<!-- ============ SETTINGS VIEW ============ -->
+<div class="container hidden" id="view-settings">
+  <section class="card">
+    <div class="card-head"><span class="title">Settings &middot; staff names</span><span class="sub">Map Staff ID &rarr; name</span></div>
+    <p class="sub" style="margin-bottom:.8rem;">Import the same <code>rules.json</code> used by Waqti Exceptions. Only each person&rsquo;s <strong>name</strong> is used here (the approved-demand lists are ignored). Names from the rules file take priority over any Name column in the export, and both fall back to the Staff ID.</p>
+    <div class="controls-row">
+      <button type="button" class="btn btn-ghost" id="importRulesBtn">Import rules.json</button>
+      <input type="file" id="importRulesInput" accept=".json,application/json" class="hidden">
+      <button type="button" class="btn btn-ghost" id="clearRulesBtn">Clear names</button>
+    </div>
+    <div id="rulesError" class="err hidden"></div>
+    <div class="note rules-status" id="rulesStatus" style="margin-top:.9rem;">No names loaded. Names fall back to the Name column, then the Staff ID.</div>
+    <div class="name-pills" id="namePills"></div>
+  </section>
 </div>
 
 <footer class="app-footer">Dreamt up by Christian, built with Claude &mdash; a human + AI double act 🤝</footer>
@@ -282,6 +319,7 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
   function demandIndex(bookings) {
     var m = {};
     bookings.forEach(function (b) {
+      if (!b.demandCode) return; // hide blank demands (no code)
       var d = m[b.demandCode];
       if (!d) { d = m[b.demandCode] = { code: b.demandCode, desc: b.demandDesc || "", hours: 0, people: {}, features: {} }; }
       if (!d.desc && b.demandDesc) d.desc = b.demandDesc;
@@ -295,34 +333,71 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
     });
   }
 
-  // Summarise one demand: aggregate hours by (person, feature).
-  function summariseDemand(bookings, demandCode) {
-    var groups = {}, total = 0, people = {};
+  // Summarise one demand: hours aggregated per person, then per feature within
+  // that person, so the same name is grouped once (via rowspan in the table).
+  // nameOf(staffId, exportName) resolves the display name (rules.json wins).
+  function summariseDemand(bookings, demandCode, nameOf) {
+    nameOf = nameOf || function (id, nm) { return nm || id; };
+    var persons = {}, total = 0;
     bookings.forEach(function (b) {
       if (b.demandCode !== demandCode || b.hours === null) return;
-      var name = b.name || b.staffId;
       var feature = b.featureDesc || b.featureCode;
-      var key = b.staffId + " " + b.featureCode;
-      var g = groups[key];
-      if (!g) { g = groups[key] = { name: name, staffId: b.staffId, feature: feature, hours: 0 }; }
-      if (!g.feature && feature) g.feature = feature;
-      g.hours += b.hours;
+      var p = persons[b.staffId];
+      if (!p) { p = persons[b.staffId] = { staffId: b.staffId, exportName: b.name || "", total: 0, feats: {} }; }
+      if (!p.exportName && b.name) p.exportName = b.name;
+      var f = p.feats[b.featureCode];
+      if (!f) { f = p.feats[b.featureCode] = { feature: feature, hours: 0 }; }
+      if (!f.feature && feature) f.feature = feature;
+      f.hours += b.hours;
+      p.total += b.hours;
       total += b.hours;
-      people[b.staffId] = 1;
     });
-    var rows = Object.keys(groups).map(function (k) { var g = groups[k]; g.hours = round2(g.hours); return g; });
-    rows.sort(function (a, b) {
-      if (b.hours !== a.hours) return b.hours - a.hours;
+    var list = Object.keys(persons).map(function (id) {
+      var p = persons[id];
+      var features = Object.keys(p.feats).map(function (k) { var f = p.feats[k]; f.hours = round2(f.hours); return f; });
+      features.sort(function (a, b) { if (b.hours !== a.hours) return b.hours - a.hours; return a.feature < b.feature ? -1 : (a.feature > b.feature ? 1 : 0); });
+      return { staffId: p.staffId, name: nameOf(p.staffId, p.exportName), total: round2(p.total), features: features };
+    });
+    list.sort(function (a, b) {
+      if (b.total !== a.total) return b.total - a.total;
       if (a.name !== b.name) return a.name < b.name ? -1 : 1;
-      return a.feature < b.feature ? -1 : (a.feature > b.feature ? 1 : 0);
+      return a.staffId < b.staffId ? -1 : (a.staffId > b.staffId ? 1 : 0);
     });
-    return { code: demandCode, rows: rows, totalHours: round2(total), people: Object.keys(people).length };
+    var rowCount = list.reduce(function (s, p) { return s + p.features.length; }, 0);
+    return { code: demandCode, persons: list, totalHours: round2(total), people: list.length, rowCount: rowCount };
+  }
+
+  // --- rules.json (same schema as Waqti Exceptions) — names only ---
+  var SCHEMA_VERSION = 1;
+  function lineCol(str, pos) {
+    if (pos === null || pos === undefined || isNaN(pos)) return null;
+    var upto = str.slice(0, pos);
+    return { line: upto.split("\n").length, col: pos - upto.lastIndexOf("\n") };
+  }
+  function parseRules(jsonString) {
+    var data;
+    try { data = JSON.parse(jsonString); }
+    catch (e) {
+      var m = /position (\d+)/.exec(e.message);
+      var lc = m ? lineCol(jsonString, parseInt(m[1], 10)) : null;
+      throw new Error("Rules JSON did not parse: " + e.message + (lc ? " (line " + lc.line + ", column " + lc.col + ")" : "") + "\nCurrent names left unchanged.");
+    }
+    if (typeof data !== "object" || data === null || Array.isArray(data)) throw new Error("Rules must be a JSON object. Current names left unchanged.");
+    if (data.schemaVersion !== SCHEMA_VERSION) throw new Error("Unrecognised schemaVersion: " + JSON.stringify(data.schemaVersion) + ". This build supports schemaVersion " + SCHEMA_VERSION + " only. Current names left unchanged.");
+    if (typeof data.staff !== "object" || data.staff === null || Array.isArray(data.staff)) throw new Error('"staff" must be an object. Current names left unchanged.');
+    var names = {}, count = 0;
+    Object.keys(data.staff).forEach(function (id) {
+      var e = data.staff[id];
+      if (e && typeof e === "object" && !Array.isArray(e) && typeof e.name === "string" && e.name.trim() !== "") { names[id] = e.name.trim(); count++; }
+    });
+    return { label: typeof data.label === "string" ? data.label : "", names: names, count: count };
   }
 
   window.WDS = {
     parseExport: parseExport,
     demandIndex: demandIndex,
     summariseDemand: summariseDemand,
+    parseRules: parseRules,
     round1: round1, round2: round2, splitFirst: splitFirst
   };
 })();
@@ -335,7 +410,7 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
 (function () {
   "use strict";
 
-  var VERSION = "v1.0.0";
+  var VERSION = "v1.1.0";
   var $ = function (id) { return document.getElementById(id); };
   $("version").textContent = VERSION;
 
@@ -347,7 +422,8 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
   function hide(el) { el.classList.add("hidden"); }
   function fmtHrs(n) { return (Math.round(n * 10) / 10).toFixed(1); }
 
-  var state = { buffer: null, fileName: "", mapping: null, parsed: null, demands: [], selected: {}, filter: "" };
+  var state = { buffer: null, fileName: "", mapping: null, parsed: null, demands: [], selected: {}, filter: "", nameMap: {}, rulesLabel: "" };
+  function nameOf(staffId, exportName) { return (state.nameMap && state.nameMap[staffId]) || exportName || staffId; }
 
   /* ---------- file / parsing ---------- */
   function readFile(file) {
@@ -367,9 +443,10 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
     hide($("mapper"));
     state.parsed = result; state.mapping = mapping;
     state.demands = window.WDS.demandIndex(result.bookings);
-    // default: everything selected so the report is populated immediately
-    state.selected = {}; state.demands.forEach(function (d) { state.selected[d.code] = true; });
+    state.selected = {}; // nothing selected by default — the user picks demands
+    state.filter = ""; $("demandSearch").value = "";
     $("fileNameSub").textContent = state.fileName;
+    hide($("drop")); show($("loadedBar")); $("loadedName").textContent = state.fileName;
     renderParseStatus();
     renderDemandList();
     show($("demandCard")); show($("summaryCard"));
@@ -395,6 +472,7 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
   var CANONICAL = { staffId: "Staff ID", workDay: "Work Day", month: "Month", demand: "Demand", feature: "Feature", bookedHours: "Booked Hours", name: "Name", rechargeCost: "Recharge Cost" };
   function renderMapper(result) {
     state.parsed = null; hide($("demandCard")); hide($("summaryCard"));
+    show($("drop")); hide($("loadedBar"));
     var fields = REQUIRED_FIELDS.concat([{ field: "name", label: "Name (optional)" }, { field: "rechargeCost", label: "Recharge Cost (optional)" }]);
     var rows = fields.map(function (f) {
       var guess = null;
@@ -458,38 +536,34 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
   $("clearAllBtn").addEventListener("click", function () { visibleDemands().forEach(function (d) { delete state.selected[d.code]; }); renderDemandList(); renderSummary(); });
 
   /* ---------- summary ---------- */
-  function kpi(n, l) { return '<div class="kpi"><div class="n">' + esc(n) + '</div><div class="l">' + esc(l) + "</div></div>"; }
   function renderSummary() {
     if (!state.parsed) return;
     var codes = state.demands.filter(function (d) { return state.selected[d.code]; });
     var body = $("summaryBody");
     if (!codes.length) {
-      $("summaryKpis").innerHTML = "";
       body.innerHTML = '<div class="empty">Select one or more demands above to see who booked how many hours to each feature.</div>';
       renderDqNote(); return;
     }
-    var grandHours = 0, peopleSet = {}, summaries = [];
-    codes.forEach(function (d) {
-      var s = window.WDS.summariseDemand(state.parsed.bookings, d.code);
-      s.desc = d.desc; summaries.push(s);
-      grandHours += s.totalHours;
-      state.parsed.bookings.forEach(function (b) { if (b.demandCode === d.code && b.hours !== null) peopleSet[b.staffId] = 1; });
-    });
-    $("summaryKpis").innerHTML =
-      kpi(codes.length, codes.length === 1 ? "Demand" : "Demands") +
-      kpi(Object.keys(peopleSet).length, "People") +
-      kpi(fmtHrs(grandHours), "Total hours booked");
-
-    body.innerHTML = summaries.map(function (s) {
-      var title = '<span class="code">' + esc(s.code) + "</span>" + (s.desc ? " &middot; " + esc(s.desc) : "");
-      var subline = fmtHrs(s.totalHours) + " hours &middot; " + s.people + (s.people === 1 ? " person" : " people") + " &middot; " + s.rows.length + " row" + (s.rows.length === 1 ? "" : "s");
-      var rows = s.rows.map(function (r) {
-        var nameCell = esc(r.name) + (r.name !== r.staffId ? '<span class="sid">' + esc(r.staffId) + "</span>" : "");
-        return "<tr><td>" + nameCell + "</td><td>" + esc(r.feature) + '</td><td class="num">' + fmtHrs(r.hours) + "</td></tr>";
-      }).join("");
+    body.innerHTML = codes.map(function (d) {
+      var s = window.WDS.summariseDemand(state.parsed.bookings, d.code, nameOf);
+      var title = '<span class="code">' + esc(d.code) + "</span>" + (d.desc ? " &middot; " + esc(d.desc) : "");
+      var subline = fmtHrs(s.totalHours) + " hours &middot; " + s.people + (s.people === 1 ? " person" : " people") + " &middot; " + s.rowCount + " row" + (s.rowCount === 1 ? "" : "s");
+      var tbody = "";
+      if (!s.persons.length) {
+        tbody = '<tr><td colspan="3" style="color:var(--mid);">No booked hours for this demand.</td></tr>';
+      } else {
+        s.persons.forEach(function (p) {
+          var span = p.features.length;
+          var nameCell = esc(p.name) + (p.name !== p.staffId ? '<span class="sid">' + esc(p.staffId) + "</span>" : "");
+          p.features.forEach(function (f, i) {
+            var open = (i === 0) ? '<tr class="group-start">' : "<tr>";
+            var nc = (i === 0) ? '<td class="name-cell" rowspan="' + span + '">' + nameCell + "</td>" : "";
+            tbody += open + nc + "<td>" + esc(f.feature) + '</td><td class="num">' + fmtHrs(f.hours) + "</td></tr>";
+          });
+        });
+      }
       var table = '<div class="table-wrap"><table class="data"><thead><tr><th>Name</th><th>Feature</th><th class="num">Total Hours Booked</th></tr></thead><tbody>' +
-        (rows || '<tr><td colspan="3" style="color:var(--mid);">No booked hours for this demand.</td></tr>') +
-        '</tbody><tfoot><tr><td colspan="2">Demand total</td><td class="num">' + fmtHrs(s.totalHours) + "</td></tr></tfoot></table></div>";
+        tbody + '</tbody><tfoot><tr><td colspan="2">Demand total</td><td class="num">' + fmtHrs(s.totalHours) + "</td></tr></tfoot></table></div>";
       return '<div class="demand-block"><div class="d-title">' + title + '</div><div class="d-subline">' + subline + "</div>" + table + "</div>";
     }).join("");
     renderDqNote();
@@ -512,6 +586,49 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
   drop.addEventListener("click", function () { $("fileInput").click(); });
   drop.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); $("fileInput").click(); } });
   $("fileInput").addEventListener("change", function (ev) { var f = ev.target.files && ev.target.files[0]; if (f) readFile(f); ev.target.value = ""; });
+  $("replaceBtn").addEventListener("click", function () { $("fileInput").click(); });
+
+  /* ---------- settings: staff-name rules (same rules.json as Waqti Exceptions) ---------- */
+  var LS_KEY = "waqti-demand-summary:v1";
+  function goSettings() { hide($("view-main")); show($("view-settings")); hide($("navSettings")); show($("navDone")); window.scrollTo(0, 0); }
+  function goMain() { show($("view-main")); hide($("view-settings")); show($("navSettings")); hide($("navDone")); window.scrollTo(0, 0); }
+  $("navSettings").addEventListener("click", goSettings);
+  $("navDone").addEventListener("click", goMain);
+
+  function saveRules() { try { localStorage.setItem(LS_KEY, JSON.stringify({ names: state.nameMap, label: state.rulesLabel })); } catch (e) { } }
+  function loadRules() { try { var raw = localStorage.getItem(LS_KEY); if (!raw) return; var o = JSON.parse(raw); if (o && o.names && typeof o.names === "object" && !Array.isArray(o.names)) { state.nameMap = o.names; state.rulesLabel = o.label || ""; } } catch (e) { } }
+
+  function renderRulesStatus() {
+    var n = Object.keys(state.nameMap).length, st = $("rulesStatus"), pills = $("namePills");
+    if (!n) { st.textContent = "No names loaded. Names fall back to the Name column, then the Staff ID."; pills.innerHTML = ""; return; }
+    st.innerHTML = "<strong>" + n + " name" + (n === 1 ? "" : "s") + " loaded</strong>" + (state.rulesLabel ? " from &ldquo;" + esc(state.rulesLabel) + "&rdquo;" : "") +
+      ". These override the Name column; unlisted staff fall back to the Name column, then the Staff ID.";
+    var ids = Object.keys(state.nameMap).sort();
+    pills.innerHTML = ids.slice(0, 200).map(function (id) { return '<span class="pill">' + esc(state.nameMap[id]) + ' <span class="sid" style="display:inline;">' + esc(id) + "</span></span>"; }).join(" ") +
+      (ids.length > 200 ? ' <span class="sub">&hellip; and ' + (ids.length - 200) + " more</span>" : "");
+  }
+  $("importRulesBtn").addEventListener("click", function () { $("importRulesInput").click(); });
+  $("importRulesInput").addEventListener("change", function (ev) {
+    var f = ev.target.files && ev.target.files[0]; if (!f) return;
+    var reader = new FileReader();
+    reader.onload = function () {
+      var parsed;
+      try { parsed = window.WDS.parseRules(String(reader.result)); }
+      catch (e) { var el = $("rulesError"); el.textContent = e.message; show(el); return; }
+      hide($("rulesError"));
+      state.nameMap = parsed.names; state.rulesLabel = parsed.label || f.name;
+      saveRules(); renderRulesStatus();
+      if (state.parsed) renderSummary();
+    };
+    reader.readAsText(f); ev.target.value = "";
+  });
+  $("clearRulesBtn").addEventListener("click", function () {
+    state.nameMap = {}; state.rulesLabel = ""; saveRules(); renderRulesStatus();
+    if (state.parsed) renderSummary();
+  });
+
+  /* ---------- init ---------- */
+  loadRules(); renderRulesStatus();
 })();
 </script>
 </body>

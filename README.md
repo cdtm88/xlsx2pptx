@@ -55,9 +55,13 @@ offline with no server and no external requests.
 ## Use it
 
 1. Open **`waqti-demand-summary.html`** in any modern browser.
-2. Drop in an `.xlsx` timesheet export (the same shape the Waqti Exceptions tool reads).
-3. Tick the demands you want in the multi-select list (all are selected by default). Use the filter box to narrow a long list.
-4. Read the summary: one table per demand showing **Name**, **Feature**, and **Total Hours Booked**, aggregated per person and feature.
+2. Drop in an `.xlsx` timesheet export (the same shape the Waqti Exceptions tool reads). Once loaded, the drop zone collapses to a **Replace file** bar.
+3. Tick the demands you want in the multi-select list (nothing is selected to start). Use the filter box to narrow a long list; blank/uncoded demands are hidden.
+4. Read the summary: one table per demand showing **Name**, **Feature**, and **Total Hours Booked**, aggregated per person and feature. Rows for the same person are grouped so the name appears once.
+
+### Staff names (Settings)
+
+Open **Settings** and import the same `rules.json` used by Waqti Exceptions to map each Staff ID to a display name. Only the `name` field is read (the approved-demand lists are ignored). Imported names take priority over any Name column in the export; unlisted staff fall back to the Name column, then the Staff ID. The imported names persist in the browser.
 
 ## Excel format
 
