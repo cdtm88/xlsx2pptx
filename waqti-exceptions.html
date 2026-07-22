@@ -548,9 +548,9 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
     var text = safe.text;
 
     // ---- rich HTML (inline styles; fixed table width so every table lines up) ----
-    var tblOpen = '<table role="presentation" cellspacing="0" cellpadding="0" style="border-collapse:collapse;background:#ffffff;width:100%;table-layout:fixed;">';
-    var demCols = '<colgroup><col style="width:150px"><col><col style="width:80px"></colgroup>';
-    var attCols = '<colgroup><col style="width:120px"><col style="width:95px"><col><col style="width:160px"><col style="width:80px"></colgroup>';
+    var tblOpen = '<table role="presentation" cellspacing="0" cellpadding="0" width="900" style="border-collapse:collapse;background:#ffffff;width:900px;table-layout:fixed;">';
+    var demCols = '<colgroup><col style="width:150px"><col style="width:660px"><col style="width:90px"></colgroup>';
+    var attCols = '<colgroup><col style="width:130px"><col style="width:100px"><col style="width:410px"><col style="width:170px"><col style="width:90px"></colgroup>';
     var thB = 'background:#E6F6FA;color:#1A1A1A;border:1px solid #BFE8F2;padding:7px 11px;font-family:Arial,Helvetica,sans-serif;font-size:12px;text-align:left;word-wrap:break-word;';
     var thA = 'background:#FBE3B4;color:#7A4E12;border:1px solid #F0D6A6;padding:7px 11px;font-family:Arial,Helvetica,sans-serif;font-size:12px;text-align:left;word-wrap:break-word;';
     var td = 'background:#ffffff;color:#1a1a1a;border:1px solid #d0d7de;padding:7px 11px;font-family:Arial,Helvetica,sans-serif;font-size:13px;word-wrap:break-word;';
@@ -564,10 +564,10 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
       demands.forEach(function (d) {
         h.push('<p style="background:#ffffff;color:#007A99;margin:16px 0 6px;font-weight:bold;font-size:13.5px;">' + escHtml(d.code + (d.desc ? " - " + d.desc : "")) + '</p>');
         h.push(tblOpen + demCols);
-        h.push('<tr><th width="150" style="' + thB + '">Staff</th><th style="' + thB + '">Feature</th><th width="80" style="' + thB + 'text-align:right;">Hours</th></tr>');
+        h.push('<tr><th width="150" style="' + thB + '">Staff</th><th width="660" style="' + thB + '">Feature</th><th width="90" style="' + thB + 'text-align:right;">Hours</th></tr>');
         d.rows.forEach(function (r, i) {
           var c = (i % 2 === 1) ? tdA : td;
-          h.push('<tr><td width="150" style="' + c + '">' + escHtml(r.name) + '</td><td style="' + c + '">' + escHtml(r.feature) + '</td><td width="80" style="' + c + 'text-align:right;font-weight:bold;white-space:nowrap;">' + escHtml(fmtHrs(r.hours)) + ' hrs</td></tr>');
+          h.push('<tr><td width="150" style="' + c + '">' + escHtml(r.name) + '</td><td width="660" style="' + c + '">' + escHtml(r.feature) + '</td><td width="90" style="' + c + 'text-align:right;font-weight:bold;white-space:nowrap;">' + escHtml(fmtHrs(r.hours)) + ' hrs</td></tr>');
         });
         h.push('</table>');
       });
@@ -575,22 +575,22 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
     if (attention.length) {
       h.push('<p style="background:#ffffff;color:#7A4E12;margin:20px 0 6px;font-weight:bold;font-size:13.5px;">Needs attention: please check the application is assigned</p>');
       h.push(tblOpen + attCols);
-      h.push('<tr><th width="120" style="' + thA + '">Staff</th><th width="95" style="' + thA + '">Reason</th><th style="' + thA + '">Feature</th><th width="160" style="' + thA + '">Application</th><th width="80" style="' + thA + 'text-align:right;">Hours</th></tr>');
+      h.push('<tr><th width="130" style="' + thA + '">Staff</th><th width="100" style="' + thA + '">Reason</th><th width="410" style="' + thA + '">Feature</th><th width="170" style="' + thA + '">Application</th><th width="90" style="' + thA + 'text-align:right;">Hours</th></tr>');
       attention.forEach(function (a, i) {
         var c = (i % 2 === 1) ? tdA : td;
-        h.push('<tr><td width="120" style="' + c + '">' + escHtml(a.name || a.staffId) + '</td><td width="95" style="' + c + '">' + escHtml(a.reason) + '</td><td style="' + c + '">' + escHtml(a.feature) + '</td><td width="160" style="' + c + '">' + escHtml(a.application) + '</td><td width="80" style="' + c + 'text-align:right;font-weight:bold;white-space:nowrap;">' + escHtml(fmtHrs(a.hours)) + ' hrs</td></tr>');
+        h.push('<tr><td width="130" style="' + c + '">' + escHtml(a.name || a.staffId) + '</td><td width="100" style="' + c + '">' + escHtml(a.reason) + '</td><td width="410" style="' + c + '">' + escHtml(a.feature) + '</td><td width="170" style="' + c + '">' + escHtml(a.application) + '</td><td width="90" style="' + c + 'text-align:right;font-weight:bold;white-space:nowrap;">' + escHtml(fmtHrs(a.hours)) + ' hrs</td></tr>');
       });
       h.push('</table>');
     }
     if (missing.length) {
-      var misCols = '<colgroup><col><col style="width:180px"></colgroup>';
+      var misCols = '<colgroup><col style="width:700px"><col style="width:200px"></colgroup>';
       var thG = 'background:#ECEEF0;color:#3D3D3D;border:1px solid #D8DCE0;padding:7px 11px;font-family:Arial,Helvetica,sans-serif;font-size:12px;text-align:left;word-wrap:break-word;';
       h.push('<p style="background:#ffffff;color:#3D3D3D;margin:20px 0 6px;font-weight:bold;font-size:13.5px;">No time logged: these team members have no bookings in Waqti. Please update your timesheets.</p>');
       h.push(tblOpen + misCols);
-      h.push('<tr><th style="' + thG + '">Name</th><th width="180" style="' + thG + '">Staff ID</th></tr>');
+      h.push('<tr><th width="700" style="' + thG + '">Name</th><th width="200" style="' + thG + '">Staff ID</th></tr>');
       missing.forEach(function (m, i) {
         var c = (i % 2 === 1) ? tdA : td;
-        h.push('<tr><td style="' + c + '">' + escHtml(m.name || "-") + '</td><td width="180" style="' + c + '">' + escHtml(m.staffId) + '</td></tr>');
+        h.push('<tr><td width="700" style="' + c + '">' + escHtml(m.name || "-") + '</td><td width="200" style="' + c + '">' + escHtml(m.staffId) + '</td></tr>');
       });
       h.push('</table>');
     }
@@ -663,7 +663,7 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
 (function () {
   "use strict";
 
-  var VERSION = "v1.7.2";
+  var VERSION = "v1.7.3";
   var LS_KEY = "waqti-exceptions:v1";
   var $ = function (id) { return document.getElementById(id); };
   $("version").textContent = VERSION;
