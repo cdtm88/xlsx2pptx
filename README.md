@@ -42,3 +42,37 @@ protection, so filled-in plans stay consistent.
 
 - `delivery-plan.html` — the app (open this)
 - `assets/` — logo variants, favicon, and the blank Excel template
+
+---
+
+# Waqti Demand Summary
+
+`waqti-demand-summary.html` is a second, self-contained page for viewing a
+timesheet export online: pick one or more demands, and see who booked how many
+hours to which feature under each. SheetJS is vendored inline, so it works fully
+offline with no server and no external requests.
+
+## Use it
+
+1. Open **`waqti-demand-summary.html`** in any modern browser.
+2. Drop in an `.xlsx` timesheet export (the same shape the Waqti Exceptions tool reads).
+3. Tick the demands you want in the multi-select list (all are selected by default). Use the filter box to narrow a long list.
+4. Read the summary: one table per demand showing **Name**, **Feature**, and **Total Hours Booked**, aggregated per person and feature.
+
+## Excel format
+
+Row 1 holds the headers. The same column-mapping rules as Waqti Exceptions apply:
+
+| Column | Meaning |
+|---|---|
+| Staff ID | Person identifier (required) |
+| Work Day | Booking date (required) |
+| Month | Period label, e.g. `June, 2026` (required) |
+| Demand | `Code - Description`, split on the first ` - ` (required) |
+| Feature | `Code - Description`, split on the first ` - ` (required) |
+| Booked Hours | Numeric hours; non-numeric or negative values are flagged and excluded from totals (required) |
+| Name | Display name (optional — falls back to Staff ID; also auto-detected from `Staff`/`Employee`/`Worker`/`Resource` headers) |
+| Recharge Cost | Optional, not shown |
+
+If some headers are not found automatically, a small mapper lets you match each
+field to a column before confirming. Rows with an empty Staff ID are excluded.
