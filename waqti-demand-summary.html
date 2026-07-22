@@ -130,6 +130,13 @@
   table.data tbody tr.missing-row td{background:#FDF3E7}
   table.data input.name-input{width:100%;max-width:340px;padding:.4rem .55rem;font-size:.82rem}
 
+  /* Copy */
+  .copymsg{font-size:.8rem;font-weight:600}
+  .copymsg.ok{color:var(--teal-dark)}
+  .copymsg.fail{color:#A8321F}
+  .copy-fallback{margin-top:.7rem}
+  .copy-fallback textarea{width:100%;min-height:120px;font-family:"SFMono-Regular",Consolas,Menlo,monospace;font-size:.78rem;border:1px solid var(--line);border-radius:8px;padding:.6rem}
+
   /* Callouts / notes */
   .callout{background:var(--teal-tint);border:1px solid #CFEBF3;border-left:4px solid var(--teal);color:var(--charcoal);border-radius:0 8px 8px 0;padding:.7rem 1rem;font-size:.82rem}
   .note{background:var(--light-grey);border-left:3px solid #B4BCC4;color:var(--slate);border-radius:0 8px 8px 0;padding:.6rem .9rem;font-size:.8rem;margin:.8rem 0}
@@ -197,8 +204,15 @@
 
   <!-- ============ SUMMARY ============ -->
   <section class="card hidden" id="summaryCard">
-    <div class="card-head"><span class="title">Summary</span><span class="sub">Name &middot; Feature &middot; Total Hours Booked</span></div>
+    <div class="card-head">
+      <span class="title">Summary</span>
+      <div class="controls-row">
+        <button type="button" class="mini-btn" id="copyBtn">Copy summary</button>
+        <span class="copymsg" id="copyMsg" aria-live="polite"></span>
+      </div>
+    </div>
     <div id="summaryBody"></div>
+    <div id="copyFallback"></div>
     <div class="note" id="dqNote" style="display:none;"></div>
   </section>
 
@@ -208,10 +222,11 @@
 <div class="container hidden" id="view-settings">
   <section class="card">
     <div class="card-head"><span class="title">Settings &middot; staff names</span><span class="sub">Map Staff ID &rarr; name</span></div>
-    <p class="sub" style="margin-bottom:.8rem;">Import the same <code>rules.json</code> used by Waqti Exceptions. Only each person&rsquo;s <strong>name</strong> is used here (the approved-demand lists are ignored). Names from the rules file take priority over any Name column in the export, and both fall back to the Staff ID.</p>
+    <p class="sub" style="margin-bottom:.8rem;">Import the same <code>rules.json</code> used by Waqti Exceptions. Only each person&rsquo;s <strong>name</strong> is used here (the approved-demand lists are read but not applied). Names from the rules file take priority over any Name column in the export, and both fall back to the Staff ID. <strong>Export</strong> writes the names back out in the same format &mdash; any approved-demand lists from an imported file are kept, so the exported <code>rules.json</code> still works in Waqti Exceptions.</p>
     <div class="controls-row">
       <button type="button" class="btn btn-ghost" id="importRulesBtn">Import rules.json</button>
       <input type="file" id="importRulesInput" accept=".json,application/json" class="hidden">
+      <button type="button" class="btn btn-ghost" id="exportRulesBtn">Export rules.json</button>
       <button type="button" class="btn btn-ghost" id="clearRulesBtn">Clear names</button>
     </div>
     <div id="rulesError" class="err hidden"></div>
@@ -224,7 +239,7 @@
     <p class="sub" style="margin-bottom:.7rem;">Type a name for any Staff ID that has none. Manual names are saved alongside imported names and take priority over the export&rsquo;s Name column. Leave a field blank to fall back to the Name column, then the Staff ID.</p>
     <div class="ms-toolbar">
       <input type="search" class="search" id="staffSearch" placeholder="Filter by Staff ID or name&hellip;" aria-label="Filter staff">
-      <label class="chk-inline"><input type="checkbox" id="onlyMissing"> Only missing names</label>
+      <label class="chk-inline"><input type="checkbox" id="onlyMissing" checked> Only missing names</label>
     </div>
     <div class="note" id="staffNamesHint" style="margin:.2rem 0 .7rem;">Load a timesheet export to edit names for its staff.</div>
     <div class="table-wrap" id="staffNamesWrap"></div>
@@ -404,12 +419,34 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
     if (typeof data !== "object" || data === null || Array.isArray(data)) throw new Error("Rules must be a JSON object. Current names left unchanged.");
     if (data.schemaVersion !== SCHEMA_VERSION) throw new Error("Unrecognised schemaVersion: " + JSON.stringify(data.schemaVersion) + ". This build supports schemaVersion " + SCHEMA_VERSION + " only. Current names left unchanged.");
     if (typeof data.staff !== "object" || data.staff === null || Array.isArray(data.staff)) throw new Error('"staff" must be an object. Current names left unchanged.');
-    var names = {}, count = 0;
+    var names = {}, demands = {}, count = 0;
     Object.keys(data.staff).forEach(function (id) {
       var e = data.staff[id];
-      if (e && typeof e === "object" && !Array.isArray(e) && typeof e.name === "string" && e.name.trim() !== "") { names[id] = e.name.trim(); count++; }
+      if (!e || typeof e !== "object" || Array.isArray(e)) return;
+      if (typeof e.name === "string" && e.name.trim() !== "") { names[id] = e.name.trim(); count++; }
+      // retain approvedDemands so an exported rules.json stays usable by Waqti Exceptions
+      if (Array.isArray(e.approvedDemands)) demands[id] = e.approvedDemands.filter(function (x) { return typeof x === "string"; });
     });
-    return { label: typeof data.label === "string" ? data.label : "", names: names, count: count };
+    return { label: typeof data.label === "string" ? data.label : "", names: names, demands: demands, count: count };
+  }
+
+  function nowIso() { try { return new Date().toISOString(); } catch (e) { return ""; } }
+  // Serialise to the same schema Waqti Exceptions reads: { schemaVersion, generatedAt, label,
+  // staff: { id: { name, approvedDemands } } }. Retained approvedDemands are kept so the file
+  // still drives the exceptions report; hand-added staff get an empty approvedDemands array.
+  function serialiseRules(names, demands, label) {
+    names = names || {}; demands = demands || {};
+    var ids = {};
+    Object.keys(names).forEach(function (id) { ids[id] = 1; });
+    Object.keys(demands).forEach(function (id) { ids[id] = 1; });
+    var staffOut = {};
+    Object.keys(ids).sort().forEach(function (id) {
+      var name = typeof names[id] === "string" ? names[id] : "";
+      var dem = Array.isArray(demands[id]) ? demands[id].filter(function (x) { return typeof x === "string"; }).slice().sort() : [];
+      if (name === "" && dem.length === 0) return;
+      staffOut[id] = { name: name, approvedDemands: dem };
+    });
+    return JSON.stringify({ schemaVersion: SCHEMA_VERSION, generatedAt: nowIso(), label: label || "", staff: staffOut }, null, 2);
   }
 
   window.WDS = {
@@ -417,6 +454,7 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
     demandIndex: demandIndex,
     summariseDemand: summariseDemand,
     parseRules: parseRules,
+    serialiseRules: serialiseRules,
     round1: round1, round2: round2, splitFirst: splitFirst
   };
 })();
@@ -441,7 +479,7 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
   function hide(el) { el.classList.add("hidden"); }
   function fmtHrs(n) { return (Math.round(n * 10) / 10).toFixed(1); }
 
-  var state = { buffer: null, fileName: "", mapping: null, parsed: null, demands: [], selected: {}, filter: "", nameMap: {}, rulesLabel: "", staffFilter: "", onlyMissing: false };
+  var state = { buffer: null, fileName: "", mapping: null, parsed: null, demands: [], selected: {}, filter: "", nameMap: {}, demandsById: {}, rulesLabel: "", staffFilter: "", onlyMissing: true };
   function nameOf(staffId, exportName) { return (state.nameMap && state.nameMap[staffId]) || exportName || staffId; }
 
   /* ---------- file / parsing ---------- */
@@ -562,8 +600,9 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
     var body = $("summaryBody");
     if (!codes.length) {
       body.innerHTML = '<div class="empty">Select one or more demands above to see who booked how many hours to each feature.</div>';
-      renderDqNote(); return;
+      $("copyBtn").disabled = true; clearCopyFallback(); renderDqNote(); return;
     }
+    $("copyBtn").disabled = false;
     body.innerHTML = codes.map(function (d) {
       var s = window.WDS.summariseDemand(state.parsed.bookings, d.code, nameOf);
       var title = '<span class="code">' + esc(d.code) + "</span>" + (d.desc ? " &middot; " + esc(d.desc) : "");
@@ -597,6 +636,80 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
       "were excluded from the totals above. Fix them at the spreadsheet row shown, then re-upload.";
   }
 
+  /* ---------- copy summary (rich HTML + plain-text fallback) ---------- */
+  function buildSummaryExport() {
+    var codes = state.demands.filter(function (d) { return state.selected[d.code]; });
+    // inline styles so formatting survives a paste into email / Word / Docs
+    var wrap = 'font-family:Arial,Helvetica,sans-serif;color:#1a1a1a;';
+    var h = 'background:#007A99;color:#ffffff;border:1px solid #007A99;padding:7px 11px;font-size:12px;text-align:left;';
+    var hR = h + "text-align:right;";
+    var td = 'border:1px solid #d0d7de;padding:7px 11px;font-size:13px;vertical-align:top;';
+    var tdR = td + "text-align:right;font-weight:bold;";
+    var html = ['<div style="' + wrap + '">'];
+    var text = [];
+    codes.forEach(function (d) {
+      var s = window.WDS.summariseDemand(state.parsed.bookings, d.code, nameOf);
+      var heading = d.code + (d.desc ? " · " + d.desc : "");
+      html.push('<p style="color:#007A99;font-weight:bold;font-size:14px;margin:16px 0 6px;">' + esc(heading) + "</p>");
+      html.push('<table cellspacing="0" cellpadding="0" style="border-collapse:collapse;">');
+      html.push('<tr><th style="' + h + '">Name</th><th style="' + h + '">Feature</th><th style="' + hR + '">Total Hours Booked</th></tr>');
+      text.push(heading);
+      text.push("Name\tFeature\tTotal Hours Booked");
+      if (!s.persons.length) {
+        html.push('<tr><td style="' + td + '" colspan="3">No booked hours for this demand.</td></tr>');
+      } else {
+        s.persons.forEach(function (p) {
+          var nm = p.name + (p.name !== p.staffId ? " (" + p.staffId + ")" : "");
+          p.features.forEach(function (f, i) {
+            var nameTd = (i === 0)
+              ? '<td style="' + td + 'font-weight:bold;" rowspan="' + p.features.length + '">' + esc(p.name) +
+                (p.name !== p.staffId ? '<br><span style="color:#6b6b6b;font-size:11px;font-weight:normal;">' + esc(p.staffId) + "</span>" : "") + "</td>"
+              : "";
+            html.push("<tr>" + nameTd + '<td style="' + td + '">' + esc(f.feature) + '</td><td style="' + tdR + '">' + fmtHrs(f.hours) + "</td></tr>");
+            text.push(nm + "\t" + f.feature + "\t" + fmtHrs(f.hours));
+          });
+        });
+      }
+      html.push('<tr><td style="' + td + 'font-weight:bold;" colspan="2">Demand total</td><td style="' + tdR + 'color:#007A99;">' + fmtHrs(s.totalHours) + "</td></tr>");
+      html.push("</table>");
+      text.push("Demand total\t\t" + fmtHrs(s.totalHours));
+      text.push("");
+    });
+    html.push("</div>");
+    return { html: html.join(""), text: text.join("\n").replace(/\n+$/, "") + "\n" };
+  }
+  function flashCopy(msg, ok) {
+    var el = $("copyMsg"); el.textContent = msg; el.className = "copymsg " + (ok ? "ok" : "fail");
+    setTimeout(function () { if (el.textContent === msg) { el.textContent = ""; el.className = "copymsg"; } }, 4000);
+  }
+  function clearCopyFallback() { $("copyFallback").innerHTML = ""; }
+  function showCopyFallback(text) {
+    $("copyFallback").innerHTML = '<div class="copy-fallback"><p class="sub" style="margin-bottom:.3rem;">Copy blocked by the browser. Select all and copy from here:</p><textarea readonly aria-label="Summary text to copy"></textarea></div>';
+    var a = $("copyFallback").querySelector("textarea"); a.value = text; a.focus(); a.select();
+  }
+  $("copyBtn").addEventListener("click", function () {
+    if ($("copyBtn").disabled) return;
+    clearCopyFallback();
+    var out = buildSummaryExport();
+    if (window.ClipboardItem && navigator.clipboard && navigator.clipboard.write) {
+      var item = new ClipboardItem({
+        "text/html": new Blob([out.html], { type: "text/html" }),
+        "text/plain": new Blob([out.text], { type: "text/plain" })
+      });
+      navigator.clipboard.write([item]).then(
+        function () { flashCopy("Copied — paste into an email, Word or Docs to keep the formatting.", true); },
+        function () { flashCopy("Copy blocked. Use the box below.", false); showCopyFallback(out.text); }
+      );
+    } else if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(out.text).then(
+        function () { flashCopy("Copied as plain text.", true); },
+        function () { flashCopy("Copy blocked. Use the box below.", false); showCopyFallback(out.text); }
+      );
+    } else {
+      showCopyFallback(out.text); flashCopy("Copy from the box below.", false);
+    }
+  });
+
   /* ---------- upload wiring ---------- */
   var drop = $("drop");
   drop.addEventListener("dragover", function (e) { e.preventDefault(); drop.classList.add("dragover"); });
@@ -615,8 +728,14 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
   $("navSettings").addEventListener("click", goSettings);
   $("navDone").addEventListener("click", goMain);
 
-  function saveRules() { try { localStorage.setItem(LS_KEY, JSON.stringify({ names: state.nameMap, label: state.rulesLabel })); } catch (e) { } }
-  function loadRules() { try { var raw = localStorage.getItem(LS_KEY); if (!raw) return; var o = JSON.parse(raw); if (o && o.names && typeof o.names === "object" && !Array.isArray(o.names)) { state.nameMap = o.names; state.rulesLabel = o.label || ""; } } catch (e) { } }
+  function saveRules() { try { localStorage.setItem(LS_KEY, JSON.stringify({ names: state.nameMap, demands: state.demandsById, label: state.rulesLabel })); } catch (e) { } }
+  function loadRules() { try { var raw = localStorage.getItem(LS_KEY); if (!raw) return; var o = JSON.parse(raw); if (o && o.names && typeof o.names === "object" && !Array.isArray(o.names)) { state.nameMap = o.names; state.rulesLabel = o.label || ""; if (o.demands && typeof o.demands === "object" && !Array.isArray(o.demands)) state.demandsById = o.demands; } } catch (e) { } }
+  function download(filename, text) {
+    var blob = new Blob([text], { type: "application/json" });
+    var url = URL.createObjectURL(blob), a = document.createElement("a");
+    a.href = url; a.download = filename; document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  }
 
   function renderRulesStatus() {
     var n = Object.keys(state.nameMap).length, st = $("rulesStatus"), pills = $("namePills");
@@ -638,14 +757,19 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
       hide($("rulesError"));
       // merge imported names over any existing (manual or prior import) so hand-typed names survive
       Object.keys(parsed.names).forEach(function (id) { state.nameMap[id] = parsed.names[id]; });
+      // retain approvedDemands so Export can round-trip a Waqti-Exceptions-compatible file
+      Object.keys(parsed.demands || {}).forEach(function (id) { state.demandsById[id] = parsed.demands[id]; });
       state.rulesLabel = parsed.label || f.name;
       saveRules(); renderRulesStatus(); renderStaffNames();
       if (state.parsed) renderSummary();
     };
     reader.readAsText(f); ev.target.value = "";
   });
+  $("exportRulesBtn").addEventListener("click", function () {
+    download("rules.json", window.WDS.serialiseRules(state.nameMap, state.demandsById, state.rulesLabel));
+  });
   $("clearRulesBtn").addEventListener("click", function () {
-    state.nameMap = {}; state.rulesLabel = ""; saveRules(); renderRulesStatus(); renderStaffNames();
+    state.nameMap = {}; state.demandsById = {}; state.rulesLabel = ""; saveRules(); renderRulesStatus(); renderStaffNames();
     if (state.parsed) renderSummary();
   });
 
@@ -677,8 +801,8 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
     wrap.innerHTML = '<table class="data"><thead><tr><th>Staff ID</th><th>Name</th></tr></thead><tbody>' +
       shown.map(function (id) {
         var override = state.nameMap[id] || "", exp = map[id] || "", missing = !(override || exp);
-        var sub = override ? '<span class="sid">export: ' + (exp ? esc(exp) : "&mdash;") + "</span>"
-          : (exp ? '<span class="sid">export: ' + esc(exp) + "</span>" : '<span class="sid miss">no name in export</span>');
+        // show the export Name as a hint only when there is one; the column header is enough otherwise
+        var sub = exp ? '<span class="sid">export: ' + esc(exp) + "</span>" : "";
         var ph = exp ? esc(exp) : "Add a name";
         return '<tr' + (missing ? ' class="missing-row"' : "") + '><td class="staff-id">' + esc(id) + sub + "</td>" +
           '<td><input type="text" class="name-input" data-sid="' + esc(id) + '" data-exp="' + esc(exp) + '" value="' + esc(override) + '" placeholder="' + ph + '" aria-label="Name for ' + esc(id) + '"></td></tr>';

@@ -91,6 +91,9 @@ the report.
 4. Read the summary: one table per demand of **Name**, **Feature**, and **Total Hours
    Booked**, aggregated per person and feature. Rows for the same person are grouped so the
    name appears once, with a demand total.
+5. **Copy summary** puts the selected demands' tables on the clipboard as rich HTML — paste
+   into an email, Word or Google Docs and the formatting (and per-person grouping) is kept;
+   a plain-text version is copied too for editors that don't take HTML.
 
 **Same column-mapping rules as Waqti Exceptions.** Row 1 holds the headers:
 
@@ -114,7 +117,9 @@ are ignored). You can also **type a name for any Staff ID by hand** in the staff
 editor — a "Only missing names" toggle surfaces the IDs that currently fall back to the raw
 Staff ID. Imported and hand-typed names both take priority over any Name column in the
 export; unlisted staff fall back to the Name column, then the Staff ID. All names persist
-in the browser.
+in the browser. **Export rules.json** writes the names back out in the same schema — any
+`approvedDemands` lists carried in from an imported file are preserved, so the exported
+file stays usable by Waqti Exceptions and re-imports here.
 
 ---
 
