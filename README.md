@@ -12,8 +12,9 @@ requests — your data never leaves the machine.
 |---|---|---|
 | [`delivery-plan.html`](delivery-plan.html) | an Excel delivery plan | a PowerPoint Gantt-chart slide (`.pptx`) |
 | [`waqti-exceptions.html`](waqti-exceptions.html) | a Waqti timesheet export + an approved-demand allowlist | a copy-paste correction email |
+| [`waqti-demand-summary.html`](waqti-demand-summary.html) | a Waqti timesheet export | an on-screen per-demand summary of hours by person and feature |
 
-Common to both: a single HTML file, inline-vendored libraries, works over `file://`
+Common to all: a single HTML file, inline-vendored libraries, works over `file://`
 with the network off, light theme, and brand-consistent styling.
 
 ---
@@ -76,8 +77,48 @@ so treat the output as month-level.
 
 ---
 
+## `waqti-demand-summary.html` — timesheet demand summary (view online)
+
+Drop the same Waqti timesheet export and view it on-screen: pick one or more demands and
+see who booked how many hours to which feature under each. No email — the page itself is
+the report.
+
+1. Open **`waqti-demand-summary.html`**.
+2. Drop in an `.xlsx` timesheet export (the same shape `waqti-exceptions.html` reads). Once
+   loaded, the drop zone collapses to a **Replace file** bar.
+3. Tick the demands you want in the multi-select list (nothing is selected to start).
+   Use the filter box to narrow a long list; blank/uncoded demands are hidden.
+4. Read the summary: one table per demand of **Name**, **Feature**, and **Total Hours
+   Booked**, aggregated per person and feature. Rows for the same person are grouped so the
+   name appears once, with a demand total.
+
+**Same column-mapping rules as Waqti Exceptions.** Row 1 holds the headers:
+
+| Column | Meaning |
+|---|---|
+| Staff ID | Person identifier (required) |
+| Work Day | Booking date (required) |
+| Month | Period label, e.g. `June, 2026` (required) |
+| Demand | `Code - Description`, split on the first ` - ` (required) |
+| Feature | `Code - Description`, split on the first ` - ` (required) |
+| Booked Hours | Numeric hours; non-numeric or negative values are flagged and excluded from totals (required) |
+| Name | Display name (optional — auto-detected from `Name`/`Staff`/`Employee`/`Worker`/`Resource` headers) |
+| Recharge Cost | Optional, not shown |
+
+If some headers are not found automatically, a small mapper lets you match each field to a
+column before confirming. Rows with an empty Staff ID are excluded.
+
+**Staff names (Settings):** import the same `rules.json` used by Waqti Exceptions to map
+each Staff ID to a display name. Only the `name` field is read (the approved-demand lists
+are ignored). Imported names take priority over any Name column in the export; unlisted
+staff fall back to the Name column, then the Staff ID. The imported names persist in the
+browser.
+
+---
+
 ## Files
 
 - `delivery-plan.html` — delivery-plan to PPTX tool
 - `waqti-exceptions.html` — timesheet exceptions to email tool
+- `waqti-demand-summary.html` — timesheet demand summary (view online)
 - `assets/` — logo variants, favicon, and the blank delivery-plan Excel template
