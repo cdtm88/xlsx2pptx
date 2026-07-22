@@ -90,7 +90,7 @@
   /* Tables */
   .table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px}
   table.data{width:100%;border-collapse:collapse;font-size:.85rem;background:#fff}
-  table.data thead th{background:var(--teal-dark);color:#fff;padding:.6rem .85rem;text-align:left;font-weight:700;font-size:.72rem;text-transform:uppercase;letter-spacing:.04em}
+  table.data thead th{background:var(--teal-tint);color:var(--charcoal);border-bottom:1px solid #BFE8F2;padding:.6rem .85rem;text-align:left;font-weight:700;font-size:.72rem;text-transform:uppercase;letter-spacing:.04em}
   table.data thead th.num{text-align:right}
   table.data td{padding:.55rem .85rem;border-bottom:1px solid var(--line-soft);color:var(--charcoal)}
   table.data tbody tr:nth-child(even) td{background:var(--light-grey)}
@@ -361,9 +361,14 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
       d.people[b.staffId] = 1;
       d.features[b.featureCode] = 1;
     });
-    return Object.keys(m).sort().map(function (code) {
+    return Object.keys(m).map(function (code) {
       var d = m[code];
       return { code: code, desc: d.desc, hours: round2(d.hours), people: Object.keys(d.people).length, features: Object.keys(d.features).length };
+    }).sort(function (a, b) {
+      // order by the demand name (the text after the code), ignoring the code itself
+      var an = (a.desc || a.code).toLowerCase(), bn = (b.desc || b.code).toLowerCase();
+      if (an !== bn) return an < bn ? -1 : 1;
+      return a.code < b.code ? -1 : (a.code > b.code ? 1 : 0);
     });
   }
 
@@ -467,7 +472,7 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
 (function () {
   "use strict";
 
-  var VERSION = "v1.2.0";
+  var VERSION = "v1.3.0";
   var $ = function (id) { return document.getElementById(id); };
   $("version").textContent = VERSION;
 
@@ -515,8 +520,6 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
     var p = state.parsed, bits = [];
     bits.push('<span class="pill ok">' + p.bookings.length + " bookings</span>");
     bits.push('<span class="pill">' + state.demands.length + " demand" + (state.demands.length === 1 ? "" : "s") + "</span>");
-    if (p.excluded) bits.push('<span class="pill">' + p.excluded + " row" + (p.excluded === 1 ? "" : "s") + " excluded (empty Staff ID)</span>");
-    bits.push('<span class="pill">sheet: ' + esc(p.sheetName) + "</span>");
     if (p.period && p.period.label) bits.push('<span class="pill">period: ' + esc(p.period.label) + (p.period.multiMonth ? " (multi-month)" : "") + "</span>");
     if (p.dataQuality.length) bits.push('<span class="pill dq">' + p.dataQuality.length + " data-quality row" + (p.dataQuality.length === 1 ? "" : "s") + "</span>");
     $("parseStatus").innerHTML = bits.join(" ");
@@ -613,7 +616,9 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
       } else {
         s.persons.forEach(function (p) {
           var span = p.features.length;
-          var nameCell = esc(p.name) + (p.name !== p.staffId ? '<span class="sid">' + esc(p.staffId) + "</span>" : "");
+          // show the Staff ID only when the name is NOT known from the rules/manual JSON
+          var showId = !state.nameMap[p.staffId] && p.name !== p.staffId;
+          var nameCell = esc(p.name) + (showId ? '<span class="sid">' + esc(p.staffId) + "</span>" : "");
           p.features.forEach(function (f, i) {
             var open = (i === 0) ? '<tr class="group-start">' : "<tr>";
             var nc = (i === 0) ? '<td class="name-cell" rowspan="' + span + '">' + nameCell + "</td>" : "";
@@ -639,31 +644,35 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
   /* ---------- copy summary (rich HTML + plain-text fallback) ---------- */
   function buildSummaryExport() {
     var codes = state.demands.filter(function (d) { return state.selected[d.code]; });
-    // inline styles so formatting survives a paste into email / Word / Docs
+    // inline styles matching waqti-exceptions' email tables: light header, fixed 900px width,
+    // table-layout:fixed + a colgroup so every demand's columns line up when pasted
     var wrap = 'font-family:Arial,Helvetica,sans-serif;color:#1a1a1a;';
-    var h = 'background:#007A99;color:#ffffff;border:1px solid #007A99;padding:7px 11px;font-size:12px;text-align:left;';
-    var hR = h + "text-align:right;";
-    var td = 'border:1px solid #d0d7de;padding:7px 11px;font-size:13px;vertical-align:top;';
+    var tblOpen = '<table role="presentation" cellspacing="0" cellpadding="0" width="900" style="border-collapse:collapse;background:#ffffff;width:900px;table-layout:fixed;">';
+    var cols = '<colgroup><col style="width:150px"><col style="width:660px"><col style="width:90px"></colgroup>';
+    var thB = 'background:#E6F6FA;color:#1A1A1A;border:1px solid #BFE8F2;padding:7px 11px;font-family:Arial,Helvetica,sans-serif;font-size:12px;text-align:left;word-wrap:break-word;';
+    var thR = thB + "text-align:right;";
+    var td = 'background:#ffffff;color:#1a1a1a;border:1px solid #d0d7de;padding:7px 11px;font-family:Arial,Helvetica,sans-serif;font-size:13px;word-wrap:break-word;vertical-align:top;';
     var tdR = td + "text-align:right;font-weight:bold;";
     var html = ['<div style="' + wrap + '">'];
     var text = [];
     codes.forEach(function (d) {
       var s = window.WDS.summariseDemand(state.parsed.bookings, d.code, nameOf);
       var heading = d.code + (d.desc ? " · " + d.desc : "");
-      html.push('<p style="color:#007A99;font-weight:bold;font-size:14px;margin:16px 0 6px;">' + esc(heading) + "</p>");
-      html.push('<table cellspacing="0" cellpadding="0" style="border-collapse:collapse;">');
-      html.push('<tr><th style="' + h + '">Name</th><th style="' + h + '">Feature</th><th style="' + hR + '">Total Hours Booked</th></tr>');
+      html.push('<p style="color:#007A99;font-weight:bold;font-size:13.5px;margin:16px 0 6px;">' + esc(heading) + "</p>");
+      html.push(tblOpen + cols);
+      html.push('<tr><th style="' + thB + '">Name</th><th style="' + thB + '">Feature</th><th style="' + thR + '">Total Hours Booked</th></tr>');
       text.push(heading);
       text.push("Name\tFeature\tTotal Hours Booked");
       if (!s.persons.length) {
         html.push('<tr><td style="' + td + '" colspan="3">No booked hours for this demand.</td></tr>');
       } else {
         s.persons.forEach(function (p) {
-          var nm = p.name + (p.name !== p.staffId ? " (" + p.staffId + ")" : "");
+          var showId = !state.nameMap[p.staffId] && p.name !== p.staffId;
+          var nm = p.name + (showId ? " (" + p.staffId + ")" : "");
           p.features.forEach(function (f, i) {
             var nameTd = (i === 0)
               ? '<td style="' + td + 'font-weight:bold;" rowspan="' + p.features.length + '">' + esc(p.name) +
-                (p.name !== p.staffId ? '<br><span style="color:#6b6b6b;font-size:11px;font-weight:normal;">' + esc(p.staffId) + "</span>" : "") + "</td>"
+                (showId ? '<br><span style="color:#6b6b6b;font-size:11px;font-weight:normal;">' + esc(p.staffId) + "</span>" : "") + "</td>"
               : "";
             html.push("<tr>" + nameTd + '<td style="' + td + '">' + esc(f.feature) + '</td><td style="' + tdR + '">' + fmtHrs(f.hours) + "</td></tr>");
             text.push(nm + "\t" + f.feature + "\t" + fmtHrs(f.hours));
