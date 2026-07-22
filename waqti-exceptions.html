@@ -473,8 +473,8 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
     options = options || {};
     var period = options.period || (result.period && result.period.label) || "";
     var deadline = options.deadline || "";
-    var intro = options.intro || "The following bookings were made against demands the person is not\ncurrently approved for.";
-    var closing = (options.closing || "Please correct these in the timesheet system by {deadline}.").replace(/\{deadline\}/g, deadline);
+    var intro = options.intro || "The following bookings were made against demands the person is not currently approved for.";
+    var closing = (options.closing || "Please correct these in Waqti by {deadline}.").replace(/\{deadline\}/g, deadline);
     var ex = result.exceptions || [];
     var attention = result.attention || [];
     var missing = result.missingStaff || [];
@@ -536,7 +536,7 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
     if (missing.length) {
       var mN = "Name".length, mI = "Staff ID".length;
       missing.forEach(function (m) { mN = Math.max(mN, w1(m.name || "-").length); mI = Math.max(mI, m.staffId.length); });
-      L.push("NOT YET IN THE TIMESHEET - no bookings in this export");
+      L.push("NO TIME LOGGED - these team members have no bookings in Waqti. Please update your timesheets.");
       L.push(pad("Name", mN) + "  " + pad("Staff ID", mI));
       L.push(rep("-", mN) + "  " + rep("-", mI));
       missing.forEach(function (m) { L.push(pad(w1(m.name || "-"), mN) + "  " + pad(m.staffId, mI)); });
@@ -585,7 +585,7 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
     if (missing.length) {
       var misCols = '<colgroup><col style="width:62%"><col style="width:38%"></colgroup>';
       var thG = 'background:#ECEEF0;color:#3D3D3D;border:1px solid #D8DCE0;padding:7px 11px;font-family:Arial,Helvetica,sans-serif;font-size:12px;text-align:left;word-wrap:break-word;';
-      h.push('<p style="background:#ffffff;color:#3D3D3D;margin:20px 0 6px;font-weight:bold;font-size:13.5px;">Not yet in the timesheet: no bookings in this export</p>');
+      h.push('<p style="background:#ffffff;color:#3D3D3D;margin:20px 0 6px;font-weight:bold;font-size:13.5px;">No time logged: these team members have no bookings in Waqti. Please update your timesheets.</p>');
       h.push(tblOpen + misCols);
       h.push('<tr><th style="' + thG + '">Name</th><th style="' + thG + '">Staff ID</th></tr>');
       missing.forEach(function (m, i) {
@@ -663,7 +663,7 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
 (function () {
   "use strict";
 
-  var VERSION = "v1.7.0";
+  var VERSION = "v1.7.1";
   var LS_KEY = "waqti-exceptions:v1";
   var $ = function (id) { return document.getElementById(id); };
   $("version").textContent = VERSION;
@@ -913,7 +913,7 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
     var result = applyRules(state.parsed.bookings, state.rules); result.period = state.parsed.period;
     state.lastResult = result;
     var s = result.stats;
-    banner.innerHTML = '<span class="pill ok">' + s.coveredCount + " covered</span>" + (s.notInRulesCount ? '<span class="pill warn">' + s.notInRulesCount + " not in rules</span>" : "") + (s.attentionCount ? '<span class="pill amber">' + s.attentionCount + " to check</span>" : "") + (s.missingCount ? '<span class="pill grey">' + s.missingCount + " not in timesheet</span>" : "");
+    banner.innerHTML = '<span class="pill ok">' + s.coveredCount + " covered</span>" + (s.notInRulesCount ? '<span class="pill warn">' + s.notInRulesCount + " not in rules</span>" : "") + (s.attentionCount ? '<span class="pill amber">' + s.attentionCount + " to check</span>" : "") + (s.missingCount ? '<span class="pill grey">' + s.missingCount + " no time logged</span>" : "");
 
     if (s.exceptionLineCount === 0 && s.attentionCount === 0 && s.missingCount === 0) {
       $("clearWrap").innerHTML = '<div class="panel clear"><strong>All clear.</strong> Nothing to send: no bookings against unapproved demands, nothing needing a check, and everyone has entered time.</div>';
@@ -976,7 +976,7 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
 
     // ---- not yet in the timesheet, with exclude checkboxes ----
     if (result.missingStaff && result.missingStaff.length) {
-      var m2 = section("Not yet in the timesheet (" + result.missingStaff.length + ")", "In the rules but with no bookings in this export, so they may not have entered time yet. Untick a row to leave it out of the email.");
+      var m2 = section("No time logged (" + result.missingStaff.length + ")", "These team members have no bookings in Waqti. Please update your timesheets. Untick a row to leave it out of the email.");
       m2 += '<div class="table-wrap scroll"><table class="data grey"><thead><tr><th class="chk">Send</th><th>Name</th><th>Staff ID</th></tr></thead><tbody>';
       state.missingKeys = []; var mi = 0;
       result.missingStaff.forEach(function (m) {
@@ -1032,12 +1032,13 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
     var yy = parseInt(m[2], 10);
     return { year: yy < 100 ? 2000 + yy : yy, month: mi };
   }
+  function ordinal(n) { var s = ["th", "st", "nd", "rd"], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); }
   function fmtDeadline(ymd) {
     if (!ymd) return "";
     var p = ymd.split("-"); if (p.length !== 3) return ymd;
     var d = new Date(parseInt(p[0], 10), parseInt(p[1], 10) - 1, parseInt(p[2], 10));
     if (isNaN(d.getTime())) return ymd;
-    return WD[d.getDay()] + " " + d.getDate() + " " + MO[d.getMonth()];
+    return WD[d.getDay()] + " " + ordinal(d.getDate()) + " " + MO[d.getMonth()];
   }
   function defaultDeadline() {
     var ym = state.parsed && state.parsed.period ? periodToYM(state.parsed.period.label) : null;
@@ -1049,8 +1050,12 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
   function renderEmailControls() {
     if (state.parsed && state.parsed.period && !$("periodInput").value) $("periodInput").value = state.parsed.period.label;
     if (!deadlineUserSet) $("deadlineInput").value = defaultDeadline();
-    if (!$("introInput").value) $("introInput").value = "The following bookings were made against demands the person is not\ncurrently approved for.";
-    if (!$("closingInput").value) $("closingInput").value = "Please correct these in the timesheet system by {deadline}.";
+    var OLD_INTRO = "The following bookings were made against demands the person is not\ncurrently approved for.";
+    var NEW_INTRO = "The following bookings were made against demands the person is not currently approved for.";
+    if (!$("introInput").value || $("introInput").value === OLD_INTRO) $("introInput").value = NEW_INTRO;
+    var OLD_CLOSING = "Please correct these in the timesheet system by {deadline}.";
+    var NEW_CLOSING = "Please correct these in Waqti by {deadline}.";
+    if (!$("closingInput").value || $("closingInput").value === OLD_CLOSING) $("closingInput").value = NEW_CLOSING;
     renderEmail();
   }
   function currentOptions() { return { period: $("periodInput").value, deadline: fmtDeadline($("deadlineInput").value), intro: $("introInput").value, closing: $("closingInput").value }; }
