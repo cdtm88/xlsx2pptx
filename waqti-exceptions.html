@@ -146,7 +146,7 @@
 <div class="container" id="view-main">
 
   <section class="card">
-    <div class="card-head"><span class="title">Timesheet export</span><span class="sub" id="fileNameSub"></span></div>
+    <div class="card-head"><span class="title">Timesheet export</span><div class="controls-row"><span class="sub" id="fileNameSub"></span><button type="button" class="mini-btn hidden" id="replaceBtn">Replace file</button></div></div>
     <div class="upload-area" id="drop" tabindex="0" role="button" aria-label="Drop an xlsx file here, or press Enter to browse">
       <div class="big">Drop an .xlsx export here</div>
       <div class="or">or</div>
@@ -172,10 +172,9 @@
 
   <section class="card" id="exceptionsCard">
     <div class="card-head"><span class="title">Exceptions</span><span id="banner"></span></div>
-    <div class="kpi-row" id="statsWrap"></div>
     <div id="clearWrap"></div>
     <div class="table-wrap" id="exceptionsWrap"></div>
-    <p class="sub hidden" id="excludeHint" style="margin-top:.5rem;">Untick a row to leave it out of the email. It stays in the totals above.</p>
+    <p class="sub hidden" id="excludeHint" style="margin-top:.5rem;">Untick a row to leave it out of the email.</p>
     <div id="unmatchedWrap"></div>
     <div id="dqWrap"></div>
     <div class="note" id="limitNote"><strong>Known limitation.</strong> No time-bounded approvals in this version. Someone who legitimately moved onto a demand mid-month shows false exceptions for the earlier period, and someone who left a demand shows none after they left. Treat the output as month-level only.</div>
@@ -218,6 +217,7 @@
       <button type="button" class="btn btn-ghost" id="exportBtn">Export rules</button>
       <button type="button" class="btn btn-ghost" id="templateBtn">Download template</button>
       <button type="button" class="btn btn-ghost" id="bakeBtn">Save tool with rules</button>
+      <button type="button" class="btn btn-primary" id="applyJson">Apply JSON to grid</button>
     </div>
     <p class="sub" id="bakeMsg" style="margin:.2rem 0 .4rem;"></p>
 
@@ -227,10 +227,7 @@
 
     <label class="field" for="jsonArea" style="margin-top:1.1rem;">Raw rules JSON (source of truth). Edit here for staff or demands not in this export, then Apply.</label>
     <textarea id="jsonArea" class="mono" rows="14" spellcheck="false"></textarea>
-    <div class="controls-row" style="margin-top:.7rem;">
-      <button type="button" class="btn btn-primary" id="applyJson">Apply JSON to grid</button>
-      <span class="sub">Also applied on blur. Invalid JSON is refused and your text is kept.</span>
-    </div>
+    <p class="sub" style="margin-top:.5rem;">Use <strong>Apply JSON to grid</strong> above, or just click out of the box. Invalid JSON is refused and your text is kept.</p>
     <div id="jsonError" class="err hidden"></div>
   </section>
 
@@ -324,7 +321,7 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
 
     var bookings = [], excluded = 0, dataQuality = [], months = [], seen = {};
     for (var r = range.s.r + 1; r <= range.e.r; r++) {
-      var sid = txt(r, resolved.staffId).trim();
+      var sid = txt(r, resolved.staffId).trim().toUpperCase();  // staff IDs are matched case-insensitively
       if (sid === "") { excluded++; continue; }
       var sheetRow = r + 1;
       var dem = splitFirst(txt(r, resolved.demand));
@@ -488,7 +485,7 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
     var text = safe.text;
 
     // ---- rich HTML (inline styles, explicit colours on every element) ----
-    var th = 'background:#007A99;color:#ffffff;border:1px solid #007A99;padding:7px 11px;font-family:Arial,Helvetica,sans-serif;font-size:12px;text-align:left;';
+    var th = 'background:#E6F6FA;color:#1A1A1A;border:1px solid #BFE8F2;padding:7px 11px;font-family:Arial,Helvetica,sans-serif;font-size:12px;text-align:left;';
     var thR = th + "text-align:right;";
     var td = 'background:#ffffff;color:#1a1a1a;border:1px solid #d0d7de;padding:7px 11px;font-family:Arial,Helvetica,sans-serif;font-size:13px;';
     var tdA = 'background:#f4f4f4;color:#1a1a1a;border:1px solid #d0d7de;padding:7px 11px;font-family:Arial,Helvetica,sans-serif;font-size:13px;';
@@ -556,7 +553,9 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
       else if (!e.approvedDemands.every(function (x) { return typeof x === "string"; })) problems.push(id + ': "approvedDemands" must contain only strings.');
     });
     if (problems.length) throw new Error("Rules validation failed:\n- " + problems.join("\n- ") + "\nCurrent rules left unchanged.");
-    return { schemaVersion: SCHEMA_VERSION, generatedAt: data.generatedAt || null, label: typeof data.label === "string" ? data.label : "", staff: data.staff };
+    var staffUpper = {};
+    Object.keys(data.staff).forEach(function (id) { staffUpper[String(id).toUpperCase()] = data.staff[id]; });
+    return { schemaVersion: SCHEMA_VERSION, generatedAt: data.generatedAt || null, label: typeof data.label === "string" ? data.label : "", staff: staffUpper };
   }
 
   window.parseExport = parseExport;
@@ -574,7 +573,7 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
 (function () {
   "use strict";
 
-  var VERSION = "v1.4.0";
+  var VERSION = "v1.5.0";
   var LS_KEY = "waqti-exceptions:v1";
   var $ = function (id) { return document.getElementById(id); };
   $("version").textContent = VERSION;
@@ -609,7 +608,9 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
       var raw = localStorage.getItem(LS_KEY); if (!raw) return;
       var obj = JSON.parse(raw);
       if (obj && obj.rules && typeof obj.rules === "object") {
-        state.rules = { label: obj.rules.label || "", staff: obj.rules.staff || {}, generatedAt: obj.rules.generatedAt || null };
+        var st = obj.rules.staff || {}, stU = {};
+        Object.keys(st).forEach(function (id) { stU[String(id).toUpperCase()] = st[id]; });
+        state.rules = { label: obj.rules.label || "", staff: stU, generatedAt: obj.rules.generatedAt || null };
         state.source = "autosave"; state.loadedAt = obj.loadedAt || null;
       }
       if (obj && obj.email && typeof obj.email === "object") {
@@ -644,6 +645,7 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
     catch (e) { showParseError("Could not parse " + state.fileName + ": " + e.message + "\nPreviously loaded data is unchanged."); return; }
     if (result.needsMapping) { renderMapper(result); return; }
     hide($("mapper"));
+    hide($("drop")); show($("replaceBtn"));
     state.parsed = result; state.mapping = mapping; state.excluded = {};
     $("fileNameSub").textContent = state.fileName;
     renderParseStatus();
@@ -809,20 +811,17 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
   });
 
   /* ---------- exceptions preview ---------- */
-  function kpi(n, l) { return '<div class="kpi"><div class="n">' + esc(n) + '</div><div class="l">' + esc(l) + "</div></div>"; }
   function renderPreview() {
     var banner = $("banner");
     if (!state.parsed) {
       banner.innerHTML = '<span class="sub">Load an export to see exceptions.</span>';
-      $("statsWrap").innerHTML = ""; $("clearWrap").innerHTML = ""; $("exceptionsWrap").innerHTML = ""; $("unmatchedWrap").innerHTML = ""; $("dqWrap").innerHTML = "";
+      $("clearWrap").innerHTML = ""; $("exceptionsWrap").innerHTML = ""; $("unmatchedWrap").innerHTML = ""; $("dqWrap").innerHTML = "";
       state.lastResult = null; return;
     }
     var result = applyRules(state.parsed.bookings, state.rules); result.period = state.parsed.period;
     state.lastResult = result;
     var s = result.stats;
     banner.innerHTML = '<span class="pill ok">' + s.coveredCount + " covered</span><span class=\"pill " + (s.unmatchedCount ? "warn" : "") + "\">" + s.unmatchedCount + " unmatched</span>";
-    $("statsWrap").innerHTML = kpi(s.totalHours.toFixed(1), "total hours parsed") + kpi(s.exceptionHours.toFixed(1), "exception hours") + kpi(s.exceptionPct.toFixed(1) + "%", "of total") + kpi(s.staffAffected, "staff affected");
-
     if (s.exceptionLineCount === 0) {
       $("clearWrap").innerHTML = '<div class="panel clear"><strong>All clear.</strong> No bookings against unapproved demands for staff in the rules. The copy button is disabled because there is nothing to send.</div>';
       $("exceptionsWrap").innerHTML = ""; $("exceptionsWrap").className = ""; hide($("excludeHint"));
@@ -980,6 +979,7 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
   drop.addEventListener("dragleave", function () { drop.classList.remove("dragover"); });
   drop.addEventListener("drop", function (e) { e.preventDefault(); drop.classList.remove("dragover"); var f = e.dataTransfer.files && e.dataTransfer.files[0]; if (f) readFile(f); });
   $("browseBtn").addEventListener("click", function (e) { e.stopPropagation(); $("fileInput").click(); });
+  $("replaceBtn").addEventListener("click", function () { $("fileInput").click(); });
   drop.addEventListener("click", function () { $("fileInput").click(); });
   drop.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); $("fileInput").click(); } });
   $("fileInput").addEventListener("change", function (ev) { var f = ev.target.files && ev.target.files[0]; if (f) readFile(f); ev.target.value = ""; });
@@ -1018,7 +1018,7 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
     var prevEmail = elE.textContent;
     elE.textContent = JSON.stringify({ intro: $("introInput").value, closing: $("closingInput").value }).replace(/</g, "\\u003c");
     // clear heavy dynamic regions so the saved copy is lean; restored right after
-    var clearIds = ["exceptionsWrap", "richPreview", "gridWrap", "extrasWrap", "unmatchedWrap", "dqWrap", "parseStatus", "banner", "statsWrap", "clearWrap", "fallbackWrap", "mapperFields"];
+    var clearIds = ["exceptionsWrap", "richPreview", "gridWrap", "extrasWrap", "unmatchedWrap", "dqWrap", "parseStatus", "banner", "clearWrap", "fallbackWrap", "mapperFields"];
     var saved = {};
     clearIds.forEach(function (id) { var n = $(id); saved[id] = n.innerHTML; n.innerHTML = ""; });
     var html = "<!doctype html>\n" + document.documentElement.outerHTML;
