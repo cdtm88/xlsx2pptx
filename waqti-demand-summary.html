@@ -121,6 +121,14 @@
   /* Settings */
   .rules-status{font-size:.82rem;color:var(--slate)}
   .name-pills{margin-top:.6rem}
+  .chk-inline{display:inline-flex;align-items:center;gap:.4rem;font-size:.8rem;font-weight:600;color:var(--slate);white-space:nowrap;cursor:pointer}
+  .chk-inline input{accent-color:var(--teal);width:16px;height:16px;cursor:pointer}
+  #staffNamesWrap{max-height:420px;overflow-y:auto}
+  table.data td.staff-id{font-weight:600}
+  table.data td.staff-id .sid{display:block;font-weight:500}
+  table.data td.staff-id .miss{color:#9A6212;font-weight:600}
+  table.data tbody tr.missing-row td{background:#FDF3E7}
+  table.data input.name-input{width:100%;max-width:340px;padding:.4rem .55rem;font-size:.82rem}
 
   /* Callouts / notes */
   .callout{background:var(--teal-tint);border:1px solid #CFEBF3;border-left:4px solid var(--teal);color:var(--charcoal);border-radius:0 8px 8px 0;padding:.7rem 1rem;font-size:.82rem}
@@ -209,6 +217,17 @@
     <div id="rulesError" class="err hidden"></div>
     <div class="note rules-status" id="rulesStatus" style="margin-top:.9rem;">No names loaded. Names fall back to the Name column, then the Staff ID.</div>
     <div class="name-pills" id="namePills"></div>
+  </section>
+
+  <section class="card">
+    <div class="card-head"><span class="title">Staff names &middot; fill in the blanks</span><span class="sub">Set a name for any Staff ID</span></div>
+    <p class="sub" style="margin-bottom:.7rem;">Type a name for any Staff ID that has none. Manual names are saved alongside imported names and take priority over the export&rsquo;s Name column. Leave a field blank to fall back to the Name column, then the Staff ID.</p>
+    <div class="ms-toolbar">
+      <input type="search" class="search" id="staffSearch" placeholder="Filter by Staff ID or name&hellip;" aria-label="Filter staff">
+      <label class="chk-inline"><input type="checkbox" id="onlyMissing"> Only missing names</label>
+    </div>
+    <div class="note" id="staffNamesHint" style="margin:.2rem 0 .7rem;">Load a timesheet export to edit names for its staff.</div>
+    <div class="table-wrap" id="staffNamesWrap"></div>
   </section>
 </div>
 
@@ -410,7 +429,7 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
 (function () {
   "use strict";
 
-  var VERSION = "v1.1.0";
+  var VERSION = "v1.2.0";
   var $ = function (id) { return document.getElementById(id); };
   $("version").textContent = VERSION;
 
@@ -422,7 +441,7 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
   function hide(el) { el.classList.add("hidden"); }
   function fmtHrs(n) { return (Math.round(n * 10) / 10).toFixed(1); }
 
-  var state = { buffer: null, fileName: "", mapping: null, parsed: null, demands: [], selected: {}, filter: "", nameMap: {}, rulesLabel: "" };
+  var state = { buffer: null, fileName: "", mapping: null, parsed: null, demands: [], selected: {}, filter: "", nameMap: {}, rulesLabel: "", staffFilter: "", onlyMissing: false };
   function nameOf(staffId, exportName) { return (state.nameMap && state.nameMap[staffId]) || exportName || staffId; }
 
   /* ---------- file / parsing ---------- */
@@ -451,6 +470,7 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
     renderDemandList();
     show($("demandCard")); show($("summaryCard"));
     renderSummary();
+    renderStaffNames();
   }
 
   function renderParseStatus() {
@@ -590,7 +610,7 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
 
   /* ---------- settings: staff-name rules (same rules.json as Waqti Exceptions) ---------- */
   var LS_KEY = "waqti-demand-summary:v1";
-  function goSettings() { hide($("view-main")); show($("view-settings")); hide($("navSettings")); show($("navDone")); window.scrollTo(0, 0); }
+  function goSettings() { hide($("view-main")); show($("view-settings")); hide($("navSettings")); show($("navDone")); renderStaffNames(); window.scrollTo(0, 0); }
   function goMain() { show($("view-main")); hide($("view-settings")); show($("navSettings")); hide($("navDone")); window.scrollTo(0, 0); }
   $("navSettings").addEventListener("click", goSettings);
   $("navDone").addEventListener("click", goMain);
@@ -616,16 +636,65 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
       try { parsed = window.WDS.parseRules(String(reader.result)); }
       catch (e) { var el = $("rulesError"); el.textContent = e.message; show(el); return; }
       hide($("rulesError"));
-      state.nameMap = parsed.names; state.rulesLabel = parsed.label || f.name;
-      saveRules(); renderRulesStatus();
+      // merge imported names over any existing (manual or prior import) so hand-typed names survive
+      Object.keys(parsed.names).forEach(function (id) { state.nameMap[id] = parsed.names[id]; });
+      state.rulesLabel = parsed.label || f.name;
+      saveRules(); renderRulesStatus(); renderStaffNames();
       if (state.parsed) renderSummary();
     };
     reader.readAsText(f); ev.target.value = "";
   });
   $("clearRulesBtn").addEventListener("click", function () {
-    state.nameMap = {}; state.rulesLabel = ""; saveRules(); renderRulesStatus();
+    state.nameMap = {}; state.rulesLabel = ""; saveRules(); renderRulesStatus(); renderStaffNames();
     if (state.parsed) renderSummary();
   });
+
+  /* ---------- staff-name editor (fill in a name for any Staff ID) ---------- */
+  function exportStaffMap() {
+    var m = {};
+    if (!state.parsed) return m;
+    state.parsed.bookings.forEach(function (b) {
+      if (!(b.staffId in m)) m[b.staffId] = b.name || "";
+      else if (!m[b.staffId] && b.name) m[b.staffId] = b.name;
+    });
+    return m;
+  }
+  function renderStaffNames() {
+    var wrap = $("staffNamesWrap"), hint = $("staffNamesHint");
+    if (!state.parsed) { wrap.innerHTML = ""; hint.textContent = "Load a timesheet export to edit names for its staff."; return; }
+    var map = exportStaffMap(), ids = Object.keys(map).sort();
+    var missingCount = ids.filter(function (id) { return !(state.nameMap[id] || map[id]); }).length;
+    hint.innerHTML = ids.length + " staff in this export &middot; <strong>" + missingCount + "</strong> with no name (falling back to the Staff ID)." +
+      (missingCount ? " Tick &ldquo;Only missing names&rdquo; to focus on them." : "");
+    var f = state.staffFilter.trim().toLowerCase();
+    var shown = ids.filter(function (id) {
+      var override = state.nameMap[id] || "", exp = map[id] || "", missing = !(override || exp);
+      if (state.onlyMissing && !missing) return false;
+      if (f && (id + " " + override + " " + exp).toLowerCase().indexOf(f) === -1) return false;
+      return true;
+    });
+    if (!shown.length) { wrap.innerHTML = '<div class="empty">' + (state.onlyMissing ? "No staff are missing a name." : "No staff match your filter.") + "</div>"; return; }
+    wrap.innerHTML = '<table class="data"><thead><tr><th>Staff ID</th><th>Name</th></tr></thead><tbody>' +
+      shown.map(function (id) {
+        var override = state.nameMap[id] || "", exp = map[id] || "", missing = !(override || exp);
+        var sub = override ? '<span class="sid">export: ' + (exp ? esc(exp) : "&mdash;") + "</span>"
+          : (exp ? '<span class="sid">export: ' + esc(exp) + "</span>" : '<span class="sid miss">no name in export</span>');
+        var ph = exp ? esc(exp) : "Add a name";
+        return '<tr' + (missing ? ' class="missing-row"' : "") + '><td class="staff-id">' + esc(id) + sub + "</td>" +
+          '<td><input type="text" class="name-input" data-sid="' + esc(id) + '" data-exp="' + esc(exp) + '" value="' + esc(override) + '" placeholder="' + ph + '" aria-label="Name for ' + esc(id) + '"></td></tr>';
+      }).join("") + "</tbody></table>";
+    wrap.querySelectorAll("input.name-input").forEach(function (inp) {
+      inp.addEventListener("input", function () {
+        var sid = inp.getAttribute("data-sid"), exp = inp.getAttribute("data-exp") || "", v = inp.value.trim();
+        if (v) state.nameMap[sid] = v; else delete state.nameMap[sid];
+        saveRules(); renderRulesStatus();
+        if (state.parsed) renderSummary();
+        var tr = inp.closest("tr"); if (tr) tr.classList.toggle("missing-row", !(v || exp)); // no full re-render — keep focus
+      });
+    });
+  }
+  $("staffSearch").addEventListener("input", function () { state.staffFilter = this.value; renderStaffNames(); });
+  $("onlyMissing").addEventListener("change", function () { state.onlyMissing = this.checked; renderStaffNames(); });
 
   /* ---------- init ---------- */
   loadRules(); renderRulesStatus();

@@ -110,9 +110,11 @@ column before confirming. Rows with an empty Staff ID are excluded.
 
 **Staff names (Settings):** import the same `rules.json` used by Waqti Exceptions to map
 each Staff ID to a display name. Only the `name` field is read (the approved-demand lists
-are ignored). Imported names take priority over any Name column in the export; unlisted
-staff fall back to the Name column, then the Staff ID. The imported names persist in the
-browser.
+are ignored). You can also **type a name for any Staff ID by hand** in the staff-name
+editor — a "Only missing names" toggle surfaces the IDs that currently fall back to the raw
+Staff ID. Imported and hand-typed names both take priority over any Name column in the
+export; unlisted staff fall back to the Name column, then the Staff ID. All names persist
+in the browser.
 
 ---
 
