@@ -188,7 +188,7 @@ table.grid input[type=checkbox]{accent-color:var(--teal);width:16px;height:16px;
 
   // ---- Exception rules (Exception_Rules.md) ----
   var TARGET_ART = "DN4 - dnata Travel Services";                      // Rule 5: only this ART is processed
-  var LEAVE_TAXONOMIES = ["Annual Leave", "Time Off In Lieu (TOIL)", "Waqti-MyTime Admin", "Sick Leave", "Prayers", "Training, Professional Development, Knowledge Sharing, On-Job Training"]; // Rule 1
+  var LEAVE_TAXONOMIES = ["Annual Leave", "Time Off In Lieu (TOIL)", "Waqti-MyTime Admin", "Sick Leave", "Prayers", "Training, Professional Development, Knowledge Sharing, On-Job Training", "Budgeting & Forecasting", "Cross Team/ART collaboration", "Department Meeting/Townhall/Pulse of IT"]; // Rule 1
   var ATTN_TAXONOMIES = ["Programs & Project Execution", "Delivery Execution - Team Level", "Delivery Execution - ART Level", "Daily Stand-Up (DSU)", "ART connects (Syncs, Driver Connects, Cross ART-connects)", "Backlog Management & Refinement", "Miscellaneous Meetings", "PI Quarterly Planning, Show & Shares, and Retros", "Sprint Planning, Show & Shares and Retros", "Portfolio Execution"]; // Rule 4
   var LEAVE_SET = {}, ATTN_TAX_SET = {};
   LEAVE_TAXONOMIES.forEach(function (t) { LEAVE_SET[t.toLowerCase()] = 1; });
