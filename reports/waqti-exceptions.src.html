@@ -184,7 +184,15 @@ table.grid input[type=checkbox]{accent-color:var(--teal);width:16px;height:16px;
     ["staffId", "Staff ID"], ["workDay", "Work Day"], ["month", "Month"],
     ["demand", "Demand"], ["feature", "Feature"], ["bookedHours", "Booked Hours"]
   ];
-  var OPTIONAL = [["rechargeCost", "Recharge Cost"], ["application", "Application"], ["createdBy", "Created By"]];
+  var OPTIONAL = [["rechargeCost", "Recharge Cost"], ["application", "Application"], ["createdBy", "Created By"], ["taxonomy", "Taxonomy"], ["staffArt", "Staff ART"]];
+
+  // ---- Exception rules (Exception_Rules.md) ----
+  var TARGET_ART = "DN4 - dnata Travel Services";                      // Rule 5: only this ART is processed
+  var LEAVE_TAXONOMIES = ["Annual Leave", "Time Off In Lieu (TOIL)", "Waqti-MyTime Admin", "Sick Leave", "Prayers", "Training, Professional Development, Knowledge Sharing, On-Job Training"]; // Rule 1
+  var ATTN_TAXONOMIES = ["Programs & Project Execution", "Delivery Execution - Team Level", "Delivery Execution - ART Level", "Daily Stand-Up (DSU)", "ART connects (Syncs, Driver Connects, Cross ART-connects)", "Backlog Management & Refinement", "Miscellaneous Meetings", "PI Quarterly Planning, Show & Shares, and Retros", "Sprint Planning, Show & Shares and Retros", "Portfolio Execution"]; // Rule 4
+  var LEAVE_SET = {}, ATTN_TAX_SET = {};
+  LEAVE_TAXONOMIES.forEach(function (t) { LEAVE_SET[t.toLowerCase()] = 1; });
+  ATTN_TAXONOMIES.forEach(function (t) { ATTN_TAX_SET[t.toLowerCase()] = 1; });
 
   function round2(n) { return Math.round((n + Number.EPSILON) * 100) / 100; }
   function round1(n) { return Math.round((n + Number.EPSILON) * 10) / 10; }
@@ -234,15 +242,18 @@ table.grid input[type=checkbox]{accent-color:var(--teal);width:16px;height:16px;
 
     // "Created By" is the last column; it normally mirrors Staff ID but can be "GEN" (a generic booking)
     var cbIdx = (resolved.createdBy !== undefined) ? resolved.createdBy : range.e.c;
-    var bookings = [], excluded = 0, dataQuality = [], months = [], seen = {};
+    var bookings = [], excluded = 0, dataQuality = [], months = [], seen = {}, otherTeam = 0;
     for (var r = range.s.r + 1; r <= range.e.r; r++) {
       var sid = txt(r, resolved.staffId).trim().toUpperCase();  // staff IDs are matched case-insensitively
       if (sid === "") { excluded++; continue; }
+      var staffArt = (resolved.staffArt !== undefined) ? txt(r, resolved.staffArt).trim() : "";
+      if (resolved.staffArt !== undefined && staffArt.toLowerCase() !== TARGET_ART.toLowerCase()) { otherTeam++; continue; }  // Rule 5: ignore other teams
       var sheetRow = r + 1;
       var dem = splitFirst(txt(r, resolved.demand));
       var feat = splitFirst(txt(r, resolved.feature));
       var application = (resolved.application !== undefined) ? txt(r, resolved.application).trim() : "";
       var createdBy = txt(r, cbIdx).trim();
+      var taxonomy = (resolved.taxonomy !== undefined) ? txt(r, resolved.taxonomy).trim() : "";
       var hoursRaw = rawv(r, resolved.bookedHours);
       var hours = null;
       var hnum = (typeof hoursRaw === "number") ? hoursRaw : Number(String(hoursRaw === null ? "" : hoursRaw).trim());
@@ -251,27 +262,32 @@ table.grid input[type=checkbox]{accent-color:var(--teal);width:16px;height:16px;
       else hours = hnum;
       var month = txt(r, resolved.month).trim();
       if (month && !seen[month]) { seen[month] = true; months.push(month); }
-      // classify: GEN first, then annual leave (demand+feature+application all blank), then no-demand, else normal
+      // classify per Exception_Rules.md (precedence): leave -> GEN_LINES -> system bug -> missing feature -> no demand -> normal
       var demandBlank = dem[0] === "", featureBlank = feat[0] === "", appBlank = application === "";
-      var category = (createdBy.toUpperCase() === "GEN") ? "gen"
-        : (demandBlank && featureBlank && appBlank) ? "leave"
-        : demandBlank ? "nodemand" : "normal";
+      var taxL = taxonomy.toLowerCase();
+      var category = "normal", reason = "";
+      if (LEAVE_SET[taxL]) category = "leave";                                                          // Rule 1
+      else if (createdBy.toUpperCase() === "GEN_LINES") { category = "attention"; reason = "Auto-created (GEN_LINES)"; } // Rule 3
+      else if (!featureBlank && !appBlank && demandBlank) category = "systembug";                       // Rule 2
+      else if (ATTN_TAX_SET[taxL] && featureBlank) { category = "attention"; reason = "Missing feature"; } // Rule 4
+      else if (demandBlank) { category = "attention"; reason = "No demand"; }                           // uncovered no-demand
       bookings.push({
         row: sheetRow, staffId: sid, workDay: txt(r, resolved.workDay).trim(), month: month,
         demandCode: dem[0], demandDesc: dem[1], featureCode: feat[0], featureDesc: feat[1],
-        application: application, createdBy: createdBy, category: category,
+        application: application, createdBy: createdBy, taxonomy: taxonomy, staffArt: staffArt, category: category, reason: reason,
         hours: hours, rechargeCost: (resolved.rechargeCost !== undefined ? rawv(r, resolved.rechargeCost) : null)
       });
     }
     var period = { months: months, label: months.join(", "), multiMonth: months.length > 1 };
-    return { needsMapping: false, missing: [], headers: headers, sheetName: sheetName, bookings: bookings, excluded: excluded, dataQuality: dataQuality, period: period };
+    return { needsMapping: false, missing: [], headers: headers, sheetName: sheetName, bookings: bookings, excluded: excluded, otherTeam: otherTeam, dataQuality: dataQuality, period: period };
   }
 
   function applyRules(bookings, rules) {
     var staff = (rules && rules.staff) || {};
     var totalHours = 0, groups = {}, covered = {}, notInRules = {};
     var attn = {};                       // GEN + no-demand rows needing a human check
-    var leaveCount = 0, leaveHours = 0;  // annual leave, ignored
+    var leaveCount = 0, leaveHours = 0;  // leaves, ignored (Rule 1)
+    var bugCount = 0, bugHours = 0;      // system-bug rows, ignored (Rule 2)
     var present = {};                    // staff IDs that appear anywhere in the export
 
     bookings.forEach(function (b) {
@@ -279,9 +295,10 @@ table.grid input[type=checkbox]{accent-color:var(--teal);width:16px;height:16px;
       if (b.hours !== null) totalHours += b.hours;
 
       if (b.category === "leave") { leaveCount++; if (b.hours !== null) leaveHours += b.hours; return; }
+      if (b.category === "systembug") { bugCount++; if (b.hours !== null) bugHours += b.hours; return; }
 
-      if (b.category === "gen" || b.category === "nodemand") {
-        var reason = b.category === "gen" ? "Generic (GEN)" : "No demand";
+      if (b.category === "attention") {
+        var reason = b.reason || "Check";
         var akey = reason + "\u0000" + b.staffId + "\u0000" + b.featureCode + "\u0000" + b.application;
         var a = attn[akey];
         if (!a) a = attn[akey] = { reason: reason, staffId: b.staffId, name: (staff[b.staffId] && staff[b.staffId].name) || "", feature: b.featureDesc || b.featureCode, application: b.application, hours: 0, count: 0 };
@@ -340,7 +357,7 @@ table.grid input[type=checkbox]{accent-color:var(--teal);width:16px;height:16px;
       staffAffected: exceptions.length, exceptionLineCount: lineCount,
       coveredCount: Object.keys(covered).length, notInRulesCount: notInRulesStaff.length,
       attentionCount: attention.length, attentionHours: attentionHours,
-      leaveCount: leaveCount, leaveHours: round2(leaveHours), missingCount: missingStaff.length
+      leaveCount: leaveCount, leaveHours: round2(leaveHours), bugCount: bugCount, missingCount: missingStaff.length
     };
     return { exceptions: exceptions, attention: attention, notInRulesStaff: notInRulesStaff, missingStaff: missingStaff, stats: stats };
   }
@@ -475,7 +492,7 @@ table.grid input[type=checkbox]{accent-color:var(--teal);width:16px;height:16px;
       });
     }
     if (attention.length) {
-      h.push('<p style="background:#ffffff;color:#7A4E12;margin:20px 0 6px;font-weight:bold;font-size:13.5px;">Needs attention: please check the application is assigned</p>');
+      h.push('<p style="background:#ffffff;color:#7A4E12;margin:20px 0 6px;font-weight:bold;font-size:13.5px;">Needs attention: please review and fix these in Waqti</p>');
       h.push(tblOpen + attCols);
       h.push('<tr><th width="130" style="' + thA + '">Staff</th><th width="100" style="' + thA + '">Reason</th><th width="410" style="' + thA + '">Feature</th><th width="170" style="' + thA + '">Application</th><th width="90" style="' + thA + 'text-align:right;">Hours</th></tr>');
       attention.forEach(function (a, i) {
@@ -565,7 +582,7 @@ table.grid input[type=checkbox]{accent-color:var(--teal);width:16px;height:16px;
 (function () {
   "use strict";
 
-  var VERSION = "v1.7.3";
+  var VERSION = "v1.8.0";
   var LS_KEY = "waqti-exceptions:v1";
   var $ = function (id) { return document.getElementById(id); };
   $("version").textContent = VERSION;
@@ -854,7 +871,7 @@ table.grid input[type=checkbox]{accent-color:var(--teal);width:16px;height:16px;
 
     // ---- needs attention (GEN + no-demand), with exclude checkboxes ----
     if (result.attention.length) {
-      var a = section("Needs attention (" + result.attention.length + ")", "Generic (GEN) and no-demand bookings. Please check the application is assigned. Untick a row to leave it out of the email.");
+      var a = section("Needs attention (" + result.attention.length + ")", "Rows to review and fix in Waqti: auto-created lines (GEN_LINES), a missing feature, or no demand. Untick a row to leave it out of the email.");
       a += '<div class="table-wrap scroll"><table class="data amber"><thead><tr><th class="chk">Send</th><th>Staff</th><th>Reason</th><th>Feature</th><th>Application</th><th class="num">Hours</th></tr></thead><tbody>';
       state.attnKeys = []; var ai = 0;
       result.attention.forEach(function (r) {
@@ -903,7 +920,11 @@ table.grid input[type=checkbox]{accent-color:var(--teal);width:16px;height:16px;
     // notes: staff not in rules, and annual leave ignored
     var notes = [];
     if (result.notInRulesStaff.length) notes.push('<div class="panel warn"><strong>Not in rules (' + result.notInRulesStaff.length + ').</strong> These staff are in the export but not in the rules, so they are treated as approved for nothing and every demand booking is an exception above. Add them in Settings to refine.<div style="margin-top:.4rem;">' + result.notInRulesStaff.map(function (x) { return '<span class="pill warn">' + esc(x) + "</span>"; }).join(" ") + "</div></div>");
-    if (s.leaveCount) notes.push('<div class="note" style="margin:.6rem 0 0;">' + s.leaveCount + " annual-leave row" + (s.leaveCount === 1 ? "" : "s") + " (blank demand, feature and application) ignored.</div>");
+    var ignored = [];
+    if (s.leaveCount) ignored.push(s.leaveCount + " leave row" + (s.leaveCount === 1 ? "" : "s") + " (Annual Leave, TOIL, Sick Leave, Prayers, Waqti admin, Training)");
+    if (s.bugCount) ignored.push(s.bugCount + " system-bug row" + (s.bugCount === 1 ? "" : "s") + " (feature and application present, no demand)");
+    if (state.parsed.otherTeam) ignored.push(state.parsed.otherTeam + " row" + (state.parsed.otherTeam === 1 ? "" : "s") + " from other teams (Staff ART not " + esc("DN4 - dnata Travel Services") + ")");
+    if (ignored.length) notes.push('<div class="note" style="margin:.6rem 0 0;">Ignored: ' + ignored.join("; ") + ".</div>");
     $("notesWrap").innerHTML = notes.join("");
 
     if (state.parsed.dataQuality.length) {
