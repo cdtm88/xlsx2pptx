@@ -1,0 +1,1102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light only">
+<title>Waqti Exceptions</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMiIgaGVpZ2h0PSIzMiIgdmlld0JveD0iMCAwIDMyIDMyIj48cmVjdCB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHJ4PSI3IiBmaWxsPSIjMDBBOUNFIi8+PHBhdGggZD0iTTkgMTYuNSBsNCA0IEwyMyAxMSIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjMiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPjwvc3ZnPg==">
+<!-- @out: waqti-exceptions.html -->
+<!-- Source for waqti-exceptions.html. Build with: python3 framework/build.py -->
+<style>
+/*@include framework/report-kit.css@*/
+/* ---- report-specific: waqti-exceptions ---- */
+.callout{margin-bottom:1rem}
+input[type=date]{min-height:2.55rem}
+input[type=date]::-webkit-calendar-picker-indicator{cursor:pointer;opacity:.6}
+.pill.amber{background:#FCEED9;color:#7A4E12;border-color:#F0D6A6}
+.pill.grey{background:#EDEFF1;color:#3D3D3D;border-color:#D8DCE0}
+.tag-amber{display:inline-block;font-size:.62rem;font-weight:700;color:#7A4E12;background:#FCEED9;border:1px solid #F0D6A6;border-radius:5px;padding:.02rem .3rem;margin-left:.3rem;vertical-align:middle;text-transform:uppercase;letter-spacing:.03em}
+.section-title{font-size:.95rem;font-weight:700;color:var(--slate);margin:1.3rem 0 .15rem}
+.section-desc{font-size:.78rem;color:var(--mid);margin:0 0 .55rem}
+.table-wrap.scroll{max-height:340px;overflow-y:auto}
+/* keep sticky headers (kit supplies the light colours); staff-id stays inline here */
+table.data thead th{position:sticky;top:0;z-index:1}
+table.data thead th.chk,table.data td.chk{width:56px;text-align:center;padding-left:.4rem;padding-right:.4rem}
+table.data.amber thead th{background:#F2B441;color:#3D2A00}
+table.data.grey thead th{background:#E4E8EB;color:#3D3D3D}
+table.data tbody tr.excluded td:not(.chk){opacity:.38;text-decoration:line-through}
+table.data .sid{display:inline}
+table.data input[type=checkbox]{accent-color:var(--teal);width:16px;height:16px;cursor:pointer}
+.grid-scroll{overflow:auto;max-height:420px;border:1px solid var(--line);border-radius:10px}
+table.grid{border-collapse:collapse;background:#fff;font-size:.8rem}
+table.grid th,table.grid td{border:1px solid var(--line-soft);padding:.4rem .6rem;background:#fff;color:var(--charcoal);text-align:center;white-space:nowrap}
+table.grid thead th{background:var(--teal-dark);color:#fff;position:sticky;top:0;font-weight:700;font-size:.7rem;letter-spacing:.03em;z-index:2}
+table.grid td.staffcol,table.grid th.staffcol{text-align:left;position:sticky;left:0;background:var(--light-grey);z-index:1}
+table.grid thead th.staffcol{background:var(--teal-dark);z-index:3}
+table.grid input[type=text]{width:130px;padding:.3rem .4rem;font-size:.78rem;margin-top:.2rem}
+table.grid input[type=checkbox]{accent-color:var(--teal);width:16px;height:16px;cursor:pointer}
+.panel{border-radius:8px;padding:.7rem 1rem;margin:.8rem 0 0;font-size:.82rem}
+.panel.warn{background:#FDF3E7;border:1px solid #F0D6A6;border-left:4px solid #E0972A;color:#7A4E12}
+.panel.dq{background:#FCEDEA;border:1px solid #F3C0B6;border-left:4px solid #D9503A;color:#8A2A1C}
+.panel.clear{background:#EAF7EC;border:1px solid #BEE3C1;border-left:4px solid var(--green);color:#2C6B33}
+.panel.extras{background:var(--light-grey);border:1px solid var(--line);border-left:4px solid var(--mid);color:var(--slate)}
+.panel.amber{background:#FCF3E2;border:1px solid #F0D6A6;border-left:4px solid #E0972A;color:#7A4E12}
+.panel.grey{background:#F4F5F7;border:1px solid #E0E4E8;border-left:4px solid #B4BCC4;color:#3D3D3D}
+.rich-frame{border:1px solid var(--line);border-radius:10px;padding:1rem;background:#fff;overflow-x:auto;max-height:460px;overflow-y:auto}
+</style>
+</head>
+<body>
+<script type="application/json" id="embeddedRules"></script>
+<script type="application/json" id="embeddedEmail"></script>
+<header class="app-header">
+  <div class="inner">
+    <div>
+      <h1>Waqti Exceptions</h1>
+      <p>Timesheet bookings made against demands a person is not approved for</p>
+    </div>
+    <div class="spacer"></div>
+    <span class="ver" id="version">v0.0.0</span>
+    <button type="button" class="btn btn-ghost" id="navSettings" style="margin-left:.8rem;">Settings</button>
+    <button type="button" class="btn btn-ghost hidden" id="navDone">Back to app</button>
+  </div>
+</header>
+
+<!-- ============ MAIN VIEW ============ -->
+<div class="container" id="view-main">
+
+  <section class="card">
+    <div class="card-head"><span class="title">Timesheet export</span><div class="controls-row"><span class="sub" id="fileNameSub"></span><button type="button" class="mini-btn hidden" id="replaceBtn">Replace file</button></div></div>
+    <div class="upload-area" id="drop" tabindex="0" role="button" aria-label="Drop an xlsx file here, or press Enter to browse">
+      <div class="big">Drop an .xlsx export here</div>
+      <div class="or">or</div>
+      <button type="button" class="btn btn-primary" id="browseBtn">Browse for file</button>
+      <input type="file" id="fileInput" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" class="hidden">
+    </div>
+    <div id="parseError" class="err hidden"></div>
+    <div id="parseStatus" style="margin-top:.8rem;"></div>
+
+    <div id="mapper" class="hidden" style="margin-top:1rem;">
+      <div style="font-size:.74rem;font-weight:700;color:var(--slate);margin-bottom:.4rem;">Map the required columns</div>
+      <p class="sub">Not all expected headers were found. Match each field to a column, then confirm. Recharge Cost is optional.</p>
+      <div id="mapperFields" style="margin-top:.5rem;"></div>
+      <div class="controls-row" style="margin-top:.7rem;"><button type="button" class="btn btn-primary" id="mapperConfirm">Confirm mapping</button></div>
+      <div id="mapperError" class="err hidden"></div>
+    </div>
+  </section>
+
+  <div class="callout hidden" id="noRulesHint">
+    No approved-demand rules loaded yet. <strong>Open Settings</strong> to import a rules file or build the allowlist, then come back here.
+    <div style="margin-top:.5rem;"><button type="button" class="mini-btn" id="openSettingsBtn">Open Settings</button></div>
+  </div>
+
+  <section class="card" id="exceptionsCard">
+    <div class="card-head"><span class="title">Exceptions</span><span id="banner"></span></div>
+    <div id="clearWrap"></div>
+    <div id="exHead"></div>
+    <div class="table-wrap scroll" id="exceptionsWrap"></div>
+    <div id="notesWrap"></div>
+    <div id="dqWrap"></div>
+    <div id="attnWrap"></div>
+    <div id="missingWrap"></div>
+    <div class="note" id="limitNote"><strong>Known limitation.</strong> No time-bounded approvals in this version. Someone who legitimately moved onto a demand mid-month shows false exceptions for the earlier period, and someone who left a demand shows none after they left. Treat the output as month-level only.</div>
+  </section>
+
+  <section class="card" id="emailCard">
+    <div class="card-head">
+      <span class="title">Email</span>
+      <div class="seg" role="group" aria-label="Email format">
+        <button type="button" id="segRich" class="active">Rich HTML</button>
+        <button type="button" id="segPlain">Plain text</button>
+      </div>
+    </div>
+    <p class="sub" style="margin:-.4rem 0 .8rem;">Wording, period and deadline are edited in <button type="button" class="mini-btn" id="openSettingsBtn2">Settings</button>.</p>
+    <div>
+      <textarea id="plainArea" class="mono hidden" rows="15" readonly aria-label="Plain text email body"></textarea>
+      <div class="rich-frame" id="richPreview" aria-label="Rich email preview"></div>
+    </div>
+    <div class="controls-row" style="margin-top:.8rem;">
+      <button type="button" class="btn btn-primary" id="copyBtn">Copy rich email</button>
+      <span class="copymsg" id="copyMsg" aria-live="polite"></span>
+    </div>
+    <div id="fallbackWrap"></div>
+    <p class="sub" id="nameNote" style="margin-top:.6rem;"></p>
+  </section>
+</div>
+
+<!-- ============ SETTINGS VIEW ============ -->
+<div class="container hidden" id="view-settings">
+  <section class="card">
+    <div class="card-head"><span class="title">Settings &middot; approved-demand rules</span><span class="sub">The exported rules.json is the source of truth, not this browser.</span></div>
+    <div class="note" id="rulesSource">No rules loaded yet.</div>
+
+    <label class="field" for="labelInput">Rules label</label>
+    <input type="text" id="labelInput" placeholder="e.g. ART1 Sample Delivery Services FY26/27">
+
+    <div class="controls-row" style="margin:1rem 0 .3rem;">
+      <button type="button" class="btn btn-ghost" id="importBtn">Import rules</button>
+      <input type="file" id="importInput" accept=".json,application/json" class="hidden">
+      <button type="button" class="btn btn-ghost" id="exportBtn">Export rules</button>
+      <button type="button" class="btn btn-ghost" id="templateBtn">Download template</button>
+      <button type="button" class="btn btn-ghost" id="bakeBtn">Save tool with rules</button>
+      <button type="button" class="btn btn-primary" id="applyJson">Apply JSON to grid</button>
+    </div>
+    <p class="sub" id="bakeMsg" style="margin:.2rem 0 .4rem;"></p>
+
+    <p class="sub" id="gridHint" style="margin:.6rem 0;">Load an export to see the staff-by-demand grid. Tick a cell to approve that person for that demand.</p>
+    <div class="grid-scroll" id="gridWrap"></div>
+    <div id="extrasWrap"></div>
+
+    <label class="field" for="jsonArea" style="margin-top:1.1rem;">Raw rules JSON (source of truth). Edit here for staff or demands not in this export, then Apply.</label>
+    <textarea id="jsonArea" class="mono" rows="14" spellcheck="false"></textarea>
+    <p class="sub" style="margin-top:.5rem;">Use <strong>Apply JSON to grid</strong> above, or just click out of the box. Invalid JSON is refused and your text is kept.</p>
+    <div id="jsonError" class="err hidden"></div>
+  </section>
+
+  <section class="card">
+    <div class="card-head"><span class="title">Email text</span><span class="sub">Wording used in both email flavours.</span></div>
+    <div class="stack-2">
+      <div><label class="field" for="periodInput">Period</label><input type="text" id="periodInput"></div>
+      <div><label class="field" for="deadlineInput">Deadline</label><input type="date" id="deadlineInput"></div>
+    </div>
+    <label class="field" for="introInput">Opening line</label>
+    <textarea id="introInput" rows="2"></textarea>
+    <label class="field" for="closingInput">Closing action (use {deadline} where the date should go)</label>
+    <textarea id="closingInput" rows="2"></textarea>
+  </section>
+</div>
+
+<footer class="app-footer">Dreamt up by Christian, built with Claude &mdash; a human + AI double act 🤝</footer>
+<script>
+/*@include framework/vendor/sheetjs.js@*/
+</script>
+<script>
+/* ============================================================
+   waqti-exceptions  logic (pure functions, no DOM)
+   Exposed on window so they can be poked at from the console.
+   ============================================================ */
+(function () {
+  "use strict";
+
+  var SCHEMA_VERSION = 1;
+
+  var REQUIRED = [
+    ["staffId", "Staff ID"], ["workDay", "Work Day"], ["month", "Month"],
+    ["demand", "Demand"], ["feature", "Feature"], ["bookedHours", "Booked Hours"]
+  ];
+  var OPTIONAL = [["rechargeCost", "Recharge Cost"], ["application", "Application"], ["createdBy", "Created By"]];
+
+  function round2(n) { return Math.round((n + Number.EPSILON) * 100) / 100; }
+  function round1(n) { return Math.round((n + Number.EPSILON) * 10) / 10; }
+  function rep(ch, n) { var s = ""; while (s.length < n) s += ch; return s; }
+  function pad(s, n) { s = String(s); while (s.length < n) s += " "; return s; }
+  function padStart(s, n) { s = String(s); while (s.length < n) s = " " + s; return s; }
+  function fmtHrs(n) { return (Math.round(n * 10) / 10).toFixed(1); }
+  function escHtml(s) {
+    return String(s === null || s === undefined ? "" : s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  }
+
+  function splitFirst(v) {
+    v = (v === null || v === undefined) ? "" : String(v);
+    var i = v.indexOf(" - ");
+    if (i < 0) return [v.trim(), ""];
+    return [v.slice(0, i).trim(), v.slice(i + 3).trim()];
+  }
+  function dayVal(s) { if (!s) return null; var t = Date.parse(s); return isNaN(t) ? null : t; }
+
+  function parseExport(arrayBuffer, mapping) {
+    var wb = XLSX.read(arrayBuffer, { type: "array" });
+    if (!wb.SheetNames.length) throw new Error("The workbook contains no sheets.");
+    var sheetName = wb.SheetNames[0];
+    var ws = wb.Sheets[sheetName];
+    if (!ws || !ws["!ref"]) throw new Error('The first worksheet "' + sheetName + '" is empty.');
+    var range = XLSX.utils.decode_range(ws["!ref"]);
+
+    function cell(r, c) { return ws[XLSX.utils.encode_cell({ r: r, c: c })]; }
+    function txt(r, c) { if (c === null || c === undefined) return ""; var cl = cell(r, c); if (!cl) return ""; return String(cl.w !== undefined && cl.w !== null ? cl.w : cl.v); }
+    function rawv(r, c) { if (c === null || c === undefined) return null; var cl = cell(r, c); return cl ? cl.v : null; }
+
+    var headers = [];
+    for (var c = range.s.c; c <= range.e.c; c++) headers.push({ index: c, name: txt(range.s.r, c).trim() });
+    function findByName(nm) { for (var i = 0; i < headers.length; i++) if (headers[i].name === nm) return headers[i].index; return null; }
+
+    mapping = mapping || {};
+    var resolved = {};
+    REQUIRED.concat(OPTIONAL).forEach(function (pair) {
+      var field = pair[0], canonical = pair[1];
+      var idx = (mapping[field] !== undefined && mapping[field] !== null) ? mapping[field] : findByName(canonical);
+      if (idx !== null && idx !== undefined) resolved[field] = idx;
+    });
+    var missing = [];
+    REQUIRED.forEach(function (pair) { if (resolved[pair[0]] === undefined) missing.push({ field: pair[0], label: pair[1] }); });
+    if (missing.length) return { needsMapping: true, missing: missing, headers: headers, sheetName: sheetName, bookings: [], excluded: 0, dataQuality: [], period: null };
+
+    // "Created By" is the last column; it normally mirrors Staff ID but can be "GEN" (a generic booking)
+    var cbIdx = (resolved.createdBy !== undefined) ? resolved.createdBy : range.e.c;
+    var bookings = [], excluded = 0, dataQuality = [], months = [], seen = {};
+    for (var r = range.s.r + 1; r <= range.e.r; r++) {
+      var sid = txt(r, resolved.staffId).trim().toUpperCase();  // staff IDs are matched case-insensitively
+      if (sid === "") { excluded++; continue; }
+      var sheetRow = r + 1;
+      var dem = splitFirst(txt(r, resolved.demand));
+      var feat = splitFirst(txt(r, resolved.feature));
+      var application = (resolved.application !== undefined) ? txt(r, resolved.application).trim() : "";
+      var createdBy = txt(r, cbIdx).trim();
+      var hoursRaw = rawv(r, resolved.bookedHours);
+      var hours = null;
+      var hnum = (typeof hoursRaw === "number") ? hoursRaw : Number(String(hoursRaw === null ? "" : hoursRaw).trim());
+      var blank = (hoursRaw === null || hoursRaw === undefined || String(hoursRaw).trim() === "");
+      if (blank || isNaN(hnum) || hnum < 0) dataQuality.push({ row: sheetRow, staffId: sid, demandCode: dem[0], value: blank ? "" : String(hoursRaw) });
+      else hours = hnum;
+      var month = txt(r, resolved.month).trim();
+      if (month && !seen[month]) { seen[month] = true; months.push(month); }
+      // classify: GEN first, then annual leave (demand+feature+application all blank), then no-demand, else normal
+      var demandBlank = dem[0] === "", featureBlank = feat[0] === "", appBlank = application === "";
+      var category = (createdBy.toUpperCase() === "GEN") ? "gen"
+        : (demandBlank && featureBlank && appBlank) ? "leave"
+        : demandBlank ? "nodemand" : "normal";
+      bookings.push({
+        row: sheetRow, staffId: sid, workDay: txt(r, resolved.workDay).trim(), month: month,
+        demandCode: dem[0], demandDesc: dem[1], featureCode: feat[0], featureDesc: feat[1],
+        application: application, createdBy: createdBy, category: category,
+        hours: hours, rechargeCost: (resolved.rechargeCost !== undefined ? rawv(r, resolved.rechargeCost) : null)
+      });
+    }
+    var period = { months: months, label: months.join(", "), multiMonth: months.length > 1 };
+    return { needsMapping: false, missing: [], headers: headers, sheetName: sheetName, bookings: bookings, excluded: excluded, dataQuality: dataQuality, period: period };
+  }
+
+  function applyRules(bookings, rules) {
+    var staff = (rules && rules.staff) || {};
+    var totalHours = 0, groups = {}, covered = {}, notInRules = {};
+    var attn = {};                       // GEN + no-demand rows needing a human check
+    var leaveCount = 0, leaveHours = 0;  // annual leave, ignored
+    var present = {};                    // staff IDs that appear anywhere in the export
+
+    bookings.forEach(function (b) {
+      present[b.staffId] = 1;
+      if (b.hours !== null) totalHours += b.hours;
+
+      if (b.category === "leave") { leaveCount++; if (b.hours !== null) leaveHours += b.hours; return; }
+
+      if (b.category === "gen" || b.category === "nodemand") {
+        var reason = b.category === "gen" ? "Generic (GEN)" : "No demand";
+        var akey = reason + "\u0000" + b.staffId + "\u0000" + b.featureCode + "\u0000" + b.application;
+        var a = attn[akey];
+        if (!a) a = attn[akey] = { reason: reason, staffId: b.staffId, name: (staff[b.staffId] && staff[b.staffId].name) || "", feature: b.featureDesc || b.featureCode, application: b.application, hours: 0, count: 0 };
+        if (b.hours !== null) a.hours += b.hours;
+        a.count++;
+        return;
+      }
+
+      // normal booking: staff in rules use their approved list; staff not in rules are approved for nothing
+      var inRules = Object.prototype.hasOwnProperty.call(staff, b.staffId);
+      if (inRules) covered[b.staffId] = 1; else notInRules[b.staffId] = 1;
+      var approved = inRules ? (staff[b.staffId].approvedDemands || []) : [];
+      if (approved.indexOf(b.demandCode) !== -1) return; // approved, not an exception
+
+      if (!groups[b.staffId]) groups[b.staffId] = { staffId: b.staffId, name: (inRules ? (staff[b.staffId].name || "") : ""), inRules: inRules, totalHours: 0, lines: {} };
+      var g = groups[b.staffId];
+      var key = b.demandCode + "\u0000" + b.featureCode;
+      var line = g.lines[key];
+      if (!line) { line = { demandCode: b.demandCode, demandDesc: b.demandDesc, featureCode: b.featureCode, featureDesc: b.featureDesc, hours: 0, lineCount: 0, earliestDay: b.workDay, latestDay: b.workDay, _min: dayVal(b.workDay), _max: dayVal(b.workDay) }; g.lines[key] = line; }
+      if (b.hours !== null) { line.hours += b.hours; g.totalHours += b.hours; }
+      line.lineCount++;
+      var dv = dayVal(b.workDay);
+      if (dv !== null) {
+        if (line._min === null || dv < line._min) { line._min = dv; line.earliestDay = b.workDay; }
+        if (line._max === null || dv >= line._max) { line._max = dv; line.latestDay = b.workDay; line.featureDesc = b.featureDesc; line.demandDesc = b.demandDesc; }
+      }
+    });
+
+    var exceptions = Object.keys(groups).map(function (sid) {
+      var g = groups[sid];
+      var lines = Object.keys(g.lines).map(function (k) { return g.lines[k]; });
+      lines.sort(function (a, b) {
+        if (a.demandCode !== b.demandCode) return a.demandCode < b.demandCode ? -1 : 1;
+        if (a.featureCode !== b.featureCode) return a.featureCode < b.featureCode ? -1 : 1;
+        return 0;
+      });
+      return { staffId: g.staffId, name: g.name, inRules: g.inRules, totalHours: round2(g.totalHours), lines: lines };
+    });
+    exceptions.sort(function (a, b) { if (b.totalHours !== a.totalHours) return b.totalHours - a.totalHours; return a.staffId < b.staffId ? -1 : (a.staffId > b.staffId ? 1 : 0); });
+
+    var attention = Object.keys(attn).map(function (k) { return attn[k]; });
+    attention.sort(function (a, b) {
+      if (a.reason !== b.reason) return a.reason < b.reason ? -1 : 1;
+      if (a.staffId !== b.staffId) return a.staffId < b.staffId ? -1 : 1;
+      return a.feature < b.feature ? -1 : (a.feature > b.feature ? 1 : 0);
+    });
+
+    var notInRulesStaff = Object.keys(notInRules).sort();
+    var missingStaff = Object.keys(staff).filter(function (id) { return !present[id]; }).sort().map(function (id) { return { staffId: id, name: staff[id].name || "" }; });
+    var exceptionHours = round2(exceptions.reduce(function (s, g) { return s + g.totalHours; }, 0));
+    var lineCount = exceptions.reduce(function (s, g) { return s + g.lines.length; }, 0);
+    var attentionHours = round2(attention.reduce(function (s, a) { return s + a.hours; }, 0));
+    var stats = {
+      totalHours: round2(totalHours), exceptionHours: exceptionHours,
+      exceptionPct: totalHours > 0 ? round1(exceptionHours / totalHours * 100) : 0,
+      staffAffected: exceptions.length, exceptionLineCount: lineCount,
+      coveredCount: Object.keys(covered).length, notInRulesCount: notInRulesStaff.length,
+      attentionCount: attention.length, attentionHours: attentionHours,
+      leaveCount: leaveCount, leaveHours: round2(leaveHours), missingCount: missingStaff.length
+    };
+    return { exceptions: exceptions, attention: attention, notInRulesStaff: notInRulesStaff, missingStaff: missingStaff, stats: stats };
+  }
+
+  // ---- Windows-1252 safety ----
+  var TRANSLIT = {
+    "À":"A","Á":"A","Â":"A","Ã":"A","Ä":"A","Å":"A","Æ":"AE","Ç":"C","È":"E","É":"E","Ê":"E","Ë":"E",
+    "Ì":"I","Í":"I","Î":"I","Ï":"I","Ð":"D","Ñ":"N","Ò":"O","Ó":"O","Ô":"O","Õ":"O","Ö":"O","Ø":"O",
+    "Ù":"U","Ú":"U","Û":"U","Ü":"U","Ý":"Y","Þ":"Th","ß":"ss","à":"a","á":"a","â":"a","ã":"a","ä":"a","å":"a","æ":"ae",
+    "ç":"c","è":"e","é":"e","ê":"e","ë":"e","ì":"i","í":"i","î":"i","ï":"i","ð":"d","ñ":"n",
+    "ò":"o","ó":"o","ô":"o","õ":"o","ö":"o","ø":"o","ù":"u","ú":"u","û":"u","ü":"u","ý":"y","þ":"th","ÿ":"y",
+    "Ā":"A","ā":"a","Ē":"E","ē":"e","Ī":"I","ī":"i","Ō":"O","ō":"o","Ū":"U","ū":"u",
+    "Œ":"OE","œ":"oe","Š":"S","š":"s","Ž":"Z","ž":"z","Ÿ":"Y",
+    "‘":"'","’":"'","“":'"','”':'"',"–":"-","—":"-","…":"...","•":"*"
+  };
+  function cp1252ok(code) { if (code === 9 || code === 10 || code === 13) return true; if (code >= 0x20 && code <= 0x7E) return true; if (code >= 0xA0 && code <= 0xFF) return true; return false; }
+  function toWin1252(str) {
+    var out = "", changed = false;
+    for (var i = 0; i < str.length; i++) {
+      var ch = str[i], code = str.charCodeAt(i);
+      if (cp1252ok(code)) { out += ch; continue; }
+      if (TRANSLIT[ch] !== undefined) { out += TRANSLIT[ch]; changed = true; continue; }
+      out += "?"; changed = true;
+    }
+    return { text: out, changed: changed };
+  }
+
+  // buildEmail(result, options) -> { text, html, nameSimplified }
+  // Demand exceptions are grouped by demand; a separate amber "needs attention"
+  // table lists GEN and no-demand rows. All tables share a fixed width.
+  function buildEmail(result, options) {
+    options = options || {};
+    var period = options.period || (result.period && result.period.label) || "";
+    var deadline = options.deadline || "";
+    var intro = options.intro || "The following bookings were made against demands the person is not currently approved for.";
+    var closing = (options.closing || "Please correct these in Waqti by {deadline}.").replace(/\{deadline\}/g, deadline);
+    var ex = result.exceptions || [];
+    var attention = result.attention || [];
+    var missing = result.missingStaff || [];
+    var total = fmtHrs(result.stats ? result.stats.exceptionHours : 0);
+    var people = result.stats ? result.stats.staffAffected : ex.length;
+    var nameSimplified = false;
+    function w1(s) { var r = toWin1252(s); if (r.changed) nameSimplified = true; return r.text; }
+
+    // group exceptions by demand
+    var byDemand = {};
+    ex.forEach(function (g) {
+      g.lines.forEach(function (l) {
+        var d = byDemand[l.demandCode];
+        if (!d) { d = byDemand[l.demandCode] = { code: l.demandCode, desc: l.demandDesc || "", rows: [], hours: 0 }; }
+        if (!d.desc && l.demandDesc) d.desc = l.demandDesc;
+        d.rows.push({ name: g.name || g.staffId, staffId: g.staffId, feature: l.featureDesc || l.featureCode, hours: l.hours });
+        d.hours += l.hours;
+      });
+    });
+    var demands = Object.keys(byDemand).map(function (k) { return byDemand[k]; });
+    demands.sort(function (a, b) { if (b.hours !== a.hours) return b.hours - a.hours; return a.code < b.code ? -1 : (a.code > b.code ? 1 : 0); });
+    demands.forEach(function (d) {
+      d.rows.sort(function (a, b) { if (a.name !== b.name) return a.name < b.name ? -1 : 1; return a.feature < b.feature ? -1 : (a.feature > b.feature ? 1 : 0); });
+    });
+
+    // ---- plain text ----
+    var wName = "Staff".length, wFeat = "Feature".length, wH = "Hours".length;
+    demands.forEach(function (d) { d.rows.forEach(function (r) {
+      wName = Math.max(wName, w1(r.name).length); wFeat = Math.max(wFeat, w1(r.feature).length); wH = Math.max(wH, (fmtHrs(r.hours) + " hrs").length);
+    }); });
+    var L = [];
+    L.push("Timesheet corrections needed: " + period);
+    L.push("");
+    L.push(intro);
+    L.push("");
+    if (demands.length) {
+      L.push("Total to correct: " + total + " hours across " + people + (people === 1 ? " person." : " people."));
+      L.push("");
+      demands.forEach(function (d) {
+        L.push(w1(d.code + (d.desc ? " - " + d.desc : "")));
+        L.push(pad("Staff", wName) + "  " + pad("Feature", wFeat) + "  " + padStart("Hours", wH));
+        L.push(rep("-", wName) + "  " + rep("-", wFeat) + "  " + rep("-", wH));
+        d.rows.forEach(function (r) { L.push(pad(w1(r.name), wName) + "  " + pad(w1(r.feature), wFeat) + "  " + padStart(fmtHrs(r.hours) + " hrs", wH)); });
+        L.push("");
+      });
+    }
+    if (attention.length) {
+      var aS = "Staff".length, aR = "Reason".length, aF = "Feature".length, aA = "Application".length, aH = "Hours".length;
+      attention.forEach(function (a) {
+        aS = Math.max(aS, w1(a.name || a.staffId).length); aR = Math.max(aR, a.reason.length); aF = Math.max(aF, w1(a.feature).length);
+        aA = Math.max(aA, w1(a.application).length); aH = Math.max(aH, (fmtHrs(a.hours) + " hrs").length);
+      });
+      L.push("NEEDS ATTENTION - please check the application is assigned");
+      L.push(pad("Staff", aS) + "  " + pad("Reason", aR) + "  " + pad("Feature", aF) + "  " + pad("Application", aA) + "  " + padStart("Hours", aH));
+      L.push(rep("-", aS) + "  " + rep("-", aR) + "  " + rep("-", aF) + "  " + rep("-", aA) + "  " + rep("-", aH));
+      attention.forEach(function (a) { L.push(pad(w1(a.name || a.staffId), aS) + "  " + pad(a.reason, aR) + "  " + pad(w1(a.feature), aF) + "  " + pad(w1(a.application), aA) + "  " + padStart(fmtHrs(a.hours) + " hrs", aH)); });
+      L.push("");
+    }
+    if (missing.length) {
+      var mN = "Name".length, mI = "Staff ID".length;
+      missing.forEach(function (m) { mN = Math.max(mN, w1(m.name || "-").length); mI = Math.max(mI, m.staffId.length); });
+      L.push("NO TIME LOGGED - these team members have no bookings in Waqti. Please update your timesheets.");
+      L.push(pad("Name", mN) + "  " + pad("Staff ID", mI));
+      L.push(rep("-", mN) + "  " + rep("-", mI));
+      missing.forEach(function (m) { L.push(pad(w1(m.name || "-"), mN) + "  " + pad(m.staffId, mI)); });
+      L.push("");
+    }
+    L.push(closing);
+    var safe = toWin1252(L.join("\n"));
+    if (safe.changed) nameSimplified = true;
+    var text = safe.text;
+
+    // ---- rich HTML (inline styles; fixed table width so every table lines up) ----
+    var tblOpen = '<table role="presentation" cellspacing="0" cellpadding="0" width="900" style="border-collapse:collapse;background:#ffffff;width:900px;table-layout:fixed;">';
+    var demCols = '<colgroup><col style="width:150px"><col style="width:660px"><col style="width:90px"></colgroup>';
+    var attCols = '<colgroup><col style="width:130px"><col style="width:100px"><col style="width:410px"><col style="width:170px"><col style="width:90px"></colgroup>';
+    var thB = 'background:#E6F6FA;color:#1A1A1A;border:1px solid #BFE8F2;padding:7px 11px;font-family:Arial,Helvetica,sans-serif;font-size:12px;text-align:left;word-wrap:break-word;';
+    var thA = 'background:#FBE3B4;color:#7A4E12;border:1px solid #F0D6A6;padding:7px 11px;font-family:Arial,Helvetica,sans-serif;font-size:12px;text-align:left;word-wrap:break-word;';
+    var td = 'background:#ffffff;color:#1a1a1a;border:1px solid #d0d7de;padding:7px 11px;font-family:Arial,Helvetica,sans-serif;font-size:13px;word-wrap:break-word;';
+    var tdA = 'background:#f4f4f4;color:#1a1a1a;border:1px solid #d0d7de;padding:7px 11px;font-family:Arial,Helvetica,sans-serif;font-size:13px;word-wrap:break-word;';
+    var h = [];
+    h.push('<div style="background:#ffffff;color:#1a1a1a;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5;">');
+    h.push('<p style="background:#ffffff;color:#007A99;margin:0 0 10px;font-weight:bold;font-size:15px;">Timesheet corrections needed: ' + escHtml(period) + '</p>');
+    h.push('<p style="background:#ffffff;color:#1a1a1a;margin:0 0 10px;">' + escHtml(intro).replace(/\n/g, "<br>") + '</p>');
+    if (demands.length) {
+      h.push('<p style="background:#ffffff;color:#1a1a1a;margin:0 0 14px;">Total to correct: <strong>' + escHtml(total) + ' hours</strong> across ' + people + (people === 1 ? " person." : " people.") + '</p>');
+      demands.forEach(function (d) {
+        h.push('<p style="background:#ffffff;color:#007A99;margin:16px 0 6px;font-weight:bold;font-size:13.5px;">' + escHtml(d.code + (d.desc ? " - " + d.desc : "")) + '</p>');
+        h.push(tblOpen + demCols);
+        h.push('<tr><th width="150" style="' + thB + '">Staff</th><th width="660" style="' + thB + '">Feature</th><th width="90" style="' + thB + 'text-align:right;">Hours</th></tr>');
+        d.rows.forEach(function (r, i) {
+          var c = (i % 2 === 1) ? tdA : td;
+          h.push('<tr><td width="150" style="' + c + '">' + escHtml(r.name) + '</td><td width="660" style="' + c + '">' + escHtml(r.feature) + '</td><td width="90" style="' + c + 'text-align:right;font-weight:bold;white-space:nowrap;">' + escHtml(fmtHrs(r.hours)) + ' hrs</td></tr>');
+        });
+        h.push('</table>');
+      });
+    }
+    if (attention.length) {
+      h.push('<p style="background:#ffffff;color:#7A4E12;margin:20px 0 6px;font-weight:bold;font-size:13.5px;">Needs attention: please check the application is assigned</p>');
+      h.push(tblOpen + attCols);
+      h.push('<tr><th width="130" style="' + thA + '">Staff</th><th width="100" style="' + thA + '">Reason</th><th width="410" style="' + thA + '">Feature</th><th width="170" style="' + thA + '">Application</th><th width="90" style="' + thA + 'text-align:right;">Hours</th></tr>');
+      attention.forEach(function (a, i) {
+        var c = (i % 2 === 1) ? tdA : td;
+        h.push('<tr><td width="130" style="' + c + '">' + escHtml(a.name || a.staffId) + '</td><td width="100" style="' + c + '">' + escHtml(a.reason) + '</td><td width="410" style="' + c + '">' + escHtml(a.feature) + '</td><td width="170" style="' + c + '">' + escHtml(a.application) + '</td><td width="90" style="' + c + 'text-align:right;font-weight:bold;white-space:nowrap;">' + escHtml(fmtHrs(a.hours)) + ' hrs</td></tr>');
+      });
+      h.push('</table>');
+    }
+    if (missing.length) {
+      var misCols = '<colgroup><col style="width:700px"><col style="width:200px"></colgroup>';
+      var thG = 'background:#ECEEF0;color:#3D3D3D;border:1px solid #D8DCE0;padding:7px 11px;font-family:Arial,Helvetica,sans-serif;font-size:12px;text-align:left;word-wrap:break-word;';
+      h.push('<p style="background:#ffffff;color:#3D3D3D;margin:20px 0 6px;font-weight:bold;font-size:13.5px;">No time logged: these team members have no bookings in Waqti. Please update your timesheets.</p>');
+      h.push(tblOpen + misCols);
+      h.push('<tr><th width="700" style="' + thG + '">Name</th><th width="200" style="' + thG + '">Staff ID</th></tr>');
+      missing.forEach(function (m, i) {
+        var c = (i % 2 === 1) ? tdA : td;
+        h.push('<tr><td width="700" style="' + c + '">' + escHtml(m.name || "-") + '</td><td width="200" style="' + c + '">' + escHtml(m.staffId) + '</td></tr>');
+      });
+      h.push('</table>');
+    }
+    h.push('<p style="background:#ffffff;color:#1a1a1a;margin:14px 0 0;">' + escHtml(closing) + '</p>');
+    h.push('</div>');
+
+    return { text: text, html: h.join(""), nameSimplified: nameSimplified };
+  }
+
+  function nowIso() { try { return new Date().toISOString(); } catch (e) { return ""; } }
+
+  function serialiseRules(state) {
+    state = state || {};
+    var staffIn = state.staff || {};
+    var staffOut = {};
+    Object.keys(staffIn).sort().forEach(function (id) {
+      var e = staffIn[id] || {};
+      var name = typeof e.name === "string" ? e.name : "";
+      var demands = Array.isArray(e.approvedDemands) ? e.approvedDemands.slice() : [];
+      if (name === "" && demands.length === 0) return;
+      demands = demands.filter(function (x) { return typeof x === "string"; }).sort();
+      staffOut[id] = { name: name, approvedDemands: demands };
+    });
+    return JSON.stringify({ schemaVersion: SCHEMA_VERSION, generatedAt: (state.generatedAt || nowIso()), label: state.label || "", staff: staffOut }, null, 2);
+  }
+
+  function lineCol(str, pos) {
+    if (pos === null || pos === undefined || isNaN(pos)) return null;
+    var upto = str.slice(0, pos);
+    return { line: upto.split("\n").length, col: pos - upto.lastIndexOf("\n") };
+  }
+
+  function parseRules(jsonString) {
+    var data;
+    try { data = JSON.parse(jsonString); }
+    catch (e) {
+      var m = /position (\d+)/.exec(e.message);
+      var lc = m ? lineCol(jsonString, parseInt(m[1], 10)) : null;
+      throw new Error("Rules JSON did not parse: " + e.message + (lc ? " (line " + lc.line + ", column " + lc.col + ")" : "") + "\nCurrent rules left unchanged.");
+    }
+    if (typeof data !== "object" || data === null || Array.isArray(data)) throw new Error("Rules must be a JSON object. Current rules left unchanged.");
+    if (data.schemaVersion !== SCHEMA_VERSION) throw new Error("Unrecognised schemaVersion: " + JSON.stringify(data.schemaVersion) + ". This build supports schemaVersion " + SCHEMA_VERSION + " only. Current rules left unchanged.");
+    var problems = [];
+    if (typeof data.staff !== "object" || data.staff === null || Array.isArray(data.staff)) problems.push('"staff" must be an object.');
+    else Object.keys(data.staff).forEach(function (id) {
+      var e = data.staff[id];
+      if (typeof e !== "object" || e === null || Array.isArray(e)) { problems.push(id + ": entry must be an object."); return; }
+      if (typeof e.name !== "string") problems.push(id + ': "name" must be a string.');
+      if (!Array.isArray(e.approvedDemands)) problems.push(id + ': "approvedDemands" must be an array.');
+      else if (!e.approvedDemands.every(function (x) { return typeof x === "string"; })) problems.push(id + ': "approvedDemands" must contain only strings.');
+    });
+    if (problems.length) throw new Error("Rules validation failed:\n- " + problems.join("\n- ") + "\nCurrent rules left unchanged.");
+    var staffUpper = {};
+    Object.keys(data.staff).forEach(function (id) { staffUpper[String(id).toUpperCase()] = data.staff[id]; });
+    return { schemaVersion: SCHEMA_VERSION, generatedAt: data.generatedAt || null, label: typeof data.label === "string" ? data.label : "", staff: staffUpper };
+  }
+
+  window.parseExport = parseExport;
+  window.applyRules = applyRules;
+  window.buildEmail = buildEmail;
+  window.serialiseRules = serialiseRules;
+  window.parseRules = parseRules;
+  window._waqt = { round1: round1, round2: round2, splitFirst: splitFirst, toWin1252: toWin1252 };
+})();
+</script>
+<script>
+/* ============================================================
+   waqti-exceptions  UI (view switching, rendering, clipboard)
+   ============================================================ */
+(function () {
+  "use strict";
+
+  var VERSION = "v1.7.3";
+  var LS_KEY = "waqti-exceptions:v1";
+  var $ = function (id) { return document.getElementById(id); };
+  $("version").textContent = VERSION;
+
+  function esc(s) {
+    return String(s === null || s === undefined ? "" : s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  }
+  function show(el) { el.classList.remove("hidden"); }
+  function hide(el) { el.classList.add("hidden"); }
+
+  var state = {
+    buffer: null, fileName: "", mapping: null, parsed: null,
+    rules: { label: "", staff: {}, generatedAt: null },
+    source: "none", loadedAt: null,
+    lastResult: null, lastEmail: null, emailMode: "plain", excluded: {}, lineKeys: [], excludedAttn: {}, attnKeys: [], excludedMissing: {}, missingKeys: []
+  };
+  function keyOf(staffId, l) { return staffId + "\u0000" + l.demandCode + "\u0000" + l.featureCode; }
+  function attnKeyOf(a) { return a.reason + "\u0000" + a.staffId + "\u0000" + a.feature + "\u0000" + a.application; }
+
+  /* ---------- view switching ---------- */
+  function goSettings() { hide($("view-main")); show($("view-settings")); hide($("navSettings")); show($("navDone")); window.scrollTo(0, 0); }
+  function goMain() { show($("view-main")); hide($("view-settings")); show($("navSettings")); hide($("navDone")); window.scrollTo(0, 0); }
+  $("navSettings").addEventListener("click", goSettings);
+  $("openSettingsBtn").addEventListener("click", goSettings);
+  $("openSettingsBtn2").addEventListener("click", goSettings);
+  $("navDone").addEventListener("click", goMain);
+
+  /* ---------- persistence ---------- */
+  function saveLocal() { try { localStorage.setItem(LS_KEY, JSON.stringify({ rules: state.rules, source: state.source, loadedAt: state.loadedAt, email: { intro: $("introInput").value, closing: $("closingInput").value } })); } catch (e) { } }
+  function loadLocal() {
+    try {
+      var raw = localStorage.getItem(LS_KEY); if (!raw) return;
+      var obj = JSON.parse(raw);
+      if (obj && obj.rules && typeof obj.rules === "object") {
+        var st = obj.rules.staff || {}, stU = {};
+        Object.keys(st).forEach(function (id) { stU[String(id).toUpperCase()] = st[id]; });
+        state.rules = { label: obj.rules.label || "", staff: stU, generatedAt: obj.rules.generatedAt || null };
+        state.source = "autosave"; state.loadedAt = obj.loadedAt || null;
+      }
+      if (obj && obj.email && typeof obj.email === "object") {
+        if (typeof obj.email.intro === "string") $("introInput").value = obj.email.intro;
+        if (typeof obj.email.closing === "string") $("closingInput").value = obj.email.closing;
+      }
+    } catch (e) { }
+  }
+  var saveTimer = null;
+  function autosave() { if (saveTimer) clearTimeout(saveTimer); saveTimer = setTimeout(saveLocal, 300); }
+
+  /* ---------- rules helpers ---------- */
+  function ensureEntry(sid) { if (!state.rules.staff[sid]) state.rules.staff[sid] = { name: "", approvedDemands: [] }; return state.rules.staff[sid]; }
+  function toggleApproval(sid, dcode, on) { var e = ensureEntry(sid); var i = e.approvedDemands.indexOf(dcode); if (on && i === -1) e.approvedDemands.push(dcode); if (!on && i !== -1) e.approvedDemands.splice(i, 1); }
+  function exportStaffIds() { var set = {}; if (state.parsed) state.parsed.bookings.forEach(function (b) { set[b.staffId] = 1; }); return Object.keys(set).sort(); }
+  function exportDemandCodes() { var m = {}; if (state.parsed) state.parsed.bookings.forEach(function (b) { if (b.demandCode === "") return; if (!m[b.demandCode]) m[b.demandCode] = b.demandDesc || ""; }); return Object.keys(m).sort().map(function (c) { return { code: c, desc: m[c] }; }); }
+  function rulesEmpty() { return Object.keys(state.rules.staff).length === 0; }
+
+  /* ---------- file / parsing ---------- */
+  function readFile(file) {
+    hide($("parseError"));
+    var reader = new FileReader();
+    reader.onload = function () { state.buffer = reader.result; state.fileName = file.name; state.mapping = null; doParse(null); };
+    reader.onerror = function () { showParseError("Could not read the file. Previously loaded data is unchanged."); };
+    reader.readAsArrayBuffer(file);
+  }
+  function showParseError(msg) { var el = $("parseError"); el.textContent = msg; show(el); }
+
+  function doParse(mapping) {
+    var result;
+    try { result = parseExport(state.buffer, mapping); }
+    catch (e) { showParseError("Could not parse " + state.fileName + ": " + e.message + "\nPreviously loaded data is unchanged."); return; }
+    if (result.needsMapping) { renderMapper(result); return; }
+    hide($("mapper"));
+    hide($("drop")); show($("replaceBtn"));
+    state.parsed = result; state.mapping = mapping; state.excluded = {}; state.excludedAttn = {}; state.excludedMissing = {};
+    $("fileNameSub").textContent = state.fileName;
+    renderParseStatus();
+    renderRules(true);
+    renderPreview();
+    renderEmailControls();
+  }
+
+  function renderParseStatus() {
+    var p = state.parsed, bits = [];
+    bits.push('<span class="pill ok">' + p.bookings.length + " bookings</span>");
+    bits.push('<span class="pill">' + p.excluded + " row" + (p.excluded === 1 ? "" : "s") + " excluded (empty Staff ID)</span>");
+    bits.push('<span class="pill">sheet: ' + esc(p.sheetName) + "</span>");
+    if (p.period && p.period.label) bits.push('<span class="pill">period: ' + esc(p.period.label) + (p.period.multiMonth ? " (multi-month)" : "") + "</span>");
+    if (p.dataQuality.length) bits.push('<span class="pill dq">' + p.dataQuality.length + " data-quality row" + (p.dataQuality.length === 1 ? "" : "s") + "</span>");
+    var html = bits.join(" ");
+    if (p.period && p.period.multiMonth) html += '<div class="sub" style="margin-top:.4rem;">This export spans more than one month (' + esc(p.period.label) + "). The email period names the full range.</div>";
+    $("parseStatus").innerHTML = html;
+  }
+
+  var REQUIRED_FIELDS = [
+    { field: "staffId", canonical: "Staff ID", label: "Staff ID" },
+    { field: "workDay", canonical: "Work Day", label: "Work Day" },
+    { field: "month", canonical: "Month", label: "Month" },
+    { field: "demand", canonical: "Demand", label: "Demand" },
+    { field: "feature", canonical: "Feature", label: "Feature" },
+    { field: "bookedHours", canonical: "Booked Hours", label: "Booked Hours" }
+  ];
+  function renderMapper(result) {
+    state.parsed = null;
+    var fields = REQUIRED_FIELDS.concat([{ field: "rechargeCost", canonical: "Recharge Cost", label: "Recharge Cost (optional)" }]);
+    var rows = fields.map(function (f) {
+      var guess = null;
+      for (var i = 0; i < result.headers.length; i++) if (result.headers[i].name === f.canonical) { guess = result.headers[i].index; break; }
+      var opts = '<option value="">(not mapped)</option>' + result.headers.map(function (h) {
+        var selAttr = (guess === h.index) ? " selected" : "";
+        return '<option value="' + h.index + '"' + selAttr + ">" + esc(h.name || ("(column " + (h.index + 1) + ")")) + " [col " + (h.index + 1) + "]</option>";
+      }).join("");
+      return '<div style="margin:.5rem 0;"><label class="field" style="margin:0 0 .2rem;">' + esc(f.label) + '</label><select data-field="' + f.field + '">' + opts + "</select></div>";
+    }).join("");
+    $("mapperFields").innerHTML = rows;
+    show($("mapper")); hide($("mapperError"));
+  }
+  $("mapperConfirm").addEventListener("click", function () {
+    var selects = $("mapperFields").querySelectorAll("select"), mapping = {}, missing = [];
+    Array.prototype.forEach.call(selects, function (s) {
+      var field = s.getAttribute("data-field"), v = s.value;
+      if (v === "") { if (field !== "rechargeCost") missing.push(field); return; }
+      mapping[field] = parseInt(v, 10);
+    });
+    if (missing.length) { var el = $("mapperError"); el.textContent = "Still unmapped: " + missing.join(", ") + ". All six required fields must be mapped."; show(el); return; }
+    doParse(mapping);
+  });
+
+  /* ---------- rules editor (Settings) ---------- */
+  function renderRules(rebuildGrid) {
+    var when = state.loadedAt ? new Date(state.loadedAt).toLocaleString() : "";
+    var srcTxt;
+    if (state.source === "import") srcTxt = "Active rules: imported file" + (when ? ", loaded " + when : "") + ". The imported file wins over any autosave.";
+    else if (state.source === "autosave") srcTxt = "Active rules: restored from this browser's autosave" + (when ? " (" + when + ")" : "") + ". Import a rules.json to override.";
+    else if (state.source === "file") srcTxt = "Active rules: baked into this HTML file. Edits autosave to this browser and can be re-baked with Save tool with rules.";
+    else if (state.source === "edited") srcTxt = "Active rules: edited in this session, autosaved to this browser.";
+    else srcTxt = "No rules loaded yet. Import a rules.json, edit the grid, or download a template.";
+    $("rulesSource").textContent = srcTxt;
+    $("labelInput").value = state.rules.label || "";
+    if (rebuildGrid) buildGrid();
+    buildExtras();
+    repaintJson();
+    // main-view no-rules hint
+    if (state.parsed && rulesEmpty()) show($("noRulesHint")); else hide($("noRulesHint"));
+  }
+
+  function buildGrid() {
+    var wrap = $("gridWrap");
+    if (!state.parsed) { wrap.innerHTML = ""; $("gridHint").textContent = "Load an export to see the staff-by-demand grid. Tick a cell to approve that person for that demand."; return; }
+    var staffIds = exportStaffIds(), demands = exportDemandCodes();
+    $("gridHint").textContent = staffIds.length + " staff x " + demands.length + " demand codes from this export. Tick a cell to approve. Staff or demands not in this export appear below and are edited in the JSON.";
+    var html = '<table class="grid"><thead><tr><th class="staffcol">Staff ID / name</th>';
+    demands.forEach(function (d) { html += '<th title="' + esc(d.desc) + '">' + esc(d.code) + "</th>"; });
+    html += "</tr></thead><tbody>";
+    staffIds.forEach(function (sid) {
+      var e = state.rules.staff[sid], name = e ? (e.name || "") : "";
+      html += '<tr><td class="staffcol">' + esc(sid) + '<br><input type="text" data-name="' + esc(sid) + '" value="' + esc(name) + '" placeholder="display name" aria-label="Display name for ' + esc(sid) + '"></td>';
+      demands.forEach(function (d) {
+        var on = e && e.approvedDemands && e.approvedDemands.indexOf(d.code) !== -1;
+        html += '<td><input type="checkbox" data-sid="' + esc(sid) + '" data-demand="' + esc(d.code) + '"' + (on ? " checked" : "") + ' aria-label="' + esc(sid) + " approved for " + esc(d.code) + '"></td>';
+      });
+      html += "</tr>";
+    });
+    html += "</tbody></table>";
+    wrap.innerHTML = html;
+    wrap.querySelectorAll('input[type=checkbox]').forEach(function (cb) {
+      cb.addEventListener("change", function () {
+        toggleApproval(cb.getAttribute("data-sid"), cb.getAttribute("data-demand"), cb.checked);
+        state.source = "edited"; autosave(); repaintJson(); buildExtras(); renderPreview(); renderEmail();
+        if (state.parsed && rulesEmpty()) show($("noRulesHint")); else hide($("noRulesHint"));
+      });
+    });
+    wrap.querySelectorAll('input[data-name]').forEach(function (inp) {
+      inp.addEventListener("input", function () {
+        ensureEntry(inp.getAttribute("data-name")).name = inp.value;
+        state.source = "edited"; autosave(); repaintJson(); renderPreview(); renderEmail();
+      });
+    });
+  }
+
+  function buildExtras() {
+    var wrap = $("extrasWrap");
+    if (!state.parsed) { wrap.innerHTML = ""; return; }
+    var exStaff = {}; exportStaffIds().forEach(function (s) { exStaff[s] = 1; });
+    var exDem = {}; exportDemandCodes().forEach(function (d) { exDem[d.code] = 1; });
+    var extraStaff = Object.keys(state.rules.staff).filter(function (s) { return !exStaff[s]; }).sort();
+    var extraDemSet = {};
+    Object.keys(state.rules.staff).forEach(function (s) { (state.rules.staff[s].approvedDemands || []).forEach(function (d) { if (!exDem[d]) extraDemSet[d] = 1; }); });
+    var extraDem = Object.keys(extraDemSet).sort();
+    if (!extraStaff.length && !extraDem.length) { wrap.innerHTML = ""; return; }
+    var html = '<div class="panel extras"><strong>Not present in the current export</strong> (kept, edited via JSON):';
+    if (extraStaff.length) html += '<div style="margin-top:.4rem;">Staff: ' + extraStaff.map(function (s) { var e = state.rules.staff[s]; return '<span class="pill">' + esc(s) + (e && e.name ? " (" + esc(e.name) + ")" : "") + " [" + (e.approvedDemands || []).length + " approved]</span>"; }).join(" ") + "</div>";
+    if (extraDem.length) html += '<div style="margin-top:.4rem;">Demand codes: ' + extraDem.map(function (d) { return '<span class="pill">' + esc(d) + "</span>"; }).join(" ") + "</div>";
+    html += "</div>";
+    wrap.innerHTML = html;
+  }
+
+  function repaintJson() { var el = $("jsonArea"); if (document.activeElement === el) return; el.value = serialiseRules(state.rules); }
+
+  function applyJsonFromTextarea() {
+    var text = $("jsonArea").value, parsed;
+    try { parsed = parseRules(text); } catch (e) { var errEl = $("jsonError"); errEl.textContent = e.message; show(errEl); return; }
+    hide($("jsonError"));
+    state.rules = { label: parsed.label, staff: parsed.staff, generatedAt: parsed.generatedAt };
+    state.source = "edited"; autosave();
+    renderRules(true); renderPreview(); renderEmail();
+  }
+  $("applyJson").addEventListener("click", applyJsonFromTextarea);
+  $("jsonArea").addEventListener("blur", applyJsonFromTextarea);
+  $("labelInput").addEventListener("input", function () { state.rules.label = $("labelInput").value; state.source = "edited"; autosave(); repaintJson(); });
+
+  /* ---------- import / export / template ---------- */
+  function download(filename, text, type) {
+    var blob = new Blob([text], { type: type || "application/json" });
+    var url = URL.createObjectURL(blob), a = document.createElement("a");
+    a.href = url; a.download = filename; document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  }
+  $("exportBtn").addEventListener("click", function () { download("rules.json", serialiseRules(state.rules), "application/json"); });
+  $("templateBtn").addEventListener("click", function () {
+    var tpl = { schemaVersion: 1, generatedAt: (function () { try { return new Date().toISOString(); } catch (e) { return ""; } })(), label: "Give this rules set a name", staff: { "S100404": { name: "Steve D", approvedDemands: ["PVE9001001", "PVE9001003"] } } };
+    download("rules.json", JSON.stringify(tpl, null, 2), "application/json");
+  });
+  $("importBtn").addEventListener("click", function () { $("importInput").click(); });
+  $("importInput").addEventListener("change", function (ev) {
+    var f = ev.target.files && ev.target.files[0]; if (!f) return;
+    var reader = new FileReader();
+    reader.onload = function () {
+      var parsed;
+      try { parsed = parseRules(String(reader.result)); } catch (e) { var errEl = $("jsonError"); errEl.textContent = e.message; show(errEl); return; }
+      hide($("jsonError"));
+      state.rules = { label: parsed.label, staff: parsed.staff, generatedAt: parsed.generatedAt };
+      state.source = "import"; state.loadedAt = Date.now(); autosave();
+      renderRules(true); renderPreview(); renderEmail();
+    };
+    reader.readAsText(f); ev.target.value = "";
+  });
+
+  /* ---------- exceptions preview ---------- */
+  function section(title, desc) { return '<div class="section-title">' + esc(title) + '</div><p class="section-desc">' + esc(desc) + "</p>"; }
+  function renderPreview() {
+    var banner = $("banner");
+    if (!state.parsed) {
+      banner.innerHTML = '<span class="sub">Load an export to see exceptions.</span>';
+      ["exHead", "clearWrap", "exceptionsWrap", "notesWrap", "attnWrap", "missingWrap", "dqWrap"].forEach(function (id) { $(id).innerHTML = ""; });
+      state.lastResult = null; return;
+    }
+    var result = applyRules(state.parsed.bookings, state.rules); result.period = state.parsed.period;
+    state.lastResult = result;
+    var s = result.stats;
+    banner.innerHTML = '<span class="pill ok">' + s.coveredCount + " covered</span>" + (s.notInRulesCount ? '<span class="pill warn">' + s.notInRulesCount + " not in rules</span>" : "") + (s.attentionCount ? '<span class="pill amber">' + s.attentionCount + " to check</span>" : "") + (s.missingCount ? '<span class="pill grey">' + s.missingCount + " no time logged</span>" : "");
+
+    if (s.exceptionLineCount === 0 && s.attentionCount === 0 && s.missingCount === 0) {
+      $("clearWrap").innerHTML = '<div class="panel clear"><strong>All clear.</strong> Nothing to send: no bookings against unapproved demands, nothing needing a check, and everyone has entered time.</div>';
+    } else $("clearWrap").innerHTML = "";
+
+    // ---- demand exceptions ----
+    if (s.exceptionLineCount === 0) {
+      $("exHead").innerHTML = ""; $("exceptionsWrap").innerHTML = ""; $("exceptionsWrap").className = "";
+    } else {
+      $("exHead").innerHTML = section("Demand exceptions", "Bookings made against demands the person is not approved for. Untick a row to leave it out of the email.");
+      $("exceptionsWrap").className = "table-wrap scroll";
+      state.lineKeys = [];
+      var idx = 0;
+      var html = '<table class="data"><thead><tr><th class="chk">Send</th><th>Staff name</th><th>Feature name</th><th class="num">Hours booked</th></tr></thead><tbody>';
+      result.exceptions.forEach(function (g) {
+        g.lines.forEach(function (l) {
+          var key = keyOf(g.staffId, l), off = !!state.excluded[key];
+          state.lineKeys.push(key);
+          var nameCell = "<strong>" + esc(g.name || g.staffId) + '</strong> <span class="sid">' + esc(g.staffId) + "</span>" + (g.inRules ? "" : ' <span class="tag-amber">not in rules</span>');
+          html += '<tr class="' + (off ? "excluded" : "") + '"><td class="chk"><input type="checkbox" data-idx="' + idx + '"' + (off ? "" : " checked") + ' aria-label="Include this row in the email"></td>' +
+            "<td>" + nameCell + "</td><td>" + esc(l.featureDesc || l.featureCode) + '</td><td class="num">' + l.hours.toFixed(1) + "</td></tr>";
+          idx++;
+        });
+      });
+      html += "</tbody></table>";
+      $("exceptionsWrap").innerHTML = html;
+      $("exceptionsWrap").querySelectorAll('input[type=checkbox]').forEach(function (cb) {
+        cb.addEventListener("change", function () {
+          var k = state.lineKeys[+cb.getAttribute("data-idx")];
+          if (cb.checked) delete state.excluded[k]; else state.excluded[k] = 1;
+          var tr = cb.closest("tr"); if (tr) tr.classList.toggle("excluded", !cb.checked);
+          renderEmail();
+        });
+      });
+    }
+
+    // ---- needs attention (GEN + no-demand), with exclude checkboxes ----
+    if (result.attention.length) {
+      var a = section("Needs attention (" + result.attention.length + ")", "Generic (GEN) and no-demand bookings. Please check the application is assigned. Untick a row to leave it out of the email.");
+      a += '<div class="table-wrap scroll"><table class="data amber"><thead><tr><th class="chk">Send</th><th>Staff</th><th>Reason</th><th>Feature</th><th>Application</th><th class="num">Hours</th></tr></thead><tbody>';
+      state.attnKeys = []; var ai = 0;
+      result.attention.forEach(function (r) {
+        var k = attnKeyOf(r), off = !!state.excludedAttn[k];
+        state.attnKeys.push(k);
+        a += '<tr class="' + (off ? "excluded" : "") + '"><td class="chk"><input type="checkbox" data-attn="' + ai + '"' + (off ? "" : " checked") + ' aria-label="Include this row in the email"></td>' +
+          "<td>" + esc(r.name || r.staffId) + "</td><td>" + esc(r.reason) + "</td><td>" + esc(r.feature) + "</td><td>" + esc(r.application) + '</td><td class="num">' + r.hours.toFixed(1) + "</td></tr>";
+        ai++;
+      });
+      a += "</tbody></table></div>";
+      $("attnWrap").innerHTML = a;
+      $("attnWrap").querySelectorAll('input[type=checkbox]').forEach(function (cb) {
+        cb.addEventListener("change", function () {
+          var k = state.attnKeys[+cb.getAttribute("data-attn")];
+          if (cb.checked) delete state.excludedAttn[k]; else state.excludedAttn[k] = 1;
+          var tr = cb.closest("tr"); if (tr) tr.classList.toggle("excluded", !cb.checked);
+          renderEmail();
+        });
+      });
+    } else $("attnWrap").innerHTML = "";
+
+    // ---- not yet in the timesheet, with exclude checkboxes ----
+    if (result.missingStaff && result.missingStaff.length) {
+      var m2 = section("No time logged (" + result.missingStaff.length + ")", "These team members have no bookings in Waqti. Please update your timesheets. Untick a row to leave it out of the email.");
+      m2 += '<div class="table-wrap scroll"><table class="data grey"><thead><tr><th class="chk">Send</th><th>Name</th><th>Staff ID</th></tr></thead><tbody>';
+      state.missingKeys = []; var mi = 0;
+      result.missingStaff.forEach(function (m) {
+        var k = m.staffId, off = !!state.excludedMissing[k];
+        state.missingKeys.push(k);
+        m2 += '<tr class="' + (off ? "excluded" : "") + '"><td class="chk"><input type="checkbox" data-miss="' + mi + '"' + (off ? "" : " checked") + ' aria-label="Include this row in the email"></td>' +
+          "<td>" + esc(m.name || "-") + "</td><td>" + esc(m.staffId) + "</td></tr>";
+        mi++;
+      });
+      m2 += "</tbody></table></div>";
+      $("missingWrap").innerHTML = m2;
+      $("missingWrap").querySelectorAll('input[type=checkbox]').forEach(function (cb) {
+        cb.addEventListener("change", function () {
+          var k = state.missingKeys[+cb.getAttribute("data-miss")];
+          if (cb.checked) delete state.excludedMissing[k]; else state.excludedMissing[k] = 1;
+          var tr = cb.closest("tr"); if (tr) tr.classList.toggle("excluded", !cb.checked);
+          renderEmail();
+        });
+      });
+    } else $("missingWrap").innerHTML = "";
+
+    // notes: staff not in rules, and annual leave ignored
+    var notes = [];
+    if (result.notInRulesStaff.length) notes.push('<div class="panel warn"><strong>Not in rules (' + result.notInRulesStaff.length + ').</strong> These staff are in the export but not in the rules, so they are treated as approved for nothing and every demand booking is an exception above. Add them in Settings to refine.<div style="margin-top:.4rem;">' + result.notInRulesStaff.map(function (x) { return '<span class="pill warn">' + esc(x) + "</span>"; }).join(" ") + "</div></div>");
+    if (s.leaveCount) notes.push('<div class="note" style="margin:.6rem 0 0;">' + s.leaveCount + " annual-leave row" + (s.leaveCount === 1 ? "" : "s") + " (blank demand, feature and application) ignored.</div>");
+    $("notesWrap").innerHTML = notes.join("");
+
+    if (state.parsed.dataQuality.length) {
+      $("dqWrap").innerHTML = '<div class="panel dq"><strong>Data quality (' + state.parsed.dataQuality.length + ').</strong> These rows have non-numeric or negative Booked Hours. They are excluded from all totals. Fix them at the spreadsheet row shown.<div style="margin-top:.4rem;">' + state.parsed.dataQuality.map(function (d) { return '<span class="pill dq">row ' + d.row + " &middot; " + esc(d.staffId) + ' &middot; "' + esc(d.value) + '"</span>'; }).join(" ") + "</div></div>";
+    } else $("dqWrap").innerHTML = "";
+  }
+
+  /* ---------- deadline: date picker defaulting to last working day of the month ---------- */
+  var deadlineUserSet = false;
+  var MONTHS3 = { jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11 };
+  var WD = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  var MO = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  function pad2(n) { return (n < 10 ? "0" : "") + n; }
+  function toYMD(d) { return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate()); }
+  function lastWorkingDay(year, month) {
+    var d = new Date(year, month + 1, 0); // last calendar day of the month
+    while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() - 1);
+    return d;
+  }
+  function periodToYM(label) {
+    if (!label) return null;
+    var parts = label.split(",").map(function (s) { return s.trim(); });
+    var last = parts[parts.length - 1];
+    var m = /^([A-Za-z]{3,})[ -](\d{2,4})$/.exec(last);
+    if (!m) return null;
+    var mi = MONTHS3[m[1].slice(0, 3).toLowerCase()];
+    if (mi === undefined) return null;
+    var yy = parseInt(m[2], 10);
+    return { year: yy < 100 ? 2000 + yy : yy, month: mi };
+  }
+  function ordinal(n) { var s = ["th", "st", "nd", "rd"], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); }
+  function fmtDeadline(ymd) {
+    if (!ymd) return "";
+    var p = ymd.split("-"); if (p.length !== 3) return ymd;
+    var d = new Date(parseInt(p[0], 10), parseInt(p[1], 10) - 1, parseInt(p[2], 10));
+    if (isNaN(d.getTime())) return ymd;
+    return WD[d.getDay()] + " " + ordinal(d.getDate()) + " " + MO[d.getMonth()];
+  }
+  function defaultDeadline() {
+    var ym = state.parsed && state.parsed.period ? periodToYM(state.parsed.period.label) : null;
+    if (!ym) { var now = new Date(); ym = { year: now.getFullYear(), month: now.getMonth() }; }
+    return toYMD(lastWorkingDay(ym.year, ym.month));
+  }
+
+  /* ---------- email ---------- */
+  function renderEmailControls() {
+    if (state.parsed && state.parsed.period && !$("periodInput").value) $("periodInput").value = state.parsed.period.label;
+    if (!deadlineUserSet) $("deadlineInput").value = defaultDeadline();
+    var OLD_INTRO = "The following bookings were made against demands the person is not\ncurrently approved for.";
+    var NEW_INTRO = "The following bookings were made against demands the person is not currently approved for.";
+    if (!$("introInput").value || $("introInput").value === OLD_INTRO) $("introInput").value = NEW_INTRO;
+    var OLD_CLOSING = "Please correct these in the timesheet system by {deadline}.";
+    var NEW_CLOSING = "Please correct these in Waqti by {deadline}.";
+    if (!$("closingInput").value || $("closingInput").value === OLD_CLOSING) $("closingInput").value = NEW_CLOSING;
+    renderEmail();
+  }
+  function currentOptions() { return { period: $("periodInput").value, deadline: fmtDeadline($("deadlineInput").value), intro: $("introInput").value, closing: $("closingInput").value }; }
+  // exceptions minus the rows the user unticked, with totals recomputed for the email
+  function includedResult() {
+    var base = state.lastResult; if (!base) return null;
+    var exc = base.exceptions.map(function (g) {
+      var lines = g.lines.filter(function (l) { return !state.excluded[keyOf(g.staffId, l)]; });
+      return { staffId: g.staffId, name: g.name, lines: lines };
+    }).filter(function (g) { return g.lines.length > 0; });
+    var hours = 0, staffSet = {}, lc = 0;
+    exc.forEach(function (g) { staffSet[g.staffId] = 1; g.lines.forEach(function (l) { hours += l.hours; lc++; }); });
+    var attn = (base.attention || []).filter(function (a) { return !state.excludedAttn[attnKeyOf(a)]; });
+    var miss = (base.missingStaff || []).filter(function (m) { return !state.excludedMissing[m.staffId]; });
+    return { exceptions: exc, attention: attn, missingStaff: miss, period: base.period, stats: { exceptionHours: Math.round(hours * 100) / 100, staffAffected: Object.keys(staffSet).length, exceptionLineCount: lc } };
+  }
+  function renderEmail() {
+    var inc = includedResult();
+    if (!inc) {
+      $("plainArea").value = ""; $("richPreview").innerHTML = '<span class="sub">Load an export and set up rules to build the email.</span>';
+      $("copyBtn").disabled = true; $("nameNote").textContent = ""; state.lastEmail = null; return;
+    }
+    var hasContent = inc.stats.exceptionLineCount > 0 || (inc.attention && inc.attention.length > 0) || (inc.missingStaff && inc.missingStaff.length > 0);
+    if (!hasContent) {
+      var msg = (state.lastResult && state.lastResult.stats.exceptionLineCount > 0) ? "Every exception row is unticked, so there is nothing to send." : "Nothing to email.";
+      $("plainArea").value = msg; $("richPreview").innerHTML = '<span class="sub">' + esc(msg) + "</span>";
+      $("copyBtn").disabled = true; $("nameNote").textContent = ""; state.lastEmail = null; return;
+    }
+    var email = buildEmail(inc, currentOptions());
+    state.lastEmail = email;
+    $("plainArea").value = email.text;
+    $("richPreview").innerHTML = email.html;
+    $("copyBtn").disabled = false;
+    $("nameNote").textContent = email.nameSimplified ? "Note: at least one name or feature label contained a character outside Windows-1252 and was simplified for the plain-text copy." : "";
+  }
+  ["periodInput", "introInput", "closingInput"].forEach(function (id) { $(id).addEventListener("input", function () { renderEmail(); if (id !== "periodInput") autosave(); }); });
+  $("deadlineInput").addEventListener("change", function () { deadlineUserSet = true; renderEmail(); });
+
+  function setMode(mode) {
+    state.emailMode = mode;
+    if (mode === "plain") { $("segPlain").classList.add("active"); $("segRich").classList.remove("active"); show($("plainArea")); hide($("richPreview")); $("copyBtn").textContent = "Copy plain text"; }
+    else { $("segRich").classList.add("active"); $("segPlain").classList.remove("active"); hide($("plainArea")); show($("richPreview")); $("copyBtn").textContent = "Copy rich email"; }
+  }
+  $("segPlain").addEventListener("click", function () { setMode("plain"); });
+  $("segRich").addEventListener("click", function () { setMode("rich"); });
+
+  /* ---------- clipboard ---------- */
+  function flash(msg, ok) { var el = $("copyMsg"); el.textContent = msg; el.className = "copymsg " + (ok ? "ok" : "fail"); setTimeout(function () { if (el.textContent === msg) { el.textContent = ""; el.className = "copymsg"; } }, 4000); }
+  function fallback(text, label) {
+    var wrap = $("fallbackWrap");
+    wrap.innerHTML = '<div class="panel dq"><strong>Clipboard unavailable.</strong> This browser blocked the ' + esc(label) + " copy (common over file:// in Firefox and Safari). Select all below and copy manually.<br>" +
+      '<textarea class="mono" id="fbArea" rows="8" style="margin-top:.5rem;">' + esc(text) + "</textarea>" +
+      '<div class="controls-row" style="margin-top:.5rem;"><button type="button" class="mini-btn" id="fbSelect">Select all</button></div></div>';
+    $("fbSelect").addEventListener("click", function () { var a = $("fbArea"); a.focus(); a.select(); });
+    $("fbArea").focus(); $("fbArea").select();
+  }
+  $("copyBtn").addEventListener("click", function () {
+    if (!state.lastEmail) return;
+    var email = state.lastEmail;
+    if (state.emailMode === "plain") {
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(email.text).then(function () { flash("Copied plain text to clipboard.", true); }, function () { flash("Copy blocked. Use the box below.", false); fallback(email.text, "plain text"); });
+      else { flash("Copy unavailable. Use the box below.", false); fallback(email.text, "plain text"); }
+    } else {
+      if (navigator.clipboard && window.ClipboardItem && navigator.clipboard.write) {
+        try {
+          var item = new ClipboardItem({ "text/html": new Blob([email.html], { type: "text/html" }), "text/plain": new Blob([email.text], { type: "text/plain" }) });
+          navigator.clipboard.write([item]).then(function () { flash("Copied rich email to clipboard.", true); }, function () { flash("Rich copy blocked. Use the box below.", false); fallback(email.text, "rich email"); });
+        } catch (e) { flash("Rich copy failed. Use the box below.", false); fallback(email.text, "rich email"); }
+      } else { flash("Rich copy unavailable. Use the box below.", false); fallback(email.text, "rich email"); }
+    }
+  });
+
+  /* ---------- drop zone ---------- */
+  var drop = $("drop");
+  drop.addEventListener("dragover", function (e) { e.preventDefault(); drop.classList.add("dragover"); });
+  drop.addEventListener("dragleave", function () { drop.classList.remove("dragover"); });
+  drop.addEventListener("drop", function (e) { e.preventDefault(); drop.classList.remove("dragover"); var f = e.dataTransfer.files && e.dataTransfer.files[0]; if (f) readFile(f); });
+  $("browseBtn").addEventListener("click", function (e) { e.stopPropagation(); $("fileInput").click(); });
+  $("replaceBtn").addEventListener("click", function () { $("fileInput").click(); });
+  drop.addEventListener("click", function () { $("fileInput").click(); });
+  drop.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); $("fileInput").click(); } });
+  $("fileInput").addEventListener("change", function (ev) { var f = ev.target.files && ev.target.files[0]; if (f) readFile(f); ev.target.value = ""; });
+
+  /* ---------- embedded rules (baked into the file) ---------- */
+  function loadEmbedded() {
+    try {
+      var el = document.getElementById("embeddedRules");
+      if (!el) return false;
+      var txt = (el.textContent || "").trim();
+      if (!txt || txt === "{}") return false;
+      var parsed = parseRules(txt);
+      state.rules = { label: parsed.label, staff: parsed.staff, generatedAt: parsed.generatedAt };
+      state.source = "file"; state.loadedAt = null;
+      return true;
+    } catch (e) { return false; }
+  }
+  function loadEmbeddedEmail() {
+    try {
+      var el = document.getElementById("embeddedEmail");
+      if (!el) return;
+      var txt = (el.textContent || "").trim();
+      if (!txt || txt === "{}") return;
+      var e = JSON.parse(txt);
+      if (e && typeof e === "object") {
+        if (!$("introInput").value && typeof e.intro === "string") $("introInput").value = e.intro;
+        if (!$("closingInput").value && typeof e.closing === "string") $("closingInput").value = e.closing;
+      }
+    } catch (x) { }
+  }
+  function bakeTool() {
+    var el = document.getElementById("embeddedRules");
+    var prevEmbed = el.textContent;
+    el.textContent = serialiseRules(state.rules).replace(/</g, "\\u003c");
+    var elE = document.getElementById("embeddedEmail");
+    var prevEmail = elE.textContent;
+    elE.textContent = JSON.stringify({ intro: $("introInput").value, closing: $("closingInput").value }).replace(/</g, "\\u003c");
+    // clear heavy dynamic regions so the saved copy is lean; restored right after
+    var clearIds = ["exceptionsWrap", "richPreview", "gridWrap", "extrasWrap", "unmatchedWrap", "dqWrap", "parseStatus", "banner", "clearWrap", "notesWrap", "attnWrap", "missingWrap", "dqWrap", "fallbackWrap", "mapperFields"];
+    var saved = {};
+    clearIds.forEach(function (id) { var n = $(id); saved[id] = n.innerHTML; n.innerHTML = ""; });
+    var html = "<!doctype html>\n" + document.documentElement.outerHTML;
+    el.textContent = prevEmbed;
+    elE.textContent = prevEmail;
+    clearIds.forEach(function (id) { $(id).innerHTML = saved[id]; });
+    download("waqti-exceptions.html", html, "text/html");
+    var m = $("bakeMsg"); m.textContent = "Saved a copy of the tool with your current rules and email wording baked in. Open that file to start pre-configured."; setTimeout(function () { if (m.textContent) m.textContent = ""; }, 7000);
+  }
+  $("bakeBtn").addEventListener("click", bakeTool);
+
+  /* ---------- init ---------- */
+  loadLocal();
+  if (rulesEmpty()) loadEmbedded();
+  loadEmbeddedEmail();
+  goMain();               // always open on the app view, even if the file was baked from Settings
+  setMode("rich");
+  renderRules(true);
+  renderPreview();
+  renderEmailControls();
+})();
+</script>
+</body>
+</html>

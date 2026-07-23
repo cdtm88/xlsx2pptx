@@ -1,0 +1,135 @@
+/* ============================================================
+   Report Kit — shared design system for the browser report tools
+   kit-version: 1.0.0
+   Inlined into each report by framework/build.py. Report-specific
+   visual styles (e.g. demand lists, Gantt bars) live in each
+   report's own <style> block, after this file.
+   ============================================================ */
+:root{
+  --teal:#00A9CE; --teal-dark:#007A99; --teal-tint:#E6F6FA;
+  --green:#5BB85D;
+  --charcoal:#1A1A1A; --slate:#3D3D3D; --mid:#6B6B6B;
+  --line:#E4E8EB; --line-soft:#EEF1F3; --light-grey:#F4F4F4;
+  --bg:#F6F8F9; --card:#FFFFFF;
+  --radius:12px; --shadow:0 1px 3px rgba(23,43,77,.06),0 1px 2px rgba(23,43,77,.04);
+  color-scheme: light only;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{overflow-y:scroll}
+body{font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;
+  background:var(--bg);color:var(--charcoal);line-height:1.5;-webkit-font-smoothing:antialiased}
+
+/* Header */
+.app-header{background:var(--card);border-bottom:1px solid var(--line);padding:1rem 0}
+.app-header .inner{max-width:1120px;margin:0 auto;padding:0 2rem;display:flex;align-items:center;gap:.9rem}
+.app-header h1{font-size:1.15rem;color:var(--slate);font-weight:800;letter-spacing:-.01em}
+.app-header p{font-size:.78rem;color:var(--mid);margin-top:.1rem}
+.app-header .spacer{flex:1}
+.ver{font-size:.66rem;font-weight:700;color:var(--teal-dark);background:var(--teal-tint);border:1px solid #BFE8F2;padding:.15rem .5rem;border-radius:20px;letter-spacing:.02em}
+
+.container{max-width:1120px;margin:0 auto;padding:1.5rem 2rem 1rem}
+
+/* Cards */
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:1.1rem 1.4rem;margin-bottom:1rem}
+.card-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.6rem;margin-bottom:1rem}
+.card-head .title{font-size:.72rem;font-weight:700;color:var(--slate);text-transform:uppercase;letter-spacing:.06em}
+.card-head .sub{font-size:.74rem;color:var(--mid);font-weight:500;margin-left:.5rem}
+
+/* Upload + loaded-file bar (RK.upload) */
+.upload-area{border:2px dashed #CBD5DC;border-radius:12px;padding:1.6rem 2rem;text-align:center;cursor:pointer;transition:border-color .18s,background .18s;background:#FCFDFE}
+.upload-area:hover,.upload-area.dragover{background:var(--teal-tint);border-color:var(--teal)}
+.upload-area .big{font-weight:600;color:var(--slate)}
+.upload-area .or{color:var(--mid);font-size:.82rem;margin:.4rem 0}
+.loaded-bar{display:flex;align-items:center;gap:.7rem;flex-wrap:wrap;background:var(--teal-tint);border:1px solid #CFEBF3;border-radius:10px;padding:.7rem 1rem;font-size:.86rem;color:var(--slate)}
+.loaded-bar .fname{font-weight:700;color:var(--teal-dark)}
+.loaded-bar .spacer{flex:1}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;gap:.5rem;padding:.6rem 1.2rem;border:none;border-radius:9px;font-size:.86rem;font-weight:600;cursor:pointer;font-family:inherit;transition:background .18s,border-color .18s,color .18s}
+.btn:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,.upload-area:focus-visible{outline:2px solid var(--teal);outline-offset:2px}
+.btn-primary{background:var(--teal);color:#fff}
+.btn-primary:hover{background:var(--teal-dark)}
+.btn-primary:disabled{background:#B7D9E2;cursor:not-allowed}
+.btn-ghost{background:#fff;color:var(--slate);border:1px solid var(--line)}
+.btn-ghost:hover{background:var(--light-grey);border-color:var(--teal);color:var(--teal-dark)}
+.mini-btn{padding:.34rem .8rem;font-size:.76rem;border:1px solid var(--line);background:#fff;border-radius:7px;cursor:pointer;color:var(--slate);font-family:inherit;font-weight:600}
+.mini-btn:hover{background:var(--light-grey);border-color:var(--teal);color:var(--teal-dark)}
+.mini-btn:disabled{opacity:.5;cursor:not-allowed}
+.controls-row{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap}
+
+/* Segmented control */
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;background:var(--light-grey);padding:2px}
+.seg button{padding:.4rem .9rem;border:none;background:transparent;color:var(--mid);font-weight:600;cursor:pointer;font-size:.8rem;font-family:inherit;border-radius:7px;transition:all .15s}
+.seg button.active{background:#fff;color:var(--teal-dark);box-shadow:0 1px 2px rgba(23,43,77,.1)}
+
+/* Fields */
+label.field{display:block;font-size:.74rem;font-weight:600;color:var(--slate);margin:.7rem 0 .25rem}
+input[type=text],input[type=search],input[type=date],textarea,select{font-family:inherit;font-size:.86rem;color:var(--charcoal);background:#fff;border:1px solid var(--line);border-radius:8px;padding:.55rem .7rem;width:100%}
+input[type=text]:focus,input[type=search]:focus,input[type=date]:focus,textarea:focus,select:focus{outline:none;border-color:var(--teal);box-shadow:0 0 0 3px rgba(0,169,206,.14)}
+textarea{resize:vertical}
+textarea.mono,pre.mono{font-family:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;font-size:.78rem;line-height:1.45}
+
+/* Pills */
+.pill{display:inline-block;background:var(--light-grey);color:var(--slate);border:1px solid var(--line);border-radius:20px;padding:.18rem .7rem;margin:.15rem .35rem .15rem 0;font-size:.76rem;font-weight:600}
+.pill.ok{background:var(--teal-tint);color:var(--teal-dark);border-color:#BFE8F2}
+.pill.warn{background:#FDF3E7;color:#9A6212;border-color:#F0D6A6}
+.pill.dq{background:#FCEDEA;color:#A8321F;border-color:#F3C0B6}
+
+/* KPIs */
+.kpi-row{display:flex;gap:1rem;flex-wrap:wrap;margin:.2rem 0 1rem}
+.kpi{background:var(--light-grey);border:1px solid var(--line);border-radius:10px;padding:.7rem 1rem;min-width:120px;flex:1 1 auto}
+.kpi .n{font-size:1.5rem;font-weight:800;color:var(--teal);letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.kpi .l{font-size:.72rem;color:var(--mid);font-weight:600;margin-top:.1rem}
+
+/* Multi-select toolbar (search + toggles) */
+.ms-toolbar{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin-bottom:.7rem}
+.ms-toolbar .search{flex:1 1 240px;min-width:180px}
+.ms-count{font-size:.76rem;color:var(--mid);font-weight:600;white-space:nowrap}
+.chk-inline{display:inline-flex;align-items:center;gap:.4rem;font-size:.8rem;font-weight:600;color:var(--slate);white-space:nowrap;cursor:pointer}
+.chk-inline input{accent-color:var(--teal);width:16px;height:16px;cursor:pointer}
+
+/* Tables (table.data) */
+.table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px}
+table.data{width:100%;border-collapse:collapse;font-size:.85rem;background:#fff}
+table.data thead th{background:var(--teal-tint);color:var(--charcoal);border-bottom:1px solid #BFE8F2;padding:.6rem .85rem;text-align:left;font-weight:700;font-size:.72rem;text-transform:uppercase;letter-spacing:.04em}
+table.data thead th.num{text-align:right}
+table.data td{padding:.55rem .85rem;border-bottom:1px solid var(--line-soft);color:var(--charcoal)}
+table.data tbody tr:nth-child(even) td{background:var(--light-grey)}
+table.data tbody tr:last-child td{border-bottom:none}
+table.data td.num{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+table.data tfoot td{padding:.55rem .85rem;border-top:2px solid var(--line);background:#fff;font-weight:700;color:var(--slate)}
+table.data tfoot td.num{text-align:right;font-variant-numeric:tabular-nums;color:var(--teal-dark)}
+table.data .sid{color:var(--mid);font-size:.74rem;font-weight:500;display:block}
+/* Grouped name cell (one label spanning several rows via rowspan) */
+table.data td.name-cell{vertical-align:top;font-weight:600;border-right:1px solid var(--line-soft)}
+table.data td.name-cell .sid{font-weight:500}
+table.data tbody tr.group-start td{border-top:1px solid var(--line)}
+table.data tbody tr.group-start:first-child td{border-top:none}
+
+/* Staff-name editor (RK.NameEditor) */
+.rk-name-editor{max-height:420px;overflow-y:auto}
+table.data td.staff-id{font-weight:600}
+table.data td.staff-id .sid{display:block;font-weight:500}
+table.data tbody tr.missing-row td{background:#FDF3E7}
+table.data input.name-input{width:100%;max-width:340px;padding:.4rem .55rem;font-size:.82rem}
+.rules-status{font-size:.82rem;color:var(--slate)}
+.name-pills{margin-top:.6rem}
+
+/* Clipboard copy (RK.clipboard) */
+.copymsg{font-size:.8rem;font-weight:600;margin-left:.4rem}
+.copymsg.ok{color:var(--teal-dark)}
+.copymsg.fail{color:#A8321F}
+.copy-fallback{margin-top:.7rem}
+.copy-fallback textarea{width:100%;min-height:120px;font-family:"SFMono-Regular",Consolas,Menlo,monospace;font-size:.78rem;border:1px solid var(--line);border-radius:8px;padding:.6rem}
+
+/* Callouts / notes / misc */
+.callout{background:var(--teal-tint);border:1px solid #CFEBF3;border-left:4px solid var(--teal);color:var(--charcoal);border-radius:0 8px 8px 0;padding:.7rem 1rem;font-size:.82rem}
+.note{background:var(--light-grey);border-left:3px solid #B4BCC4;color:var(--slate);border-radius:0 8px 8px 0;padding:.6rem .9rem;font-size:.8rem;margin:.8rem 0}
+.empty{text-align:center;color:var(--mid);font-size:.86rem;padding:1.6rem 1rem}
+.err{color:#A8321F;background:#FCEDEA;border:1px solid #F3C0B6;border-left:4px solid #D9503A;border-radius:0 8px 8px 0;padding:.65rem .9rem;margin:.7rem 0 0;white-space:pre-wrap;font-size:.82rem}
+.sub{font-size:.76rem;color:var(--mid)}
+.hidden{display:none!important}
+.app-footer{max-width:1120px;margin:.5rem auto 2rem;padding:0 2rem;text-align:center;font-size:.78rem;color:var(--mid)}
+.stack-2{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+@media (max-width:760px){.stack-2{grid-template-columns:1fr}}
+@media (max-width:640px){.container{padding:1.2rem 1rem 1rem}.app-header .inner{padding:0 1rem}}
