@@ -123,9 +123,29 @@ file stays usable by Waqti Exceptions and re-imports here.
 
 ---
 
+## Building (for contributors)
+
+The shipped `.html` files are **built**, not hand-edited. They're assembled from a
+shared **Report Kit** (design system + rules-JSON module + vendored libraries) so
+every tool looks the same and reads the same rules files, while each shipped file
+stays a single offline page.
+
+- Shared code lives in [`framework/`](framework/README.md) (`report-kit.css`,
+  `report-kit.js`, `vendor/`).
+- Each report's source lives in `reports/<name>.src.html` and pulls the shared
+  code in with `@include` directives.
+- Build with `python3 framework/build.py` (or `--check` to verify the committed
+  `.html` files are up to date). Edit the source or the kit, rebuild, commit both.
+
+End users never build anything — they just open the `.html`. See
+[`framework/README.md`](framework/README.md) for the authoring guide and the
+rules-JSON compatibility/versioning policy.
+
 ## Files
 
 - `delivery-plan.html` — delivery-plan to PPTX tool
 - `waqti-exceptions.html` — timesheet exceptions to email tool
 - `waqti-demand-summary.html` — timesheet demand summary (view online)
+- `framework/` — the shared Report Kit + the inliner (`build.py`)
+- `reports/` — the `*.src.html` sources the tools are built from
 - `assets/` — logo variants, favicon, and the blank delivery-plan Excel template

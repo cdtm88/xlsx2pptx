@@ -67,8 +67,9 @@ def out_path(src_path, src_text):
 
 
 def sources(args):
-    if args:
-        return [a for a in args if not a.startswith("--")]
+    paths = [a for a in args if not a.startswith("--")]
+    if paths:
+        return paths
     d = os.path.join(REPO, "reports")
     if not os.path.isdir(d):
         return []
