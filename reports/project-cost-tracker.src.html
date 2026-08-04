@@ -1,0 +1,2177 @@
+<!-- @out: project-cost-tracker.html -->
+<!-- Source for project-cost-tracker.html. Build with: python3 framework/build.py -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light only">
+<title>Project Cost Tracker</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMiIgaGVpZ2h0PSIzMiIgdmlld0JveD0iMCAwIDMyIDMyIj48cmVjdCB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHJ4PSI3IiBmaWxsPSIjMDBBOUNFIi8+PHBhdGggZD0iTTkgMTYuNSBsNCA0IEwyMyAxMSIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjMiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPjwvc3ZnPg==">
+<style>
+/*@include framework/report-kit.css@*/
+
+/* ============================================================
+   report-specific: cost tracker
+   Prefix: .pct-*  (kit classes are reused wherever they fit)
+   ============================================================ */
+
+/* the tracker is a wide, dense tool — give it more room than the kit default */
+.app-header .inner,.container,.app-footer{max-width:1320px}
+
+/* number / month inputs — the kit styles text, search, date, select and textarea */
+input[type=number],input[type=month]{font-family:inherit;font-size:.86rem;color:var(--charcoal);background:#fff;
+  border:1px solid var(--line);border-radius:8px;padding:.55rem .7rem;width:100%}
+input[type=number]:focus,input[type=month]:focus{outline:none;border-color:var(--teal);box-shadow:0 0 0 3px rgba(0,169,206,.14)}
+input[type=number]{-moz-appearance:textfield}
+input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.tnum{font-variant-numeric:tabular-nums}
+
+/* header extras */
+.pct-save{font-size:.74rem;font-weight:600;color:var(--mid);white-space:nowrap;margin-right:.8rem}
+.pct-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:.4rem;background:#B4BCC4;vertical-align:1px}
+.pct-dot.live{background:var(--green)}
+.pct-dot.warn{background:#C8891A}
+.pct-header-btn{margin-left:.8rem}
+/* the header carries more than the other tools' — let it wrap rather than overflow */
+@media (max-width:760px){
+  .app-header .inner{flex-wrap:wrap;gap:.4rem .8rem}
+  .app-header .spacer{display:none}
+  .pct-header-btn{margin-left:0}
+}
+
+/* set-up fields */
+.pct-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.7rem .9rem;align-items:end}
+.pct-fields.fx{grid-template-columns:repeat(auto-fit,160px);justify-content:start}
+.pct-field label{display:block;font-size:.72rem;font-weight:600;color:var(--slate);margin:0 0 .25rem;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pct-field.wide{grid-column:1/-1}
+.pct-divider{grid-column:1/-1;border-top:1px solid var(--line-soft);margin:.3rem 0 0}
+
+/* KPI tiles — kit .kpi, three lines instead of two */
+.pct-kpis{display:grid;grid-template-columns:1fr;gap:.8rem;margin:.2rem 0 1rem}
+@media (min-width:600px){.pct-kpis{grid-template-columns:repeat(2,1fr)}}
+@media (min-width:960px){.pct-kpis{grid-template-columns:repeat(3,1fr)}}
+.pct-kpi{padding:.8rem 1rem}
+.pct-kpi .k{font-size:.7rem;font-weight:700;color:var(--mid);text-transform:uppercase;letter-spacing:.05em}
+.pct-kpi .v{font-size:1.5rem;font-weight:800;color:var(--charcoal);letter-spacing:-.02em;font-variant-numeric:tabular-nums;margin-top:.2rem}
+.pct-kpi .s{font-size:.72rem;color:var(--mid);font-weight:600;margin-top:.15rem}
+.pct-kpi .v.neg{color:#A8321F}
+.pct-kpi .v.mid{color:#9A6212}
+.pct-kpi .v.pos{color:#3F8F41}
+
+/* budget consumption meter */
+.pct-meter{margin:.2rem 0 1rem}
+.pct-meter-top{display:flex;justify-content:space-between;align-items:baseline;gap:1rem;flex-wrap:wrap;
+  font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--mid);margin-bottom:.45rem}
+.pct-bar{position:relative;height:32px;background:var(--light-grey);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+/* NB: not `.seg` — that is the kit's segmented control, and its border,
+   padding and radius would break each bar segment into a rounded pill. */
+.pct-bar .pct-seg{position:absolute;top:0;bottom:0;left:0;border:0;padding:0;border-radius:0}
+.pct-bar .spent{background:var(--teal-dark)}
+.pct-bar .fcast{background:repeating-linear-gradient(135deg,#A9BFC2 0 6px,#CBD8DA 6px 12px)}
+.pct-bar .over{background:repeating-linear-gradient(135deg,#C0392B 0 6px,#9E2E22 6px 12px)}
+.pct-bar .tick{position:absolute;top:0;bottom:0;width:2px;background:var(--slate)}
+.pct-legend{display:flex;flex-wrap:wrap;gap:.4rem 1.1rem;margin-top:.5rem;font-size:.74rem;color:var(--mid);font-weight:600}
+.pct-swatch{display:inline-block;width:10px;height:10px;margin-right:.35rem;vertical-align:-1px;border:1px solid rgba(0,0,0,.12);border-radius:2px}
+.pct-key{display:inline-block;width:22px;height:0;border-top-width:2px;border-top-style:solid;margin-right:.4rem;vertical-align:4px}
+
+/* callouts — kit .callout is the info variant; these are the other severities */
+.pct-alerts .callout{margin-bottom:.6rem}
+.pct-alerts .callout:last-child{margin-bottom:0}
+.callout .lab{display:block;font-size:.68rem;font-weight:800;text-transform:uppercase;letter-spacing:.06em;
+  color:var(--teal-dark);margin-bottom:.2rem}
+.callout.pct-ok{background:#EDF7ED;border-color:#CBE7CC;border-left-color:var(--green)}
+.callout.pct-ok .lab{color:#3F8F41}
+.callout.pct-warn{background:#FDF3E7;border-color:#F0D6A6;border-left-color:#C8891A}
+.callout.pct-warn .lab{color:#9A6212}
+.callout.pct-issue{background:#FCEDEA;border-color:#F3C0B6;border-left-color:#D9503A}
+.callout.pct-issue .lab{color:#A8321F}
+
+/* chart */
+.pct-chart svg{display:block;width:100%;height:auto}
+
+/* shared table density for the two grids */
+.pct-matrix,.pct-ledger{font-size:.82rem}
+.pct-matrix thead th,.pct-ledger thead th{padding:.45rem .6rem;white-space:nowrap}
+.pct-matrix td,.pct-ledger td{padding:.3rem .6rem;white-space:nowrap}
+.pct-matrix input,.pct-matrix select,.pct-ledger input{padding:.32rem .45rem;font-size:.8rem;border-radius:6px}
+/* over/under/muted must out-specify the kit's `table.data td { color }` */
+.pct-matrix td.pct-over,.pct-ledger td.pct-over,table.pct-ledger tfoot td.pct-over{color:#A8321F;font-weight:700}
+.pct-matrix td.pct-under,.pct-ledger td.pct-under{color:#3F8F41}
+.pct-matrix td.pct-muted,.pct-ledger td.pct-muted,.pct-muted{color:var(--mid);font-weight:500}
+
+/* allocation matrix — sticky first column, tinted month cells */
+.pct-matrix{min-width:1000px;border-collapse:separate;border-spacing:0}
+.pct-matrix th.sticky,.pct-matrix td.sticky{position:sticky;left:0;z-index:3;width:184px;min-width:184px;
+  border-right:1px solid var(--line);text-align:left}
+.pct-matrix thead th.sticky{z-index:4;background:var(--teal-tint)}
+.pct-matrix tbody tr:nth-child(odd) td.sticky{background:#fff}
+.pct-matrix tbody tr:nth-child(even) td.sticky{background:var(--light-grey)}
+.pct-matrix tfoot td.sticky{background:#fff}
+.pct-matrix th.mhead{text-align:center;font-size:.64rem;padding:.45rem .25rem}
+.pct-matrix td.mcell{padding:.22rem .18rem}
+.pct-matrix td.mcell input{width:58px;text-align:center}
+.pct-matrix td.allcell input{width:62px;text-align:center;border-color:var(--teal)}
+.pct-matrix td.money{text-align:right;font-variant-numeric:tabular-nums;font-weight:700;color:var(--teal-dark)}
+.pct-matrix td.foot-num{text-align:center;font-size:.72rem;font-variant-numeric:tabular-nums;color:var(--slate)}
+.pct-matrix .c-role input{min-width:110px}
+.pct-matrix .c-ccy select{min-width:74px;padding-right:.2rem}
+.pct-matrix .c-rate input{min-width:88px;text-align:right}
+.pct-matrix .c-hpd input{min-width:60px;text-align:right}
+.pct-matrix td.del{width:36px}
+.pct-matrix tfoot td{border-top:2px solid var(--line);background:#fff;font-weight:700;color:var(--slate)}
+/* absorbs leftover width on a wide screen so the month cells stay tight */
+.pct-matrix .spacer{width:100%;padding:0}
+
+/* vendor matrix — same skeleton as the team matrix, money cells instead of days */
+.pct-vendors td.mcell input{width:82px;text-align:right}
+.pct-vendors td.allcell input{width:82px;text-align:right}
+.pct-vendors .c-scope input{min-width:130px}
+.pct-vendors .c-contract input{min-width:96px;text-align:right}
+.pct-vendors th.mhead{text-align:right;padding-right:.5rem}
+/* a row total past its contract must beat the teal `td.money` rule above */
+.pct-matrix td.money.pct-over{color:#A8321F}
+
+/* monthly ledger */
+.pct-ledger{min-width:820px}
+.pct-ledger td.act input{width:120px;text-align:right}
+.pct-ledger tbody tr.now td{background:var(--teal-tint);font-weight:700}
+.pct-icon{border:1px solid var(--line);background:#fff;color:var(--mid);border-radius:6px;line-height:1;
+  padding:.2rem .45rem;font-size:1rem;cursor:pointer;font-family:inherit}
+.pct-icon:hover{color:#A8321F;border-color:#F3C0B6;background:#FCEDEA}
+
+/* cost drivers */
+.pct-drivers{min-width:720px}
+.pct-drivers td.line{font-weight:600}
+.pct-drivers td.line .sub2{display:block;font-size:.72rem;color:var(--mid);font-weight:500}
+.pct-drivers td.num{font-variant-numeric:tabular-nums}
+.pct-share{position:relative;height:8px;background:var(--light-grey);border-radius:4px;overflow:hidden;min-width:80px}
+.pct-share span{position:absolute;left:0;top:0;bottom:0;background:var(--teal);border-radius:4px}
+.pct-drivers tr.gone td{opacity:.75;font-style:italic}
+.pct-kind{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--mid)}
+
+/* timesheet import: staff match table */
+#matchTable select{padding:.32rem .45rem;font-size:.8rem;border-radius:6px;min-width:190px;width:auto}
+#matchTable td{white-space:nowrap}
+
+/* toast */
+#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:24px;background:var(--slate);color:#fff;
+  padding:.6rem 1rem;font-size:.82rem;font-weight:600;border-radius:9px;z-index:60;opacity:0;pointer-events:none;
+  transition:opacity .18s;box-shadow:0 4px 14px rgba(23,43,77,.18)}
+#toast.on{opacity:1}
+
+@media (max-width:640px){
+  .pct-kpi .v{font-size:1.3rem}
+}
+@media print{
+  body{background:#fff}
+  .no-print{display:none!important}
+  .card{break-inside:avoid;box-shadow:none}
+  .table-wrap{overflow:visible}
+}
+</style>
+</head>
+<body>
+<header class="app-header">
+  <div class="inner">
+    <div>
+      <h1>Project Cost Tracker</h1>
+      <p id="headerSub">&nbsp;</p>
+    </div>
+    <div class="spacer"></div>
+    <span class="pct-save" id="saveState"><span class="pct-dot"></span>Starting up</span>
+    <span class="ver" id="version">v0.0.0</span>
+    <button type="button" class="btn btn-ghost no-print pct-header-btn hidden" id="undoBtn">Undo</button>
+    <button type="button" class="btn btn-ghost no-print pct-header-btn" id="topImport">Load data</button>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- ============ SET UP ============ -->
+  <section class="card no-print">
+    <div class="card-head">
+      <div>
+        <span class="title">Set up</span>
+        <span class="sub" id="setupSummary"></span>
+      </div>
+      <button type="button" class="mini-btn" id="setupToggle" aria-expanded="false" aria-controls="setupBody">Show</button>
+    </div>
+    <div id="setupBody" class="hidden">
+      <div class="pct-fields">
+        <div class="pct-field wide">
+          <label for="pname">Project name</label>
+          <input type="text" id="pname" spellcheck="false" placeholder="Untitled project">
+        </div>
+        <div class="pct-field">
+          <label for="estimate" title="Total approved estimate">Estimate</label>
+          <input type="number" id="estimate" min="0" step="any">
+        </div>
+        <div class="pct-field">
+          <label for="base" title="Base currency — every figure is reported in this">Currency</label>
+          <select id="base"></select>
+        </div>
+        <div class="pct-field">
+          <label for="start">Start month</label>
+          <input type="month" id="start">
+        </div>
+        <div class="pct-field">
+          <label for="duration" title="Duration in months">Months</label>
+          <input type="number" id="duration" min="1" max="60" step="1">
+        </div>
+        <div class="pct-field">
+          <label for="today" title="The month you are reporting from">Now</label>
+          <input type="month" id="today">
+        </div>
+        <div class="pct-field">
+          <label for="wdays" title="Working days per month">Days / month</label>
+          <input type="number" id="wdays" min="1" max="31" step="any">
+        </div>
+        <div class="pct-field">
+          <label for="hpd" title="Default hours per day for newly added people">Hours / day</label>
+          <input type="number" id="hpd" min="0.5" max="24" step="any">
+        </div>
+        <div class="pct-divider"></div>
+      </div>
+      <div class="pct-fields fx" id="fxFields" style="margin-top:.7rem;"></div>
+      <div class="note" id="fxNote"></div>
+
+      <div class="pct-divider" style="margin-top:.9rem;"></div>
+      <div class="controls-row" style="margin-top:.8rem;">
+        <button type="button" class="mini-btn" id="setBaseline">Set baseline from this plan</button>
+        <button type="button" class="mini-btn hidden" id="clearBaseline">Clear baseline</button>
+        <span class="sub" id="baselineState"></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ POSITION ============ -->
+  <section class="card">
+    <div class="card-head">
+      <div>
+        <span class="title">Position</span>
+        <span class="sub" id="posHint"></span>
+      </div>
+      <button type="button" class="mini-btn no-print" id="copyPos">Copy as image</button>
+    </div>
+    <div class="pct-kpis" id="kpis"></div>
+    <div class="pct-meter">
+      <div class="pct-meter-top"><span>Budget consumption</span><span id="meterPct"></span></div>
+      <div class="pct-bar">
+        <div class="pct-seg spent" id="segSpent"></div>
+        <div class="pct-seg fcast" id="segFcast"></div>
+        <div class="pct-seg over" id="segOver"></div>
+        <div class="tick" id="tickEstimate" title="Total estimate"></div>
+      </div>
+      <div class="pct-legend">
+        <span><span class="pct-swatch" style="background:#007A99"></span>Actual to date</span>
+        <span><span class="pct-swatch" style="background:repeating-linear-gradient(135deg,#A9BFC2 0 3px,#CBD8DA 3px 6px)"></span>Forecast remaining</span>
+        <span><span class="pct-swatch" style="background:repeating-linear-gradient(135deg,#C0392B 0 3px,#9E2E22 3px 6px)"></span>Over estimate</span>
+        <span><span class="pct-swatch" style="background:#3D3D3D"></span>Estimate ceiling</span>
+      </div>
+    </div>
+    <div class="pct-alerts" id="alerts"></div>
+  </section>
+
+  <!-- ============ BURN-UP ============ -->
+  <section class="card">
+    <div class="card-head">
+      <div>
+        <span class="title">Burn-up</span>
+        <span class="sub">Cumulative spend against the estimate ceiling</span>
+      </div>
+      <button type="button" class="mini-btn no-print" id="copyChart">Copy as image</button>
+    </div>
+    <div class="pct-chart">
+      <svg id="chart" viewBox="0 0 900 340" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Cumulative spend against the estimate"></svg>
+    </div>
+    <div class="pct-legend" style="padding-left:.2rem;">
+      <span><span class="pct-key" style="border-color:#007A99"></span>Actual</span>
+      <span><span class="pct-key" style="border-color:#007A99;border-top-style:dashed"></span>Forecast</span>
+      <span><span class="pct-key" style="border-color:#6B6B6B"></span>Plan</span>
+      <span><span class="pct-key" style="border-color:#3D3D3D;border-top-style:dashed"></span>Estimate</span>
+      <span class="hidden" id="legendBaseline"><span class="pct-key" style="border-color:#9AA5AD;border-top-style:dotted"></span>Baseline plan</span>
+    </div>
+  </section>
+
+  <!-- ============ TIMESHEET IMPORT ============ -->
+  <section class="card no-print">
+    <div class="card-head">
+      <div>
+        <span class="title">Timesheet import</span>
+        <span class="sub">Optional &mdash; fills actual hours from a Waqti export instead of typing them</span>
+      </div>
+      <button type="button" class="mini-btn" id="importToggle" aria-expanded="false" aria-controls="importBody">Show</button>
+    </div>
+    <div id="importBody" class="hidden">
+      <div class="upload-area" id="drop" tabindex="0" role="button" aria-label="Drop a Waqti xlsx export here, or press Enter to browse">
+        <div class="big">Drop a Waqti .xlsx export here</div>
+        <div class="or">or</div>
+        <button type="button" class="btn btn-primary" id="browseBtn">Browse for file</button>
+        <input type="file" id="fileInput" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" class="hidden">
+      </div>
+      <div class="loaded-bar hidden" id="loadedBar">
+        <span>Loaded <span class="fname" id="loadedName"></span></span>
+        <span class="spacer"></span>
+        <button type="button" class="mini-btn" id="replaceBtn">Replace file</button>
+        <button type="button" class="mini-btn" id="cancelImport">Cancel</button>
+      </div>
+      <div id="parseError" class="err hidden"></div>
+
+      <div id="mapper" class="hidden" style="margin-top:1rem;">
+        <div style="font-size:.74rem;font-weight:700;color:var(--slate);margin-bottom:.4rem;">Map the required columns</div>
+        <p class="sub">Not all expected headers were found. Match each field to a column, then confirm.</p>
+        <div id="mapperFields" style="margin-top:.5rem;"></div>
+        <div class="controls-row" style="margin-top:.7rem;"><button type="button" class="btn btn-primary" id="mapperConfirm">Confirm mapping</button></div>
+        <div id="mapperError" class="err hidden"></div>
+      </div>
+
+      <div id="importMatch" class="hidden" style="margin-top:1rem;">
+        <div class="note" id="importPeriod"></div>
+        <div class="table-wrap"><table class="data" id="matchTable">
+          <thead><tr><th>Staff ID</th><th>Name in the export</th><th class="num">Hours</th><th class="num">Months</th><th>Goes to</th></tr></thead>
+          <tbody id="matchBody"></tbody>
+        </table></div>
+        <div class="controls-row" style="margin-top:.8rem;">
+          <button type="button" class="btn btn-primary" id="applyImport">Apply hours</button>
+          <span class="sub" id="applyHint"></span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ TEAM & DAYS ============ -->
+  <section class="card">
+    <div class="card-head">
+      <div>
+        <span class="title">Team &amp; days</span>
+        <span class="sub" id="teamNote"></span>
+      </div>
+      <div class="controls-row no-print">
+        <span class="seg">
+          <button type="button" id="modePlanned">Planned days</button>
+          <button type="button" id="modeActual">Actual hours</button>
+        </span>
+        <button type="button" class="mini-btn" id="addRow">Add person</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table class="data pct-matrix" id="teamTable">
+        <thead><tr id="teamHead"></tr></thead>
+        <tbody id="teamBody"></tbody>
+        <tfoot><tr id="teamFoot"></tr></tfoot>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============ VENDORS ============ -->
+  <section class="card">
+    <div class="card-head">
+      <div>
+        <span class="title">Vendors</span>
+        <span class="sub" id="vendorSummary"></span>
+      </div>
+      <div class="controls-row no-print">
+        <span class="seg hidden" id="vendorModes">
+          <button type="button" id="modeVendorPlanned">Planned</button>
+          <button type="button" id="modeVendorInvoiced">Invoiced</button>
+        </span>
+        <button type="button" class="mini-btn" id="addVendor">Add vendor</button>
+      </div>
+    </div>
+    <div class="sub" id="vendorNote" style="margin-bottom:.7rem;"></div>
+    <div class="table-wrap">
+      <table class="data pct-matrix pct-vendors" id="vendorTable">
+        <thead><tr id="vendorHead"></tr></thead>
+        <tbody id="vendorBody"></tbody>
+        <tfoot><tr id="vendorFoot"></tr></tfoot>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============ COST DRIVERS ============ -->
+  <section class="card">
+    <div class="card-head">
+      <div>
+        <span class="title">Cost drivers</span>
+        <span class="sub" id="driverHint"></span>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table class="data pct-drivers" id="driverTable">
+        <thead><tr id="driverHead"></tr></thead>
+        <tbody id="driverBody"></tbody>
+        <tfoot><tr id="driverFoot"></tr></tfoot>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============ MONTHLY LEDGER ============ -->
+  <section class="card">
+    <div class="card-head">
+      <div>
+        <span class="title">Monthly ledger</span>
+        <span class="sub">Blank uses timesheet hours and vendor invoices where entered, otherwise the plan. Grey figures are forecast.</span>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table class="data pct-ledger" id="ledgerTable">
+        <thead>
+          <tr>
+            <th>Month</th>
+            <th class="num" id="thPlanned">Planned</th>
+            <th class="num" id="thActual">Actual</th>
+            <th class="num">Variance</th>
+            <th class="num">Cumulative</th>
+            <th class="num">Remaining</th>
+            <th class="num">% of est.</th>
+            <th class="num hidden" id="thBaseline">Baseline</th>
+          </tr>
+        </thead>
+        <tbody id="ledgerBody"></tbody>
+        <tfoot><tr>
+          <td>Total, forecast</td>
+          <td class="num tnum" id="sumPlanned">0</td>
+          <td class="num tnum" id="sumActual">0</td>
+          <td class="num tnum" id="sumVar">0</td>
+          <td class="num tnum" id="sumCum">0</td>
+          <td class="num tnum" id="sumRem">0</td>
+          <td class="num tnum" id="sumPct">0%</td>
+          <td class="num tnum hidden" id="sumBaseline">0</td>
+        </tr></tfoot>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============ DATA ============ -->
+  <section class="card no-print">
+    <div class="card-head">
+      <div>
+        <span class="title">Saving &amp; data</span>
+        <span class="sub">Autosaves to this browser as you type</span>
+      </div>
+    </div>
+    <div class="controls-row">
+      <button type="button" class="btn btn-primary" id="expJson">Save JSON</button>
+      <button type="button" class="btn btn-ghost" id="impJson">Load data</button>
+      <button type="button" class="btn btn-ghost" id="expCsv">Export ledger CSV</button>
+      <button type="button" class="btn btn-ghost" id="demoBtn">Load demo project</button>
+      <button type="button" class="btn btn-ghost" id="resetBtn">Clear all data</button>
+      <input type="file" id="fileIn" accept=".json,application/json" class="hidden">
+    </div>
+    <div class="note" style="margin-bottom:0;">
+      <strong>Autosave</strong> runs on every edit and keeps your data in this browser, on this machine only.
+      <strong>Save JSON</strong> downloads the file &mdash; that is the copy to keep, back up or hand to someone else.
+      <strong>Load data</strong> reads a saved <code>.json</code> back in, here or in any other browser.
+    </div>
+  </section>
+
+</div>
+
+<footer class="app-footer">Dreamt up by Christian, built with Claude &mdash; a human + AI double act 🤝</footer>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+/*@include framework/vendor/sheetjs.js@*/
+</script>
+<script>
+/*@include framework/report-kit.js@*/
+</script>
+
+<script>
+/* ============================================================
+   project-cost-tracker UI — wired to the Report Kit (window.RK)
+
+   Model in one line: a monthly plan (people x day rates x days
+   booked) is compared against actuals (typed, or derived from
+   timesheet hours), and the remainder is forecast at the observed
+   burn rate so you can see where the project lands against the
+   approved estimate.
+   ============================================================ */
+(function () {
+  "use strict";
+  var $ = RK.$, esc = RK.esc, show = RK.show, hide = RK.hide;
+  var VERSION = "v1.2.1";
+  var LS_KEY = "project-cost-tracker:v1";
+  var LEGACY_KEY = "project-cost-tracker-v3";   // key used by the pre-Report-Kit build
+  var CCYS = ["AED", "GBP", "USD", "EUR"];
+  var STATE_VERSION = 8;
+  var MAX_MONEY = 1e12;
+  $("version").textContent = VERSION;
+
+  /* ---------- small helpers ---------- */
+  function uid() { return Math.random().toString(36).slice(2, 9); }
+  function num(v) { var n = parseFloat(v); return isFinite(n) ? n : 0; }
+  function clamp(v, lo, hi) { return Math.min(hi, Math.max(lo, v)); }
+  function monthKey(d) { return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0"); }
+  function parseMonth(k) { var p = String(k || "").split("-").map(Number); return { y: p[0] || 2026, m: p[1] || 1 }; }
+  function addMonths(k, n) { var a = parseMonth(k); return monthKey(new Date(a.y, a.m - 1 + n, 1)); }
+  var MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  function monthLabel(k) { var a = parseMonth(k); return MONTH_NAMES[a.m - 1] + " " + String(a.y).slice(2); }
+  function monthDiff(a, b) { var A = parseMonth(a), B = parseMonth(b); return (B.y - A.y) * 12 + (B.m - A.m); }
+  function slug(s) { return String(s || "project").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) || "project"; }
+
+  /* ---------- state ---------- */
+  // Neutral defaults. migrate() fills gaps from here, so a field a file predates
+  // resolves to "none", never to whatever the demo happens to have.
+  function BASE() {
+    var now = monthKey(new Date());
+    return {
+      v: STATE_VERSION,
+      name: "Untitled project", base: "AED",
+      rates: { AED: 1, GBP: 4.85, USD: 3.6725, EUR: 4.00 },
+      estimate: 0, start: now, duration: 12, today: now,
+      workDays: 21, hoursPerDay: 8.4, setupOpen: true, daysView: "planned", vendorView: "planned",
+      team: [], vendors: [], actuals: {}, baseline: null
+    };
+  }
+  function EMPTY() { return BASE(); }
+
+  function DEMO() {
+    return Object.assign(BASE(), {
+      estimate: 2100000, start: "2026-01", duration: 12, today: "2026-08", setupOpen: false,
+      team: [
+        { id: uid(), name: "Tech lead", role: "Engineering", ccy: "AED", rate: 2000, days: [21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 10] },
+        { id: uid(), name: "Engineer 1", role: "Engineering", ccy: "AED", rate: 1500, days: [21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21] },
+        { id: uid(), name: "Engineer 2", role: "Engineering", ccy: "AED", rate: 1500, days: [0, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21] },
+        { id: uid(), name: "QA", role: "Quality", ccy: "AED", rate: 1200, days: [0, 0, 10, 10, 10, 10, 10, 10, 10, 21, 21, 21] },
+        { id: uid(), name: "Delivery lead", role: "Delivery", ccy: "GBP", rate: 650, days: [5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5], hpd: 8 }
+      ],
+      vendors: [
+        {
+          id: uid(), name: "Cloud hosting", scope: "Infrastructure", ccy: "AED", contract: 240000,
+          planned: [20000, 20000, 20000, 20000, 20000, 20000, 20000, 20000, 20000, 20000, 20000, 20000],
+          invoiced: [18000, 19500, 21400, 22000, 22800, 23100, 23600, 0, 0, 0, 0, 0]
+        },
+        {
+          id: uid(), name: "Security testing", scope: "Assurance", ccy: "GBP", contract: 18000,
+          planned: [0, 0, 0, 0, 0, 0, 0, 0, 9000, 0, 9000, 0],
+          invoiced: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        }
+      ],
+      // all-in monthly totals: the team figures above plus the vendor invoices
+      actuals: { 0: 109000, 1: 143500, 2: 152400, 3: 160000, 4: 164800, 5: 162100, 6: 168600 }
+    });
+  }
+
+  var S = EMPTY();
+
+  /* ---------- money formatting ---------- */
+  var fmt = new Intl.NumberFormat("en-GB", { style: "currency", currency: "AED", maximumFractionDigits: 0 });
+  var fmtPlain = new Intl.NumberFormat("en-GB", { maximumFractionDigits: 0 });
+  function setFmt(c) {
+    try { fmt = new Intl.NumberFormat("en-GB", { style: "currency", currency: c, maximumFractionDigits: 0 }); }
+    catch (e) { fmt = fmtPlain; }
+  }
+  function money(v) { return fmt.format(Math.round(v || 0)); }
+  function plain(v) { return fmtPlain.format(Math.round(v || 0)); }
+  function plainSigned(v) { var r = Math.round(v || 0); return (r > 0 ? "+" : r < 0 ? "−" : "") + fmtPlain.format(Math.abs(r)); }
+  function moneySigned(v) { var r = Math.round(v || 0); return (r < 0 ? "−" : "") + fmt.format(Math.abs(r)); }
+  function pct(v) { return (isFinite(v) ? Math.round(v * 100) : 0) + "%"; }
+
+  /* ---------- migration ----------
+     Accepts every shipped shape of the tracker file:
+       v1/v2  flat `days` + from/to months        v3  monthly `alloc` percentages
+       v4     per-month `days` + `actualDays`     v5  per-month `days` + `actualHours`
+     Retired currencies (INR, SAR) are converted into the base rate and dropped. */
+  function migrate(o) {
+    var d = BASE();
+    if (!o || typeof o !== "object") return d;
+    var s = Object.assign(d, o);
+    s.duration = clamp(Math.round(num(s.duration)) || 12, 1, 60);
+    s.workDays = clamp(num(s.workDays) || 21, 1, 31);
+    s.hoursPerDay = clamp(num(s.hoursPerDay) || 8.4, 0.5, 24);
+    s.estimate = Math.max(0, num(s.estimate));
+    if (!s.rates) s.rates = d.rates;
+
+    var oldRates = Object.assign({ INR: 0.044, SAR: 0.98 }, o.rates || {});
+    CCYS.forEach(function (c) { if (typeof s.rates[c] !== "number" || !(s.rates[c] > 0)) s.rates[c] = d.rates[c]; });
+    Object.keys(s.rates).forEach(function (c) { if (CCYS.indexOf(c) < 0) delete s.rates[c]; });
+    if (CCYS.indexOf(s.base) < 0) s.base = "AED";
+    s.rates[s.base] = 1;
+
+    s.team = (s.team || []).map(function (p) {
+      var q = Object.assign({}, p);
+      if (!q.id) q.id = uid();
+      q.rate = num(q.rate);
+      if (q.rate === 0 && q.cost !== undefined) q.rate = Math.round(num(q.cost) / s.workDays);
+      if (CCYS.indexOf(q.ccy) < 0) {
+        var r = num(oldRates[q.ccy]) || 0, baseR = num(s.rates[s.base]) || 1;
+        if (r > 0) q.rate = Math.round(q.rate * r / baseR);
+        q.ccy = s.base;
+      }
+      if (!Array.isArray(q.days)) {
+        if (Array.isArray(q.alloc)) {
+          q.days = q.alloc.map(function (v) { return Math.round(clamp(num(v), 0, 100) / 100 * s.workDays * 2) / 2; });
+        } else {
+          var flat = q.days !== undefined ? num(q.days) : clamp(num(q.alloc) / 100 || 1, 0, 1) * s.workDays;
+          var from = clamp(num(q.from) || 1, 1, s.duration), to = clamp(num(q.to) || s.duration, 1, s.duration);
+          q.days = [];
+          for (var i = 1; i <= s.duration; i++) q.days.push(i >= from && i <= to ? flat : 0);
+        }
+      }
+      q.hpd = clamp(num(q.hpd) > 0 ? num(q.hpd) : num(s.hoursPerDay), 0.5, 24);
+      q.rate = Math.max(0, q.rate);
+      // v8: one person can answer to several timesheet IDs (employee + contractor
+      // records), so the single staffId became a list.
+      var ids = Array.isArray(q.staffIds) ? q.staffIds : (q.staffId ? [q.staffId] : []);
+      q.staffIds = ids.map(function (x) { return String(x).trim().toUpperCase(); })
+        .filter(function (x, i, a) { return x && a.indexOf(x) === i; });
+      delete q.staffId;
+      if (!Array.isArray(q.actualHours)) {
+        q.actualHours = Array.isArray(q.actualDays)
+          ? q.actualDays.map(function (v) { return Math.round(num(v) * q.hpd * 100) / 100; })
+          : [];
+      }
+      delete q.cost; delete q.alloc; delete q.from; delete q.to; delete q.actualDays;
+      return q;
+    });
+
+    // v6 added vendors. Anything older simply has none — that is a valid project.
+    s.vendors = (Array.isArray(o.vendors) ? o.vendors : []).map(function (x) {
+      var w = Object.assign({}, x);
+      if (!w.id) w.id = uid();
+      w.name = typeof w.name === "string" ? w.name : "";
+      w.scope = typeof w.scope === "string" ? w.scope : "";
+      w.planned = Array.isArray(w.planned) ? w.planned.map(num) : [];
+      w.invoiced = Array.isArray(w.invoiced) ? w.invoiced.map(num) : [];
+      if (CCYS.indexOf(w.ccy) < 0) {   // retired currency: convert into base, then drop it
+        var vr = num(oldRates[w.ccy]) || 0, vbase = num(s.rates[s.base]) || 1;
+        if (vr > 0) {
+          var conv = function (n) { return Math.round(n * vr / vbase); };
+          w.contract = conv(num(w.contract));
+          w.planned = w.planned.map(conv);
+          w.invoiced = w.invoiced.map(conv);
+        }
+        w.ccy = s.base;
+      }
+      w.contract = Math.max(0, num(w.contract));
+      return w;
+    });
+    if (["planned", "invoiced"].indexOf(s.vendorView) < 0) s.vendorView = "planned";
+
+    // v7 added the baseline. A file without one simply has no baseline.
+    s.baseline = (o.baseline && typeof o.baseline === "object" && !Array.isArray(o.baseline)) ? o.baseline : null;
+    if (s.baseline) {
+      if (CCYS.indexOf(s.baseline.base) < 0) s.baseline.base = s.base;
+      if (!Array.isArray(s.baseline.team)) s.baseline.team = [];
+      if (!Array.isArray(s.baseline.vendors)) s.baseline.vendors = [];
+      if (!s.baseline.rates || typeof s.baseline.rates !== "object") s.baseline.rates = s.rates;
+    }
+
+    s.v = STATE_VERSION;
+    return s;
+  }
+
+  /* ---------- derived ---------- */
+  function fxOf(c) { var r = num(S.rates[c]); return r > 0 ? r : (c === S.base ? 1 : 0); }
+  function defaultHpd() { return num(S.hoursPerDay) > 0 ? num(S.hoursPerDay) : 8.4; }
+  function hpdOf(p) { return num(p.hpd) > 0 ? num(p.hpd) : defaultHpd(); }
+  function isActualView() { return S.daysView === "actual"; }
+  function dayField() { return isActualView() ? "actualHours" : "days"; }
+
+  /* Rows are padded up to the project duration but never truncated: shortening a
+     project hides the tail rather than destroying it, so re-phasing back out
+     restores the plan you had. Everything downstream reads months 0..duration-1
+     only — use span() wherever a whole row is summed or drawn. */
+  function span(arr) { return arr.slice(0, S.duration); }
+
+  // New months inherit the last planned value (extending a project keeps its shape)
+  // and start with zero actual hours.
+  function normDays(p) {
+    var a = Array.isArray(p.days) ? p.days.slice() : [];
+    while (a.length < S.duration) a.push(a.length ? num(a[a.length - 1]) : num(S.workDays));
+    p.days = a.map(function (v) { return clamp(num(v), 0, 31); });
+    var b = Array.isArray(p.actualHours) ? p.actualHours.slice() : [];
+    while (b.length < S.duration) b.push(0);
+    p.actualHours = b.map(function (v) { return clamp(num(v), 0, 744); });
+    return p.days;
+  }
+  // Vendor rows pad with zero rather than the last value — a contract does not
+  // extend itself just because the project got longer.
+  function normVendor(v) {
+    ["planned", "invoiced"].forEach(function (f) {
+      var a = Array.isArray(v[f]) ? v[f].slice() : [];
+      while (a.length < S.duration) a.push(0);
+      v[f] = a.map(function (n) { return clamp(num(n), 0, MAX_MONEY); });
+    });
+    v.contract = clamp(num(v.contract), 0, MAX_MONEY);
+    return v;
+  }
+  function normalise() { S.team.forEach(normDays); S.vendors.forEach(normVendor); }
+
+  function unitDays(p, field, v) { return field === "actualHours" ? num(v) / hpdOf(p) : num(v); }
+  function costOf(p, field, i) { return num(p.rate) * unitDays(p, field, p[field][i]) * fxOf(p.ccy); }
+  function totalIn(p, field) { var t = 0; for (var i = 0; i < S.duration; i++) t += costOf(p, field, i); return t; }
+  function totalDays(p) { return span(p.days).reduce(function (a, b) { return a + num(b); }, 0); }
+  function tsHas(i) { return S.team.some(function (p) { return num(p.actualHours[i]) > 0; }); }
+  function tsCost(i) { return S.team.reduce(function (s, p) { return s + costOf(p, "actualHours", i); }, 0); }
+  function months() { var o = []; for (var i = 0; i < S.duration; i++) o.push(addMonths(S.start, i)); return o; }
+  function currentIndex() { return clamp(monthDiff(S.start, S.today), -1, S.duration); }
+
+  /* Vendors. A project with none is the normal case: every one of these returns
+     zero / false, so nothing downstream changes and nothing is flagged. */
+  function isInvoicedView() { return S.vendorView === "invoiced"; }
+  function vendorField() { return isInvoicedView() ? "invoiced" : "planned"; }
+  function vendorIn(v, field, i) { return num(v[field][i]) * fxOf(v.ccy); }
+  function vendorTotalIn(v, field) { var t = 0; for (var i = 0; i < S.duration; i++) t += vendorIn(v, field, i); return t; }
+  function vendorSum(field, i) { return S.vendors.reduce(function (s, v) { return s + vendorIn(v, field, i); }, 0); }
+  function vendorHasInvoice(i) { return S.vendors.some(function (v) { return num(v.invoiced[i]) > 0; }); }
+
+  function teamPlannedFor(i) { return S.team.reduce(function (s, p) { return s + costOf(p, "days", i); }, 0); }
+  function plannedFor(i) { return teamPlannedFor(i) + vendorSum("planned", i); }
+  // What the month costs before anyone types over it: timesheet hours + vendor invoices.
+  function derivedFor(i) { return tsCost(i) + vendorSum("invoiced", i); }
+  function hasDerived(i) { return tsHas(i) || vendorHasInvoice(i); }
+
+  /* ---------- baseline ----------
+     A frozen copy of the plan as approved. Everything is re-costed in today's
+     base currency so a later currency switch does not read as a scope change,
+     and months are matched by key so moving the start date lines up correctly. */
+  function baselineRate(bl, c) {
+    var r = num(bl.rates && bl.rates[c]);
+    return r > 0 ? r : (c === bl.base ? 1 : 0);
+  }
+  function baselinePlan() {
+    var bl = S.baseline;
+    if (!bl) return null;
+    var conv = fxOf(bl.base) || 1;                 // one unit of the baseline's base, in today's
+    var n = clamp(Math.round(num(bl.duration)) || 0, 0, 600);
+    var byKey = {}, byId = {}, total = 0;
+    var add = function (id, v) { byId[id] = (byId[id] || 0) + v; };
+    for (var i = 0; i < n; i++) {
+      var key = addMonths(bl.start, i), t = 0;
+      (bl.team || []).forEach(function (p) {
+        var c = num(p.rate) * num((p.days || [])[i]) * baselineRate(bl, p.ccy) * conv;
+        t += c; add(p.id, c);
+      });
+      (bl.vendors || []).forEach(function (v) {
+        var c = num((v.planned || [])[i]) * baselineRate(bl, v.ccy) * conv;
+        t += c; add(v.id, c);
+      });
+      byKey[key] = (byKey[key] || 0) + t;
+      total += t;
+    }
+    return {
+      byKey: byKey, byId: byId, total: total, estimate: num(bl.estimate) * conv,
+      at: bl.at, base: bl.base, converted: bl.base !== S.base,
+      names: (bl.team || []).map(function (p) { return { id: p.id, name: p.name, kind: "Person", sub: p.role || "" }; })
+        .concat((bl.vendors || []).map(function (v) { return { id: v.id, name: v.name, kind: "Vendor", sub: v.scope || "" }; }))
+    };
+  }
+  function baselineDate(iso) {
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return "";
+    return d.getDate() + " " + MONTH_NAMES[d.getMonth()] + " " + String(d.getFullYear()).slice(2);
+  }
+
+  // Per-vendor contract position, in the vendor's own currency (fx supplied for display).
+  // Forecast = invoiced to date + whatever is still planned after the last reported month.
+  function vendorPositions(lastActualIdx) {
+    return S.vendors.map(function (v) {
+      var invoiced = 0, plannedTotal = 0, plannedRemaining = 0;
+      for (var i = 0; i < S.duration; i++) {
+        invoiced += num(v.invoiced[i]);
+        plannedTotal += num(v.planned[i]);
+        if (i > lastActualIdx) plannedRemaining += num(v.planned[i]);
+      }
+      var contract = num(v.contract), forecast = invoiced + plannedRemaining;
+      return {
+        vendor: v, fx: fxOf(v.ccy), invoiced: invoiced, plannedTotal: plannedTotal, forecast: forecast,
+        contract: contract, over: contract > 0 ? forecast - contract : 0, overInvoiced: contract > 0 && invoiced > contract
+      };
+    });
+  }
+
+  // The whole reporting model: per-month rows plus the headline numbers.
+  function model() {
+    normalise();
+    var rows = months().map(function (k, i) {
+      var manual = Object.prototype.hasOwnProperty.call(S.actuals, i) && S.actuals[i] !== "" && S.actuals[i] !== null;
+      var booked = hasDerived(i);
+      return {
+        i: i, key: k, label: monthLabel(k), planned: plannedFor(i),
+        actual: manual ? num(S.actuals[i]) : (booked ? derivedFor(i) : 0),
+        hasActual: manual || booked, manual: manual, booked: booked, derived: booked ? derivedFor(i) : 0
+      };
+    });
+    var cum = 0; rows.forEach(function (r) { cum += r.hasActual ? r.actual : 0; r.cumActual = cum; });
+    var cp = 0; rows.forEach(function (r) { cp += r.planned; r.cumPlanned = cp; });
+
+    var wa = rows.filter(function (r) { return r.hasActual; });
+    var lastActualIdx = wa.length ? wa[wa.length - 1].i : -1;
+    var spent = wa.reduce(function (s, r) { return s + r.actual; }, 0);
+    var plannedToDate = rows.filter(function (r) { return r.i <= lastActualIdx; }).reduce(function (s, r) { return s + r.planned; }, 0);
+    var burn = wa.length ? spent / wa.length : 0;
+    var remainingMonths = Math.max(0, S.duration - (lastActualIdx + 1));
+    var remainingPlanned = rows.filter(function (r) { return r.i > lastActualIdx; }).reduce(function (s, r) { return s + r.planned; }, 0);
+    // Forecast the remainder at the worse of "the plan" and "the observed burn rate".
+    var remainingForecast = wa.length ? Math.max(remainingPlanned, burn * remainingMonths) : remainingPlanned;
+    var eac = spent + remainingForecast;
+
+    var fc = spent, per = remainingMonths ? remainingForecast / remainingMonths : 0;
+    rows.forEach(function (r) {
+      if (r.i <= lastActualIdx) r.cumForecast = r.cumActual;
+      else { fc += per; r.cumForecast = fc; }
+    });
+
+    var breachMonth = null;
+    for (var j = 0; j < rows.length; j++) { if (rows[j].cumForecast > S.estimate) { breachMonth = rows[j]; break; } }
+
+    return {
+      rows: rows, spent: spent, plannedToDate: plannedToDate, totalPlanned: cp, burn: burn,
+      eac: eac, eacPlan: spent + remainingPlanned, variance: S.estimate - eac,
+      burnVariance: plannedToDate ? (spent - plannedToDate) / plannedToDate : 0,
+      lastActualIdx: lastActualIdx, remainingMonths: remainingMonths, breachMonth: breachMonth,
+      runwayMonths: burn ? (S.estimate - spent) / burn : Infinity,
+      vendors: vendorPositions(lastActualIdx),
+      baseline: baselinePlan()
+    };
+  }
+
+  /* ---------- render ---------- */
+  function render() {
+    setFmt(S.base);
+    var M = model();
+    renderMeta(M); renderKpis(M); renderMeter(M); renderAlerts(M); renderChart(M);
+    renderFx(); renderTeam(); renderVendors(M); renderDrivers(M); renderLedger(M);
+    renderBaselineControls(M); renderSetup(); renderUndo();
+    $("thActual").textContent = "Actual (" + S.base + ")";
+    $("thPlanned").textContent = "Planned (" + S.base + ")";
+    return M;
+  }
+  // Everything that has no input inside it — cheap enough to redraw on every
+  // keystroke, and safe because nothing here can hold the caret.
+  function renderTop() {
+    var M = model();
+    renderMeta(M); renderKpis(M); renderMeter(M); renderAlerts(M); renderChart(M); renderDrivers(M);
+    return M;
+  }
+
+  function renderSetup() {
+    var ms = months();
+    $("setupSummary").textContent = S.base + " " + plain(S.estimate) +
+      "  ·  " + (ms.length ? monthLabel(ms[0]) + " to " + monthLabel(ms[ms.length - 1]) : "") +
+      "  ·  " + S.workDays + " days/mo  ·  " + defaultHpd() + " hrs/day for new people";
+    var open = !!S.setupOpen;
+    if (open) show($("setupBody")); else hide($("setupBody"));
+    var b = $("setupToggle");
+    b.textContent = open ? "Hide" : "Show";
+    b.setAttribute("aria-expanded", open ? "true" : "false");
+  }
+
+  // Derivable from state alone, so retitling never needs the model rebuilt.
+  function metaLine() {
+    var ms = months();
+    var period = ms.length ? monthLabel(ms[0]) + " to " + monthLabel(ms[ms.length - 1]) + " · " + S.duration + " months" : "";
+    var fte = S.team.reduce(function (s, p) { return s + totalDays(p); }, 0) / Math.max(1, S.duration * num(S.workDays));
+    return esc(S.name || "Untitled project") + " &middot; " + esc(period) +
+      " &middot; " + S.team.length + " people &middot; " + (Math.round(fte * 10) / 10) + " avg FTE";
+  }
+  function renderMeta(M) {
+    $("headerSub").innerHTML = metaLine();
+    document.title = (S.name || "Project") + " cost tracker";
+    $("posHint").textContent = M.lastActualIdx < 0
+      ? "No actuals yet, showing the plan."
+      : "Actuals through " + M.rows[M.lastActualIdx].label + ".";
+  }
+
+  function kpiItems(M) {
+    var varClass = M.variance < 0 ? "neg" : (M.variance < S.estimate * 0.05 ? "mid" : "pos");
+    return [
+      { k: "Total estimate", v: money(S.estimate), s: "Approved ceiling" },
+      { k: "Spent to date", v: money(M.spent), s: pct(S.estimate ? M.spent / S.estimate : 0) + " of estimate" },
+      { k: "Remaining", v: money(S.estimate - M.spent), s: M.remainingMonths + " months to run" },
+      { k: "Avg monthly burn", v: money(M.burn), s: M.lastActualIdx < 0 ? "No actuals" : (M.lastActualIdx + 1) + " months of actuals" },
+      { k: "Forecast at completion", v: money(M.eac), s: "Plan-based " + money(M.eacPlan) },
+      {
+        k: M.variance < 0 ? "Forecast overrun" : "Forecast headroom", v: moneySigned(M.variance),
+        s: pct(S.estimate ? Math.abs(M.variance) / S.estimate : 0) + " of estimate", cls: varClass
+      }
+    ];
+  }
+  function renderKpis(M) {
+    $("kpis").innerHTML = kpiItems(M).map(function (it) {
+      return '<div class="kpi pct-kpi"><div class="k">' + esc(it.k) + '</div>' +
+        '<div class="v ' + (it.cls || "") + '">' + esc(it.v) + '</div>' +
+        '<div class="s">' + esc(it.s) + '</div></div>';
+    }).join("");
+  }
+
+  // Shared by the on-screen meter and the copy-as-image canvas.
+  function meterGeom(M) {
+    var scale = Math.max(S.estimate, M.eac) || 1;
+    return {
+      spent: clamp((M.spent / scale) * 100, 0, 100),
+      fcastEnd: clamp((Math.min(M.eac, S.estimate) / scale) * 100, 0, 100),
+      estimate: clamp((S.estimate / scale) * 100, 0, 100),
+      eacEnd: clamp((M.eac / scale) * 100, 0, 100),
+      over: M.eac > S.estimate
+    };
+  }
+  function renderMeter(M) {
+    var g = meterGeom(M);
+    $("segSpent").style.width = g.spent + "%";
+    var f = $("segFcast");
+    f.style.left = g.spent + "%"; f.style.width = Math.max(0, g.fcastEnd - g.spent) + "%";
+    var o = $("segOver");
+    o.style.left = g.estimate + "%"; o.style.width = g.over ? Math.max(0, g.eacEnd - g.estimate) + "%" : "0%";
+    $("tickEstimate").style.left = "calc(" + g.estimate + "% - 1px)";
+    $("meterPct").textContent = pct(S.estimate ? M.spent / S.estimate : 0) + " spent · forecast " + pct(S.estimate ? M.eac / S.estimate : 0);
+  }
+
+  function alertList(M) {
+    var out = [], over = -M.variance;
+    var zero = S.team.concat(S.vendors).filter(function (e) { return fxOf(e.ccy) <= 0; });
+    if (zero.length) {
+      var ccys = zero.map(function (e) { return e.ccy; }).filter(function (c, i, a) { return a.indexOf(c) === i; });
+      out.push(["issue", "Missing exchange rate", "No rate set for " + ccys.join(", ") + ". Anything priced in " +
+        (ccys.length > 1 ? "those currencies is" : "that currency is") + " costing zero until you set one."]);
+    }
+    // hours booked against a rate of zero cost nothing — usually a half-finished import
+    var rateless = S.team.filter(function (p) {
+      return num(p.rate) <= 0 && span(p.actualHours).some(function (v) { return num(v) > 0; });
+    });
+    if (rateless.length) {
+      out.push(["warn", "Time booked with no day rate",
+        rateless.map(function (p) { return p.name || "(unnamed)"; }).join(", ") +
+        " " + (rateless.length === 1 ? "has" : "have") + " hours booked at a zero day rate, so that time is costing nothing."]);
+    }
+    if (M.lastActualIdx < 0) out.push(["info", "Nothing booked yet", "Enter actual spend in the ledger below and the forecast will replace the plan."]);
+    if (M.variance < 0) {
+      out.push(["issue", "Forecast exceeds the estimate",
+        "At the current run rate you land " + money(over) + " over, " + pct(S.estimate ? over / S.estimate : 0) + " above the estimate." +
+        (M.breachMonth ? " Budget is exhausted in " + M.breachMonth.label + "." : "")]);
+    } else if (M.variance < S.estimate * 0.05 && M.lastActualIdx >= 0) {
+      out.push(["warn", "Headroom is thin",
+        "Only " + money(M.variance) + " of headroom, under 5% of the estimate. One change request absorbs this."]);
+    } else if (M.lastActualIdx >= 0) {
+      out.push(["ok", "Tracking inside the estimate",
+        "Forecast lands " + money(M.variance) + " under, with " + M.remainingMonths + " months still to run."]);
+    }
+    if (M.lastActualIdx >= 0 && Math.abs(M.burnVariance) > 0.1) {
+      var ahead = M.burnVariance > 0;
+      out.push([ahead ? "warn" : "info", ahead ? "Burn is ahead of plan" : "Burn is behind plan",
+        "Actuals to date are " + money(Math.abs(M.spent - M.plannedToDate)) + " " + (ahead ? "above" : "below") + " plan, " +
+        pct(Math.abs(M.burnVariance)) + " variance." +
+        (ahead ? " Check whether scope moved or rates changed." : " Check for unbooked time or late invoices.")]);
+    }
+    // Vendor contracts. Silent unless a vendor exists AND has a contract value set,
+    // so projects with no vendors — or vendors on time and materials — see nothing.
+    var breached = M.vendors.filter(function (vp) { return vp.contract > 0 && vp.over > 0; });
+    if (breached.length) {
+      var hard = breached.some(function (vp) { return vp.overInvoiced; });
+      out.push([hard ? "issue" : "warn",
+        hard ? "Vendor has invoiced above its contract" : "Vendor forecast exceeds its contract",
+        breached.map(function (vp) {
+          return vp.vendor.name + " " + money(vp.forecast * vp.fx) + " against " + money(vp.contract * vp.fx) +
+            ", " + money(vp.over * vp.fx) + " over";
+        }).join(" · ") + ". " +
+        (hard ? "Check the purchase order before the next invoice is approved." : "Raise a variation or re-phase the remaining work.")]);
+    }
+    // Baseline drift. Only ever present because someone chose to set a baseline.
+    if (M.baseline) {
+      // Round once and use it for the heading too: sub-currency-unit drift used to
+      // title this "Plan has grown" over a body reading "the plan is unchanged".
+      var moved = Math.round(M.totalPlanned - M.baseline.total);
+      var estMoved = Math.round(S.estimate - M.baseline.estimate);
+      var big = M.baseline.total > 0 && Math.abs(moved) / M.baseline.total > 0.02;
+      if (big || estMoved !== 0) {
+        out.push([moved > 0 && big ? "warn" : "info",
+          moved > 0 ? "Plan has grown since the baseline" : (moved < 0 ? "Plan has shrunk since the baseline" : "Estimate has moved since the baseline"),
+          (moved !== 0
+            ? "The plan is " + money(Math.abs(moved)) + " " + (moved > 0 ? "above" : "below") + " the baseline set on " +
+              baselineDate(M.baseline.at) + ", " + pct(M.baseline.total ? Math.abs(moved) / M.baseline.total : 0) + "."
+            : "The plan is unchanged since the baseline set on " + baselineDate(M.baseline.at) + ".") +
+          (estMoved !== 0 ? " The estimate itself has moved by " + moneySigned(estMoved) + "." : "") +
+          " Cost drivers below shows which lines moved."]);
+      }
+    }
+    if (isFinite(M.runwayMonths) && M.runwayMonths < M.remainingMonths) {
+      out.push(["issue", "Runway is shorter than the plan",
+        "At " + money(M.burn) + " a month you have about " + (Math.floor(M.runwayMonths * 10) / 10) +
+        " months of budget left against " + M.remainingMonths + " months of delivery."]);
+    }
+    return out;
+  }
+  function renderAlerts(M) {
+    $("alerts").innerHTML = alertList(M).map(function (a) {
+      var cls = a[0] === "info" ? "callout" : "callout pct-" + a[0];
+      return '<div class="' + cls + '"><span class="lab">' + esc(a[1]) + "</span>" + esc(a[2]) + "</div>";
+    }).join("");
+  }
+
+  // Cumulative baseline plan across the current month range, or null.
+  function baselineSeries(M) {
+    if (!M.baseline) return null;
+    var c = 0;
+    return M.rows.map(function (r) { c += num(M.baseline.byKey[r.key]); return c; });
+  }
+
+  // A "nice" axis: at most 7 gridlines on a 1/2/2.5/5 x 10^n step.
+  function chartScale(M) {
+    var n = M.rows.length;
+    var bl = baselineSeries(M);
+    var raw = Math.max(S.estimate, M.eac, n ? M.rows[n - 1].cumPlanned : 0, bl && bl.length ? bl[bl.length - 1] : 0) * 1.02;
+    if (!(raw > 0)) return { max: 1, step: 1, ticks: [0, 1] };
+    var mag = Math.pow(10, Math.floor(Math.log10(raw)));
+    var cands = [0.1, 0.2, 0.25, 0.5, 1, 2, 2.5, 5, 10].map(function (f) { return f * mag; });
+    var step = cands[cands.length - 1];
+    for (var i = 0; i < cands.length; i++) { if (Math.ceil(raw / cands[i]) <= 7) { step = cands[i]; break; } }
+    var max = Math.max(step, Math.ceil(raw / step) * step);
+    var ticks = [];
+    for (var v = 0; v <= max + step * 0.001; v += step) ticks.push(v);
+    return { max: max, step: step, ticks: ticks };
+  }
+
+  function renderChart(M) {
+    var W = 900, H = 340, L = 96, R = 22, T = 18, B = 42;
+    var iw = W - L - R, ih = H - T - B, rows = M.rows, n = rows.length;
+    var sc = chartScale(M);
+    var x = function (i) { return n <= 1 ? L : L + (i / (n - 1)) * iw; };
+    var y = function (v) { return T + ih - (v / sc.max) * ih; };
+    var p = ['<rect x="0" y="0" width="' + W + '" height="' + H + '" fill="#FFFFFF"/>'];
+    sc.ticks.forEach(function (val) {
+      var yy = y(val);
+      p.push('<line x1="' + L + '" y1="' + yy + '" x2="' + (W - R) + '" y2="' + yy + '" stroke="#E4E8EB" stroke-width="1"/>');
+      p.push('<text x="' + (L - 10) + '" y="' + (yy + 4) + '" text-anchor="end" font-family="Inter,Arial,sans-serif" font-size="12" fill="#6B6B6B">' + plain(val) + "</text>");
+    });
+    var ey = y(S.estimate);
+    p.push('<line x1="' + L + '" y1="' + ey + '" x2="' + (W - R) + '" y2="' + ey + '" stroke="#3D3D3D" stroke-width="2" stroke-dasharray="7 5"/>');
+    p.push('<text x="' + (W - R) + '" y="' + (ey - 8) + '" text-anchor="end" font-family="Inter,Arial,sans-serif" font-size="12" fill="#3D3D3D">Estimate</text>');
+    var every = n > 14 ? Math.ceil(n / 12) : 1;
+    rows.forEach(function (r, i) {
+      if (i % every) return;
+      p.push('<text x="' + x(i) + '" y="' + (H - 16) + '" text-anchor="middle" font-family="Inter,Arial,sans-serif" font-size="11" fill="#6B6B6B">' + esc(r.label) + "</text>");
+    });
+    var path = function (vals, from) {
+      return vals.map(function (v, i) { return (i === 0 ? "M" : "L") + x(i + from) + " " + y(v); }).join(" ");
+    };
+    var bl = baselineSeries(M);
+    if (bl && bl.length > 1) p.push('<path d="' + path(bl, 0) + '" fill="none" stroke="#9AA5AD" stroke-width="2" stroke-dasharray="2 4"/>');
+    p.push('<path d="' + path(rows.map(function (r) { return r.cumPlanned; }), 0) + '" fill="none" stroke="#6B6B6B" stroke-width="2"/>');
+    if (M.lastActualIdx >= 0) {
+      var av = rows.filter(function (r) { return r.i <= M.lastActualIdx; }).map(function (r) { return r.cumActual; });
+      p.push('<path d="' + path(av, 0) + '" fill="none" stroke="#007A99" stroke-width="3" stroke-linejoin="round"/>');
+      av.forEach(function (v, i) { p.push('<circle cx="' + x(i) + '" cy="' + y(v) + '" r="3.5" fill="#007A99"/>'); });
+      var fv = rows.filter(function (r) { return r.i >= M.lastActualIdx; }).map(function (r) { return r.cumForecast; });
+      if (fv.length > 1) p.push('<path d="' + path(fv, M.lastActualIdx) + '" fill="none" stroke="#007A99" stroke-width="2.5" stroke-dasharray="6 5"/>');
+      p.push('<line x1="' + x(M.lastActualIdx) + '" y1="' + T + '" x2="' + x(M.lastActualIdx) + '" y2="' + (T + ih) + '" stroke="#3D3D3D" stroke-width="1" stroke-dasharray="2 4"/>');
+    }
+    if (M.breachMonth) {
+      var bx = x(M.breachMonth.i);
+      p.push('<circle cx="' + bx + '" cy="' + ey + '" r="5" fill="#FFFFFF" stroke="#C0392B" stroke-width="2.5"/>');
+      var anchor = M.breachMonth.i > n * 0.7 ? "end" : "start";
+      p.push('<text x="' + (bx + (anchor === "end" ? -10 : 10)) + '" y="' + (ey + 20) + '" text-anchor="' + anchor +
+        '" font-family="Inter,Arial,sans-serif" font-size="12" fill="#C0392B">Ceiling hit ' + esc(M.breachMonth.label) + "</text>");
+    }
+    p.push('<line x1="' + L + '" y1="' + (T + ih) + '" x2="' + (W - R) + '" y2="' + (T + ih) + '" stroke="#CFCFCF" stroke-width="1"/>');
+    $("chart").innerHTML = p.join("");
+  }
+
+  function renderFx() {
+    var sel = $("base");
+    if (sel.options.length !== CCYS.length) {
+      sel.innerHTML = CCYS.map(function (c) { return '<option value="' + c + '">' + c + "</option>"; }).join("");
+    }
+    sel.value = S.base;
+    $("fxFields").innerHTML = CCYS.filter(function (c) { return c !== S.base; }).map(function (c) {
+      return '<div class="pct-field"><label for="fx-' + c + '" title="1 ' + c + " in " + S.base + '">' + c + " → " + S.base + "</label>" +
+        '<input id="fx-' + c + '" type="number" min="0" step="any" data-fx="' + c + '" value="' + num(S.rates[c]) + '"></div>';
+    }).join("");
+    var used = S.team.concat(S.vendors).map(function (e) { return e.ccy; })
+      .filter(function (c, i, a) { return a.indexOf(c) === i && c !== S.base; });
+    $("fxNote").textContent = used.length
+      ? "In use: " + used.map(function (c) { return "1 " + c + " = " + num(S.rates[c]) + " " + S.base; }).join("   ·   ") +
+        ". Every figure below is in " + S.base + "."
+      : "All day rates and vendor costs are already in " + S.base + ".";
+  }
+
+  // Heat tint for a month cell: nothing booked reads grey, a full month reads teal.
+  function dayTint(v, full) {
+    if (v <= 0) return "background:#F4F4F4;color:#6B6B6B";
+    var a = 0.05 + 0.18 * clamp(v / Math.max(1, full || num(S.workDays)), 0, 1);
+    var mix = function (c) { return Math.round(255 * (1 - a) + c * a); };
+    return "background:rgb(" + mix(0) + "," + mix(169) + "," + mix(206) + ")";
+  }
+
+  /* The team and vendor grids share their right-hand half: an "All" fill cell
+     followed by one input per month. Only the leading columns differ. */
+  function monthCellsHtml(vals, idx, opts) {
+    var cap = ' max="' + opts.max + '"';
+    var cells = '<td class="allcell"><input type="number" min="0"' + cap +
+      ' step="any" data-all="' + idx + '" placeholder="set" aria-label="Set every month"></td>';
+    return cells + vals.map(function (v, i) {
+      var st = opts.styleOf ? opts.styleOf(v) : "";
+      return '<td class="mcell"><input type="number" min="0"' + cap + ' step="any" data-m="' + i +
+        '" value="' + num(v) + '"' + (st ? ' style="' + st + '"' : "") +
+        ' aria-label="' + esc(opts.label(i)) + '"></td>';
+    }).join("");
+  }
+  // Applies an "All" fill or a single-month edit to `arr` in place. Returns false
+  // if the event was not a month edit at all.
+  function monthCellEdit(t, tr, arr, cap, styleOf) {
+    if (t.hasAttribute("data-all")) {
+      if (t.value === "") return false;          // cleared, not an edit
+      snapshot("bulk fill", 4000);               // coalesce the keystroke burst
+      var all = clamp(num(t.value), 0, cap);
+      var n = Math.min(arr.length, S.duration);  // never reaches into hidden months
+      for (var i = 0; i < n; i++) arr[i] = all;
+      tr.querySelectorAll("input[data-m]").forEach(function (inp) {
+        inp.value = all;
+        if (styleOf) inp.setAttribute("style", styleOf(all));
+      });
+      return true;
+    }
+    if (t.hasAttribute("data-m")) {
+      var v = clamp(num(t.value), 0, cap);
+      arr[+t.getAttribute("data-m")] = v;
+      if (styleOf) t.setAttribute("style", styleOf(v));
+      return true;
+    }
+    return false;
+  }
+
+  function renderTeam() {
+    normalise();
+    var ms = months(), field = dayField(), actual = field === "actualHours";
+    var fullOf = function (p) { return actual ? num(S.workDays) * hpdOf(p) : num(S.workDays); };
+    var max = actual ? 744 : 31;
+
+    $("modePlanned").className = actual ? "" : "active";
+    $("modeActual").className = actual ? "active" : "";
+    $("teamNote").textContent = actual
+      ? "Hours booked from timesheets, converted at each person's own hours per day. These drive the ledger actuals."
+      : "Days planned per person per month. Cost = day rate × days.";
+
+    $("teamHead").innerHTML =
+      '<th class="sticky">Name</th><th>Role</th><th>Ccy</th><th class="num">Day rate</th><th class="num">Hrs / day</th>' +
+      '<th class="num">' + (actual ? "Actual" : "Planned") + " (" + S.base + ")</th>" +
+      '<th class="no-print"></th><th class="mhead">All</th>' +
+      ms.map(function (k) {
+        return '<th class="mhead">' + monthLabel(k) + (actual ? ' <span style="opacity:.7">hrs</span>' : "") + "</th>";
+      }).join("") + '<th class="spacer"></th>';
+
+    $("teamBody").innerHTML = S.team.length ? S.team.map(function (p, idx) {
+      return '<tr data-idx="' + idx + '">' +
+        '<td class="sticky"><input type="text" data-f="name" value="' + esc(p.name) + '" aria-label="Name"></td>' +
+        '<td class="c-role"><input type="text" data-f="role" value="' + esc(p.role) + '" aria-label="Role"></td>' +
+        '<td class="c-ccy"><select data-f="ccy" aria-label="Currency">' +
+          CCYS.map(function (c) { return '<option value="' + c + '"' + (c === p.ccy ? " selected" : "") + ">" + c + "</option>"; }).join("") +
+        "</select></td>" +
+        '<td class="c-rate"><input type="number" step="any" min="0" data-f="rate" value="' + num(p.rate).toFixed(2) + '" aria-label="Day rate"></td>' +
+        '<td class="c-hpd"><input type="number" step="any" min="0.5" max="24" data-f="hpd" value="' + hpdOf(p) + '" aria-label="Hours per day"></td>' +
+        '<td class="money">' + plain(totalIn(p, field)) + "</td>" +
+        '<td class="del no-print"><button type="button" class="pct-icon" data-del="' + idx + '" title="Remove person" aria-label="Remove person">×</button></td>' +
+        monthCellsHtml(span(p[field]), idx, {
+          max: max,
+          styleOf: function (v) { return dayTint(num(v), fullOf(p)); },
+          label: function (i) { return p.name + " " + monthLabel(ms[i]); }
+        }) + '<td class="spacer"></td></tr>';
+    }).join("")
+      : '<tr><td class="sticky pct-muted">No people yet</td><td class="pct-muted" colspan="' + (8 + S.duration) +
+        '">Use Add person to start, Load data to bring in a saved tracker, or Load demo project for a look around.</td></tr>';
+
+    refreshTeamFoot();
+  }
+
+  function refreshTeamFoot() {
+    var actual = isActualView();
+    var per = function (i) { return actual ? tsCost(i) : teamPlannedFor(i); };
+    var grand = 0;
+    for (var i = 0; i < S.duration; i++) grand += per(i);
+    var cells = '<td class="sticky">' + (actual ? "Actual cost" : "Planned cost") + "</td><td></td><td></td><td></td><td></td>" +
+      '<td class="money">' + plain(grand) + '</td><td class="no-print"></td><td></td>';
+    for (var j = 0; j < S.duration; j++) cells += '<td class="foot-num">' + plain(per(j)) + "</td>";
+    $("teamFoot").innerHTML = cells + '<td class="spacer"></td>';
+  }
+
+  function refreshTeamRow(idx) {
+    var tr = document.querySelector('#teamBody tr[data-idx="' + idx + '"]');
+    if (tr) tr.children[5].textContent = plain(totalIn(S.team[idx], dayField()));
+    refreshTeamFoot();
+  }
+
+  /* ---------- vendors ---------- */
+  function renderVendors(M) {
+    normalise();
+    var ms = months(), field = vendorField(), invoiced = field === "invoiced";
+    var any = S.vendors.length > 0;
+
+    if (any) show($("vendorModes")); else hide($("vendorModes"));
+    $("modeVendorPlanned").className = invoiced ? "" : "active";
+    $("modeVendorInvoiced").className = invoiced ? "active" : "";
+
+    // With no vendors the card says so quietly and adds nothing anywhere else.
+    if (!any) {
+      $("vendorSummary").textContent = "";
+      $("vendorNote").textContent = "No vendors on this project. Add one if you are buying in delivery, licences or infrastructure — otherwise leave it empty.";
+      $("vendorHead").innerHTML = '<th class="sticky">Vendor</th><th class="spacer"></th>';
+      $("vendorBody").innerHTML = '<tr><td class="sticky pct-muted">None</td><td class="pct-muted">Vendor costs join the plan, the ledger and the burn-up as soon as you add one.</td></tr>';
+      $("vendorFoot").innerHTML = "";
+      return;
+    }
+
+    renderVendorSummary(M);
+    $("vendorNote").textContent = invoiced
+      ? "Invoices booked per vendor per month, in the vendor's currency. These feed the ledger actual for any month you have not typed a figure into."
+      : "Spend planned per vendor per month, in the vendor's currency. This joins the team plan in the ledger and the burn-up.";
+
+    $("vendorHead").innerHTML =
+      '<th class="sticky">Vendor</th><th>Scope</th><th>Ccy</th><th class="num">Contract</th>' +
+      '<th class="num">' + (invoiced ? "Invoiced" : "Planned") + " (" + S.base + ")</th>" +
+      '<th class="no-print"></th><th class="mhead">All</th>' +
+      ms.map(function (k) { return '<th class="mhead">' + monthLabel(k) + "</th>"; }).join("") + '<th class="spacer"></th>';
+
+    $("vendorBody").innerHTML = S.vendors.map(function (v, idx) {
+      var pos = M.vendors[idx] || {};
+      var totalCls = "money" + (invoiced && pos.overInvoiced ? " pct-over" : "");
+      return '<tr data-idx="' + idx + '">' +
+        '<td class="sticky"><input type="text" data-f="name" value="' + esc(v.name) + '" aria-label="Vendor name"></td>' +
+        '<td class="c-scope"><input type="text" data-f="scope" value="' + esc(v.scope) + '" aria-label="Scope"></td>' +
+        '<td class="c-ccy"><select data-f="ccy" aria-label="Currency">' +
+          CCYS.map(function (c) { return '<option value="' + c + '"' + (c === v.ccy ? " selected" : "") + ">" + c + "</option>"; }).join("") +
+        "</select></td>" +
+        '<td class="c-contract"><input type="number" step="any" min="0" data-f="contract" value="' + num(v.contract) +
+          '" placeholder="none" title="Contract or PO value in ' + esc(v.ccy) + '. Leave at zero for time and materials — nothing is flagged." aria-label="Contract value"></td>' +
+        '<td class="' + totalCls + '">' + plain(vendorTotalIn(v, field)) + "</td>" +
+        '<td class="del no-print"><button type="button" class="pct-icon" data-del="' + idx + '" title="Remove vendor" aria-label="Remove vendor">×</button></td>' +
+        monthCellsHtml(span(v[field]), idx, {
+          max: MAX_MONEY,
+          label: function (i) { return v.name + " " + monthLabel(ms[i]); }
+        }) + '<td class="spacer"></td></tr>';
+    }).join("");
+
+    refreshVendorFoot();
+  }
+
+  function refreshVendorFoot() {
+    if (!S.vendors.length) return;
+    var field = vendorField();
+    var grand = 0;
+    for (var i = 0; i < S.duration; i++) grand += vendorSum(field, i);
+    var cells = '<td class="sticky">' + (field === "invoiced" ? "Invoiced" : "Planned") + " cost</td><td></td><td></td><td></td>" +
+      '<td class="money">' + plain(grand) + '</td><td class="no-print"></td><td></td>';
+    for (var j = 0; j < S.duration; j++) cells += '<td class="foot-num">' + plain(vendorSum(field, j)) + "</td>";
+    $("vendorFoot").innerHTML = cells + '<td class="spacer"></td>';
+  }
+
+  function refreshVendorRow(idx) {
+    var tr = document.querySelector('#vendorBody tr[data-idx="' + idx + '"]');
+    var v = S.vendors[idx];
+    if (tr && v) {
+      var cell = tr.children[4];
+      cell.textContent = plain(vendorTotalIn(v, vendorField()));
+      var billed = span(v.invoiced).reduce(function (a, b) { return a + num(b); }, 0);
+      cell.className = "money" + (isInvoicedView() && num(v.contract) > 0 && billed > num(v.contract) ? " pct-over" : "");
+    }
+    refreshVendorFoot();
+  }
+
+  function renderLedger(M) {
+    var cur = currentIndex(), bl = M.baseline;
+    if (bl) { show($("thBaseline")); show($("sumBaseline")); show($("legendBaseline")); }
+    else { hide($("thBaseline")); hide($("sumBaseline")); hide($("legendBaseline")); }
+
+    $("ledgerBody").innerHTML = M.rows.map(function (r) {
+      var fut = r.i > M.lastActualIdx;
+      var variance = r.hasActual ? r.actual - r.planned : 0;
+      var vCls = !r.hasActual ? "pct-muted" : (variance > 0 ? "pct-over" : (variance < 0 ? "pct-under" : ""));
+      var cumV = fut ? r.cumForecast : r.cumActual;
+      var rem = S.estimate - cumV;
+      var raw = Object.prototype.hasOwnProperty.call(S.actuals, r.i) ? S.actuals[r.i] : "";
+      return '<tr class="' + (r.i === cur ? "now" : "") + '">' +
+        "<td>" + r.label + (r.i === cur ? ' <span class="pct-muted">now</span>' : "") + "</td>" +
+        '<td class="num tnum">' + plain(r.planned) + "</td>" +
+        '<td class="num act"><input type="number" step="any" min="0" placeholder="' + (r.booked ? plain(r.derived) : "plan") +
+          '" title="' + (r.booked ? "From timesheet hours and vendor invoices, type here to override with the all-in total" : "Blank uses the plan") +
+          '" data-m="' + r.i + '" value="' + esc(raw) + '" aria-label="Actual for ' + r.label + '"></td>' +
+        '<td data-c="var" class="num tnum ' + vCls + '">' + (r.hasActual ? plainSigned(variance) : "&mdash;") + "</td>" +
+        '<td data-c="cum" class="num tnum ' + (fut ? "pct-muted" : "") + '">' + plain(cumV) + "</td>" +
+        '<td data-c="rem" class="num tnum ' + (rem < 0 ? "pct-over" : (fut ? "pct-muted" : "")) + '">' + plain(rem) + "</td>" +
+        '<td data-c="pct" class="num tnum ' + (fut ? "pct-muted" : "") + '">' + (S.estimate ? pct(cumV / S.estimate) : "0%") + "</td>" +
+        (bl ? '<td class="num tnum pct-muted">' + plain(num(bl.byKey[r.key])) + "</td>" : "") +
+        "</tr>";
+    }).join("");
+    refreshLedgerFoot(M);
+  }
+  function refreshLedgerFoot(M) {
+    var overPlan = M.spent - M.plannedToDate, headroom = S.estimate - M.eac;
+    $("sumPlanned").textContent = plain(M.totalPlanned);
+    $("sumActual").textContent = plain(M.spent);
+    $("sumVar").textContent = plainSigned(overPlan);
+    $("sumVar").className = "num tnum" + (Math.round(overPlan) > 0 ? " pct-over" : "");
+    $("sumCum").textContent = plain(M.eac);
+    $("sumRem").textContent = plain(headroom);
+    $("sumRem").className = "num tnum" + (headroom < 0 ? " pct-over" : "");
+    $("sumPct").textContent = S.estimate ? pct(M.eac / S.estimate) : "0%";
+    $("sumPct").className = "num tnum" + (S.estimate && M.eac > S.estimate ? " pct-over" : "");
+    if (M.baseline) $("sumBaseline").textContent = plain(M.baseline.total);
+  }
+
+  /* ---------- cost drivers ---------- */
+  function driverRows(M) {
+    var bl = M.baseline, rows = [], seen = {};
+    var push = function (id, kind, name, sub, plan, booked, hasBooked) {
+      seen[id] = 1;
+      rows.push({
+        id: id, kind: kind, name: name || "(unnamed)", sub: sub || "", plan: plan,
+        booked: booked, hasBooked: hasBooked,
+        baseline: bl && bl.byId[id] !== undefined ? bl.byId[id] : null, gone: false
+      });
+    };
+    S.team.forEach(function (p) {
+      push(p.id, "Person", p.name, p.role, totalIn(p, "days"), totalIn(p, "actualHours"),
+        span(p.actualHours).some(function (v) { return num(v) > 0; }));
+    });
+    S.vendors.forEach(function (v) {
+      push(v.id, "Vendor", v.name, v.scope, vendorTotalIn(v, "planned"), vendorTotalIn(v, "invoiced"),
+        span(v.invoiced).some(function (x) { return num(x) > 0; }));
+    });
+    // lines that were in the baseline and have since been removed still moved the cost
+    if (bl) {
+      bl.names.forEach(function (e) {
+        if (seen[e.id] || !num(bl.byId[e.id])) return;
+        rows.push({
+          id: e.id, kind: e.kind, name: (e.name || "(unnamed)"), sub: e.sub, plan: 0,
+          booked: 0, hasBooked: false, baseline: bl.byId[e.id], gone: true
+        });
+      });
+    }
+    rows.sort(function (a, b) { return (b.plan - a.plan) || (num(b.baseline) - num(a.baseline)); });
+    return rows;
+  }
+
+  function renderDrivers(M) {
+    var rows = driverRows(M), bl = M.baseline;
+    var total = rows.reduce(function (s, r) { return s + r.plan; }, 0);
+
+    if (!rows.length) {
+      $("driverHint").textContent = "";
+      $("driverHead").innerHTML = "<th>Line</th>";
+      $("driverBody").innerHTML = '<tr><td class="pct-muted">Add people or vendors to see what is driving the cost.</td></tr>';
+      $("driverFoot").innerHTML = "";
+      return;
+    }
+    var top = rows.filter(function (r) { return r.plan > 0; }).slice(0, 3).map(function (r) { return r.name; });
+    // A month typed straight into the ledger is an all-in total with no line-level
+    // split, so "Booked to date" cannot account for it. Say so rather than let the
+    // column read as the project's whole spend.
+    var typed = M.rows.some(function (r) { return r.manual; });
+    $("driverHint").textContent = (top.length ? "Largest: " + top.join(", ") : "") +
+      (bl ? " · Δ is against the baseline" : "") +
+      (typed ? " · booked to date covers timesheet hours and vendor invoices only, not months typed into the ledger" : "");
+
+    $("driverHead").innerHTML = "<th>Line</th><th>Type</th><th class=\"num\">Plan (" + S.base + ")</th>" +
+      '<th class="num">Share</th><th style="width:130px"></th><th class="num">Booked to date</th>' +
+      (bl ? '<th class="num">Baseline</th><th class="num">&Delta; vs baseline</th>' : "");
+
+    $("driverBody").innerHTML = rows.map(function (r) {
+      var share = total > 0 ? r.plan / total : 0;
+      var delta = r.baseline === null ? null : r.plan - r.baseline;
+      var dCls = delta === null ? "pct-muted" : (Math.round(delta) > 0 ? "pct-over" : (Math.round(delta) < 0 ? "pct-under" : "pct-muted"));
+      return '<tr class="' + (r.gone ? "gone" : "") + '">' +
+        '<td class="line">' + esc(r.name) + (r.gone ? " (removed)" : "") +
+          (r.sub ? '<span class="sub2">' + esc(r.sub) + "</span>" : "") + "</td>" +
+        '<td><span class="pct-kind">' + r.kind + "</span></td>" +
+        '<td class="num">' + plain(r.plan) + "</td>" +
+        '<td class="num">' + pct(share) + "</td>" +
+        '<td><div class="pct-share"><span style="width:' + (Math.round(share * 1000) / 10) + '%"></span></div></td>' +
+        '<td class="num ' + (r.hasBooked ? "" : "pct-muted") + '">' + (r.hasBooked ? plain(r.booked) : "&mdash;") + "</td>" +
+        (bl ? '<td class="num pct-muted">' + (r.baseline === null ? "&mdash;" : plain(r.baseline)) + "</td>" +
+              '<td class="num ' + dCls + '">' + (delta === null ? "new" : plainSigned(delta)) + "</td>" : "") +
+        "</tr>";
+    }).join("");
+
+    var blTotal = bl ? rows.reduce(function (s, r) { return s + num(r.baseline); }, 0) : 0;
+    $("driverFoot").innerHTML = "<td>Total</td><td></td>" +
+      '<td class="num">' + plain(total) + '</td><td class="num">100%</td><td></td>' +
+      '<td class="num">' + plain(rows.reduce(function (s, r) { return s + (r.hasBooked ? r.booked : 0); }, 0)) + "</td>" +
+      (bl ? '<td class="num">' + plain(blTotal) + '</td><td class="num">' + plainSigned(total - blTotal) + "</td>" : "");
+  }
+
+  function renderBaselineControls(M) {
+    var bl = M.baseline;
+    if (bl) show($("clearBaseline")); else hide($("clearBaseline"));
+    $("setBaseline").textContent = bl ? "Re-baseline from this plan" : "Set baseline from this plan";
+    $("baselineState").textContent = bl
+      ? "Baseline " + money(bl.total) + " set on " + baselineDate(bl.at) +
+        (bl.converted ? " (originally in " + bl.base + ")" : "")
+      : "No baseline. Set one to track what has changed since the plan was approved.";
+  }
+
+  /* ---------- toast ---------- */
+  var toastTimer = null;
+  function toast(msg) {
+    var t = $("toast");
+    t.textContent = msg; t.classList.add("on");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.classList.remove("on"); }, 2600);
+  }
+
+  /* ---------- copy as image ----------
+     Canvas twins of the Position panel and the burn-up, so either can be
+     pasted straight into a slide or an email. */
+  function hatch(g, c1, c2) {
+    var t = document.createElement("canvas"); t.width = 12; t.height = 12;
+    var x = t.getContext("2d");
+    x.fillStyle = c2; x.fillRect(0, 0, 12, 12);
+    x.strokeStyle = c1; x.lineWidth = 6;
+    x.beginPath();
+    x.moveTo(-6, 6); x.lineTo(6, -6);
+    x.moveTo(0, 12); x.lineTo(12, 0);
+    x.moveTo(6, 18); x.lineTo(18, 6);
+    x.stroke();
+    return g.createPattern(t, "repeat");
+  }
+
+  function drawPosition() {
+    var M = model(), items = kpiItems(M);
+    var W = 1120, PAD = 40, COLS = 3;
+    var rowsK = Math.ceil(items.length / COLS), kH = 104;
+    var headH = 40, meterH = 86;
+    var H = headH + rowsK * kH + meterH;
+    var sc = 2;
+    var c = document.createElement("canvas");
+    c.width = W * sc; c.height = H * sc;
+    var g = c.getContext("2d");
+    g.scale(sc, sc);
+    var F = function (w, s) { return w + " " + s + "px Inter, Arial, sans-serif"; };
+
+    g.fillStyle = "#FFFFFF"; g.fillRect(0, 0, W, H);
+    g.textBaseline = "alphabetic";
+
+    g.fillStyle = "#3D3D3D"; g.font = F(800, 17);
+    g.fillText(S.name || "Untitled project", PAD, 24);
+
+    var gw = (W - PAD * 2) / COLS;
+    items.forEach(function (it, n) {
+      var cx = PAD + (n % COLS) * gw, cy = headH + Math.floor(n / COLS) * kH;
+      g.fillStyle = "#6B6B6B"; g.font = F(600, 11.5);
+      g.fillText(it.k.toUpperCase(), cx, cy + 18);
+      g.fillStyle = it.cls === "neg" ? "#A8321F" : it.cls === "mid" ? "#9A6212" : it.cls === "pos" ? "#3F8F41" : "#1A1A1A";
+      g.font = F(700, 28);
+      g.fillText(it.v, cx, cy + 52);
+      g.fillStyle = "#6B6B6B"; g.font = F(400, 12.5);
+      g.fillText(it.s, cx, cy + 74);
+    });
+
+    var yy = headH + rowsK * kH + 6;
+    g.fillStyle = "#6B6B6B"; g.font = F(600, 11.5);
+    g.fillText("BUDGET CONSUMPTION", PAD, yy);
+    g.textAlign = "right";
+    g.fillText(pct(S.estimate ? M.spent / S.estimate : 0).toUpperCase() + " SPENT  ·  FORECAST " + pct(S.estimate ? M.eac / S.estimate : 0), W - PAD, yy);
+    g.textAlign = "left";
+
+    var bx = PAD, by = yy + 14, bw = W - PAD * 2, bh = 34;
+    var gm = meterGeom(M);
+    g.fillStyle = "#F4F4F4"; g.fillRect(bx, by, bw, bh);
+    g.fillStyle = hatch(g, "#A9BFC2", "#CBD8DA");
+    g.fillRect(bx + bw * gm.spent / 100, by, bw * Math.max(0, gm.fcastEnd - gm.spent) / 100, bh);
+    g.fillStyle = "#007A99"; g.fillRect(bx, by, bw * gm.spent / 100, bh);
+    if (gm.over) {
+      g.fillStyle = hatch(g, "#C0392B", "#9E2E22");
+      g.fillRect(bx + bw * gm.estimate / 100, by, bw * Math.max(0, gm.eacEnd - gm.estimate) / 100, bh);
+    }
+    g.strokeStyle = "#CFCFCF"; g.strokeRect(bx, by, bw, bh);
+    g.fillStyle = "#3D3D3D"; g.fillRect(bx + bw * gm.estimate / 100 - 1, by, 2, bh);
+    return c;
+  }
+
+  function drawBurnup() {
+    var M = model();
+    var W = 1120, H = 500, PAD = 40;
+    var L = PAD + 70, R = PAD, T = 30, B = 96;
+    var iw = W - L - R, ih = H - T - B;
+    var rows = M.rows, n = rows.length;
+    var sc = chartScale(M);
+    var x = function (i) { return n <= 1 ? L : L + (i / (n - 1)) * iw; };
+    var y = function (v) { return T + ih - (v / sc.max) * ih; };
+    var s2 = 2;
+    var c = document.createElement("canvas"); c.width = W * s2; c.height = H * s2;
+    var g = c.getContext("2d"); g.scale(s2, s2);
+    var F = function (w, sz) { return w + " " + sz + "px Inter, Arial, sans-serif"; };
+
+    g.fillStyle = "#FFFFFF"; g.fillRect(0, 0, W, H);
+    g.textBaseline = "alphabetic";
+
+    g.font = F(400, 12);
+    sc.ticks.forEach(function (v) {
+      var yy = y(v);
+      g.strokeStyle = "#E4E8EB"; g.lineWidth = 1;
+      g.beginPath(); g.moveTo(L, yy); g.lineTo(W - R, yy); g.stroke();
+      g.fillStyle = "#6B6B6B"; g.textAlign = "right";
+      g.fillText(plain(v), L - 10, yy + 4);
+    });
+    g.textAlign = "left";
+
+    var ey = y(S.estimate);
+    g.strokeStyle = "#3D3D3D"; g.lineWidth = 2; g.setLineDash([7, 5]);
+    g.beginPath(); g.moveTo(L, ey); g.lineTo(W - R, ey); g.stroke();
+    g.setLineDash([]);
+    g.fillStyle = "#3D3D3D"; g.textAlign = "right"; g.font = F(600, 12);
+    g.fillText("Estimate " + money(S.estimate), W - R, ey - 9);
+    g.textAlign = "left";
+
+    var every = n > 14 ? Math.ceil(n / 12) : 1;
+    g.fillStyle = "#6B6B6B"; g.font = F(400, 12); g.textAlign = "center";
+    rows.forEach(function (r, i) { if (i % every) return; g.fillText(r.label, x(i), T + ih + 22); });
+    g.textAlign = "left";
+
+    var line = function (vals, from, colour, width, dash) {
+      if (vals.length < 2) return;
+      g.strokeStyle = colour; g.lineWidth = width; g.setLineDash(dash || []);
+      g.beginPath();
+      vals.forEach(function (v, i) { var px = x(i + from), py = y(v); if (i === 0) g.moveTo(px, py); else g.lineTo(px, py); });
+      g.stroke(); g.setLineDash([]);
+    };
+    var blc = baselineSeries(M);
+    if (blc) line(blc, 0, "#9AA5AD", 2, [2, 4]);
+    line(rows.map(function (r) { return r.cumPlanned; }), 0, "#6B6B6B", 2);
+    if (M.lastActualIdx >= 0) {
+      var av = rows.filter(function (r) { return r.i <= M.lastActualIdx; }).map(function (r) { return r.cumActual; });
+      line(av, 0, "#007A99", 3);
+      g.fillStyle = "#007A99";
+      av.forEach(function (v, i) { g.beginPath(); g.arc(x(i), y(v), 3.5, 0, Math.PI * 2); g.fill(); });
+      line(rows.filter(function (r) { return r.i >= M.lastActualIdx; }).map(function (r) { return r.cumForecast; }),
+        M.lastActualIdx, "#007A99", 2.5, [6, 5]);
+    }
+    if (M.breachMonth) {
+      var bx = x(M.breachMonth.i);
+      g.fillStyle = "#FFFFFF"; g.strokeStyle = "#C0392B"; g.lineWidth = 2.5;
+      g.beginPath(); g.arc(bx, ey, 5, 0, Math.PI * 2); g.fill(); g.stroke();
+      g.fillStyle = "#C0392B"; g.font = F(600, 12);
+      var right = M.breachMonth.i > n * 0.7;
+      g.textAlign = right ? "right" : "left";
+      g.fillText("Ceiling hit " + M.breachMonth.label, bx + (right ? -10 : 10), ey + 22);
+      g.textAlign = "left";
+    }
+    g.strokeStyle = "#CFCFCF"; g.lineWidth = 1;
+    g.beginPath(); g.moveTo(L, T + ih); g.lineTo(W - R, T + ih); g.stroke();
+
+    var ly = H - 42, lx = PAD;
+    var key = function (colour, dash, label) {
+      g.strokeStyle = colour; g.lineWidth = 2.5; g.setLineDash(dash || []);
+      g.beginPath(); g.moveTo(lx, ly - 4); g.lineTo(lx + 24, ly - 4); g.stroke(); g.setLineDash([]);
+      g.fillStyle = "#6B6B6B"; g.font = F(400, 12.5);
+      g.fillText(label, lx + 31, ly);
+      lx += 31 + g.measureText(label).width + 26;
+    };
+    key("#007A99", null, "Actual"); key("#007A99", [6, 5], "Forecast");
+    key("#6B6B6B", null, "Plan"); key("#3D3D3D", [7, 5], "Estimate");
+    if (blc) key("#9AA5AD", [2, 4], "Baseline plan");
+    return c;
+  }
+
+  function copyCanvas(factory, name, okMsg) {
+    var canvas;
+    try { canvas = factory(); } catch (e) { toast("Could not draw the image"); return; }
+    canvas.toBlob(function (blob) {
+      if (!blob) { toast("Could not create the image"); return; }
+      var fallback = function () {
+        var url = URL.createObjectURL(blob), a = document.createElement("a");
+        a.href = url; a.download = slug(S.name) + "-" + name + ".png";
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+        toast("Clipboard blocked here, image downloaded instead");
+      };
+      if (!navigator.clipboard || !window.ClipboardItem) { fallback(); return; }
+      navigator.clipboard.write([new ClipboardItem({ "image/png": blob })])
+        .then(function () { toast(okMsg); })
+        .catch(fallback);
+    }, "image/png");
+  }
+
+  /* ---------- undo ----------
+     Snapshots before the destructive things only — bulk fills, deletes, imports,
+     baselining. Per-keystroke edits are not worth a stack entry. */
+  var undoStack = [], lastSnapAt = 0;
+  function snapshot(label, coalesceMs) {
+    var t = Date.now();
+    var top = undoStack[undoStack.length - 1];
+    if (coalesceMs && top && top.label === label && t - lastSnapAt < coalesceMs) { lastSnapAt = t; return; }
+    try { undoStack.push({ label: label, json: JSON.stringify(S) }); } catch (e) { return; }
+    if (undoStack.length > 20) undoStack.shift();
+    lastSnapAt = t;
+    renderUndo();
+  }
+  function renderUndo() {
+    var b = $("undoBtn");
+    if (!undoStack.length) { hide(b); return; }
+    var label = undoStack[undoStack.length - 1].label;
+    b.textContent = "Undo " + label;
+    b.title = "Undo " + label;
+    show(b);
+  }
+
+  /* ---------- timesheet import ----------
+     Reads a Waqti export, totals booked hours per person per month, and writes
+     them into the actual-hours grid. Only the months present in the file are
+     touched, so re-importing a corrected export is idempotent. */
+  var IMPORT_FIELDS = [
+    { field: "staffId", canonical: "Staff ID", required: true, aliases: ["staff id", "staffid", "employee id"] },
+    { field: "bookedHours", canonical: "Booked Hours", required: true, aliases: ["booked hours", "hours", "booked"] },
+    { field: "workDay", canonical: "Work Day", required: false, aliases: ["work day", "date", "work date"] },
+    { field: "month", canonical: "Month", required: false, aliases: ["month", "period"] },
+    { field: "name", canonical: "Name", required: false, aliases: ["name", "staff name", "employee", "employee name", "resource", "person", "full name", "staff"] }
+  ];
+  var imp = { buffer: null, fileName: "", mapping: null, staff: null, outside: 0, keys: null };
+
+  function pad2(n) { return String(n).padStart(2, "0"); }
+  function monthFromText(t) {
+    t = String(t === null || t === undefined ? "" : t).trim();
+    if (!t) return null;
+    var m = /^(\d{4})[-\/](\d{1,2})$/.exec(t);
+    if (m) return m[1] + "-" + pad2(+m[2]);
+    m = /^([A-Za-z]{3,})[\s\-\/]*(\d{2,4})$/.exec(t);
+    if (m) {
+      var mi = MONTH_NAMES.indexOf(m[1].slice(0, 3).toLowerCase().replace(/^./, function (c) { return c.toUpperCase(); }));
+      if (mi >= 0) { var y = +m[2]; return (y < 100 ? 2000 + y : y) + "-" + pad2(mi + 1); }
+    }
+    m = /^(\d{1,2})[\-\/](\d{4})$/.exec(t);
+    if (m) return m[2] + "-" + pad2(+m[1]);
+    return null;
+  }
+  // Work Day first (an Excel date serial is unambiguous), then the Month column.
+  // Text dates are read day-first, which is what the Waqti export produces.
+  function monthOfRow(rawWd, txtWd, txtMonth) {
+    // floor, not round: an Excel date-time carries a fractional day, and rounding
+    // 31 Aug 22:30 up to 1 Sep books the hours into the wrong month.
+    if (typeof rawWd === "number" && isFinite(rawWd) && rawWd > 1000) {
+      var d = new Date(Date.UTC(1899, 11, 30) + Math.floor(rawWd) * 86400000);
+      if (!isNaN(d.getTime())) return d.getUTCFullYear() + "-" + pad2(d.getUTCMonth() + 1);
+    }
+    var s = String(txtWd || "").trim();
+    var m = /^(\d{4})-(\d{1,2})-\d{1,2}/.exec(s);
+    if (m) return m[1] + "-" + pad2(+m[2]);
+    m = /^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})/.exec(s);
+    if (m) return m[3] + "-" + pad2(+m[2]);
+    return monthFromText(txtMonth);
+  }
+
+  function importError(msg) { var el = $("parseError"); el.textContent = msg; show(el); }
+
+  function parseTimesheet(mapping) {
+    var wb, sheet;
+    try {
+      wb = RK.xlsx.read(imp.buffer);
+      sheet = RK.xlsx.sheet(wb);
+    } catch (e) {
+      importError("Could not read " + imp.fileName + ": " + e.message + "\nNothing in the tracker has changed.");
+      return;
+    }
+    var res = RK.xlsx.resolve(sheet, IMPORT_FIELDS, mapping);
+    if (res.missing.length) { renderMapper(sheet); return; }
+    var r = res.resolved;
+    if (r.workDay === undefined && r.month === undefined) {
+      importError("The export needs a Work Day or a Month column to place hours into months.\nNothing in the tracker has changed.");
+      return;
+    }
+    hide($("mapper"));
+    hide($("parseError"));
+
+    var staff = {}, undated = 0, keys = {};
+    for (var row = sheet.range.s.r + 1; row <= sheet.range.e.r; row++) {
+      var sid = sheet.txt(row, r.staffId).trim().toUpperCase();
+      if (!sid) continue;
+      var hraw = sheet.rawv(row, r.bookedHours);
+      var h = (typeof hraw === "number") ? hraw : Number(String(hraw === null ? "" : hraw).trim());
+      if (!isFinite(h) || h <= 0) continue;
+      var key = monthOfRow(r.workDay !== undefined ? sheet.rawv(row, r.workDay) : null,
+        r.workDay !== undefined ? sheet.txt(row, r.workDay) : "",
+        r.month !== undefined ? sheet.txt(row, r.month) : "");
+      if (!key) { undated++; continue; }
+      keys[key] = 1;
+      var e = staff[sid] || (staff[sid] = { id: sid, name: "", hours: 0, byMonth: {} });
+      if (!e.name && r.name !== undefined) e.name = sheet.txt(row, r.name).trim();
+      e.hours += h;
+      e.byMonth[key] = (e.byMonth[key] || 0) + h;
+    }
+    if (!Object.keys(staff).length) {
+      importError("No booked hours found in " + imp.fileName + ".\nNothing in the tracker has changed.");
+      return;
+    }
+    imp.mapping = mapping;
+    imp.staff = staff;
+    imp.keys = Object.keys(keys).sort();
+    imp.undated = undated;
+    renderMatch();
+  }
+
+  function renderMapper(sheet) {
+    show($("mapper"));
+    RK.xlsx.renderMapper({
+      headers: sheet.headers, fieldSpecs: IMPORT_FIELDS,
+      fieldsEl: $("mapperFields"), errorEl: $("mapperError"), confirmBtn: $("mapperConfirm"),
+      onConfirm: function (mapping) { parseTimesheet(mapping); }
+    });
+  }
+
+  // Suggest a target for each staff ID: a remembered ID first, then an exact name
+  // match. Someone whose hours all fall outside the project defaults to Skip —
+  // adding them would create a person with nothing to show. Choosing "new"
+  // explicitly still works.
+  function suggestTarget(entry, inRange) {
+    for (var i = 0; i < S.team.length; i++) {
+      var ids = Array.isArray(S.team[i].staffIds) ? S.team[i].staffIds : [];
+      if (ids.indexOf(entry.id) >= 0) return S.team[i].id;
+    }
+    var nm = entry.name.trim().toLowerCase();
+    if (nm) {
+      for (var j = 0; j < S.team.length; j++) {
+        if (String(S.team[j].name || "").trim().toLowerCase() === nm) return S.team[j].id;
+      }
+    }
+    var usable = Object.keys(entry.byMonth).some(function (k) { return inRange[k]; });
+    return (entry.name && usable) ? "__new__" : "__skip__";
+  }
+
+  function renderMatch() {
+    var ms = months(), inRange = {};
+    ms.forEach(function (k) { inRange[k] = 1; });
+    var outside = imp.keys.filter(function (k) { return !inRange[k]; });
+    imp.outside = outside.length;
+
+    $("importPeriod").innerHTML = "Months in the file: <strong>" + imp.keys.map(monthLabel).join(", ") + "</strong>. " +
+      (outside.length
+        ? "<strong>" + outside.map(monthLabel).join(", ") + "</strong> " + (outside.length === 1 ? "falls" : "fall") +
+          " outside this project and will be skipped."
+        : "All inside the project range.") +
+      (imp.undated ? " " + imp.undated + " row" + (imp.undated === 1 ? "" : "s") + " had no readable date and " +
+        (imp.undated === 1 ? "was" : "were") + " skipped." : "");
+
+    var ids = Object.keys(imp.staff).sort();
+    $("matchBody").innerHTML = ids.map(function (id) {
+      var e = imp.staff[id], sel = suggestTarget(e, inRange);
+      var opts = '<option value="__skip__">Skip this person</option>' +
+        '<option value="__new__">Add as a new person</option>' +
+        S.team.map(function (p) {
+          return '<option value="' + esc(p.id) + '"' + (sel === p.id ? " selected" : "") + ">" + esc(p.name || "(unnamed)") + "</option>";
+        }).join("");
+      if (sel === "__new__") opts = opts.replace('value="__new__"', 'value="__new__" selected');
+      if (sel === "__skip__") opts = opts.replace('value="__skip__"', 'value="__skip__" selected');
+      var mCount = Object.keys(e.byMonth).length;
+      return "<tr><td>" + esc(id) + "</td><td>" + esc(e.name || "&mdash;") + "</td>" +
+        '<td class="num">' + (Math.round(e.hours * 10) / 10) + "</td>" +
+        '<td class="num">' + mCount + "</td>" +
+        '<td><select data-sid="' + esc(id) + '" aria-label="Where the hours for ' + esc(id) + " go\">" + opts + "</select></td></tr>";
+    }).join("");
+    $("applyHint").textContent = ids.length + " staff in the file. Hours replace whatever is in those months.";
+    show($("importMatch"));
+  }
+
+  function applyImport() {
+    var sels = $("matchBody").querySelectorAll("select");
+    var ms = months(), idx = {};
+    ms.forEach(function (k, i) { idx[k] = i; });
+
+    snapshot("timesheet import");
+    var byId = {}, added = 0, touched = 0, noRate = 0, merged = 0;
+    S.team.forEach(function (p) { byId[p.id] = p; });
+
+    // Group by destination first. Several staff IDs can point at one person — an
+    // employee and a contractor record, say — and their hours have to add up
+    // rather than the last one written winning.
+    var jobs = {}, order = [];
+    Array.prototype.forEach.call(sels, function (sel) {
+      var sid = sel.getAttribute("data-sid"), target = sel.value, e = imp.staff[sid];
+      if (!e || target === "__skip__") return;
+      var person;
+      if (target === "__new__") {
+        var d = [], z = [];
+        for (var i = 0; i < S.duration; i++) { d.push(0); z.push(0); }
+        person = { id: uid(), name: e.name || sid, role: "", ccy: S.base, rate: 0, hpd: defaultHpd(), days: d, actualHours: z, staffIds: [] };
+        S.team.push(person);
+        byId[person.id] = person;
+        added++;
+      } else {
+        person = byId[target];
+        if (!person) return;
+      }
+      var job = jobs[person.id];
+      if (!job) { job = jobs[person.id] = { person: person, ids: [], byMonth: {} }; order.push(person.id); }
+      job.ids.push(sid);
+      Object.keys(e.byMonth).forEach(function (k) { job.byMonth[k] = (job.byMonth[k] || 0) + e.byMonth[k]; });
+    });
+
+    order.forEach(function (pid) {
+      var job = jobs[pid], person = job.person;
+      if (job.ids.length > 1) merged++;
+      if (!Array.isArray(person.staffIds)) person.staffIds = [];
+      job.ids.forEach(function (sid) { if (person.staffIds.indexOf(sid) < 0) person.staffIds.push(sid); });
+      normDays(person);
+      Object.keys(job.byMonth).forEach(function (k) {
+        if (idx[k] === undefined) return;                       // outside the project range
+        person.actualHours[idx[k]] = Math.round(job.byMonth[k] * 100) / 100;
+        touched++;
+      });
+      if (num(person.rate) <= 0) noRate++;
+    });
+
+    S.daysView = "actual";
+    hide($("importMatch"));
+    hide($("loadedBar"));
+    show($("drop"));
+    imp.staff = null; imp.buffer = null;
+    render(); saveNow();
+    toast("Imported hours into " + touched + " person-months" +
+      (added ? ", added " + added + " new " + (added === 1 ? "person" : "people") : "") +
+      (merged ? ", merged several IDs into " + merged + (merged === 1 ? " person" : " people") : "") +
+      (noRate ? " — " + noRate + " still need a day rate" : ""));
+  }
+
+  /* ---------- persistence ---------- */
+  var saveTimer = null, dirty = false;
+  function status(text, cls) {
+    $("saveState").innerHTML = '<span class="pct-dot ' + (cls || "") + '"></span>' + esc(text);
+  }
+  function stamp() {
+    var t = new Date();
+    return String(t.getHours()).padStart(2, "0") + ":" + String(t.getMinutes()).padStart(2, "0");
+  }
+  function saveNow() {
+    var ok = true;
+    try { localStorage.setItem(LS_KEY, JSON.stringify(S)); } catch (e) { ok = false; }
+    dirty = false;
+    status(ok ? "Autosaved " + stamp() : "Not autosaved here, use Save JSON", ok ? "live" : "warn");
+  }
+  function queueSave() { dirty = true; clearTimeout(saveTimer); saveTimer = setTimeout(saveNow, 400); }
+  window.addEventListener("beforeunload", function (e) { if (dirty) { e.preventDefault(); e.returnValue = ""; } });
+
+  /* ---------- events ---------- */
+  function on(id, ev, fn) { $(id).addEventListener(ev, fn); }
+
+  on("setupToggle", "click", function () { S.setupOpen = !S.setupOpen; renderSetup(); queueSave(); });
+  on("importToggle", "click", function () {
+    var body = $("importBody"), open = body.classList.contains("hidden");
+    if (open) show(body); else hide(body);
+    var b = $("importToggle");
+    b.textContent = open ? "Hide" : "Show";
+    b.setAttribute("aria-expanded", open ? "true" : "false");
+  });
+  on("undoBtn", "click", function () {
+    var last = undoStack.pop();
+    if (!last) return;
+    S = migrate(JSON.parse(last.json));
+    syncInputs(); render(); renderUndo(); saveNow();
+    toast("Undone: " + last.label);
+  });
+  on("setBaseline", "click", function () {
+    if (S.baseline && !confirm("Replace the existing baseline with the current plan?")) return;
+    snapshot(S.baseline ? "re-baseline" : "set baseline");
+    S.baseline = {
+      at: new Date().toISOString(), base: S.base,
+      rates: JSON.parse(JSON.stringify(S.rates)),
+      estimate: num(S.estimate), start: S.start, duration: S.duration,
+      workDays: num(S.workDays), hoursPerDay: num(S.hoursPerDay),
+      team: JSON.parse(JSON.stringify(S.team)), vendors: JSON.parse(JSON.stringify(S.vendors))
+    };
+    render(); saveNow(); toast("Baseline set from the current plan");
+  });
+  on("clearBaseline", "click", function () {
+    if (!confirm("Clear the baseline? The comparison columns go with it.")) return;
+    snapshot("clear baseline");
+    S.baseline = null;
+    render(); saveNow(); toast("Baseline cleared");
+  });
+  on("copyPos", "click", function () { copyCanvas(drawPosition, "position", "Position copied, paste into your slide or email"); });
+  on("copyChart", "click", function () { copyCanvas(drawBurnup, "burnup", "Burn-up copied, paste into your slide or email"); });
+
+  // The name touches no figure, so re-title in place rather than rebuild the model.
+  on("pname", "input", function (e) {
+    S.name = e.target.value;
+    $("headerSub").innerHTML = metaLine();
+    document.title = (S.name || "Project") + " cost tracker";
+    queueSave();
+  });
+  on("estimate", "input", function (e) {
+    S.estimate = Math.max(0, num(e.target.value));
+    var M = renderTop(); renderLedger(M); renderSetup(); queueSave();
+  });
+  on("base", "change", function (e) {
+    // Re-base every rate against the new base so the numbers keep their meaning.
+    // 8dp, not 5: at 5 a there-and-back switch visibly drifted the rates.
+    var nb = e.target.value, div = num(S.rates[nb]) || 1, next = {};
+    CCYS.forEach(function (c) { next[c] = Math.round((num(S.rates[c]) / div) * 1e8) / 1e8; });
+    next[nb] = 1; S.rates = next; S.base = nb;
+    render(); queueSave();
+  });
+  $("fxFields").addEventListener("input", function (e) {
+    var c = e.target.getAttribute("data-fx");
+    if (!c) return;
+    S.rates[c] = num(e.target.value);
+    var M = renderTop(); renderTeam(); renderVendors(M); renderLedger(M); queueSave();
+  });
+  on("start", "change", function (e) { S.start = e.target.value || S.start; render(); queueSave(); });
+  on("duration", "change", function (e) {
+    S.duration = clamp(Math.round(num(e.target.value)) || 1, 1, 60);
+    e.target.value = S.duration; render(); queueSave();
+  });
+  on("today", "change", function (e) { S.today = e.target.value || S.today; render(); queueSave(); });
+  on("wdays", "change", function (e) {
+    S.workDays = clamp(num(e.target.value) || 21, 1, 31);
+    e.target.value = S.workDays; render(); queueSave();
+  });
+  on("hpd", "change", function (e) {
+    S.hoursPerDay = clamp(num(e.target.value) || 8.4, 0.5, 24);
+    e.target.value = S.hoursPerDay; renderSetup(); queueSave();
+  });
+
+  function onTeamEdit(e) {
+    var t = e.target, tr = t.closest("tr");
+    if (!tr) return;
+    var idx = +tr.getAttribute("data-idx");
+    var p = S.team[idx];
+    if (!p) return;
+    var f = t.getAttribute("data-f");
+
+    if (f) {
+      // `min`/`max` on a number input are advisory — a typed value ignores them,
+      // and a negative rate or a fractional hours-per-day silently poisons the cost.
+      if (f === "rate") {
+        p.rate = Math.max(0, Math.round(num(t.value) * 100) / 100);
+        if (e.type === "change") t.value = p.rate.toFixed(2);
+      } else if (f === "hpd") {
+        p.hpd = num(t.value);
+        if (e.type === "change") { p.hpd = clamp(num(t.value) || defaultHpd(), 0.5, 24); t.value = p.hpd; }
+      } else p[f] = t.value;
+      if (f === "hpd" && isActualView()) {
+        var fullRow = num(S.workDays) * hpdOf(p);
+        tr.querySelectorAll("input[data-m]").forEach(function (inp) {
+          inp.setAttribute("style", dayTint(num(inp.value), fullRow));
+        });
+      }
+    } else {
+      var actual = isActualView();
+      var full = actual ? num(S.workDays) * hpdOf(p) : num(S.workDays);
+      var handled = monthCellEdit(t, tr, p[dayField()], actual ? 744 : 31,
+        function (v) { return dayTint(v, full); });
+      if (!handled) return;
+    }
+
+    var M = renderTop(); renderLedger(M);
+    refreshTeamRow(idx);
+    if (f === "ccy") renderFx();
+    queueSave();
+  }
+
+  function onVendorEdit(e) {
+    var t = e.target, tr = t.closest("tr");
+    if (!tr) return;
+    var idx = +tr.getAttribute("data-idx");
+    var v = S.vendors[idx];
+    if (!v) return;
+    var f = t.getAttribute("data-f");
+
+    if (f) {
+      v[f] = (f === "contract") ? clamp(num(t.value), 0, MAX_MONEY) : t.value;
+    } else if (!monthCellEdit(t, tr, v[vendorField()], MAX_MONEY, null)) return;
+
+    var M = renderTop(); renderLedger(M);
+    refreshVendorRow(idx);
+    renderVendorSummary(M);
+    if (f === "ccy") renderFx();
+    queueSave();
+  }
+
+  // Just the head-line figures, so editing a cell never rebuilds the grid under the cursor.
+  function renderVendorSummary(M) {
+    if (!S.vendors.length) return;
+    var contracted = 0, plannedAll = 0, invoicedAll = 0, anyContract = false;
+    M.vendors.forEach(function (vp) {
+      contracted += vp.contract * vp.fx;
+      plannedAll += vp.plannedTotal * vp.fx;
+      invoicedAll += vp.invoiced * vp.fx;
+      if (vp.contract > 0) anyContract = true;
+    });
+    $("vendorSummary").textContent = S.vendors.length + (S.vendors.length === 1 ? " vendor · " : " vendors · ") +
+      (anyContract ? money(contracted) + " contracted · " : "") + money(plannedAll) + " planned · " + money(invoicedAll) + " invoiced";
+  }
+  $("teamBody").addEventListener("input", onTeamEdit);
+  $("teamBody").addEventListener("change", onTeamEdit);
+  $("teamBody").addEventListener("click", function (e) {
+    var d = e.target.getAttribute("data-del");
+    if (d === null) return;
+    snapshot("remove " + (S.team[+d] && S.team[+d].name ? S.team[+d].name : "person"));
+    S.team.splice(+d, 1); render(); queueSave();
+  });
+  on("modePlanned", "click", function () { S.daysView = "planned"; renderTeam(); queueSave(); });
+  on("modeActual", "click", function () { S.daysView = "actual"; renderTeam(); queueSave(); });
+  on("addRow", "click", function () {
+    var d = [], z = [];
+    for (var i = 0; i < S.duration; i++) { d.push(num(S.workDays)); z.push(0); }
+    S.team.push({ id: uid(), name: "New person", role: "", ccy: S.base, rate: 1500, hpd: defaultHpd(), days: d, actualHours: z });
+    render(); queueSave();
+    var el = document.querySelector('#teamBody tr:last-child input[data-f="name"]');
+    if (el) { el.focus(); el.select(); }
+  });
+
+  $("vendorBody").addEventListener("input", onVendorEdit);
+  $("vendorBody").addEventListener("change", onVendorEdit);
+  $("vendorBody").addEventListener("click", function (e) {
+    var d = e.target.getAttribute("data-del");
+    if (d === null) return;
+    snapshot("remove " + (S.vendors[+d] && S.vendors[+d].name ? S.vendors[+d].name : "vendor"));
+    S.vendors.splice(+d, 1); render(); queueSave();
+  });
+  on("modeVendorPlanned", "click", function () { S.vendorView = "planned"; renderVendors(model()); queueSave(); });
+  on("modeVendorInvoiced", "click", function () { S.vendorView = "invoiced"; renderVendors(model()); queueSave(); });
+  on("addVendor", "click", function () {
+    var z = [], y = [];
+    for (var i = 0; i < S.duration; i++) { z.push(0); y.push(0); }
+    S.vendors.push({ id: uid(), name: "New vendor", scope: "", ccy: S.base, contract: 0, planned: z, invoiced: y });
+    render(); queueSave();
+    var el = document.querySelector('#vendorBody tr:last-child input[data-f="name"]');
+    if (el) { el.focus(); el.select(); }
+  });
+
+  // Typing an actual re-renders the numbers in place, so the focused input is never rebuilt.
+  $("ledgerBody").addEventListener("input", function (e) {
+    var m = e.target.getAttribute("data-m");
+    if (m === null) return;
+    var v = e.target.value;
+    if (v === "") delete S.actuals[m]; else S.actuals[m] = num(v);
+    var M = renderTop();
+    var rowsEl = $("ledgerBody").children;
+    M.rows.forEach(function (r) {
+      var tr = rowsEl[r.i];
+      if (!tr) return;
+      var fut = r.i > M.lastActualIdx;
+      var variance = r.hasActual ? r.actual - r.planned : 0;
+      var cumV = fut ? r.cumForecast : r.cumActual;
+      var rem = S.estimate - cumV;
+      var cell = function (c) { return tr.querySelector('[data-c="' + c + '"]'); };
+      var set = function (c, text, cls, html) {
+        var el = cell(c); if (!el) return;
+        if (html) el.innerHTML = text; else el.textContent = text;
+        el.className = "num tnum " + cls;
+      };
+      set("var", r.hasActual ? plainSigned(variance) : "&mdash;",
+        !r.hasActual ? "pct-muted" : (variance > 0 ? "pct-over" : (variance < 0 ? "pct-under" : "")), true);
+      set("cum", plain(cumV), fut ? "pct-muted" : "");
+      set("rem", plain(rem), rem < 0 ? "pct-over" : (fut ? "pct-muted" : ""));
+      set("pct", S.estimate ? pct(cumV / S.estimate) : "0%", fut ? "pct-muted" : "");
+      var inp = tr.querySelector("td.act input");
+      if (inp) inp.placeholder = r.booked ? plain(r.derived) : "plan";
+    });
+    refreshLedgerFoot(M);
+    queueSave();
+  });
+
+  /* ---------- data in / out ---------- */
+  on("expJson", "click", function () {
+    RK.download(slug(S.name) + "-costs.json", JSON.stringify(S, null, 2), "application/json");
+    toast("Saved a copy to your downloads");
+  });
+  on("impJson", "click", function () { $("fileIn").click(); });
+  on("topImport", "click", function () { $("fileIn").click(); });
+  on("fileIn", "change", function (e) {
+    var f = e.target.files && e.target.files[0];
+    if (!f) return;
+    var fr = new FileReader();
+    fr.onload = function () {
+      try {
+        var next = migrate(JSON.parse(fr.result));
+        snapshot("load data");
+        S = next;
+        syncInputs(); render(); saveNow(); toast("Data imported");
+      } catch (err) { toast("That file could not be read as tracker JSON"); }
+    };
+    fr.onerror = function () { toast("Could not read that file"); };
+    fr.readAsText(f);
+    e.target.value = "";
+  });
+  on("expCsv", "click", function () {
+    var M = model();
+    // Only split the columns when there is something to split — a project with no
+    // vendors exports exactly the seven columns it always did.
+    var split = S.vendors.length > 0, bl = M.baseline;
+    var pct100 = function (v) { return S.estimate ? Math.round(v / S.estimate * 100) + "%" : "0%"; };
+    var cell = function (v) {
+      var s = String(v === null || v === undefined ? "" : v);
+      return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+    };
+    var row = function (label, teamP, vendP, planned, actual, vendI, variance, cum, rem, of, base) {
+      return [label].concat(split ? [teamP, vendP] : []).concat([planned, actual])
+        .concat(split ? [vendI] : []).concat([variance, cum, rem, of])
+        .concat(bl ? [base] : []).map(cell).join(",");
+    };
+    var lines = [row("Month", "Team planned", "Vendor planned", "Planned", "Actual", "Vendor invoiced",
+      "Variance", "Cumulative", "Remaining", "% of estimate", "Baseline")];
+
+    var teamTotal = 0, vendTotal = 0, vendBilled = 0;
+    M.rows.forEach(function (r) {
+      var teamP = teamPlannedFor(r.i), vendP = vendorSum("planned", r.i), vendI = vendorSum("invoiced", r.i);
+      teamTotal += teamP; vendTotal += vendP; vendBilled += vendI;
+      var cumV = r.i > M.lastActualIdx ? r.cumForecast : r.cumActual;
+      lines.push(row(r.label, Math.round(teamP), Math.round(vendP), Math.round(r.planned),
+        r.hasActual ? Math.round(r.actual) : "", Math.round(vendI),
+        r.hasActual ? Math.round(r.actual - r.planned) : "",
+        Math.round(cumV), Math.round(S.estimate - cumV), pct100(cumV),
+        bl ? Math.round(num(bl.byKey[r.key])) : ""));
+    });
+    // mirrors the on-screen footer, then the forecast position
+    lines.push(row("Total, forecast", Math.round(teamTotal), Math.round(vendTotal), Math.round(M.totalPlanned),
+      Math.round(M.spent), Math.round(vendBilled), Math.round(M.spent - M.plannedToDate),
+      Math.round(M.eac), Math.round(S.estimate - M.eac), pct100(M.eac),
+      bl ? Math.round(bl.total) : ""));
+
+    RK.download(slug(S.name) + "-ledger-" + S.base + ".csv", lines.join("\n"), "text/csv;charset=utf-8");
+  });
+  on("demoBtn", "click", function () {
+    if (!confirm("Replace what is here with the demo project? Save a JSON first if you need it.")) return;
+    snapshot("load demo");
+    S = migrate(DEMO()); syncInputs(); render(); saveNow(); toast("Demo project loaded");
+  });
+  on("resetBtn", "click", function () {
+    if (!confirm("Clear everything: people, days, actuals and set up? Save a JSON first if you need it.")) return;
+    snapshot("clear all data");
+    S = EMPTY(); syncInputs(); render(); saveNow(); toast("Tracker cleared");
+  });
+
+  RK.upload({
+    drop: $("drop"), fileInput: $("fileInput"), browseBtn: $("browseBtn"), replaceBtn: $("replaceBtn"),
+    onFile: function (buf, filename) {
+      hide($("parseError")); hide($("importMatch")); hide($("mapper"));
+      imp.buffer = buf; imp.fileName = filename; imp.mapping = null;
+      $("loadedName").textContent = filename;
+      hide($("drop")); show($("loadedBar"));
+      parseTimesheet(null);
+    },
+    onError: importError
+  });
+  on("applyImport", "click", applyImport);
+  on("cancelImport", "click", function () {
+    imp.buffer = null; imp.staff = null;
+    hide($("importMatch")); hide($("mapper")); hide($("parseError"));
+    hide($("loadedBar")); show($("drop"));
+  });
+
+  /* ---------- boot ---------- */
+  function syncInputs() {
+    $("pname").value = S.name;
+    $("estimate").value = S.estimate;
+    $("start").value = S.start;
+    $("duration").value = S.duration;
+    $("today").value = S.today;
+    $("wdays").value = S.workDays;
+    $("hpd").value = S.hoursPerDay;
+    document.title = (S.name || "Project") + " cost tracker";
+  }
+  function loadSaved() {
+    try {
+      var raw = localStorage.getItem(LS_KEY) || localStorage.getItem(LEGACY_KEY);  // pre-kit build
+      if (raw) return migrate(JSON.parse(raw));
+    } catch (e) { }
+    return null;
+  }
+  var restored = loadSaved();
+  if (restored) S = restored;
+  syncInputs();
+  render();
+  status("Autosaving to this browser", "live");
+})();
+</script>
+</body>
+</html>

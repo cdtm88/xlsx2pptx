@@ -1,10 +1,11 @@
-# Browser tools for Excel exports
+# Browser tools for delivery reporting
 
-A small collection of **single-file, fully offline** web tools that turn an Excel
-export into something shareable. Each tool is one self-contained `.html` file:
-open it directly from disk in any modern browser. Libraries (SheetJS, and
-PptxGenJS where needed) are vendored inline, so there is no server, no build
-step, and no network requests — your data never leaves the machine.
+A small collection of **single-file, fully offline** web tools for delivery work —
+most turn an Excel export into something shareable. Each tool is one
+self-contained `.html` file: open it directly from disk in any modern browser.
+Libraries (SheetJS, and PptxGenJS where needed) are vendored inline, so there is
+no server, no build step, and no network requests — your data never leaves the
+machine.
 
 ## Tools
 
@@ -13,6 +14,7 @@ step, and no network requests — your data never leaves the machine.
 | [`delivery-plan.html`](delivery-plan.html) | an Excel delivery plan | a PowerPoint Gantt-chart slide (`.pptx`) |
 | [`waqti-exceptions.html`](waqti-exceptions.html) | a Waqti timesheet export + an approved-demand allowlist | a copy-paste correction email |
 | [`waqti-demand-summary.html`](waqti-demand-summary.html) | a Waqti timesheet export | an on-screen per-demand summary of hours by person and feature |
+| [`project-cost-tracker.html`](project-cost-tracker.html) | a team and their day rates, any vendor contracts, and a Waqti timesheet export | a live cost position, burn-up and monthly ledger against the estimate |
 
 Common to all: a single HTML file, inline-vendored libraries, works over `file://`
 with the network off, and brand-consistent styling.
@@ -43,6 +45,52 @@ see who booked how many hours to which feature under each. Copy the selected
 tables to the clipboard (rich HTML plus plain text) for pasting into an email or
 doc. Staff names can be mapped from the same `rules.json` or typed by hand.
 
+## `project-cost-tracker.html`
+
+Track a project's cost position without a spreadsheet. Set the estimate, the
+currency, the months and the working pattern, then list the team — name, role,
+day rate, currency, hours per day — and the days each person works per month.
+Add any **vendors** the same way: scope, currency, an optional contract or PO
+value, and the spend planned per month. Together that is the plan. Enter actual
+spend in the monthly ledger (or book timesheet hours per person and vendor
+invoices per month, and let the tool cost them), and the remainder is forecast
+at the worse of the plan and the observed burn rate.
+
+Vendors are entirely optional. A project with none behaves exactly as if the
+feature were not there — nothing added to the plan, nothing flagged — and a
+vendor left on time and materials (no contract value) is never flagged either.
+Set a contract value and the tool warns when that vendor is forecast past it,
+and raises it to an issue once the invoices themselves go over.
+
+You get six headline figures (estimate, spent, remaining, average burn, forecast
+at completion, headroom or overrun), a budget-consumption meter, plain-English
+alerts — forecast overrun, thin headroom, burn ahead of plan, runway shorter than
+the delivery, vendor past contract — and a burn-up chart that marks the month the
+ceiling is breached.
+The Position panel and the burn-up each copy to the clipboard as a PNG for
+pasting into a slide or an email.
+
+**Cost drivers** ranks every person and vendor by what they contribute to the
+plan, so an overrun points at a line rather than just a number. **Set a baseline**
+once the plan is approved and the tracker keeps score against it: a drift alert,
+a baseline column in the ledger and the CSV, a baseline line on the burn-up, and
+a per-line delta showing exactly what moved — including lines that have since
+been removed. **Undo** covers the destructive things (bulk fills, deletes,
+imports, clearing) rather than every keystroke.
+
+Rather than typing hours in by hand, drop a **Waqti timesheet export** into
+Timesheet import: it totals booked hours per person per month, matches staff to
+the team by remembered Staff ID and then by name, and lets you assign, add or
+skip anyone it cannot place. Only the months in the file are touched, so
+re-importing a corrected export is safe.
+
+Day rates and vendor costs can be in AED, GBP, USD or EUR and are converted at
+rates you set; everything is reported in one base currency. Work autosaves to the browser;
+**Save JSON** is the copy to keep, **Load data** reads it back anywhere (files
+from every earlier version of the tracker still load), and **Export ledger CSV**
+gives you the monthly table. No file to upload — start with **Load demo project**
+for a look around.
+
 ---
 
 ## Building (for contributors)
@@ -67,6 +115,7 @@ rules-JSON compatibility/versioning policy.
 - `delivery-plan.html` — delivery-plan to PPTX tool
 - `waqti-exceptions.html` — timesheet exceptions to email tool
 - `waqti-demand-summary.html` — timesheet demand summary (view online)
+- `project-cost-tracker.html` — project cost position, burn-up and monthly ledger
 - `framework/` — the shared Report Kit + the inliner (`build.py`)
 - `reports/` — the `*.src.html` sources the tools are built from
 - `assets/` — logo variants, favicon, and the blank delivery-plan Excel template
