@@ -65,7 +65,9 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 .pct-meter-top{display:flex;justify-content:space-between;align-items:baseline;gap:1rem;flex-wrap:wrap;
   font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--mid);margin-bottom:.45rem}
 .pct-bar{position:relative;height:32px;background:var(--light-grey);border:1px solid var(--line);border-radius:8px;overflow:hidden}
-.pct-bar .seg{position:absolute;top:0;bottom:0;left:0}
+/* NB: not `.seg` — that is the kit's segmented control, and its border,
+   padding and radius would break each bar segment into a rounded pill. */
+.pct-bar .pct-seg{position:absolute;top:0;bottom:0;left:0;border:0;padding:0;border-radius:0}
 .pct-bar .spent{background:var(--teal-dark)}
 .pct-bar .fcast{background:repeating-linear-gradient(135deg,#A9BFC2 0 6px,#CBD8DA 6px 12px)}
 .pct-bar .over{background:repeating-linear-gradient(135deg,#C0392B 0 6px,#9E2E22 6px 12px)}
@@ -235,9 +237,9 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     <div class="pct-meter">
       <div class="pct-meter-top"><span>Budget consumption</span><span id="meterPct"></span></div>
       <div class="pct-bar">
-        <div class="seg spent" id="segSpent"></div>
-        <div class="seg fcast" id="segFcast"></div>
-        <div class="seg over" id="segOver"></div>
+        <div class="pct-seg spent" id="segSpent"></div>
+        <div class="pct-seg fcast" id="segFcast"></div>
+        <div class="pct-seg over" id="segOver"></div>
         <div class="tick" id="tickEstimate" title="Total estimate"></div>
       </div>
       <div class="pct-legend">
@@ -1496,16 +1498,36 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
   });
   on("expCsv", "click", function () {
     var M = model();
-    var lines = [["Month", "Planned", "Actual", "Variance", "Cumulative", "Remaining", "% of estimate"].join(",")];
+    // Only split the columns when there is something to split — a project with no
+    // vendors exports exactly the seven columns it always did.
+    var split = S.vendors.length > 0;
+    var pct100 = function (v) { return S.estimate ? Math.round(v / S.estimate * 100) + "%" : "0%"; };
+    var cell = function (v) {
+      var s = String(v === null || v === undefined ? "" : v);
+      return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+    };
+    var row = function (label, teamP, vendP, planned, actual, vendI, variance, cum, rem, of) {
+      return [label].concat(split ? [teamP, vendP] : []).concat([planned, actual])
+        .concat(split ? [vendI] : []).concat([variance, cum, rem, of]).map(cell).join(",");
+    };
+    var lines = [row("Month", "Team planned", "Vendor planned", "Planned", "Actual", "Vendor invoiced",
+      "Variance", "Cumulative", "Remaining", "% of estimate")];
+
+    var teamTotal = 0, vendTotal = 0, vendBilled = 0;
     M.rows.forEach(function (r) {
-      var fut = r.i > M.lastActualIdx;
-      var cumV = fut ? r.cumForecast : r.cumActual;
-      lines.push([r.label, Math.round(r.planned), r.hasActual ? Math.round(r.actual) : "",
-        r.hasActual ? Math.round(r.actual - r.planned) : "", Math.round(cumV), Math.round(S.estimate - cumV),
-        S.estimate ? Math.round(cumV / S.estimate * 100) + "%" : "0%"].join(","));
+      var teamP = teamPlannedFor(r.i), vendP = vendorSum("planned", r.i), vendI = vendorSum("invoiced", r.i);
+      teamTotal += teamP; vendTotal += vendP; vendBilled += vendI;
+      var cumV = r.i > M.lastActualIdx ? r.cumForecast : r.cumActual;
+      lines.push(row(r.label, Math.round(teamP), Math.round(vendP), Math.round(r.planned),
+        r.hasActual ? Math.round(r.actual) : "", Math.round(vendI),
+        r.hasActual ? Math.round(r.actual - r.planned) : "",
+        Math.round(cumV), Math.round(S.estimate - cumV), pct100(cumV)));
     });
-    lines.push(["Forecast at completion", "", "", "", Math.round(M.eac), Math.round(S.estimate - M.eac),
-      S.estimate ? Math.round(M.eac / S.estimate * 100) + "%" : "0%"].join(","));
+    // mirrors the on-screen footer, then the forecast position
+    lines.push(row("Total, forecast", Math.round(teamTotal), Math.round(vendTotal), Math.round(M.totalPlanned),
+      Math.round(M.spent), Math.round(vendBilled), Math.round(M.spent - M.plannedToDate),
+      Math.round(M.eac), Math.round(S.estimate - M.eac), pct100(M.eac)));
+
     RK.download(slug(S.name) + "-ledger-" + S.base + ".csv", lines.join("\n"), "text/csv;charset=utf-8");
   });
   on("demoBtn", "click", function () {
