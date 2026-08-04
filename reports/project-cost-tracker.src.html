@@ -492,11 +492,11 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 (function () {
   "use strict";
   var $ = RK.$, esc = RK.esc, show = RK.show, hide = RK.hide;
-  var VERSION = "v1.1.0";
+  var VERSION = "v1.2.1";
   var LS_KEY = "project-cost-tracker:v1";
   var LEGACY_KEY = "project-cost-tracker-v3";   // key used by the pre-Report-Kit build
   var CCYS = ["AED", "GBP", "USD", "EUR"];
-  var STATE_VERSION = 7;
+  var STATE_VERSION = 8;
   var MAX_MONEY = 1e12;
   $("version").textContent = VERSION;
 
@@ -580,8 +580,9 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     if (!o || typeof o !== "object") return d;
     var s = Object.assign(d, o);
     s.duration = clamp(Math.round(num(s.duration)) || 12, 1, 60);
-    s.workDays = num(s.workDays) || 21;
-    s.hoursPerDay = num(s.hoursPerDay) || 8.4;
+    s.workDays = clamp(num(s.workDays) || 21, 1, 31);
+    s.hoursPerDay = clamp(num(s.hoursPerDay) || 8.4, 0.5, 24);
+    s.estimate = Math.max(0, num(s.estimate));
     if (!s.rates) s.rates = d.rates;
 
     var oldRates = Object.assign({ INR: 0.044, SAR: 0.98 }, o.rates || {});
@@ -610,8 +611,14 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
           for (var i = 1; i <= s.duration; i++) q.days.push(i >= from && i <= to ? flat : 0);
         }
       }
-      q.hpd = num(q.hpd) > 0 ? num(q.hpd) : num(s.hoursPerDay);
-      if (q.staffId !== undefined) q.staffId = String(q.staffId).trim().toUpperCase();
+      q.hpd = clamp(num(q.hpd) > 0 ? num(q.hpd) : num(s.hoursPerDay), 0.5, 24);
+      q.rate = Math.max(0, q.rate);
+      // v8: one person can answer to several timesheet IDs (employee + contractor
+      // records), so the single staffId became a list.
+      var ids = Array.isArray(q.staffIds) ? q.staffIds : (q.staffId ? [q.staffId] : []);
+      q.staffIds = ids.map(function (x) { return String(x).trim().toUpperCase(); })
+        .filter(function (x, i, a) { return x && a.indexOf(x) === i; });
+      delete q.staffId;
       if (!Array.isArray(q.actualHours)) {
         q.actualHours = Array.isArray(q.actualDays)
           ? q.actualDays.map(function (v) { return Math.round(num(v) * q.hpd * 100) / 100; })
@@ -854,12 +861,16 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     b.setAttribute("aria-expanded", open ? "true" : "false");
   }
 
-  function renderMeta(M) {
+  // Derivable from state alone, so retitling never needs the model rebuilt.
+  function metaLine() {
     var ms = months();
     var period = ms.length ? monthLabel(ms[0]) + " to " + monthLabel(ms[ms.length - 1]) + " · " + S.duration + " months" : "";
     var fte = S.team.reduce(function (s, p) { return s + totalDays(p); }, 0) / Math.max(1, S.duration * num(S.workDays));
-    $("headerSub").innerHTML = esc(S.name || "Untitled project") + " &middot; " + esc(period) +
+    return esc(S.name || "Untitled project") + " &middot; " + esc(period) +
       " &middot; " + S.team.length + " people &middot; " + (Math.round(fte * 10) / 10) + " avg FTE";
+  }
+  function renderMeta(M) {
+    $("headerSub").innerHTML = metaLine();
     document.title = (S.name || "Project") + " cost tracker";
     $("posHint").textContent = M.lastActualIdx < 0
       ? "No actuals yet, showing the plan."
@@ -961,17 +972,19 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     }
     // Baseline drift. Only ever present because someone chose to set a baseline.
     if (M.baseline) {
-      var moved = M.totalPlanned - M.baseline.total;
-      var estMoved = S.estimate - M.baseline.estimate;
+      // Round once and use it for the heading too: sub-currency-unit drift used to
+      // title this "Plan has grown" over a body reading "the plan is unchanged".
+      var moved = Math.round(M.totalPlanned - M.baseline.total);
+      var estMoved = Math.round(S.estimate - M.baseline.estimate);
       var big = M.baseline.total > 0 && Math.abs(moved) / M.baseline.total > 0.02;
-      if (big || Math.round(estMoved) !== 0) {
+      if (big || estMoved !== 0) {
         out.push([moved > 0 && big ? "warn" : "info",
           moved > 0 ? "Plan has grown since the baseline" : (moved < 0 ? "Plan has shrunk since the baseline" : "Estimate has moved since the baseline"),
-          (Math.round(moved) !== 0
+          (moved !== 0
             ? "The plan is " + money(Math.abs(moved)) + " " + (moved > 0 ? "above" : "below") + " the baseline set on " +
               baselineDate(M.baseline.at) + ", " + pct(M.baseline.total ? Math.abs(moved) / M.baseline.total : 0) + "."
             : "The plan is unchanged since the baseline set on " + baselineDate(M.baseline.at) + ".") +
-          (Math.round(estMoved) !== 0 ? " The estimate itself has moved by " + moneySigned(estMoved) + "." : "") +
+          (estMoved !== 0 ? " The estimate itself has moved by " + moneySigned(estMoved) + "." : "") +
           " Cost drivers below shows which lines moved."]);
       }
     }
@@ -989,7 +1002,6 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     }).join("");
   }
 
-  // A "nice" axis: at most 7 gridlines on a 1/2/2.5/5 x 10^n step.
   // Cumulative baseline plan across the current month range, or null.
   function baselineSeries(M) {
     if (!M.baseline) return null;
@@ -997,6 +1009,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     return M.rows.map(function (r) { c += num(M.baseline.byKey[r.key]); return c; });
   }
 
+  // A "nice" axis: at most 7 gridlines on a 1/2/2.5/5 x 10^n step.
   function chartScale(M) {
     var n = M.rows.length;
     var bl = baselineSeries(M);
@@ -1623,8 +1636,10 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
   // Work Day first (an Excel date serial is unambiguous), then the Month column.
   // Text dates are read day-first, which is what the Waqti export produces.
   function monthOfRow(rawWd, txtWd, txtMonth) {
+    // floor, not round: an Excel date-time carries a fractional day, and rounding
+    // 31 Aug 22:30 up to 1 Sep books the hours into the wrong month.
     if (typeof rawWd === "number" && isFinite(rawWd) && rawWd > 1000) {
-      var d = new Date(Date.UTC(1899, 11, 30) + Math.round(rawWd) * 86400000);
+      var d = new Date(Date.UTC(1899, 11, 30) + Math.floor(rawWd) * 86400000);
       if (!isNaN(d.getTime())) return d.getUTCFullYear() + "-" + pad2(d.getUTCMonth() + 1);
     }
     var s = String(txtWd || "").trim();
@@ -1699,7 +1714,8 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
   // explicitly still works.
   function suggestTarget(entry, inRange) {
     for (var i = 0; i < S.team.length; i++) {
-      if (String(S.team[i].staffId || "").toUpperCase() === entry.id) return S.team[i].id;
+      var ids = Array.isArray(S.team[i].staffIds) ? S.team[i].staffIds : [];
+      if (ids.indexOf(entry.id) >= 0) return S.team[i].id;
     }
     var nm = entry.name.trim().toLowerCase();
     if (nm) {
@@ -1751,9 +1767,13 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     ms.forEach(function (k, i) { idx[k] = i; });
 
     snapshot("timesheet import");
-    var byId = {}, added = 0, touched = 0, noRate = 0;
+    var byId = {}, added = 0, touched = 0, noRate = 0, merged = 0;
     S.team.forEach(function (p) { byId[p.id] = p; });
 
+    // Group by destination first. Several staff IDs can point at one person — an
+    // employee and a contractor record, say — and their hours have to add up
+    // rather than the last one written winning.
+    var jobs = {}, order = [];
     Array.prototype.forEach.call(sels, function (sel) {
       var sid = sel.getAttribute("data-sid"), target = sel.value, e = imp.staff[sid];
       if (!e || target === "__skip__") return;
@@ -1761,18 +1781,29 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
       if (target === "__new__") {
         var d = [], z = [];
         for (var i = 0; i < S.duration; i++) { d.push(0); z.push(0); }
-        person = { id: uid(), name: e.name || sid, role: "", ccy: S.base, rate: 0, hpd: defaultHpd(), days: d, actualHours: z };
+        person = { id: uid(), name: e.name || sid, role: "", ccy: S.base, rate: 0, hpd: defaultHpd(), days: d, actualHours: z, staffIds: [] };
         S.team.push(person);
+        byId[person.id] = person;
         added++;
       } else {
         person = byId[target];
         if (!person) return;
       }
-      person.staffId = sid;
+      var job = jobs[person.id];
+      if (!job) { job = jobs[person.id] = { person: person, ids: [], byMonth: {} }; order.push(person.id); }
+      job.ids.push(sid);
+      Object.keys(e.byMonth).forEach(function (k) { job.byMonth[k] = (job.byMonth[k] || 0) + e.byMonth[k]; });
+    });
+
+    order.forEach(function (pid) {
+      var job = jobs[pid], person = job.person;
+      if (job.ids.length > 1) merged++;
+      if (!Array.isArray(person.staffIds)) person.staffIds = [];
+      job.ids.forEach(function (sid) { if (person.staffIds.indexOf(sid) < 0) person.staffIds.push(sid); });
       normDays(person);
-      Object.keys(e.byMonth).forEach(function (k) {
+      Object.keys(job.byMonth).forEach(function (k) {
         if (idx[k] === undefined) return;                       // outside the project range
-        person.actualHours[idx[k]] = Math.round(e.byMonth[k] * 100) / 100;
+        person.actualHours[idx[k]] = Math.round(job.byMonth[k] * 100) / 100;
         touched++;
       });
       if (num(person.rate) <= 0) noRate++;
@@ -1786,6 +1817,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     render(); saveNow();
     toast("Imported hours into " + touched + " person-months" +
       (added ? ", added " + added + " new " + (added === 1 ? "person" : "people") : "") +
+      (merged ? ", merged several IDs into " + merged + (merged === 1 ? " person" : " people") : "") +
       (noRate ? " — " + noRate + " still need a day rate" : ""));
   }
 
@@ -1846,9 +1878,15 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
   on("copyPos", "click", function () { copyCanvas(drawPosition, "position", "Position copied, paste into your slide or email"); });
   on("copyChart", "click", function () { copyCanvas(drawBurnup, "burnup", "Burn-up copied, paste into your slide or email"); });
 
-  on("pname", "input", function (e) { S.name = e.target.value; renderMeta(model()); queueSave(); });
+  // The name touches no figure, so re-title in place rather than rebuild the model.
+  on("pname", "input", function (e) {
+    S.name = e.target.value;
+    $("headerSub").innerHTML = metaLine();
+    document.title = (S.name || "Project") + " cost tracker";
+    queueSave();
+  });
   on("estimate", "input", function (e) {
-    S.estimate = num(e.target.value);
+    S.estimate = Math.max(0, num(e.target.value));
     var M = renderTop(); renderLedger(M); renderSetup(); queueSave();
   });
   on("base", "change", function (e) {
@@ -1889,10 +1927,15 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     var f = t.getAttribute("data-f");
 
     if (f) {
+      // `min`/`max` on a number input are advisory — a typed value ignores them,
+      // and a negative rate or a fractional hours-per-day silently poisons the cost.
       if (f === "rate") {
-        p.rate = Math.round(num(t.value) * 100) / 100;
+        p.rate = Math.max(0, Math.round(num(t.value) * 100) / 100);
         if (e.type === "change") t.value = p.rate.toFixed(2);
-      } else p[f] = (f === "hpd") ? num(t.value) : t.value;
+      } else if (f === "hpd") {
+        p.hpd = num(t.value);
+        if (e.type === "change") { p.hpd = clamp(num(t.value) || defaultHpd(), 0.5, 24); t.value = p.hpd; }
+      } else p[f] = t.value;
       if (f === "hpd" && isActualView()) {
         var fullRow = num(S.workDays) * hpdOf(p);
         tr.querySelectorAll("input[data-m]").forEach(function (inp) {
