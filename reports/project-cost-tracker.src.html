@@ -122,6 +122,15 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 /* absorbs leftover width on a wide screen so the month cells stay tight */
 .pct-matrix .spacer{width:100%;padding:0}
 
+/* vendor matrix — same skeleton as the team matrix, money cells instead of days */
+.pct-vendors td.mcell input{width:82px;text-align:right}
+.pct-vendors td.allcell input{width:82px;text-align:right}
+.pct-vendors .c-scope input{min-width:130px}
+.pct-vendors .c-contract input{min-width:96px;text-align:right}
+.pct-vendors th.mhead{text-align:right;padding-right:.5rem}
+/* a row total past its contract must beat the teal `td.money` rule above */
+.pct-matrix td.money.pct-over{color:#A8321F}
+
 /* monthly ledger */
 .pct-ledger{min-width:820px}
 .pct-ledger td.act input{width:120px;text-align:right}
@@ -285,12 +294,37 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     </div>
   </section>
 
+  <!-- ============ VENDORS ============ -->
+  <section class="card">
+    <div class="card-head">
+      <div>
+        <span class="title">Vendors</span>
+        <span class="sub" id="vendorSummary"></span>
+      </div>
+      <div class="controls-row no-print">
+        <span class="seg hidden" id="vendorModes">
+          <button type="button" id="modeVendorPlanned">Planned</button>
+          <button type="button" id="modeVendorInvoiced">Invoiced</button>
+        </span>
+        <button type="button" class="mini-btn" id="addVendor">Add vendor</button>
+      </div>
+    </div>
+    <div class="sub" id="vendorNote" style="margin-bottom:.7rem;"></div>
+    <div class="table-wrap">
+      <table class="data pct-matrix pct-vendors" id="vendorTable">
+        <thead><tr id="vendorHead"></tr></thead>
+        <tbody id="vendorBody"></tbody>
+        <tfoot><tr id="vendorFoot"></tr></tfoot>
+      </table>
+    </div>
+  </section>
+
   <!-- ============ MONTHLY LEDGER ============ -->
   <section class="card">
     <div class="card-head">
       <div>
         <span class="title">Monthly ledger</span>
-        <span class="sub">Blank uses timesheet hours where entered, otherwise the plan. Grey figures are forecast.</span>
+        <span class="sub">Blank uses timesheet hours and vendor invoices where entered, otherwise the plan. Grey figures are forecast.</span>
       </div>
     </div>
     <div class="table-wrap">
@@ -365,11 +399,12 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 (function () {
   "use strict";
   var $ = RK.$, esc = RK.esc, show = RK.show, hide = RK.hide;
-  var VERSION = "v1.0.0";
+  var VERSION = "v1.1.0";
   var LS_KEY = "project-cost-tracker:v1";
   var LEGACY_KEY = "project-cost-tracker-v3";   // key used by the pre-Report-Kit build
   var CCYS = ["AED", "GBP", "USD", "EUR"];
-  var STATE_VERSION = 5;
+  var STATE_VERSION = 6;
+  var MAX_MONEY = 1e12;
   $("version").textContent = VERSION;
 
   /* ---------- small helpers ---------- */
@@ -388,13 +423,24 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
   function slug(s) { return String(s || "project").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) || "project"; }
 
   /* ---------- state ---------- */
-  function DEMO() {
+  // Neutral defaults. migrate() fills gaps from here, so a field a file predates
+  // resolves to "none", never to whatever the demo happens to have.
+  function BASE() {
+    var now = monthKey(new Date());
     return {
       v: STATE_VERSION,
       name: "Untitled project", base: "AED",
       rates: { AED: 1, GBP: 4.85, USD: 3.6725, EUR: 4.00 },
-      estimate: 1650000, start: "2026-01", duration: 12, today: "2026-08",
-      workDays: 21, hoursPerDay: 8.4, setupOpen: false, daysView: "planned",
+      estimate: 0, start: now, duration: 12, today: now,
+      workDays: 21, hoursPerDay: 8.4, setupOpen: true, daysView: "planned", vendorView: "planned",
+      team: [], vendors: [], actuals: {}
+    };
+  }
+  function EMPTY() { return BASE(); }
+
+  function DEMO() {
+    return Object.assign(BASE(), {
+      estimate: 2100000, start: "2026-01", duration: 12, today: "2026-08", setupOpen: false,
       team: [
         { id: uid(), name: "Tech lead", role: "Engineering", ccy: "AED", rate: 2000, days: [21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 10] },
         { id: uid(), name: "Engineer 1", role: "Engineering", ccy: "AED", rate: 1500, days: [21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21] },
@@ -402,16 +448,21 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
         { id: uid(), name: "QA", role: "Quality", ccy: "AED", rate: 1200, days: [0, 0, 10, 10, 10, 10, 10, 10, 10, 21, 21, 21] },
         { id: uid(), name: "Delivery lead", role: "Delivery", ccy: "GBP", rate: 650, days: [5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5], hpd: 8 }
       ],
-      actuals: { 0: 91000, 1: 124000, 2: 131000, 3: 138000, 4: 142000, 5: 139000, 6: 145000 }
-    };
-  }
-  function EMPTY() {
-    var d = DEMO(), now = monthKey(new Date());
-    d.name = "Untitled project"; d.estimate = 0;
-    d.start = now; d.today = now;
-    d.setupOpen = true; d.daysView = "planned";
-    d.team = []; d.actuals = {};
-    return d;
+      vendors: [
+        {
+          id: uid(), name: "Cloud hosting", scope: "Infrastructure", ccy: "AED", contract: 240000,
+          planned: [20000, 20000, 20000, 20000, 20000, 20000, 20000, 20000, 20000, 20000, 20000, 20000],
+          invoiced: [18000, 19500, 21400, 22000, 22800, 23100, 23600, 0, 0, 0, 0, 0]
+        },
+        {
+          id: uid(), name: "Security testing", scope: "Assurance", ccy: "GBP", contract: 18000,
+          planned: [0, 0, 0, 0, 0, 0, 0, 0, 9000, 0, 9000, 0],
+          invoiced: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        }
+      ],
+      // all-in monthly totals: the team figures above plus the vendor invoices
+      actuals: { 0: 109000, 1: 143500, 2: 152400, 3: 160000, 4: 164800, 5: 162100, 6: 168600 }
+    });
   }
 
   var S = EMPTY();
@@ -435,7 +486,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
        v4     per-month `days` + `actualDays`     v5  per-month `days` + `actualHours`
      Retired currencies (INR, SAR) are converted into the base rate and dropped. */
   function migrate(o) {
-    var d = DEMO();
+    var d = BASE();
     if (!o || typeof o !== "object") return d;
     var s = Object.assign(d, o);
     s.duration = clamp(Math.round(num(s.duration)) || 12, 1, 60);
@@ -478,6 +529,30 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
       delete q.cost; delete q.alloc; delete q.from; delete q.to; delete q.actualDays;
       return q;
     });
+
+    // v6 added vendors. Anything older simply has none — that is a valid project.
+    s.vendors = (Array.isArray(o.vendors) ? o.vendors : []).map(function (x) {
+      var w = Object.assign({}, x);
+      if (!w.id) w.id = uid();
+      w.name = typeof w.name === "string" ? w.name : "";
+      w.scope = typeof w.scope === "string" ? w.scope : "";
+      w.planned = Array.isArray(w.planned) ? w.planned.map(num) : [];
+      w.invoiced = Array.isArray(w.invoiced) ? w.invoiced.map(num) : [];
+      if (CCYS.indexOf(w.ccy) < 0) {   // retired currency: convert into base, then drop it
+        var vr = num(oldRates[w.ccy]) || 0, vbase = num(s.rates[s.base]) || 1;
+        if (vr > 0) {
+          var conv = function (n) { return Math.round(n * vr / vbase); };
+          w.contract = conv(num(w.contract));
+          w.planned = w.planned.map(conv);
+          w.invoiced = w.invoiced.map(conv);
+        }
+        w.ccy = s.base;
+      }
+      w.contract = Math.max(0, num(w.contract));
+      return w;
+    });
+    if (["planned", "invoiced"].indexOf(s.vendorView) < 0) s.vendorView = "planned";
+
     s.v = STATE_VERSION;
     return s;
   }
@@ -500,7 +575,18 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     p.actualHours = b.map(function (v) { return clamp(num(v), 0, 744); });
     return p.days;
   }
-  function normalise() { S.team.forEach(normDays); }
+  // Vendor rows pad with zero rather than the last value — a contract does not
+  // extend itself just because the project got longer.
+  function normVendor(v) {
+    ["planned", "invoiced"].forEach(function (f) {
+      var a = Array.isArray(v[f]) ? v[f].slice(0, S.duration) : [];
+      while (a.length < S.duration) a.push(0);
+      v[f] = a.map(function (n) { return clamp(num(n), 0, MAX_MONEY); });
+    });
+    v.contract = clamp(num(v.contract), 0, MAX_MONEY);
+    return v;
+  }
+  function normalise() { S.team.forEach(normDays); S.vendors.forEach(normVendor); }
 
   function unitDays(p, field, v) { return field === "actualHours" ? num(v) / hpdOf(p) : num(v); }
   function costOf(p, field, i) { return num(p.rate) * unitDays(p, field, p[field][i]) * fxOf(p.ccy); }
@@ -509,19 +595,51 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
   function tsHas(i) { return S.team.some(function (p) { return num(p.actualHours[i]) > 0; }); }
   function tsCost(i) { return S.team.reduce(function (s, p) { return s + costOf(p, "actualHours", i); }, 0); }
   function months() { var o = []; for (var i = 0; i < S.duration; i++) o.push(addMonths(S.start, i)); return o; }
-  function plannedFor(i) { return S.team.reduce(function (s, p) { return s + costOf(p, "days", i); }, 0); }
   function currentIndex() { return clamp(monthDiff(S.start, S.today), -1, S.duration); }
+
+  /* Vendors. A project with none is the normal case: every one of these returns
+     zero / false, so nothing downstream changes and nothing is flagged. */
+  function isInvoicedView() { return S.vendorView === "invoiced"; }
+  function vendorField() { return isInvoicedView() ? "invoiced" : "planned"; }
+  function vendorIn(v, field, i) { return num(v[field][i]) * fxOf(v.ccy); }
+  function vendorTotalIn(v, field) { var t = 0; for (var i = 0; i < S.duration; i++) t += vendorIn(v, field, i); return t; }
+  function vendorSum(field, i) { return S.vendors.reduce(function (s, v) { return s + vendorIn(v, field, i); }, 0); }
+  function vendorHasInvoice(i) { return S.vendors.some(function (v) { return num(v.invoiced[i]) > 0; }); }
+
+  function teamPlannedFor(i) { return S.team.reduce(function (s, p) { return s + costOf(p, "days", i); }, 0); }
+  function plannedFor(i) { return teamPlannedFor(i) + vendorSum("planned", i); }
+  // What the month costs before anyone types over it: timesheet hours + vendor invoices.
+  function derivedFor(i) { return tsCost(i) + vendorSum("invoiced", i); }
+  function hasDerived(i) { return tsHas(i) || vendorHasInvoice(i); }
+
+  // Per-vendor contract position, in the vendor's own currency (fx supplied for display).
+  // Forecast = invoiced to date + whatever is still planned after the last reported month.
+  function vendorPositions(lastActualIdx) {
+    return S.vendors.map(function (v) {
+      var invoiced = 0, plannedTotal = 0, plannedRemaining = 0;
+      for (var i = 0; i < S.duration; i++) {
+        invoiced += num(v.invoiced[i]);
+        plannedTotal += num(v.planned[i]);
+        if (i > lastActualIdx) plannedRemaining += num(v.planned[i]);
+      }
+      var contract = num(v.contract), forecast = invoiced + plannedRemaining;
+      return {
+        vendor: v, fx: fxOf(v.ccy), invoiced: invoiced, plannedTotal: plannedTotal, forecast: forecast,
+        contract: contract, over: contract > 0 ? forecast - contract : 0, overInvoiced: contract > 0 && invoiced > contract
+      };
+    });
+  }
 
   // The whole reporting model: per-month rows plus the headline numbers.
   function model() {
     normalise();
     var rows = months().map(function (k, i) {
       var manual = Object.prototype.hasOwnProperty.call(S.actuals, i) && S.actuals[i] !== "" && S.actuals[i] !== null;
-      var ts = tsHas(i);
+      var booked = hasDerived(i);
       return {
         i: i, key: k, label: monthLabel(k), planned: plannedFor(i),
-        actual: manual ? num(S.actuals[i]) : (ts ? tsCost(i) : 0),
-        hasActual: manual || ts, manual: manual, ts: ts, tsCost: ts ? tsCost(i) : 0
+        actual: manual ? num(S.actuals[i]) : (booked ? derivedFor(i) : 0),
+        hasActual: manual || booked, manual: manual, booked: booked, derived: booked ? derivedFor(i) : 0
       };
     });
     var cum = 0; rows.forEach(function (r) { cum += r.hasActual ? r.actual : 0; r.cumActual = cum; });
@@ -552,7 +670,8 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
       eac: eac, eacPlan: spent + remainingPlanned, variance: S.estimate - eac,
       burnVariance: plannedToDate ? (spent - plannedToDate) / plannedToDate : 0,
       lastActualIdx: lastActualIdx, remainingMonths: remainingMonths, breachMonth: breachMonth,
-      runwayMonths: burn ? (S.estimate - spent) / burn : Infinity
+      runwayMonths: burn ? (S.estimate - spent) / burn : Infinity,
+      vendors: vendorPositions(lastActualIdx)
     };
   }
 
@@ -561,7 +680,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     setFmt(S.base);
     var M = model();
     renderMeta(M); renderKpis(M); renderMeter(M); renderAlerts(M); renderChart(M);
-    renderFx(); renderTeam(); renderLedger(M); renderSetup();
+    renderFx(); renderTeam(); renderVendors(M); renderLedger(M); renderSetup();
     $("thActual").textContent = "Actual (" + S.base + ")";
     $("thPlanned").textContent = "Planned (" + S.base + ")";
     return M;
@@ -643,10 +762,11 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 
   function alertList(M) {
     var out = [], over = -M.variance;
-    var zero = S.team.filter(function (p) { return fxOf(p.ccy) <= 0; });
+    var zero = S.team.concat(S.vendors).filter(function (e) { return fxOf(e.ccy) <= 0; });
     if (zero.length) {
-      var ccys = zero.map(function (p) { return p.ccy; }).filter(function (c, i, a) { return a.indexOf(c) === i; });
-      out.push(["issue", "Missing exchange rate", "No rate set for " + ccys.join(", ") + ". Those people are costing zero until you set one."]);
+      var ccys = zero.map(function (e) { return e.ccy; }).filter(function (c, i, a) { return a.indexOf(c) === i; });
+      out.push(["issue", "Missing exchange rate", "No rate set for " + ccys.join(", ") + ". Anything priced in " +
+        (ccys.length > 1 ? "those currencies is" : "that currency is") + " costing zero until you set one."]);
     }
     if (M.lastActualIdx < 0) out.push(["info", "Nothing booked yet", "Enter actual spend in the ledger below and the forecast will replace the plan."]);
     if (M.variance < 0) {
@@ -666,6 +786,19 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
         "Actuals to date are " + money(Math.abs(M.spent - M.plannedToDate)) + " " + (ahead ? "above" : "below") + " plan, " +
         pct(Math.abs(M.burnVariance)) + " variance." +
         (ahead ? " Check whether scope moved or rates changed." : " Check for unbooked time or late invoices.")]);
+    }
+    // Vendor contracts. Silent unless a vendor exists AND has a contract value set,
+    // so projects with no vendors — or vendors on time and materials — see nothing.
+    var breached = M.vendors.filter(function (vp) { return vp.contract > 0 && vp.over > 0; });
+    if (breached.length) {
+      var hard = breached.some(function (vp) { return vp.overInvoiced; });
+      out.push([hard ? "issue" : "warn",
+        hard ? "Vendor has invoiced above its contract" : "Vendor forecast exceeds its contract",
+        breached.map(function (vp) {
+          return vp.vendor.name + " " + money(vp.forecast * vp.fx) + " against " + money(vp.contract * vp.fx) +
+            ", " + money(vp.over * vp.fx) + " over";
+        }).join(" · ") + ". " +
+        (hard ? "Check the purchase order before the next invoice is approved." : "Raise a variation or re-phase the remaining work.")]);
     }
     if (isFinite(M.runwayMonths) && M.runwayMonths < M.remainingMonths) {
       out.push(["issue", "Runway is shorter than the plan",
@@ -749,12 +882,12 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
       return '<div class="pct-field"><label for="fx-' + c + '" title="1 ' + c + " in " + S.base + '">' + c + " → " + S.base + "</label>" +
         '<input id="fx-' + c + '" type="number" min="0" step="any" data-fx="' + c + '" value="' + num(S.rates[c]) + '"></div>';
     }).join("");
-    var used = S.team.map(function (p) { return p.ccy; })
+    var used = S.team.concat(S.vendors).map(function (e) { return e.ccy; })
       .filter(function (c, i, a) { return a.indexOf(c) === i && c !== S.base; });
     $("fxNote").textContent = used.length
       ? "In use: " + used.map(function (c) { return "1 " + c + " = " + num(S.rates[c]) + " " + S.base; }).join("   ·   ") +
         ". Every figure below is in " + S.base + "."
-      : "All day rates are already in " + S.base + ".";
+      : "All day rates and vendor costs are already in " + S.base + ".";
   }
 
   // Heat tint for a month cell: nothing booked reads grey, a full month reads teal.
@@ -763,6 +896,41 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     var a = 0.05 + 0.18 * clamp(v / Math.max(1, full || num(S.workDays)), 0, 1);
     var mix = function (c) { return Math.round(255 * (1 - a) + c * a); };
     return "background:rgb(" + mix(0) + "," + mix(169) + "," + mix(206) + ")";
+  }
+
+  /* The team and vendor grids share their right-hand half: an "All" fill cell
+     followed by one input per month. Only the leading columns differ. */
+  function monthCellsHtml(vals, idx, opts) {
+    var cap = ' max="' + opts.max + '"';
+    var cells = '<td class="allcell"><input type="number" min="0"' + cap +
+      ' step="any" data-all="' + idx + '" placeholder="set" aria-label="Set every month"></td>';
+    return cells + vals.map(function (v, i) {
+      var st = opts.styleOf ? opts.styleOf(v) : "";
+      return '<td class="mcell"><input type="number" min="0"' + cap + ' step="any" data-m="' + i +
+        '" value="' + num(v) + '"' + (st ? ' style="' + st + '"' : "") +
+        ' aria-label="' + esc(opts.label(i)) + '"></td>';
+    }).join("");
+  }
+  // Applies an "All" fill or a single-month edit to `arr` in place. Returns false
+  // if the event was not a month edit at all.
+  function monthCellEdit(t, tr, arr, cap, styleOf) {
+    if (t.hasAttribute("data-all")) {
+      if (t.value === "") return true;
+      var all = clamp(num(t.value), 0, cap);
+      for (var i = 0; i < arr.length; i++) arr[i] = all;
+      tr.querySelectorAll("input[data-m]").forEach(function (inp) {
+        inp.value = all;
+        if (styleOf) inp.setAttribute("style", styleOf(all));
+      });
+      return true;
+    }
+    if (t.hasAttribute("data-m")) {
+      var v = clamp(num(t.value), 0, cap);
+      arr[+t.getAttribute("data-m")] = v;
+      if (styleOf) t.setAttribute("style", styleOf(v));
+      return true;
+    }
+    return false;
   }
 
   function renderTeam() {
@@ -796,11 +964,11 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
         '<td class="c-hpd"><input type="number" step="any" min="0.5" max="24" data-f="hpd" value="' + hpdOf(p) + '" aria-label="Hours per day"></td>' +
         '<td class="money">' + plain(totalIn(p, field)) + "</td>" +
         '<td class="del no-print"><button type="button" class="pct-icon" data-del="' + idx + '" title="Remove person" aria-label="Remove person">×</button></td>' +
-        '<td class="allcell"><input type="number" min="0" max="' + max + '" step="any" data-all="' + idx + '" placeholder="set" aria-label="Set every month"></td>' +
-        p[field].map(function (v, i) {
-          return '<td class="mcell"><input type="number" min="0" max="' + max + '" step="any" data-idx="' + idx + '" data-m="' + i +
-            '" value="' + num(v) + '" style="' + dayTint(num(v), fullOf(p)) + '" aria-label="' + esc(p.name) + " " + monthLabel(ms[i]) + '"></td>';
-        }).join("") + '<td class="spacer"></td></tr>';
+        monthCellsHtml(p[field], idx, {
+          max: max,
+          styleOf: function (v) { return dayTint(num(v), fullOf(p)); },
+          label: function (i) { return p.name + " " + monthLabel(ms[i]); }
+        }) + '<td class="spacer"></td></tr>';
     }).join("")
       : '<tr><td class="sticky pct-muted">No people yet</td><td class="pct-muted" colspan="' + (8 + S.duration) +
         '">Use Add person to start, Load data to bring in a saved tracker, or Load demo project for a look around.</td></tr>';
@@ -810,7 +978,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 
   function refreshTeamFoot() {
     var actual = isActualView();
-    var per = function (i) { return actual ? tsCost(i) : plannedFor(i); };
+    var per = function (i) { return actual ? tsCost(i) : teamPlannedFor(i); };
     var grand = 0;
     for (var i = 0; i < S.duration; i++) grand += per(i);
     var cells = '<td class="sticky">' + (actual ? "Actual cost" : "Planned cost") + "</td><td></td><td></td><td></td><td></td>" +
@@ -825,6 +993,82 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     refreshTeamFoot();
   }
 
+  /* ---------- vendors ---------- */
+  function renderVendors(M) {
+    normalise();
+    var ms = months(), field = vendorField(), invoiced = field === "invoiced";
+    var any = S.vendors.length > 0;
+
+    if (any) show($("vendorModes")); else hide($("vendorModes"));
+    $("modeVendorPlanned").className = invoiced ? "" : "active";
+    $("modeVendorInvoiced").className = invoiced ? "active" : "";
+
+    // With no vendors the card says so quietly and adds nothing anywhere else.
+    if (!any) {
+      $("vendorSummary").textContent = "";
+      $("vendorNote").textContent = "No vendors on this project. Add one if you are buying in delivery, licences or infrastructure — otherwise leave it empty.";
+      $("vendorHead").innerHTML = '<th class="sticky">Vendor</th><th class="spacer"></th>';
+      $("vendorBody").innerHTML = '<tr><td class="sticky pct-muted">None</td><td class="pct-muted">Vendor costs join the plan, the ledger and the burn-up as soon as you add one.</td></tr>';
+      $("vendorFoot").innerHTML = "";
+      return;
+    }
+
+    renderVendorSummary(M);
+    $("vendorNote").textContent = invoiced
+      ? "Invoices booked per vendor per month, in the vendor's currency. These feed the ledger actual for any month you have not typed a figure into."
+      : "Spend planned per vendor per month, in the vendor's currency. This joins the team plan in the ledger and the burn-up.";
+
+    $("vendorHead").innerHTML =
+      '<th class="sticky">Vendor</th><th>Scope</th><th>Ccy</th><th class="num">Contract</th>' +
+      '<th class="num">' + (invoiced ? "Invoiced" : "Planned") + " (" + S.base + ")</th>" +
+      '<th class="no-print"></th><th class="mhead">All</th>' +
+      ms.map(function (k) { return '<th class="mhead">' + monthLabel(k) + "</th>"; }).join("") + '<th class="spacer"></th>';
+
+    $("vendorBody").innerHTML = S.vendors.map(function (v, idx) {
+      var pos = M.vendors[idx] || {};
+      var totalCls = "money" + (invoiced && pos.overInvoiced ? " pct-over" : "");
+      return '<tr data-idx="' + idx + '">' +
+        '<td class="sticky"><input type="text" data-f="name" value="' + esc(v.name) + '" aria-label="Vendor name"></td>' +
+        '<td class="c-scope"><input type="text" data-f="scope" value="' + esc(v.scope) + '" aria-label="Scope"></td>' +
+        '<td class="c-ccy"><select data-f="ccy" aria-label="Currency">' +
+          CCYS.map(function (c) { return '<option value="' + c + '"' + (c === v.ccy ? " selected" : "") + ">" + c + "</option>"; }).join("") +
+        "</select></td>" +
+        '<td class="c-contract"><input type="number" step="any" min="0" data-f="contract" value="' + num(v.contract) +
+          '" placeholder="none" title="Contract or PO value in ' + esc(v.ccy) + '. Leave at zero for time and materials — nothing is flagged." aria-label="Contract value"></td>' +
+        '<td class="' + totalCls + '">' + plain(vendorTotalIn(v, field)) + "</td>" +
+        '<td class="del no-print"><button type="button" class="pct-icon" data-del="' + idx + '" title="Remove vendor" aria-label="Remove vendor">×</button></td>' +
+        monthCellsHtml(v[field], idx, {
+          max: MAX_MONEY,
+          label: function (i) { return v.name + " " + monthLabel(ms[i]); }
+        }) + '<td class="spacer"></td></tr>';
+    }).join("");
+
+    refreshVendorFoot();
+  }
+
+  function refreshVendorFoot() {
+    if (!S.vendors.length) return;
+    var field = vendorField();
+    var grand = 0;
+    for (var i = 0; i < S.duration; i++) grand += vendorSum(field, i);
+    var cells = '<td class="sticky">' + (field === "invoiced" ? "Invoiced" : "Planned") + " cost</td><td></td><td></td><td></td>" +
+      '<td class="money">' + plain(grand) + '</td><td class="no-print"></td><td></td>';
+    for (var j = 0; j < S.duration; j++) cells += '<td class="foot-num">' + plain(vendorSum(field, j)) + "</td>";
+    $("vendorFoot").innerHTML = cells + '<td class="spacer"></td>';
+  }
+
+  function refreshVendorRow(idx) {
+    var tr = document.querySelector('#vendorBody tr[data-idx="' + idx + '"]');
+    var v = S.vendors[idx];
+    if (tr && v) {
+      var cell = tr.children[4];
+      cell.textContent = plain(vendorTotalIn(v, vendorField()));
+      var billed = v.invoiced.reduce(function (a, b) { return a + num(b); }, 0);
+      cell.className = "money" + (isInvoicedView() && num(v.contract) > 0 && billed > num(v.contract) ? " pct-over" : "");
+    }
+    refreshVendorFoot();
+  }
+
   function renderLedger(M) {
     var cur = currentIndex();
     $("ledgerBody").innerHTML = M.rows.map(function (r) {
@@ -837,8 +1081,8 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
       return '<tr class="' + (r.i === cur ? "now" : "") + '">' +
         "<td>" + r.label + (r.i === cur ? ' <span class="pct-muted">now</span>' : "") + "</td>" +
         '<td class="num tnum">' + plain(r.planned) + "</td>" +
-        '<td class="num act"><input type="number" step="any" min="0" placeholder="' + (r.ts ? plain(r.tsCost) : "plan") +
-          '" title="' + (r.ts ? "From timesheet hours, type here to override" : "Blank uses the plan") +
+        '<td class="num act"><input type="number" step="any" min="0" placeholder="' + (r.booked ? plain(r.derived) : "plan") +
+          '" title="' + (r.booked ? "From timesheet hours and vendor invoices, type here to override with the all-in total" : "Blank uses the plan") +
           '" data-m="' + r.i + '" value="' + esc(raw) + '" aria-label="Actual for ' + r.label + '"></td>' +
         '<td class="num tnum ' + vCls + '">' + (r.hasActual ? plainSigned(variance) : "&mdash;") + "</td>" +
         '<td class="num tnum ' + (fut ? "pct-muted" : "") + '">' + plain(cumV) + "</td>" +
@@ -1081,7 +1325,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     var c = e.target.getAttribute("data-fx");
     if (!c) return;
     S.rates[c] = num(e.target.value);
-    var M = renderTop(); renderTeam(); renderLedger(M); queueSave();
+    var M = renderTop(); renderTeam(); renderVendors(M); renderLedger(M); queueSave();
   });
   on("start", "change", function (e) { S.start = e.target.value || S.start; render(); queueSave(); });
   on("duration", "change", function (e) {
@@ -1117,28 +1361,51 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
           inp.setAttribute("style", dayTint(num(inp.value), fullRow));
         });
       }
-    } else if (t.hasAttribute("data-all") || t.hasAttribute("data-m")) {
+    } else {
       var actual = isActualView();
       var full = actual ? num(S.workDays) * hpdOf(p) : num(S.workDays);
-      var cap = actual ? 744 : 31;
-      if (t.hasAttribute("data-all")) {
-        if (t.value === "") return;
-        var all = clamp(num(t.value), 0, cap);
-        p[dayField()] = p[dayField()].map(function () { return all; });
-        tr.querySelectorAll("input[data-m]").forEach(function (inp) {
-          inp.value = all; inp.setAttribute("style", dayTint(all, full));
-        });
-      } else {
-        var v = clamp(num(t.value), 0, cap);
-        p[dayField()][+t.getAttribute("data-m")] = v;
-        t.setAttribute("style", dayTint(v, full));
-      }
-    } else return;
+      var handled = monthCellEdit(t, tr, p[dayField()], actual ? 744 : 31,
+        function (v) { return dayTint(v, full); });
+      if (!handled) return;
+    }
 
     var M = renderTop(); renderLedger(M);
     refreshTeamRow(idx);
     if (f === "ccy") renderFx();
     queueSave();
+  }
+
+  function onVendorEdit(e) {
+    var t = e.target, tr = t.closest("tr");
+    if (!tr) return;
+    var idx = +tr.getAttribute("data-idx");
+    var v = S.vendors[idx];
+    if (!v) return;
+    var f = t.getAttribute("data-f");
+
+    if (f) {
+      v[f] = (f === "contract") ? clamp(num(t.value), 0, MAX_MONEY) : t.value;
+    } else if (!monthCellEdit(t, tr, v[vendorField()], MAX_MONEY, null)) return;
+
+    var M = renderTop(); renderLedger(M);
+    refreshVendorRow(idx);
+    renderVendorSummary(M);
+    if (f === "ccy") renderFx();
+    queueSave();
+  }
+
+  // Just the head-line figures, so editing a cell never rebuilds the grid under the cursor.
+  function renderVendorSummary(M) {
+    if (!S.vendors.length) return;
+    var contracted = 0, plannedAll = 0, invoicedAll = 0, anyContract = false;
+    M.vendors.forEach(function (vp) {
+      contracted += vp.contract * vp.fx;
+      plannedAll += vp.plannedTotal * vp.fx;
+      invoicedAll += vp.invoiced * vp.fx;
+      if (vp.contract > 0) anyContract = true;
+    });
+    $("vendorSummary").textContent = S.vendors.length + (S.vendors.length === 1 ? " vendor · " : " vendors · ") +
+      (anyContract ? money(contracted) + " contracted · " : "") + money(plannedAll) + " planned · " + money(invoicedAll) + " invoiced";
   }
   $("teamBody").addEventListener("input", onTeamEdit);
   $("teamBody").addEventListener("change", onTeamEdit);
@@ -1155,6 +1422,24 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     S.team.push({ id: uid(), name: "New person", role: "", ccy: S.base, rate: 1500, hpd: defaultHpd(), days: d, actualHours: z });
     render(); queueSave();
     var el = document.querySelector('#teamBody tr:last-child input[data-f="name"]');
+    if (el) { el.focus(); el.select(); }
+  });
+
+  $("vendorBody").addEventListener("input", onVendorEdit);
+  $("vendorBody").addEventListener("change", onVendorEdit);
+  $("vendorBody").addEventListener("click", function (e) {
+    var d = e.target.getAttribute("data-del");
+    if (d === null) return;
+    S.vendors.splice(+d, 1); render(); queueSave();
+  });
+  on("modeVendorPlanned", "click", function () { S.vendorView = "planned"; renderVendors(model()); queueSave(); });
+  on("modeVendorInvoiced", "click", function () { S.vendorView = "invoiced"; renderVendors(model()); queueSave(); });
+  on("addVendor", "click", function () {
+    var z = [], y = [];
+    for (var i = 0; i < S.duration; i++) { z.push(0); y.push(0); }
+    S.vendors.push({ id: uid(), name: "New vendor", scope: "", ccy: S.base, contract: 0, planned: z, invoiced: y });
+    render(); queueSave();
+    var el = document.querySelector('#vendorBody tr:last-child input[data-f="name"]');
     if (el) { el.focus(); el.select(); }
   });
 
@@ -1182,7 +1467,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
       tr.children[6].textContent = S.estimate ? pct(cumV / S.estimate) : "0%";
       tr.children[6].className = "num tnum " + (fut ? "pct-muted" : "");
       var inp = tr.children[2].querySelector("input");
-      if (inp) inp.placeholder = r.ts ? plain(r.tsCost) : "plan";
+      if (inp) inp.placeholder = r.booked ? plain(r.derived) : "plan";
     });
     refreshLedgerFoot(M);
     queueSave();

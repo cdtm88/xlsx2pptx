@@ -14,7 +14,7 @@ machine.
 | [`delivery-plan.html`](delivery-plan.html) | an Excel delivery plan | a PowerPoint Gantt-chart slide (`.pptx`) |
 | [`waqti-exceptions.html`](waqti-exceptions.html) | a Waqti timesheet export + an approved-demand allowlist | a copy-paste correction email |
 | [`waqti-demand-summary.html`](waqti-demand-summary.html) | a Waqti timesheet export | an on-screen per-demand summary of hours by person and feature |
-| [`project-cost-tracker.html`](project-cost-tracker.html) | a team, their day rates and the days they work | a live cost position, burn-up and monthly ledger against the estimate |
+| [`project-cost-tracker.html`](project-cost-tracker.html) | a team and their day rates, plus any vendor contracts | a live cost position, burn-up and monthly ledger against the estimate |
 
 Common to all: a single HTML file, inline-vendored libraries, works over `file://`
 with the network off, and brand-consistent styling.
@@ -50,19 +50,28 @@ doc. Staff names can be mapped from the same `rules.json` or typed by hand.
 Track a project's cost position without a spreadsheet. Set the estimate, the
 currency, the months and the working pattern, then list the team — name, role,
 day rate, currency, hours per day — and the days each person works per month.
-That gives the plan. Enter actual spend in the monthly ledger (or book timesheet
-hours per person and let the tool cost them), and the remainder is forecast at
-the worse of the plan and the observed burn rate.
+Add any **vendors** the same way: scope, currency, an optional contract or PO
+value, and the spend planned per month. Together that is the plan. Enter actual
+spend in the monthly ledger (or book timesheet hours per person and vendor
+invoices per month, and let the tool cost them), and the remainder is forecast
+at the worse of the plan and the observed burn rate.
+
+Vendors are entirely optional. A project with none behaves exactly as if the
+feature were not there — nothing added to the plan, nothing flagged — and a
+vendor left on time and materials (no contract value) is never flagged either.
+Set a contract value and the tool warns when that vendor is forecast past it,
+and raises it to an issue once the invoices themselves go over.
 
 You get six headline figures (estimate, spent, remaining, average burn, forecast
 at completion, headroom or overrun), a budget-consumption meter, plain-English
 alerts — forecast overrun, thin headroom, burn ahead of plan, runway shorter than
-the delivery — and a burn-up chart that marks the month the ceiling is breached.
+the delivery, vendor past contract — and a burn-up chart that marks the month the
+ceiling is breached.
 The Position panel and the burn-up each copy to the clipboard as a PNG for
 pasting into a slide or an email.
 
-Day rates can be in AED, GBP, USD or EUR and are converted at rates you set;
-everything is reported in one base currency. Work autosaves to the browser;
+Day rates and vendor costs can be in AED, GBP, USD or EUR and are converted at
+rates you set; everything is reported in one base currency. Work autosaves to the browser;
 **Save JSON** is the copy to keep, **Load data** reads it back anywhere (files
 from every earlier version of the tracker still load), and **Export ledger CSV**
 gives you the monthly table. No file to upload — start with **Load demo project**
