@@ -1011,13 +1011,19 @@ window.RK = (function () {
   function isActualView() { return S.daysView === "actual"; }
   function dayField() { return isActualView() ? "actualHours" : "days"; }
 
-  // Pad/trim each person's rows to the project duration. New months inherit the
-  // last planned value (so extending a project keeps the shape) and zero actuals.
+  /* Rows are padded up to the project duration but never truncated: shortening a
+     project hides the tail rather than destroying it, so re-phasing back out
+     restores the plan you had. Everything downstream reads months 0..duration-1
+     only — use span() wherever a whole row is summed or drawn. */
+  function span(arr) { return arr.slice(0, S.duration); }
+
+  // New months inherit the last planned value (extending a project keeps its shape)
+  // and start with zero actual hours.
   function normDays(p) {
-    var a = Array.isArray(p.days) ? p.days.slice(0, S.duration) : [];
+    var a = Array.isArray(p.days) ? p.days.slice() : [];
     while (a.length < S.duration) a.push(a.length ? num(a[a.length - 1]) : num(S.workDays));
     p.days = a.map(function (v) { return clamp(num(v), 0, 31); });
-    var b = Array.isArray(p.actualHours) ? p.actualHours.slice(0, S.duration) : [];
+    var b = Array.isArray(p.actualHours) ? p.actualHours.slice() : [];
     while (b.length < S.duration) b.push(0);
     p.actualHours = b.map(function (v) { return clamp(num(v), 0, 744); });
     return p.days;
@@ -1026,7 +1032,7 @@ window.RK = (function () {
   // extend itself just because the project got longer.
   function normVendor(v) {
     ["planned", "invoiced"].forEach(function (f) {
-      var a = Array.isArray(v[f]) ? v[f].slice(0, S.duration) : [];
+      var a = Array.isArray(v[f]) ? v[f].slice() : [];
       while (a.length < S.duration) a.push(0);
       v[f] = a.map(function (n) { return clamp(num(n), 0, MAX_MONEY); });
     });
@@ -1038,7 +1044,7 @@ window.RK = (function () {
   function unitDays(p, field, v) { return field === "actualHours" ? num(v) / hpdOf(p) : num(v); }
   function costOf(p, field, i) { return num(p.rate) * unitDays(p, field, p[field][i]) * fxOf(p.ccy); }
   function totalIn(p, field) { var t = 0; for (var i = 0; i < S.duration; i++) t += costOf(p, field, i); return t; }
-  function totalDays(p) { return p.days.reduce(function (a, b) { return a + num(b); }, 0); }
+  function totalDays(p) { return span(p.days).reduce(function (a, b) { return a + num(b); }, 0); }
   function tsHas(i) { return S.team.some(function (p) { return num(p.actualHours[i]) > 0; }); }
   function tsCost(i) { return S.team.reduce(function (s, p) { return s + costOf(p, "actualHours", i); }, 0); }
   function months() { var o = []; for (var i = 0; i < S.duration; i++) o.push(addMonths(S.start, i)); return o; }
@@ -1362,9 +1368,10 @@ window.RK = (function () {
   // if the event was not a month edit at all.
   function monthCellEdit(t, tr, arr, cap, styleOf) {
     if (t.hasAttribute("data-all")) {
-      if (t.value === "") return true;
+      if (t.value === "") return false;          // cleared, not an edit
       var all = clamp(num(t.value), 0, cap);
-      for (var i = 0; i < arr.length; i++) arr[i] = all;
+      var n = Math.min(arr.length, S.duration);  // never reaches into hidden months
+      for (var i = 0; i < n; i++) arr[i] = all;
       tr.querySelectorAll("input[data-m]").forEach(function (inp) {
         inp.value = all;
         if (styleOf) inp.setAttribute("style", styleOf(all));
@@ -1411,7 +1418,7 @@ window.RK = (function () {
         '<td class="c-hpd"><input type="number" step="any" min="0.5" max="24" data-f="hpd" value="' + hpdOf(p) + '" aria-label="Hours per day"></td>' +
         '<td class="money">' + plain(totalIn(p, field)) + "</td>" +
         '<td class="del no-print"><button type="button" class="pct-icon" data-del="' + idx + '" title="Remove person" aria-label="Remove person">×</button></td>' +
-        monthCellsHtml(p[field], idx, {
+        monthCellsHtml(span(p[field]), idx, {
           max: max,
           styleOf: function (v) { return dayTint(num(v), fullOf(p)); },
           label: function (i) { return p.name + " " + monthLabel(ms[i]); }
@@ -1484,7 +1491,7 @@ window.RK = (function () {
           '" placeholder="none" title="Contract or PO value in ' + esc(v.ccy) + '. Leave at zero for time and materials — nothing is flagged." aria-label="Contract value"></td>' +
         '<td class="' + totalCls + '">' + plain(vendorTotalIn(v, field)) + "</td>" +
         '<td class="del no-print"><button type="button" class="pct-icon" data-del="' + idx + '" title="Remove vendor" aria-label="Remove vendor">×</button></td>' +
-        monthCellsHtml(v[field], idx, {
+        monthCellsHtml(span(v[field]), idx, {
           max: MAX_MONEY,
           label: function (i) { return v.name + " " + monthLabel(ms[i]); }
         }) + '<td class="spacer"></td></tr>';
@@ -1510,7 +1517,7 @@ window.RK = (function () {
     if (tr && v) {
       var cell = tr.children[4];
       cell.textContent = plain(vendorTotalIn(v, vendorField()));
-      var billed = v.invoiced.reduce(function (a, b) { return a + num(b); }, 0);
+      var billed = span(v.invoiced).reduce(function (a, b) { return a + num(b); }, 0);
       cell.className = "money" + (isInvoicedView() && num(v.contract) > 0 && billed > num(v.contract) ? " pct-over" : "");
     }
     refreshVendorFoot();
@@ -1763,8 +1770,9 @@ window.RK = (function () {
   });
   on("base", "change", function (e) {
     // Re-base every rate against the new base so the numbers keep their meaning.
+    // 8dp, not 5: at 5 a there-and-back switch visibly drifted the rates.
     var nb = e.target.value, div = num(S.rates[nb]) || 1, next = {};
-    CCYS.forEach(function (c) { next[c] = Math.round((num(S.rates[c]) / div) * 100000) / 100000; });
+    CCYS.forEach(function (c) { next[c] = Math.round((num(S.rates[c]) / div) * 1e8) / 1e8; });
     next[nb] = 1; S.rates = next; S.base = nb;
     render(); queueSave();
   });
