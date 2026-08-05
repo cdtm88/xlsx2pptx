@@ -14,7 +14,7 @@ machine.
 | [`delivery-plan.html`](delivery-plan.html) | an Excel delivery plan | a PowerPoint Gantt-chart slide (`.pptx`) |
 | [`waqti-exceptions.html`](waqti-exceptions.html) | a Waqti timesheet export + an approved-demand allowlist | a copy-paste correction email |
 | [`waqti-demand-summary.html`](waqti-demand-summary.html) | a Waqti timesheet export | an on-screen per-demand summary of hours by person and feature |
-| [`project-cost-tracker.html`](project-cost-tracker.html) | a team and their day rates, any vendor contracts, and a Waqti timesheet export | a live cost position, burn-up and monthly ledger against the estimate |
+| [`project-cost-tracker.html`](project-cost-tracker.html) | a team and their day rates, plus any vendor contracts | a live cost position, burn-up and monthly ledger against the estimate |
 
 Common to all: a single HTML file, inline-vendored libraries, works over `file://`
 with the network off, and brand-consistent styling.
@@ -78,11 +78,10 @@ a per-line delta showing exactly what moved — including lines that have since
 been removed. **Undo** covers the destructive things (bulk fills, deletes,
 imports, clearing) rather than every keystroke.
 
-Rather than typing hours in by hand, drop a **Waqti timesheet export** into
-Timesheet import: it totals booked hours per person per month, matches staff to
-the team by remembered Staff ID and then by name, and lets you assign, add or
-skip anyone it cannot place. Only the months in the file are touched, so
-re-importing a corrected export is safe.
+Every card collapses, and each grid sits in a fixed-height scroller with its
+header and totals row pinned, so a long team or a 60-month project never pushes
+the rest of the page out of view. The page opens as a report — position,
+burn-up, team and ledger — with set-up, vendors and cost drivers a click away.
 
 Day rates and vendor costs can be in AED, GBP, USD or EUR and are converted at
 rates you set; everything is reported in one base currency. Work autosaves to the browser;

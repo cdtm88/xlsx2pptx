@@ -91,6 +91,21 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 /* chart */
 .pct-chart svg{display:block;width:100%;height:auto}
 
+/* Every grid sits in a fixed viewport: it scrolls in both directions with the
+   header and the totals row pinned, so a long team or a 60-month project never
+   pushes the rest of the page down. max-height, so short tables stay short. */
+.pct-scroll{max-height:22rem;overflow:auto}
+.pct-scroll table.data thead th{position:sticky;top:0;z-index:5}
+.pct-scroll table.data tfoot td{position:sticky;bottom:0;z-index:5;box-shadow:inset 0 1px 0 var(--line)}
+/* the sticky first column of the two matrices has to out-rank the sticky rows */
+.pct-scroll .pct-matrix thead th.sticky{z-index:7}
+.pct-scroll .pct-matrix tfoot td.sticky{z-index:7}
+.pct-scroll .pct-matrix tbody td.sticky{z-index:3}
+@media print{ .pct-scroll{max-height:none;overflow:visible} }
+
+/* panel show/hide */
+.pct-toggle{min-width:3.4rem}
+
 /* shared table density for the two grids */
 .pct-matrix,.pct-ledger{font-size:.82rem}
 .pct-matrix thead th,.pct-ledger thead th{padding:.45rem .6rem;white-space:nowrap}
@@ -196,9 +211,9 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
         <span class="title">Set up</span>
         <span class="sub" id="setupSummary"></span>
       </div>
-      <button type="button" class="mini-btn" id="setupToggle" aria-expanded="false" aria-controls="setupBody">Show</button>
+      <button type="button" class="mini-btn pct-toggle" data-panel="setup" aria-expanded="true" aria-controls="panel-setup">Hide</button>
     </div>
-    <div id="setupBody" class="hidden">
+    <div id="panel-setup" class="hidden">
       <div class="pct-fields">
         <div class="pct-field wide">
           <label for="pname">Project name</label>
@@ -253,8 +268,12 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
         <span class="title">Position</span>
         <span class="sub" id="posHint"></span>
       </div>
-      <button type="button" class="mini-btn no-print" id="copyPos">Copy as image</button>
+      <div class="controls-row no-print">
+        <button type="button" class="mini-btn" id="copyPos">Copy as image</button>
+        <button type="button" class="mini-btn pct-toggle" data-panel="position" aria-expanded="true" aria-controls="panel-position">Hide</button>
+      </div>
     </div>
+    <div id="panel-position">
     <div class="pct-kpis" id="kpis"></div>
     <div class="pct-meter">
       <div class="pct-meter-top"><span>Budget consumption</span><span id="meterPct"></span></div>
@@ -272,6 +291,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
       </div>
     </div>
     <div class="pct-alerts" id="alerts"></div>
+    </div>
   </section>
 
   <!-- ============ BURN-UP ============ -->
@@ -281,8 +301,12 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
         <span class="title">Burn-up</span>
         <span class="sub">Cumulative spend against the estimate ceiling</span>
       </div>
-      <button type="button" class="mini-btn no-print" id="copyChart">Copy as image</button>
+      <div class="controls-row no-print">
+        <button type="button" class="mini-btn" id="copyChart">Copy as image</button>
+        <button type="button" class="mini-btn pct-toggle" data-panel="burnup" aria-expanded="true" aria-controls="panel-burnup">Hide</button>
+      </div>
     </div>
+    <div id="panel-burnup">
     <div class="pct-chart">
       <svg id="chart" viewBox="0 0 900 340" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Cumulative spend against the estimate"></svg>
     </div>
@@ -293,51 +317,6 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
       <span><span class="pct-key" style="border-color:#3D3D3D;border-top-style:dashed"></span>Estimate</span>
       <span class="hidden" id="legendBaseline"><span class="pct-key" style="border-color:#9AA5AD;border-top-style:dotted"></span>Baseline plan</span>
     </div>
-  </section>
-
-  <!-- ============ TIMESHEET IMPORT ============ -->
-  <section class="card no-print">
-    <div class="card-head">
-      <div>
-        <span class="title">Timesheet import</span>
-        <span class="sub">Optional &mdash; fills actual hours from a Waqti export instead of typing them</span>
-      </div>
-      <button type="button" class="mini-btn" id="importToggle" aria-expanded="false" aria-controls="importBody">Show</button>
-    </div>
-    <div id="importBody" class="hidden">
-      <div class="upload-area" id="drop" tabindex="0" role="button" aria-label="Drop a Waqti xlsx export here, or press Enter to browse">
-        <div class="big">Drop a Waqti .xlsx export here</div>
-        <div class="or">or</div>
-        <button type="button" class="btn btn-primary" id="browseBtn">Browse for file</button>
-        <input type="file" id="fileInput" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" class="hidden">
-      </div>
-      <div class="loaded-bar hidden" id="loadedBar">
-        <span>Loaded <span class="fname" id="loadedName"></span></span>
-        <span class="spacer"></span>
-        <button type="button" class="mini-btn" id="replaceBtn">Replace file</button>
-        <button type="button" class="mini-btn" id="cancelImport">Cancel</button>
-      </div>
-      <div id="parseError" class="err hidden"></div>
-
-      <div id="mapper" class="hidden" style="margin-top:1rem;">
-        <div style="font-size:.74rem;font-weight:700;color:var(--slate);margin-bottom:.4rem;">Map the required columns</div>
-        <p class="sub">Not all expected headers were found. Match each field to a column, then confirm.</p>
-        <div id="mapperFields" style="margin-top:.5rem;"></div>
-        <div class="controls-row" style="margin-top:.7rem;"><button type="button" class="btn btn-primary" id="mapperConfirm">Confirm mapping</button></div>
-        <div id="mapperError" class="err hidden"></div>
-      </div>
-
-      <div id="importMatch" class="hidden" style="margin-top:1rem;">
-        <div class="note" id="importPeriod"></div>
-        <div class="table-wrap"><table class="data" id="matchTable">
-          <thead><tr><th>Staff ID</th><th>Name in the export</th><th class="num">Hours</th><th class="num">Months</th><th>Goes to</th></tr></thead>
-          <tbody id="matchBody"></tbody>
-        </table></div>
-        <div class="controls-row" style="margin-top:.8rem;">
-          <button type="button" class="btn btn-primary" id="applyImport">Apply hours</button>
-          <span class="sub" id="applyHint"></span>
-        </div>
-      </div>
     </div>
   </section>
 
@@ -354,14 +333,17 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
           <button type="button" id="modeActual">Actual hours</button>
         </span>
         <button type="button" class="mini-btn" id="addRow">Add person</button>
+        <button type="button" class="mini-btn pct-toggle" data-panel="team" aria-expanded="true" aria-controls="panel-team">Hide</button>
       </div>
     </div>
-    <div class="table-wrap">
+    <div id="panel-team">
+    <div class="table-wrap pct-scroll">
       <table class="data pct-matrix" id="teamTable">
         <thead><tr id="teamHead"></tr></thead>
         <tbody id="teamBody"></tbody>
         <tfoot><tr id="teamFoot"></tr></tfoot>
       </table>
+    </div>
     </div>
   </section>
 
@@ -378,15 +360,18 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
           <button type="button" id="modeVendorInvoiced">Invoiced</button>
         </span>
         <button type="button" class="mini-btn" id="addVendor">Add vendor</button>
+        <button type="button" class="mini-btn pct-toggle" data-panel="vendors" aria-expanded="true" aria-controls="panel-vendors">Hide</button>
       </div>
     </div>
+    <div id="panel-vendors" class="hidden">
     <div class="sub" id="vendorNote" style="margin-bottom:.7rem;"></div>
-    <div class="table-wrap">
+    <div class="table-wrap pct-scroll">
       <table class="data pct-matrix pct-vendors" id="vendorTable">
         <thead><tr id="vendorHead"></tr></thead>
         <tbody id="vendorBody"></tbody>
         <tfoot><tr id="vendorFoot"></tr></tfoot>
       </table>
+    </div>
     </div>
   </section>
 
@@ -397,13 +382,16 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
         <span class="title">Cost drivers</span>
         <span class="sub" id="driverHint"></span>
       </div>
+      <button type="button" class="mini-btn pct-toggle" data-panel="drivers" aria-expanded="true" aria-controls="panel-drivers">Hide</button>
     </div>
-    <div class="table-wrap">
+    <div id="panel-drivers" class="hidden">
+    <div class="table-wrap pct-scroll">
       <table class="data pct-drivers" id="driverTable">
         <thead><tr id="driverHead"></tr></thead>
         <tbody id="driverBody"></tbody>
         <tfoot><tr id="driverFoot"></tr></tfoot>
       </table>
+    </div>
     </div>
   </section>
 
@@ -412,10 +400,12 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     <div class="card-head">
       <div>
         <span class="title">Monthly ledger</span>
-        <span class="sub">Blank uses timesheet hours and vendor invoices where entered, otherwise the plan. Grey figures are forecast.</span>
+        <span class="sub">Blank uses vendor invoices and timesheet hours where entered, otherwise the plan. Grey figures are forecast.</span>
       </div>
+      <button type="button" class="mini-btn pct-toggle" data-panel="ledger" aria-expanded="true" aria-controls="panel-ledger">Hide</button>
     </div>
-    <div class="table-wrap">
+    <div id="panel-ledger">
+    <div class="table-wrap pct-scroll">
       <table class="data pct-ledger" id="ledgerTable">
         <thead>
           <tr>
@@ -442,6 +432,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
         </tr></tfoot>
       </table>
     </div>
+    </div>
   </section>
 
   <!-- ============ DATA ============ -->
@@ -451,7 +442,9 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
         <span class="title">Saving &amp; data</span>
         <span class="sub">Autosaves to this browser as you type</span>
       </div>
+      <button type="button" class="mini-btn pct-toggle" data-panel="data" aria-expanded="true" aria-controls="panel-data">Hide</button>
     </div>
+    <div id="panel-data">
     <div class="controls-row">
       <button type="button" class="btn btn-primary" id="expJson">Save JSON</button>
       <button type="button" class="btn btn-ghost" id="impJson">Load data</button>
@@ -465,6 +458,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
       <strong>Save JSON</strong> downloads the file &mdash; that is the copy to keep, back up or hand to someone else.
       <strong>Load data</strong> reads a saved <code>.json</code> back in, here or in any other browser.
     </div>
+    </div>
   </section>
 
 </div>
@@ -472,9 +466,6 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 <footer class="app-footer">Dreamt up by Christian, built with Claude &mdash; a human + AI double act 🤝</footer>
 <div id="toast" role="status" aria-live="polite"></div>
 
-<script>
-/*@include framework/vendor/sheetjs.js@*/
-</script>
 <script>
 /*@include framework/report-kit.js@*/
 </script>
@@ -492,11 +483,11 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 (function () {
   "use strict";
   var $ = RK.$, esc = RK.esc, show = RK.show, hide = RK.hide;
-  var VERSION = "v1.2.1";
+  var VERSION = "v1.3.0";
   var LS_KEY = "project-cost-tracker:v1";
   var LEGACY_KEY = "project-cost-tracker-v3";   // key used by the pre-Report-Kit build
   var CCYS = ["AED", "GBP", "USD", "EUR"];
-  var STATE_VERSION = 8;
+  var STATE_VERSION = 9;
   var MAX_MONEY = 1e12;
   $("version").textContent = VERSION;
 
@@ -512,6 +503,14 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
   function monthDiff(a, b) { var A = parseMonth(a), B = parseMonth(b); return (B.y - A.y) * 12 + (B.m - A.m); }
   function slug(s) { return String(s || "project").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) || "project"; }
 
+  /* ---------- panels ----------
+     Every card collapses. The defaults open what you read and close what you
+     edit, so the page opens as a report rather than a form. */
+  var PANEL_KEYS = ["setup", "position", "burnup", "team", "vendors", "drivers", "ledger", "data"];
+  function defaultPanels() {
+    return { setup: false, position: true, burnup: true, team: true, vendors: false, drivers: false, ledger: true, data: true };
+  }
+
   /* ---------- state ---------- */
   // Neutral defaults. migrate() fills gaps from here, so a field a file predates
   // resolves to "none", never to whatever the demo happens to have.
@@ -522,7 +521,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
       name: "Untitled project", base: "AED",
       rates: { AED: 1, GBP: 4.85, USD: 3.6725, EUR: 4.00 },
       estimate: 0, start: now, duration: 12, today: now,
-      workDays: 21, hoursPerDay: 8.4, setupOpen: true, daysView: "planned", vendorView: "planned",
+      workDays: 21, hoursPerDay: 8.4, panels: defaultPanels(), daysView: "planned", vendorView: "planned",
       team: [], vendors: [], actuals: {}, baseline: null
     };
   }
@@ -530,7 +529,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 
   function DEMO() {
     return Object.assign(BASE(), {
-      estimate: 2100000, start: "2026-01", duration: 12, today: "2026-08", setupOpen: false,
+      estimate: 2100000, start: "2026-01", duration: 12, today: "2026-08",
       team: [
         { id: uid(), name: "Tech lead", role: "Engineering", ccy: "AED", rate: 2000, days: [21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 10] },
         { id: uid(), name: "Engineer 1", role: "Engineering", ccy: "AED", rate: 1500, days: [21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21] },
@@ -650,6 +649,16 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
       return w;
     });
     if (["planned", "invoiced"].indexOf(s.vendorView) < 0) s.vendorView = "planned";
+
+    // v9: every card collapses, so the lone setupOpen flag became a panel map.
+    var panels = defaultPanels();
+    if (o.panels && typeof o.panels === "object") {
+      PANEL_KEYS.forEach(function (k) { if (typeof o.panels[k] === "boolean") panels[k] = o.panels[k]; });
+    } else if (typeof o.setupOpen === "boolean") {
+      panels.setup = o.setupOpen;
+    }
+    s.panels = panels;
+    delete s.setupOpen;
 
     // v7 added the baseline. A file without one simply has no baseline.
     s.baseline = (o.baseline && typeof o.baseline === "object" && !Array.isArray(o.baseline)) ? o.baseline : null;
@@ -836,7 +845,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     var M = model();
     renderMeta(M); renderKpis(M); renderMeter(M); renderAlerts(M); renderChart(M);
     renderFx(); renderTeam(); renderVendors(M); renderDrivers(M); renderLedger(M);
-    renderBaselineControls(M); renderSetup(); renderUndo();
+    renderBaselineControls(M); renderSetup(); renderPanels(); renderUndo();
     $("thActual").textContent = "Actual (" + S.base + ")";
     $("thPlanned").textContent = "Planned (" + S.base + ")";
     return M;
@@ -849,16 +858,26 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     return M;
   }
 
+  function renderPanels() {
+    PANEL_KEYS.forEach(function (key) {
+      var body = $("panel-" + key), btn = document.querySelector('.pct-toggle[data-panel="' + key + '"]');
+      if (!body || !btn) return;
+      var open = S.panels[key] !== false;
+      if (open) show(body); else hide(body);
+      btn.textContent = open ? "Hide" : "Show";
+      btn.setAttribute("aria-expanded", open ? "true" : "false");
+    });
+  }
+  // Adding a row to a collapsed grid would put it out of sight — open it instead.
+  function openPanel(key) {
+    if (S.panels[key] === false) { S.panels[key] = true; renderPanels(); }
+  }
+
   function renderSetup() {
     var ms = months();
     $("setupSummary").textContent = S.base + " " + plain(S.estimate) +
       "  ·  " + (ms.length ? monthLabel(ms[0]) + " to " + monthLabel(ms[ms.length - 1]) : "") +
       "  ·  " + S.workDays + " days/mo  ·  " + defaultHpd() + " hrs/day for new people";
-    var open = !!S.setupOpen;
-    if (open) show($("setupBody")); else hide($("setupBody"));
-    var b = $("setupToggle");
-    b.textContent = open ? "Hide" : "Show";
-    b.setAttribute("aria-expanded", open ? "true" : "false");
   }
 
   // Derivable from state alone, so retitling never needs the model rebuilt.
@@ -1605,222 +1624,6 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     show(b);
   }
 
-  /* ---------- timesheet import ----------
-     Reads a Waqti export, totals booked hours per person per month, and writes
-     them into the actual-hours grid. Only the months present in the file are
-     touched, so re-importing a corrected export is idempotent. */
-  var IMPORT_FIELDS = [
-    { field: "staffId", canonical: "Staff ID", required: true, aliases: ["staff id", "staffid", "employee id"] },
-    { field: "bookedHours", canonical: "Booked Hours", required: true, aliases: ["booked hours", "hours", "booked"] },
-    { field: "workDay", canonical: "Work Day", required: false, aliases: ["work day", "date", "work date"] },
-    { field: "month", canonical: "Month", required: false, aliases: ["month", "period"] },
-    { field: "name", canonical: "Name", required: false, aliases: ["name", "staff name", "employee", "employee name", "resource", "person", "full name", "staff"] }
-  ];
-  var imp = { buffer: null, fileName: "", mapping: null, staff: null, outside: 0, keys: null };
-
-  function pad2(n) { return String(n).padStart(2, "0"); }
-  function monthFromText(t) {
-    t = String(t === null || t === undefined ? "" : t).trim();
-    if (!t) return null;
-    var m = /^(\d{4})[-\/](\d{1,2})$/.exec(t);
-    if (m) return m[1] + "-" + pad2(+m[2]);
-    m = /^([A-Za-z]{3,})[\s\-\/]*(\d{2,4})$/.exec(t);
-    if (m) {
-      var mi = MONTH_NAMES.indexOf(m[1].slice(0, 3).toLowerCase().replace(/^./, function (c) { return c.toUpperCase(); }));
-      if (mi >= 0) { var y = +m[2]; return (y < 100 ? 2000 + y : y) + "-" + pad2(mi + 1); }
-    }
-    m = /^(\d{1,2})[\-\/](\d{4})$/.exec(t);
-    if (m) return m[2] + "-" + pad2(+m[1]);
-    return null;
-  }
-  // Work Day first (an Excel date serial is unambiguous), then the Month column.
-  // Text dates are read day-first, which is what the Waqti export produces.
-  function monthOfRow(rawWd, txtWd, txtMonth) {
-    // floor, not round: an Excel date-time carries a fractional day, and rounding
-    // 31 Aug 22:30 up to 1 Sep books the hours into the wrong month.
-    if (typeof rawWd === "number" && isFinite(rawWd) && rawWd > 1000) {
-      var d = new Date(Date.UTC(1899, 11, 30) + Math.floor(rawWd) * 86400000);
-      if (!isNaN(d.getTime())) return d.getUTCFullYear() + "-" + pad2(d.getUTCMonth() + 1);
-    }
-    var s = String(txtWd || "").trim();
-    var m = /^(\d{4})-(\d{1,2})-\d{1,2}/.exec(s);
-    if (m) return m[1] + "-" + pad2(+m[2]);
-    m = /^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})/.exec(s);
-    if (m) return m[3] + "-" + pad2(+m[2]);
-    return monthFromText(txtMonth);
-  }
-
-  function importError(msg) { var el = $("parseError"); el.textContent = msg; show(el); }
-
-  function parseTimesheet(mapping) {
-    var wb, sheet;
-    try {
-      wb = RK.xlsx.read(imp.buffer);
-      sheet = RK.xlsx.sheet(wb);
-    } catch (e) {
-      importError("Could not read " + imp.fileName + ": " + e.message + "\nNothing in the tracker has changed.");
-      return;
-    }
-    var res = RK.xlsx.resolve(sheet, IMPORT_FIELDS, mapping);
-    if (res.missing.length) { renderMapper(sheet); return; }
-    var r = res.resolved;
-    if (r.workDay === undefined && r.month === undefined) {
-      importError("The export needs a Work Day or a Month column to place hours into months.\nNothing in the tracker has changed.");
-      return;
-    }
-    hide($("mapper"));
-    hide($("parseError"));
-
-    var staff = {}, undated = 0, keys = {};
-    for (var row = sheet.range.s.r + 1; row <= sheet.range.e.r; row++) {
-      var sid = sheet.txt(row, r.staffId).trim().toUpperCase();
-      if (!sid) continue;
-      var hraw = sheet.rawv(row, r.bookedHours);
-      var h = (typeof hraw === "number") ? hraw : Number(String(hraw === null ? "" : hraw).trim());
-      if (!isFinite(h) || h <= 0) continue;
-      var key = monthOfRow(r.workDay !== undefined ? sheet.rawv(row, r.workDay) : null,
-        r.workDay !== undefined ? sheet.txt(row, r.workDay) : "",
-        r.month !== undefined ? sheet.txt(row, r.month) : "");
-      if (!key) { undated++; continue; }
-      keys[key] = 1;
-      var e = staff[sid] || (staff[sid] = { id: sid, name: "", hours: 0, byMonth: {} });
-      if (!e.name && r.name !== undefined) e.name = sheet.txt(row, r.name).trim();
-      e.hours += h;
-      e.byMonth[key] = (e.byMonth[key] || 0) + h;
-    }
-    if (!Object.keys(staff).length) {
-      importError("No booked hours found in " + imp.fileName + ".\nNothing in the tracker has changed.");
-      return;
-    }
-    imp.mapping = mapping;
-    imp.staff = staff;
-    imp.keys = Object.keys(keys).sort();
-    imp.undated = undated;
-    renderMatch();
-  }
-
-  function renderMapper(sheet) {
-    show($("mapper"));
-    RK.xlsx.renderMapper({
-      headers: sheet.headers, fieldSpecs: IMPORT_FIELDS,
-      fieldsEl: $("mapperFields"), errorEl: $("mapperError"), confirmBtn: $("mapperConfirm"),
-      onConfirm: function (mapping) { parseTimesheet(mapping); }
-    });
-  }
-
-  // Suggest a target for each staff ID: a remembered ID first, then an exact name
-  // match. Someone whose hours all fall outside the project defaults to Skip —
-  // adding them would create a person with nothing to show. Choosing "new"
-  // explicitly still works.
-  function suggestTarget(entry, inRange) {
-    for (var i = 0; i < S.team.length; i++) {
-      var ids = Array.isArray(S.team[i].staffIds) ? S.team[i].staffIds : [];
-      if (ids.indexOf(entry.id) >= 0) return S.team[i].id;
-    }
-    var nm = entry.name.trim().toLowerCase();
-    if (nm) {
-      for (var j = 0; j < S.team.length; j++) {
-        if (String(S.team[j].name || "").trim().toLowerCase() === nm) return S.team[j].id;
-      }
-    }
-    var usable = Object.keys(entry.byMonth).some(function (k) { return inRange[k]; });
-    return (entry.name && usable) ? "__new__" : "__skip__";
-  }
-
-  function renderMatch() {
-    var ms = months(), inRange = {};
-    ms.forEach(function (k) { inRange[k] = 1; });
-    var outside = imp.keys.filter(function (k) { return !inRange[k]; });
-    imp.outside = outside.length;
-
-    $("importPeriod").innerHTML = "Months in the file: <strong>" + imp.keys.map(monthLabel).join(", ") + "</strong>. " +
-      (outside.length
-        ? "<strong>" + outside.map(monthLabel).join(", ") + "</strong> " + (outside.length === 1 ? "falls" : "fall") +
-          " outside this project and will be skipped."
-        : "All inside the project range.") +
-      (imp.undated ? " " + imp.undated + " row" + (imp.undated === 1 ? "" : "s") + " had no readable date and " +
-        (imp.undated === 1 ? "was" : "were") + " skipped." : "");
-
-    var ids = Object.keys(imp.staff).sort();
-    $("matchBody").innerHTML = ids.map(function (id) {
-      var e = imp.staff[id], sel = suggestTarget(e, inRange);
-      var opts = '<option value="__skip__">Skip this person</option>' +
-        '<option value="__new__">Add as a new person</option>' +
-        S.team.map(function (p) {
-          return '<option value="' + esc(p.id) + '"' + (sel === p.id ? " selected" : "") + ">" + esc(p.name || "(unnamed)") + "</option>";
-        }).join("");
-      if (sel === "__new__") opts = opts.replace('value="__new__"', 'value="__new__" selected');
-      if (sel === "__skip__") opts = opts.replace('value="__skip__"', 'value="__skip__" selected');
-      var mCount = Object.keys(e.byMonth).length;
-      return "<tr><td>" + esc(id) + "</td><td>" + esc(e.name || "&mdash;") + "</td>" +
-        '<td class="num">' + (Math.round(e.hours * 10) / 10) + "</td>" +
-        '<td class="num">' + mCount + "</td>" +
-        '<td><select data-sid="' + esc(id) + '" aria-label="Where the hours for ' + esc(id) + " go\">" + opts + "</select></td></tr>";
-    }).join("");
-    $("applyHint").textContent = ids.length + " staff in the file. Hours replace whatever is in those months.";
-    show($("importMatch"));
-  }
-
-  function applyImport() {
-    var sels = $("matchBody").querySelectorAll("select");
-    var ms = months(), idx = {};
-    ms.forEach(function (k, i) { idx[k] = i; });
-
-    snapshot("timesheet import");
-    var byId = {}, added = 0, touched = 0, noRate = 0, merged = 0;
-    S.team.forEach(function (p) { byId[p.id] = p; });
-
-    // Group by destination first. Several staff IDs can point at one person — an
-    // employee and a contractor record, say — and their hours have to add up
-    // rather than the last one written winning.
-    var jobs = {}, order = [];
-    Array.prototype.forEach.call(sels, function (sel) {
-      var sid = sel.getAttribute("data-sid"), target = sel.value, e = imp.staff[sid];
-      if (!e || target === "__skip__") return;
-      var person;
-      if (target === "__new__") {
-        var d = [], z = [];
-        for (var i = 0; i < S.duration; i++) { d.push(0); z.push(0); }
-        person = { id: uid(), name: e.name || sid, role: "", ccy: S.base, rate: 0, hpd: defaultHpd(), days: d, actualHours: z, staffIds: [] };
-        S.team.push(person);
-        byId[person.id] = person;
-        added++;
-      } else {
-        person = byId[target];
-        if (!person) return;
-      }
-      var job = jobs[person.id];
-      if (!job) { job = jobs[person.id] = { person: person, ids: [], byMonth: {} }; order.push(person.id); }
-      job.ids.push(sid);
-      Object.keys(e.byMonth).forEach(function (k) { job.byMonth[k] = (job.byMonth[k] || 0) + e.byMonth[k]; });
-    });
-
-    order.forEach(function (pid) {
-      var job = jobs[pid], person = job.person;
-      if (job.ids.length > 1) merged++;
-      if (!Array.isArray(person.staffIds)) person.staffIds = [];
-      job.ids.forEach(function (sid) { if (person.staffIds.indexOf(sid) < 0) person.staffIds.push(sid); });
-      normDays(person);
-      Object.keys(job.byMonth).forEach(function (k) {
-        if (idx[k] === undefined) return;                       // outside the project range
-        person.actualHours[idx[k]] = Math.round(job.byMonth[k] * 100) / 100;
-        touched++;
-      });
-      if (num(person.rate) <= 0) noRate++;
-    });
-
-    S.daysView = "actual";
-    hide($("importMatch"));
-    hide($("loadedBar"));
-    show($("drop"));
-    imp.staff = null; imp.buffer = null;
-    render(); saveNow();
-    toast("Imported hours into " + touched + " person-months" +
-      (added ? ", added " + added + " new " + (added === 1 ? "person" : "people") : "") +
-      (merged ? ", merged several IDs into " + merged + (merged === 1 ? " person" : " people") : "") +
-      (noRate ? " — " + noRate + " still need a day rate" : ""));
-  }
-
   /* ---------- persistence ---------- */
   var saveTimer = null, dirty = false;
   function status(text, cls) {
@@ -1842,13 +1645,12 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
   /* ---------- events ---------- */
   function on(id, ev, fn) { $(id).addEventListener(ev, fn); }
 
-  on("setupToggle", "click", function () { S.setupOpen = !S.setupOpen; renderSetup(); queueSave(); });
-  on("importToggle", "click", function () {
-    var body = $("importBody"), open = body.classList.contains("hidden");
-    if (open) show(body); else hide(body);
-    var b = $("importToggle");
-    b.textContent = open ? "Hide" : "Show";
-    b.setAttribute("aria-expanded", open ? "true" : "false");
+  document.querySelectorAll(".pct-toggle").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var key = btn.getAttribute("data-panel");
+      S.panels[key] = S.panels[key] === false;
+      renderPanels(); queueSave();
+    });
   });
   on("undoBtn", "click", function () {
     var last = undoStack.pop();
@@ -2002,7 +1804,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     var d = [], z = [];
     for (var i = 0; i < S.duration; i++) { d.push(num(S.workDays)); z.push(0); }
     S.team.push({ id: uid(), name: "New person", role: "", ccy: S.base, rate: 1500, hpd: defaultHpd(), days: d, actualHours: z });
-    render(); queueSave();
+    openPanel("team"); render(); queueSave();
     var el = document.querySelector('#teamBody tr:last-child input[data-f="name"]');
     if (el) { el.focus(); el.select(); }
   });
@@ -2021,7 +1823,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     var z = [], y = [];
     for (var i = 0; i < S.duration; i++) { z.push(0); y.push(0); }
     S.vendors.push({ id: uid(), name: "New vendor", scope: "", ccy: S.base, contract: 0, planned: z, invoiced: y });
-    render(); queueSave();
+    openPanel("vendors"); render(); queueSave();
     var el = document.querySelector('#vendorBody tr:last-child input[data-f="name"]');
     if (el) { el.focus(); el.select(); }
   });
@@ -2128,24 +1930,6 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     if (!confirm("Clear everything: people, days, actuals and set up? Save a JSON first if you need it.")) return;
     snapshot("clear all data");
     S = EMPTY(); syncInputs(); render(); saveNow(); toast("Tracker cleared");
-  });
-
-  RK.upload({
-    drop: $("drop"), fileInput: $("fileInput"), browseBtn: $("browseBtn"), replaceBtn: $("replaceBtn"),
-    onFile: function (buf, filename) {
-      hide($("parseError")); hide($("importMatch")); hide($("mapper"));
-      imp.buffer = buf; imp.fileName = filename; imp.mapping = null;
-      $("loadedName").textContent = filename;
-      hide($("drop")); show($("loadedBar"));
-      parseTimesheet(null);
-    },
-    onError: importError
-  });
-  on("applyImport", "click", applyImport);
-  on("cancelImport", "click", function () {
-    imp.buffer = null; imp.staff = null;
-    hide($("importMatch")); hide($("mapper")); hide($("parseError"));
-    hide($("loadedBar")); show($("drop"));
   });
 
   /* ---------- boot ---------- */
