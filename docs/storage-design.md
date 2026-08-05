@@ -297,9 +297,10 @@ what it can and cannot do — but it is not the supported path.
 ### Known limits
 
 - **The picker itself cannot be automated**, so the flows above are covered by
-  tests against an injected File System Access double — the real dialog and a
-  real `FileSystemFileHandle` surviving a browser restart need one manual
-  smoke test in Chrome.
+  tests against an injected File System Access double. The two things that
+  double cannot prove — the real dialog, and a real `FileSystemFileHandle`
+  surviving a full browser restart followed by Reconnect — were smoke tested by
+  hand in Chrome and both work.
 - A file renamed or moved outside the tool breaks its handle. It fails visibly
   and re-picking fixes it, but it is not detected until the next write.
 - IndexedDB is still evictable on `file://`. It is only ever a buffer here, so
