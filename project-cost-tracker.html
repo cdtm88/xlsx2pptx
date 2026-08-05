@@ -2148,7 +2148,7 @@ window.RK = (function () {
      first tab would only find out when its own next write was refused, if then.
      Tabs answer for the file they hold; silence means it is free. */
   var chan = window.BroadcastChannel ? new BroadcastChannel("project-cost-tracker") : null;
-  var claimed = null, blockedBy = "";
+  var claimed = null, blockedBy = "", recentRows = [];
   if (chan) {
     chan.addEventListener("message", function (e) {
       var m = e.data || {};
@@ -2281,6 +2281,23 @@ window.RK = (function () {
     doc.lastModified = 0;
     stale = false;
   }
+  // A silent catch-all here is worse than useless: the browser's own error name
+  // is the only clue to whether this was a cancel, a refusal, or a block.
+  function fileError(what, e) {
+    if (e && e.name === "AbortError") return;                       // user cancelled
+    var name = (e && e.name) || "Error";
+    var msg;
+    if (name === "SecurityError") {
+      msg = "The browser blocked the file picker (SecurityError). This happens if the page was not opened directly, or the click did not reach it.";
+    } else if (name === "NotAllowedError") {
+      msg = "Permission was not granted for that file.";
+    } else {
+      msg = what + " — " + name + (e && e.message ? ": " + String(e.message).slice(0, 120) : "");
+    }
+    toast(msg);
+    try { console.error("[project cost tracker] " + what, e); } catch (x) { }
+  }
+
   function askPermission(handle, mode) {
     if (!handle.requestPermission) return Promise.resolve("granted");
     return handle.requestPermission({ mode: mode || "readwrite" }).catch(function () { return "denied"; });
@@ -2308,10 +2325,7 @@ window.RK = (function () {
     }).then(function () {
       renderDocState();
       toast("Saving to " + doc.name);
-    }).catch(function (e) {
-      if (e && e.name === "AbortError") return;
-      toast("Could not create that file");
-    });
+    }).catch(function (e) { fileError("Could not create that file", e); });
   }
 
   function loadFromHandle(h, id) {
@@ -2357,19 +2371,20 @@ window.RK = (function () {
   }
 
   function openProjectFile() {
+    // mode:"readwrite" up front, so there is no second prompt needing a gesture
+    // that the picker has already consumed
     return window.showOpenFilePicker({
       types: [{ description: "Project cost tracker", accept: { "application/json": [".json"] } }],
-      multiple: false
+      multiple: false, mode: "readwrite"
     }).then(function (list) {
       var h = list[0];
-      return askPermission(h).then(function (p) {
+      return checkPermission(h).then(function (p) {
+        return p === "granted" ? p : askPermission(h);
+      }).then(function (p) {
         if (p !== "granted") { toast("Permission refused"); return; }
         return idForHandle(h).then(function (id) { return adopt(h, id || (uid() + uid())); });
       });
-    }).catch(function (e) {
-      if (e && e.name === "AbortError") return;
-      toast("That file could not be read as a tracker file");
-    });
+    }).catch(function (e) { fileError("That file could not be opened", e); });
   }
 
   function renderRecents() {
@@ -2377,6 +2392,7 @@ window.RK = (function () {
     return idbAll("handles").then(function (rows) {
       rows.sort(function (a, b) { return (b.lastOpened || 0) - (a.lastOpened || 0); });
       rows = rows.slice(0, 6);
+      recentRows = rows;
       if (!rows.length) { $("recents").innerHTML = ""; return; }
       $("recents").innerHTML = '<div class="sub" style="margin-bottom:.4rem;">Recent project files</div>' +
         '<div class="controls-row">' + rows.map(function (r) {
@@ -2388,13 +2404,14 @@ window.RK = (function () {
   }
 
   function openRecent(id) {
-    return idbGet("handles", id).then(function (row) {
-      if (!row || !row.handle) { toast("That file is no longer remembered"); return idbDel("handles", id).then(renderRecents); }
-      return askPermission(row.handle).then(function (p) {
-        if (p !== "granted") { toast("Permission refused — the file was not opened"); return; }
-        return adopt(row.handle, row.id);
-      });
-    }).catch(function () { toast("Could not reopen that file"); });
+    var row = null;
+    for (var i = 0; i < recentRows.length; i++) if (recentRows[i].id === id) row = recentRows[i];
+    if (!row || !row.handle) { toast("That file is no longer remembered"); return idbDel("handles", id).then(renderRecents); }
+    // requestPermission synchronously, while the click still counts as a gesture
+    return askPermission(row.handle).then(function (p) {
+      if (p !== "granted") { toast("Permission refused — the file was not opened"); return; }
+      return adopt(row.handle, row.id);
+    }).catch(function (e) { fileError("Could not reopen that file", e); });
   }
 
   // A handle survives a browser restart but its permission does not, so the
