@@ -261,6 +261,31 @@ holding a crash buffer.
 Version history, per decision 4. The snapshot store is still created, so adding
 it later is a UI job rather than a storage change.
 
+### Edge is blocked on this estate
+
+Confirmed on the target machine: **Edge sets `DefaultFileSystemWriteGuardSetting = 2`,
+Chrome does not.** The picker rejects with `NotAllowedError` before any dialog
+appears, so no amount of correct calling code helps. Edge is also the default
+browser, so double-clicking the file from Downloads lands in the one browser
+that cannot save.
+
+The tool detects this on the first attempt, remembers it per browser, and says
+what actually helps: open the same file in Chrome. In a blocked browser it falls
+back to browser storage and states the one-project limit outright.
+
+That leaves a live gap: **in Edge the tracker still holds only one project.** The
+options, in order of cost:
+
+1. **Use Chrome** — set it as the default for `.html`, or right-click → Open
+   with. Free, and everything in §8 works.
+2. **Ask IT to relax the policy** for this file or in general. `FileSystemWriteAskForUrls`
+   would prompt rather than block.
+3. **Build the project library (option B)** so browser storage holds many
+   projects. Roughly a day. It makes Edge safe but does not give Edge a file on
+   disk, so Save JSON stays the way work leaves the browser.
+
+Not chosen here — it depends on whether Chrome is acceptable day to day.
+
 ### Known limits
 
 - **The picker itself cannot be automated**, so the flows above are covered by

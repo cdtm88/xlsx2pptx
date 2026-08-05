@@ -1855,19 +1855,42 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     try { console.error("[project cost tracker] " + what, e); } catch (x) { }
   }
 
-  // The file picker can be switched off by enterprise policy. When that happens
-  // the buttons are dead weight, so explain it once and fall back cleanly.
-  function blockFileMode(name) {
+  /* The file picker can be switched off by enterprise policy — on this estate
+     Edge ships DefaultFileSystemWriteGuardSetting=2 while Chrome does not. The
+     block is per browser and permanent until IT changes it, so remember it
+     (each browser has its own storage) and stop offering buttons that cannot
+     work. The useful advice is not "check a policy page", it is "open this in
+     Chrome". */
+  var FS_BLOCKED_KEY = "project-cost-tracker:fs-blocked";
+  var isEdge = /\bEdg\//.test(navigator.userAgent);
+  function blockFileMode(name, quiet) {
+    try { localStorage.setItem(FS_BLOCKED_KEY, name || "1"); } catch (e) { }
     var el = $("fsBlocked");
-    el.innerHTML = "<strong>File saving is not available in this browser.</strong> The file picker was refused (" +
-      esc(name) + "). On a managed laptop this is usually an administrator policy — you can check at " +
-      "<code>chrome://policy</code> for <code>DefaultFileSystemWriteGuardSetting</code> or " +
-      "<code>FileSystemWriteBlockedForUrls</code>. Until that changes the tracker keeps your project in this browser, " +
-      "which holds <strong>one project at a time</strong> — use <strong>Save JSON</strong> before switching to another project.";
+    el.innerHTML = "<strong>This browser will not let the tracker save to a file.</strong> " +
+      (isEdge
+        ? "Edge on this machine blocks it by administrator policy (<code>DefaultFileSystemWriteGuardSetting</code>). " +
+          "<strong>The same file works in Chrome</strong> — right-click it and choose <em>Open with &rarr; Chrome</em>, " +
+          "or set Chrome as the default for <code>.html</code> so double-clicking works."
+        : "The file picker was refused" + (name ? " (" + esc(name) + ")" : "") +
+          ". On a managed laptop that is usually an administrator policy — check " +
+          "<code>chrome://policy</code> for <code>DefaultFileSystemWriteGuardSetting</code>.") +
+      " Here, the tracker keeps your project in this browser, which holds <strong>one project at a time</strong> — " +
+      "use <strong>Save JSON</strong> before starting or opening another project. " +
+      '<button type="button" class="mini-btn" id="fsRetry" style="margin-top:.5rem;">Try file saving again</button>';
     show(el);
     hide($("newProject")); hide($("openProject")); hide($("saveAsProject"));
     $("fileState").textContent = "";
+    var retry = $("fsRetry");
+    if (retry) retry.addEventListener("click", function () {
+      try { localStorage.removeItem(FS_BLOCKED_KEY); } catch (e) { }
+      hide(el); show($("newProject")); show($("openProject"));
+      renderDocState();
+      toast("File saving re-enabled — try New project file");
+    });
     renderDocState();
+  }
+  function fsBlockedBefore() {
+    try { return !!localStorage.getItem(FS_BLOCKED_KEY); } catch (e) { return false; }
   }
 
   function askPermission(handle, mode) {
@@ -2352,6 +2375,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     syncInputs(); render(); renderDocState();
     if (!FS_OK) { status("Autosaved to this browser", "live"); return; }
 
+    if (fsBlockedBefore()) { blockFileMode(null, true); return; }
     renderRecents();
     var tabId = null;
     try { tabId = sessionStorage.getItem(TAB_KEY); } catch (e) { }
