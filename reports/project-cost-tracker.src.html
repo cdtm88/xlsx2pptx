@@ -196,6 +196,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     </div>
     <div class="spacer"></div>
     <span class="pct-save" id="saveState"><span class="pct-dot"></span>Starting up</span>
+    <button type="button" class="btn btn-ghost no-print pct-header-btn hidden" id="reconnectBtn">Reconnect</button>
     <span class="ver" id="version">v0.0.0</span>
     <button type="button" class="btn btn-ghost no-print pct-header-btn hidden" id="undoBtn">Undo</button>
     <button type="button" class="btn btn-ghost no-print pct-header-btn" id="topImport">Load data</button>
@@ -440,11 +441,26 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     <div class="card-head">
       <div>
         <span class="title">Saving &amp; data</span>
-        <span class="sub">Autosaves to this browser as you type</span>
+        <span class="sub" id="dataSub">Autosaves to this browser as you type</span>
       </div>
       <button type="button" class="mini-btn pct-toggle" data-panel="data" aria-expanded="true" aria-controls="panel-data">Hide</button>
     </div>
     <div id="panel-data">
+    <div id="fileRow" class="hidden">
+      <div class="controls-row" style="margin-bottom:.8rem;">
+        <button type="button" class="btn btn-primary" id="newProject">New project file&hellip;</button>
+        <button type="button" class="btn btn-ghost" id="openProject">Open project file&hellip;</button>
+        <button type="button" class="btn btn-ghost hidden" id="saveAsProject">Save as&hellip;</button>
+        <span class="sub" id="fileState"></span>
+      </div>
+      <div class="controls-row hidden" id="staleRow" style="margin-bottom:.8rem;">
+        <span class="sub" id="staleMsg"></span>
+        <button type="button" class="mini-btn" id="useDisk">Load the file, discard mine</button>
+        <button type="button" class="mini-btn" id="overwriteFile">Keep mine, overwrite the file</button>
+      </div>
+      <div id="recents"></div>
+      <div class="pct-divider" style="margin:.9rem 0 .8rem"></div>
+    </div>
     <div class="controls-row">
       <button type="button" class="btn btn-primary" id="expJson">Save JSON</button>
       <button type="button" class="btn btn-ghost" id="impJson">Load data</button>
@@ -454,9 +470,11 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
       <input type="file" id="fileIn" accept=".json,application/json" class="hidden">
     </div>
     <div class="note" style="margin-bottom:0;">
-      <strong>Autosave</strong> runs on every edit and keeps your data in this browser, on this machine only.
-      <strong>Save JSON</strong> downloads the file &mdash; that is the copy to keep, back up or hand to someone else.
-      <strong>Load data</strong> reads a saved <code>.json</code> back in, here or in any other browser.
+      <strong>With a project file</strong> every change is written straight into it, so the file on disk is always current
+      and you can keep it beside the rest of the project. One file per project &mdash; open a different one to switch.
+      <strong>Without one</strong> everything sits in this browser, which every copy of this tool shares, so only one
+      project can live there at a time.
+      <strong>Save JSON</strong> still downloads a standalone copy to hand to someone else or keep as a version.
     </div>
     </div>
   </section>
@@ -483,7 +501,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 (function () {
   "use strict";
   var $ = RK.$, esc = RK.esc, show = RK.show, hide = RK.hide;
-  var VERSION = "v1.3.0";
+  var VERSION = "v1.4.0";
   var LS_KEY = "project-cost-tracker:v1";
   var LEGACY_KEY = "project-cost-tracker-v3";   // key used by the pre-Report-Kit build
   var CCYS = ["AED", "GBP", "USD", "EUR"];
@@ -1624,23 +1642,329 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     show(b);
   }
 
-  /* ---------- persistence ---------- */
-  var saveTimer = null, dirty = false;
+  /* ============================================================
+     PERSISTENCE
+
+     The project file is the document; this page is an editor for it. Every
+     `file://` page on a machine shares one origin and therefore one
+     localStorage, so browser storage cannot hold more than one project —
+     two copies of this tool would silently overwrite each other. A file
+     handle has none of that problem: one file per project, kept wherever
+     the project lives.
+
+     Browser storage still earns its place, but only as a safety net:
+       handles  the file you picked, so it reopens in one click
+       scratch  the last state written, so a crash or a lapsed permission
+                cannot cost you the edits since the last successful write
+       session  which project this tool had open last
+     ============================================================ */
+  var DB_NAME = "project-cost-tracker", DB_VERSION = 1;
+  var FS_OK = typeof window.showSaveFilePicker === "function";
+  var doc = { id: null, handle: null, name: "", permission: "none", lastModified: 0, savedAt: 0 };
+  var saveTimer = null, dirty = false, writing = false, stale = false;
+
+  function idb() {
+    return new Promise(function (res, rej) {
+      var req = indexedDB.open(DB_NAME, DB_VERSION);
+      req.onupgradeneeded = function () {
+        var db = req.result;
+        ["handles", "scratch", "session"].forEach(function (s) {
+          if (!db.objectStoreNames.contains(s)) db.createObjectStore(s);
+        });
+      };
+      req.onsuccess = function () { res(req.result); };
+      req.onerror = function () { rej(req.error); };
+    });
+  }
+  function idbDo(store, mode, fn) {
+    return idb().then(function (db) {
+      return new Promise(function (res, rej) {
+        var tx = db.transaction(store, mode), r = fn(tx.objectStore(store));
+        tx.oncomplete = function () { res(r && r.result !== undefined ? r.result : null); };
+        tx.onerror = function () { rej(tx.error); };
+      });
+    }).catch(function () { return null; });
+  }
+  function idbGet(s, k) { return idbDo(s, "readonly", function (o) { return o.get(k); }); }
+  function idbPut(s, k, v) { return idbDo(s, "readwrite", function (o) { return o.put(v, k); }); }
+  function idbDel(s, k) { return idbDo(s, "readwrite", function (o) { return o.delete(k); }); }
+  function idbAll(s) {
+    return idb().then(function (db) {
+      return new Promise(function (res) {
+        var req = db.transaction(s, "readonly").objectStore(s).getAll();
+        req.onsuccess = function () { res(req.result || []); };
+        req.onerror = function () { res([]); };
+      });
+    }).catch(function () { return []; });
+  }
+
+  /* One file, one editor. Every tab shares this origin, so without a claim a
+     second tab would adopt the last-used file and start writing to it — and the
+     first tab would only find out when its own next write was refused, if then.
+     Tabs answer for the file they hold; silence means it is free. */
+  var chan = window.BroadcastChannel ? new BroadcastChannel("project-cost-tracker") : null;
+  var claimed = null, blockedBy = "";
+  if (chan) {
+    chan.addEventListener("message", function (e) {
+      var m = e.data || {};
+      if (m.type === "who-has" && claimed && m.id === claimed) chan.postMessage({ type: "have", id: claimed });
+    });
+  }
+  function claim(id) {
+    if (!chan) { claimed = id; return Promise.resolve(true); }
+    return new Promise(function (res) {
+      var taken = false;
+      var onMsg = function (e) { if (e.data && e.data.type === "have" && e.data.id === id) taken = true; };
+      chan.addEventListener("message", onMsg);
+      chan.postMessage({ type: "who-has", id: id });
+      setTimeout(function () {
+        chan.removeEventListener("message", onMsg);
+        if (!taken) claimed = id;
+        res(!taken);
+      }, 180);
+    });
+  }
+  function release() { claimed = null; }
+  window.addEventListener("pagehide", release);
+
+  function stamp(t) {
+    t = t ? new Date(t) : new Date();
+    return String(t.getHours()).padStart(2, "0") + ":" + String(t.getMinutes()).padStart(2, "0");
+  }
   function status(text, cls) {
     $("saveState").innerHTML = '<span class="pct-dot ' + (cls || "") + '"></span>' + esc(text);
   }
-  function stamp() {
-    var t = new Date();
-    return String(t.getHours()).padStart(2, "0") + ":" + String(t.getMinutes()).padStart(2, "0");
+
+  function renderDocState() {
+    var rec = $("reconnectBtn");
+    if (doc.handle && doc.permission === "granted") {
+      status(stale ? doc.name + " changed on disk" : "Saved to " + doc.name + (doc.savedAt ? " · " + stamp(doc.savedAt) : ""),
+        stale ? "warn" : "live");
+      hide(rec);
+    } else if (doc.handle) {
+      status("Not connected to " + doc.name, "warn");
+      rec.textContent = "Reconnect";
+      show(rec);
+    } else if (blockedBy) {
+      status(blockedBy + " is open in another tab", "warn");
+      hide(rec);
+    } else {
+      status(FS_OK ? "In this browser only" : "Autosaved to this browser", FS_OK ? "warn" : "live");
+      hide(rec);
+    }
+    $("dataSub").textContent = doc.handle && doc.permission === "granted"
+      ? "Writing straight into " + doc.name
+      : "Autosaves to this browser as you type";
+    if (stale) {
+      show($("staleRow"));
+      $("staleMsg").textContent = doc.name + " was changed by something else since this page last wrote it. Nothing has been overwritten.";
+    } else hide($("staleRow"));
+    $("fileState").textContent = doc.handle
+      ? (doc.permission === "granted"
+          ? "Editing " + doc.name + ". Every change is written straight to it."
+          : "Reconnect to " + doc.name + " to start saving again.")
+      : blockedBy
+        ? blockedBy + " is already open in another tab, so it was not opened here. Close it there, or open a different file."
+        : "No project file yet. Everything is held in this browser, which every copy of this tool shares — save to a file to keep projects apart.";
   }
+
+  // Never truncate before a good write: build the bytes, write, then read back
+  // the length. Anything short of that is not a save.
+  function writeFile(force) {
+    if (!doc.handle || doc.permission !== "granted") return Promise.resolve(false);
+    var text = JSON.stringify(S, null, 2);
+    writing = true;
+    return doc.handle.getFile().then(function (f) {
+      // something else edited it since our last write — stop rather than clobber
+      if (!force && doc.lastModified && f.lastModified > doc.lastModified + 1000) { stale = true; return false; }
+      return doc.handle.createWritable().then(function (w) {
+        return w.write(text).then(function () { return w.close(); });
+      }).then(function () {
+        return doc.handle.getFile();
+      }).then(function (after) {
+        if (after.size < new Blob([text]).size) throw new Error("short write");
+        doc.lastModified = after.lastModified;
+        doc.savedAt = Date.now();
+        stale = false;
+        return true;
+      });
+    }).catch(function () { return false; })
+      .then(function (ok) { writing = false; return ok; });
+  }
+
   function saveNow() {
+    dirty = false;
+    var payload = { id: doc.id, data: S, savedAt: Date.now(), name: doc.name };
+    // scratch first: it is the thing that survives a failed or blocked file write
+    if (doc.id) idbPut("scratch", doc.id, payload);
+    if (doc.handle) {
+      return writeFile().then(function (ok) {
+        if (!ok && !stale) doc.permission = "prompt";
+        renderDocState();
+        return ok;
+      });
+    }
     var ok = true;
     try { localStorage.setItem(LS_KEY, JSON.stringify(S)); } catch (e) { ok = false; }
-    dirty = false;
-    status(ok ? "Autosaved " + stamp() : "Not autosaved here, use Save JSON", ok ? "live" : "warn");
+    renderDocState();
+    if (!ok) status("Not autosaved here, use Save JSON", "warn");
+    return Promise.resolve(ok);
   }
-  function queueSave() { dirty = true; clearTimeout(saveTimer); saveTimer = setTimeout(saveNow, 400); }
-  window.addEventListener("beforeunload", function (e) { if (dirty) { e.preventDefault(); e.returnValue = ""; } });
+  function queueSave() { dirty = true; clearTimeout(saveTimer); saveTimer = setTimeout(saveNow, 600); }
+  window.addEventListener("beforeunload", function (e) {
+    if (dirty || writing) { e.preventDefault(); e.returnValue = ""; }
+  });
+
+  /* ---------- project files ---------- */
+  // Which project this *tab* has open is per-tab (sessionStorage survives a
+  // reload but not a new tab); "last used anywhere" is the fallback a brand new
+  // tab gets. Without the split, opening a second project in another tab would
+  // move the first tab's project out from under it on its next reload.
+  var TAB_KEY = "project-cost-tracker:tab";
+  function rememberHandle() {
+    if (!doc.id || !doc.handle) return Promise.resolve();
+    try { sessionStorage.setItem(TAB_KEY, doc.id); } catch (e) { }
+    return idbPut("handles", doc.id, { id: doc.id, name: doc.name, handle: doc.handle, lastOpened: Date.now() })
+      .then(function () { return idbPut("session", "last", { id: doc.id }); })
+      .then(renderRecents);
+  }
+  function bind(handle, id) {
+    doc.handle = handle;
+    doc.name = handle.name;
+    doc.id = id || uid() + uid();
+    doc.permission = "granted";
+    doc.lastModified = 0;
+    stale = false;
+  }
+  function askPermission(handle, mode) {
+    if (!handle.requestPermission) return Promise.resolve("granted");
+    return handle.requestPermission({ mode: mode || "readwrite" }).catch(function () { return "denied"; });
+  }
+  function checkPermission(handle, mode) {
+    if (!handle.queryPermission) return Promise.resolve("granted");
+    return handle.queryPermission({ mode: mode || "readwrite" }).catch(function () { return "denied"; });
+  }
+
+  function newProjectFile() {
+    return window.showSaveFilePicker({
+      suggestedName: slug(S.name) + ".json",
+      types: [{ description: "Project cost tracker", accept: { "application/json": [".json"] } }]
+    }).then(function (h) {
+      return idForHandle(h).then(function (id) {
+        return claim(id || (uid() + uid())).then(function (free) {
+          if (!free) { toast(h.name + " is open in another tab"); throw { name: "AbortError" }; }
+          blockedBy = "";
+          bind(h, claimed);
+          return saveNow();
+        });
+      });
+    }).then(function () {
+      return rememberHandle();
+    }).then(function () {
+      renderDocState();
+      toast("Saving to " + doc.name);
+    }).catch(function (e) {
+      if (e && e.name === "AbortError") return;
+      toast("Could not create that file");
+    });
+  }
+
+  function loadFromHandle(h, id) {
+    return h.getFile().then(function (f) {
+      return f.text().then(function (t) {
+        var next = migrate(JSON.parse(t));   // throws before anything has changed
+        snapshot("open " + h.name);
+        S = next;
+        bind(h, id);
+        doc.lastModified = f.lastModified;
+        doc.savedAt = f.lastModified;
+        syncInputs(); render();
+        return rememberHandle();
+      });
+    }).then(function () {
+      renderDocState();
+      toast("Opened " + doc.name);
+    });
+  }
+
+  // Opening a file we already know about must reuse its id, or the same file
+  // would end up with two identities and the one-editor claim would not hold.
+  function idForHandle(h) {
+    return idbAll("handles").then(function (rows) {
+      var i = 0;
+      function step() {
+        if (i >= rows.length) return null;
+        var row = rows[i++];
+        if (!row.handle || !row.handle.isSameEntry) return step();
+        return row.handle.isSameEntry(h).then(function (same) { return same ? row.id : step(); }).catch(step);
+      }
+      return step();
+    }).catch(function () { return null; });
+  }
+
+  function adopt(h, id) {
+    return claim(id).then(function (free) {
+      if (!free) { blockedBy = h.name; renderDocState(); toast(h.name + " is open in another tab"); return false; }
+      blockedBy = "";
+      return loadFromHandle(h, id).then(function () { return true; })
+        .catch(function (e) { release(); throw e; });   // a failed open must not hold the claim
+    });
+  }
+
+  function openProjectFile() {
+    return window.showOpenFilePicker({
+      types: [{ description: "Project cost tracker", accept: { "application/json": [".json"] } }],
+      multiple: false
+    }).then(function (list) {
+      var h = list[0];
+      return askPermission(h).then(function (p) {
+        if (p !== "granted") { toast("Permission refused"); return; }
+        return idForHandle(h).then(function (id) { return adopt(h, id || (uid() + uid())); });
+      });
+    }).catch(function (e) {
+      if (e && e.name === "AbortError") return;
+      toast("That file could not be read as a tracker file");
+    });
+  }
+
+  function renderRecents() {
+    if (!FS_OK) return Promise.resolve();
+    return idbAll("handles").then(function (rows) {
+      rows.sort(function (a, b) { return (b.lastOpened || 0) - (a.lastOpened || 0); });
+      rows = rows.slice(0, 6);
+      if (!rows.length) { $("recents").innerHTML = ""; return; }
+      $("recents").innerHTML = '<div class="sub" style="margin-bottom:.4rem;">Recent project files</div>' +
+        '<div class="controls-row">' + rows.map(function (r) {
+          var open = doc.id === r.id;
+          return '<button type="button" class="mini-btn" data-recent="' + esc(r.id) + '"' +
+            (open ? ' disabled title="Open now"' : "") + ">" + esc(r.name) + (open ? " ·  open" : "") + "</button>";
+        }).join("") + '<button type="button" class="mini-btn" id="forgetRecents">Clear list</button></div>';
+    });
+  }
+
+  function openRecent(id) {
+    return idbGet("handles", id).then(function (row) {
+      if (!row || !row.handle) { toast("That file is no longer remembered"); return idbDel("handles", id).then(renderRecents); }
+      return askPermission(row.handle).then(function (p) {
+        if (p !== "granted") { toast("Permission refused — the file was not opened"); return; }
+        return adopt(row.handle, row.id);
+      });
+    }).catch(function () { toast("Could not reopen that file"); });
+  }
+
+  // A handle survives a browser restart but its permission does not, so the
+  // reconnect has to be driven by a click.
+  function reconnect() {
+    if (!doc.handle) return;
+    askPermission(doc.handle).then(function (p) {
+      doc.permission = p;
+      if (p !== "granted") { toast("Still not connected"); renderDocState(); return; }
+      return doc.handle.getFile().then(function (f) {
+        doc.lastModified = f.lastModified;
+        return saveNow();
+      }).then(function () { toast("Reconnected to " + doc.name); });
+    });
+  }
 
   /* ---------- events ---------- */
   function on(id, ev, fn) { $(id).addEventListener(ev, fn); }
@@ -1932,6 +2256,39 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     S = EMPTY(); syncInputs(); render(); saveNow(); toast("Tracker cleared");
   });
 
+  on("reconnectBtn", "click", reconnect);
+  if (FS_OK) {
+    show($("fileRow"));
+    on("newProject", "click", newProjectFile);
+    on("openProject", "click", openProjectFile);
+    on("saveAsProject", "click", newProjectFile);
+    // a stale file is a dead end unless you can say which side wins
+    on("useDisk", "click", function () {
+      if (!doc.handle) return;
+      stale = false;
+      loadFromHandle(doc.handle, doc.id).catch(function () { toast("Could not read the file"); });
+    });
+    on("overwriteFile", "click", function () {
+      if (!doc.handle) return;
+      if (!confirm("Overwrite " + doc.name + " with what is on screen? Whatever changed it will be lost.")) return;
+      writeFile(true).then(function (ok) {
+        stale = !ok;
+        renderDocState();
+        toast(ok ? "Overwrote " + doc.name : "Could not write the file");
+      });
+    });
+    $("recents").addEventListener("click", function (e) {
+      if (e.target.id === "forgetRecents") {
+        idbAll("handles").then(function (rows) {
+          return Promise.all(rows.map(function (r) { return idbDel("handles", r.id); }));
+        }).then(renderRecents);
+        return;
+      }
+      var id = e.target.getAttribute("data-recent");
+      if (id) openRecent(id);
+    });
+  }
+
   /* ---------- boot ---------- */
   function syncInputs() {
     $("pname").value = S.name;
@@ -1950,11 +2307,56 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     } catch (e) { }
     return null;
   }
-  var restored = loadSaved();
-  if (restored) S = restored;
-  syncInputs();
-  render();
-  status("Autosaving to this browser", "live");
+
+  /* Boot order: the file this tool had open last, then whatever scratch it held
+     for that file, then the shared browser copy. The file's permission cannot be
+     re-granted without a click, so we show what we have and offer to reconnect
+     rather than pretending we are saving. */
+  function boot() {
+    var restored = loadSaved();
+    if (restored) S = restored;
+    syncInputs(); render(); renderDocState();
+    if (!FS_OK) { status("Autosaved to this browser", "live"); return; }
+
+    renderRecents();
+    var tabId = null;
+    try { tabId = sessionStorage.getItem(TAB_KEY); } catch (e) { }
+    Promise.resolve(tabId ? { id: tabId } : idbGet("session", "last")).then(function (sess) {
+      if (!sess || !sess.id) return;
+      return idbGet("handles", sess.id).then(function (row) {
+        if (!row || !row.handle) return;
+        // Do not adopt a file another tab is editing. This is the path that
+        // would otherwise hand a second tab the first tab's project.
+        return claim(row.id).then(function (free) {
+          if (!free) { blockedBy = row.name; return; }
+          doc.id = row.id; doc.handle = row.handle; doc.name = row.name;
+          return restoreDoc(row);
+        });
+      });
+    }).then(renderDocState).then(renderRecents);
+  }
+
+  function restoreDoc(row) {
+    return checkPermission(row.handle).then(function (p) {
+          doc.permission = p;
+          if (p === "granted") {
+            return row.handle.getFile().then(function (f) {
+              return f.text().then(function (t) {
+                S = migrate(JSON.parse(t));
+                doc.lastModified = f.lastModified;
+                doc.savedAt = f.lastModified;
+                syncInputs(); render();
+              });
+            }).catch(function () { doc.permission = "prompt"; });
+          }
+          // no permission yet: fall back to the scratch we wrote for this file,
+          // so what is on screen is the newest we have, not the oldest
+          return idbGet("scratch", row.id).then(function (sc) {
+            if (sc && sc.data) { S = migrate(sc.data); syncInputs(); render(); }
+          });
+    });
+  }
+  boot();
 })();
 </script>
 </body>

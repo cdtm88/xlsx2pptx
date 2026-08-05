@@ -84,11 +84,23 @@ the rest of the page out of view. The page opens as a report — position,
 burn-up, team and ledger — with set-up, vendors and cost drivers a click away.
 
 Day rates and vendor costs can be in AED, GBP, USD or EUR and are converted at
-rates you set; everything is reported in one base currency. Work autosaves to the browser;
-**Save JSON** is the copy to keep, **Load data** reads it back anywhere (files
-from every earlier version of the tracker still load), and **Export ledger CSV**
-gives you the monthly table. No file to upload — start with **Load demo project**
-for a look around.
+rates you set; everything is reported in one base currency.
+
+**Saving.** In Chrome and Edge, **New project file…** picks where the project
+lives — keep it in the project's own docs folder — and from then on every change
+is written straight into that file with no save step. **Open project file…** and
+the recent-files list switch between projects, one file each. The header always
+says which file it is writing to and when it last did. A file changed by
+something else stops the autosave and asks which side wins, rather than
+overwriting. In browsers without the file picker it falls back to autosaving in
+the browser. **Save JSON** still downloads a standalone copy to hand over or keep
+as a version, **Load data** reads one back (files from every earlier version of
+the tracker still load), and **Export ledger CSV** gives you the monthly table.
+No file to open — start with **Load demo project** for a look around.
+
+See [`docs/storage-design.md`](docs/storage-design.md) for why it works this way:
+every `file://` page shares one origin, so browser storage cannot hold more than
+one project without the copies overwriting each other.
 
 ---
 

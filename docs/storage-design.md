@@ -1,6 +1,8 @@
 # Storing a project cost tracker: what is wrong and what to do about it
 
-Status: **proposal, not built.** Written for a decision, not for merging.
+Status: **accepted and built** (tracker v1.4.0). The measurements and the
+reasoning are kept because they are the argument for the design; the decisions
+that closed it are recorded in §7.
 
 The tracker autosaves to `localStorage` and offers Save JSON / Load data as the
 way to keep a copy. In practice that is friction, and worse, it silently loses
@@ -212,11 +214,61 @@ Phase 1 is the one that matters. Phase 2 is what makes it feel effortless.
 
 ---
 
-## 7. Open decisions for you
+## 7. Decisions taken
 
-1. Which browsers must this work in? That decides whether phase 2 is worth it.
-2. Would hosting these tools somewhere internal (option D) ever be on the table?
-   It is the clean fix, and it changes the recommendation.
-3. One file per project, or one library file?
-4. Is version history worth phase 3, or is "never lose the current project"
-   enough?
+1. **Chrome and Edge only.** So the file picker is not an enhancement to be
+   hedged around — it is the primary path, and the design leans on it.
+2. **Hosting is out**, short and medium term: no local web servers allowed on
+   these laptops, and company data cannot go on a personal host. `file://` and
+   its shared origin are a permanent constraint, not a temporary one.
+3. **One file per project**, to sit in each project's own docs folder.
+4. **Version history is not required** — versions are file copies the user takes
+   themselves. Revisit only if it turns out to be cheap.
+
+Those answers simplified the design considerably. With Chrome/Edge guaranteed
+and hosting off the table, the honest architecture is not "browser storage that
+can export" but **the file is the document, and this page is an editor for it**.
+The project library in §4.1 is therefore not needed: the library is the user's
+own folders. IndexedDB shrinks to a supporting role — remembering handles and
+holding a crash buffer.
+
+## 8. What was built
+
+- **New project file… / Open project file…** using the picker. After the first
+  grant, every edit is written straight into that file, debounced. No save step.
+- **Recent project files**, one click to switch. Reopening a file already known
+  reuses its identity rather than adding a second entry.
+- **Honest status.** The header says `Saved to falcon-platform.json · 14:32`,
+  `Not connected to falcon-platform.json` with a Reconnect button when the
+  permission has lapsed, or `In this browser only` when no file is bound — with
+  the shared-copy caveat spelled out rather than implied.
+- **One file, one editor.** Tabs claim their file over `BroadcastChannel`. A
+  second tab will not adopt a file another tab is editing; it says so instead.
+  This closed a bug found in testing where a new tab silently adopted the last
+  used project and its first action overwrote it.
+- **Never clobber.** Writes verify the file has not changed underneath us and
+  read back the byte length afterwards; a file changed by something else stops
+  autosave and offers *Load the file, discard mine* or *Keep mine, overwrite*.
+- **Crash buffer.** Every save also writes to IndexedDB, so a lapsed permission
+  or a crash cannot cost the edits since the last successful file write — and
+  reconnecting flushes them to the file.
+- **Save JSON / Load data unchanged**, as the portable escape hatch.
+- Without the picker (Firefox, Safari) the file controls stay hidden and the
+  tool falls back to browser autosave exactly as before.
+
+### Not built
+
+Version history, per decision 4. The snapshot store is still created, so adding
+it later is a UI job rather than a storage change.
+
+### Known limits
+
+- **The picker itself cannot be automated**, so the flows above are covered by
+  tests against an injected File System Access double — the real dialog and a
+  real `FileSystemFileHandle` surviving a browser restart need one manual
+  smoke test in Chrome.
+- A file renamed or moved outside the tool breaks its handle. It fails visibly
+  and re-picking fixes it, but it is not detected until the next write.
+- IndexedDB is still evictable on `file://`. It is only ever a buffer here, so
+  the cost of losing it is the edits since the last file write, not the
+  project.
