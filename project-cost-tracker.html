@@ -593,6 +593,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
         <button type="button" class="mini-btn" id="overwriteFile">Keep mine, overwrite the file</button>
       </div>
       <div id="recents"></div>
+      <div class="note hidden" id="fsBlocked" style="margin-top:.8rem;"></div>
       <div class="pct-divider" style="margin:.9rem 0 .8rem"></div>
     </div>
     <div class="controls-row">
@@ -2287,15 +2288,31 @@ window.RK = (function () {
     if (e && e.name === "AbortError") return;                       // user cancelled
     var name = (e && e.name) || "Error";
     var msg;
-    if (name === "SecurityError") {
-      msg = "The browser blocked the file picker (SecurityError). This happens if the page was not opened directly, or the click did not reach it.";
-    } else if (name === "NotAllowedError") {
-      msg = "Permission was not granted for that file.";
+    if (name === "SecurityError" || name === "NotAllowedError") {
+      // On a managed device this is almost always an admin policy rather than
+      // anything the user did — say so, and stop offering a button that cannot work.
+      msg = "Your browser refused access to the file system";
+      blockFileMode(name);
     } else {
       msg = what + " — " + name + (e && e.message ? ": " + String(e.message).slice(0, 120) : "");
     }
     toast(msg);
     try { console.error("[project cost tracker] " + what, e); } catch (x) { }
+  }
+
+  // The file picker can be switched off by enterprise policy. When that happens
+  // the buttons are dead weight, so explain it once and fall back cleanly.
+  function blockFileMode(name) {
+    var el = $("fsBlocked");
+    el.innerHTML = "<strong>File saving is not available in this browser.</strong> The file picker was refused (" +
+      esc(name) + "). On a managed laptop this is usually an administrator policy — you can check at " +
+      "<code>chrome://policy</code> for <code>DefaultFileSystemWriteGuardSetting</code> or " +
+      "<code>FileSystemWriteBlockedForUrls</code>. Until that changes the tracker keeps your project in this browser, " +
+      "which holds <strong>one project at a time</strong> — use <strong>Save JSON</strong> before switching to another project.";
+    show(el);
+    hide($("newProject")); hide($("openProject")); hide($("saveAsProject"));
+    $("fileState").textContent = "";
+    renderDocState();
   }
 
   function askPermission(handle, mode) {
