@@ -284,7 +284,15 @@ options, in order of cost:
    projects. Roughly a day. It makes Edge safe but does not give Edge a file on
    disk, so Save JSON stays the way work leaves the browser.
 
-Not chosen here — it depends on whether Chrome is acceptable day to day.
+**Decided: (1).** Chrome is acceptable day to day and is being set as the
+default for `.html`, so double-clicking a project file lands in a browser that
+can save it. The project library is **not** being built: it would be a second
+storage mode, earning nothing once Chrome is the default, and needing
+maintenance forever. If Edge ever becomes unavoidable, option B is still the
+answer and this section is the brief for it.
+
+Edge is not left broken — it falls back to browser storage and says plainly
+what it can and cannot do — but it is not the supported path.
 
 ### Known limits
 

@@ -86,14 +86,15 @@ burn-up, team and ledger — with set-up, vendors and cost drivers a click away.
 Day rates and vendor costs can be in AED, GBP, USD or EUR and are converted at
 rates you set; everything is reported in one base currency.
 
-**Saving.** In Chrome and Edge, **New project file…** picks where the project
+**Saving.** In **Chrome**, **New project file…** picks where the project
 lives — keep it in the project's own docs folder — and from then on every change
 is written straight into that file with no save step. **Open project file…** and
 the recent-files list switch between projects, one file each. The header always
 says which file it is writing to and when it last did. A file changed by
 something else stops the autosave and asks which side wins, rather than
-overwriting. In browsers without the file picker it falls back to autosaving in
-the browser. **Save JSON** still downloads a standalone copy to hand over or keep
+overwriting. Browsers that cannot use the file picker — including Edge where an
+administrator policy blocks it — fall back to autosaving in the browser, which
+holds one project at a time and says so. **Save JSON** still downloads a standalone copy to hand over or keep
 as a version, **Load data** reads one back (files from every earlier version of
 the tracker still load), and **Export ledger CSV** gives you the monthly table.
 No file to open — start with **Load demo project** for a look around.
