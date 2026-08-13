@@ -32,7 +32,9 @@ PowerPoint-safe margins.
 The plan is keyed on **real dates**: each task gets a Start Date and an End
 Date, and the slide's timeline is months across the top with week-commencing
 (w/c) dates beneath — so a task that starts mid-week starts mid-column rather
-than being rounded to a sprint boundary. Plans written against the older
+than being rounded to a sprint boundary. Weeks always commence **Monday**: set
+the plan's Start to a Wednesday and the timeline still runs Monday to Monday,
+opening from the Monday of that week. Plans written against the older
 sprint-based template still open: each `Q#.#` label is resolved to the dates
 that sprint covered and drawn on the same week timeline.
 
