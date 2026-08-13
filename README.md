@@ -38,6 +38,11 @@ opening from the Monday of that week. Plans written against the older
 sprint-based template still open: each `Q#.#` label is resolved to the dates
 that sprint covered and drawn on the same week timeline.
 
+**Copy image** on the slide preview puts the plan and its key on the clipboard
+as a PNG — without the title, so it drops under whatever heading the slide or
+email already has. Where the browser blocks clipboard writes (some `file://`
+setups), the image downloads instead.
+
 ## `waqti-exceptions.html`
 
 Drop a Waqti timesheet export, apply a per-person approved-demand allowlist
