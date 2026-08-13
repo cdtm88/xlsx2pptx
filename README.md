@@ -24,10 +24,17 @@ with the network off, and brand-consistent styling.
 ## `delivery-plan.html`
 
 Drag in an Excel delivery plan (or start from the built-in blank template),
-adjust the title, dates, sprint range, and which tasks are shown, then download
-a PowerPoint Gantt-chart slide. Bars are coloured by status or a single colour,
+adjust the title, the week range and which tasks are shown, then download a
+PowerPoint Gantt-chart slide. Bars are coloured by status or a single colour,
 grouped into category swimlanes, with a proportional "Today" marker and
 PowerPoint-safe margins.
+
+The plan is keyed on **real dates**: each task gets a Start Date and an End
+Date, and the slide's timeline is months across the top with week-commencing
+(w/c) dates beneath — so a task that starts mid-week starts mid-column rather
+than being rounded to a sprint boundary. Plans written against the older
+sprint-based template still open: each `Q#.#` label is resolved to the dates
+that sprint covered and drawn on the same week timeline.
 
 ## `waqti-exceptions.html`
 
