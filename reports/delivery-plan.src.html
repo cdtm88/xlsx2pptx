@@ -337,12 +337,27 @@ function addDays(d,n){var r=new Date(d);r.setDate(r.getDate()+n);return r}
 function midnight(d){return new Date(d.getFullYear(),d.getMonth(),d.getDate())}
 function dayDiff(a,b){return Math.round((midnight(b)-midnight(a))/DAY)}
 
+// A whole-day value out of a spreadsheet can land either side of midnight, so
+// it is snapped to the nearest one rather than truncated to whatever day the
+// local clock happens to read:
+//   - SheetJS builds its Dates off an 1899 epoch, and a zone whose offset then
+//     differs from today's carries that difference through. Dubai was UTC+3:41
+//     until 1920 and is UTC+4 now, so 01 Oct arrives as 30 Sep 23:41.
+//   - A raw Excel serial is a UTC instant, which west of UTC reads as the
+//     previous evening.
+// Both are minutes-to-hours from a midnight, never a real time of day: the
+// Start/End cells are date-validated and carry no time component.
+function sheetDay(d){
+  var day=new Date(d.getFullYear(),d.getMonth(),d.getDate());
+  return (d-day)>=DAY/2?addDays(day,1):day;
+}
+
 // Dates arrive as real Date objects (SheetJS cellDates), Excel serials, or text.
 // Text is read day-first (01/09/26 is 1 September) to match the en-GB dates the
 // rest of the tool prints; ISO yyyy-mm-dd is read as ISO.
 function parseDate(v){
-  if(v instanceof Date && !isNaN(v)) return midnight(v);
-  if(typeof v==='number' && isFinite(v)) return midnight(new Date(Math.round((v-25569)*DAY)));
+  if(v instanceof Date && !isNaN(v)) return sheetDay(v);
+  if(typeof v==='number' && isFinite(v)) return sheetDay(new Date(Math.round((v-25569)*DAY)));
   if(typeof v==='string'){
     var s=v.trim();
     if(!s)return null;
@@ -356,7 +371,7 @@ function parseDate(v){
       return isNaN(dt)?null:dt;
     }
     var d=new Date(s);
-    return isNaN(d)?null:midnight(d);
+    return isNaN(d)?null:sheetDay(d);
   }
   return null;
 }
