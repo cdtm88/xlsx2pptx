@@ -38,6 +38,11 @@ opening from the Monday of that week. Plans written against the older
 sprint-based template still open: each `Q#.#` label is resolved to the dates
 that sprint covered and drawn on the same week timeline.
 
+Every field in the Tasks table is **editable in the page** — name, category,
+status, start and end dates, and the milestone flag — so a late change goes
+straight in without editing the spreadsheet and re-uploading. Moving a date
+past the end of the timeline extends it rather than dropping the task.
+
 **Copy image** on the slide preview puts the plan and its key on the clipboard
 as a PNG — without the title, so it drops under whatever heading the slide or
 email already has. Where the browser blocks clipboard writes (some `file://`

@@ -113,7 +113,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Roboto,Arial,
 .seg button.active{background:#fff;color:var(--teal-dark);box-shadow:0 1px 2px rgba(23,43,77,.1)}
 
 /* Tasks table */
-.table-wrap{max-height:340px;overflow-y:auto;border:1px solid var(--line);border-radius:10px}
+.table-wrap{max-height:340px;overflow:auto;border:1px solid var(--line);border-radius:10px}
 .task-table{width:100%;border-collapse:collapse;font-size:.82rem}
 .task-table thead th{position:sticky;top:0;background:#F4F6F7;color:var(--slate);padding:.6rem .7rem;text-align:left;
   font-weight:700;font-size:.7rem;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--line);z-index:1}
@@ -134,6 +134,25 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Roboto,Arial,
 .sb-n{background:#F1F3F5;color:#42526E;border:1px solid #C6CDD3}
 .sb-b{background:#DE350B;color:#fff}
 .sb-m{background:#F59E0B;color:#fff}
+.sb-blank{background:#FFF;color:#97A0AF;border:1px dashed #C6CDD3}
+
+/* Editable task cells — plain text until hovered, so the table still reads as
+   a table rather than a form */
+.task-table td.namecell{display:flex;align-items:center;gap:.35rem}
+.task-table .cell{width:100%;min-width:0;font-family:inherit;font-size:.82rem;color:var(--charcoal);
+  background:transparent;border:1px solid transparent;border-radius:6px;padding:.26rem .38rem;
+  transition:border-color .15s,background .15s,box-shadow .15s}
+.task-table .cell:hover{border-color:var(--line);background:#fff}
+.task-table .cell:focus{outline:none;border-color:var(--teal);background:#fff;box-shadow:0 0 0 3px rgba(0,169,206,.14)}
+.task-table input[type=date].cell{min-width:8.4rem}
+.task-table select.sb{appearance:none;-webkit-appearance:none;font-family:inherit;cursor:pointer;
+  border:1px solid transparent;max-width:100%;transition:box-shadow .15s}
+.task-table select.sb.sb-n,.task-table select.sb.sb-blank{border-style:solid}
+.task-table select.sb:hover{box-shadow:0 0 0 2px rgba(23,43,77,.12)}
+.task-table select.sb:focus{outline:none;box-shadow:0 0 0 3px rgba(0,169,206,.3)}
+.task-table select.sb option{background:#fff;color:var(--charcoal)}
+.task-table tbody tr.off .cell,.task-table tbody tr.off select.sb{text-decoration:line-through}
+.task-table tbody tr.offplan .cell{color:#97A0AF}
 
 /* Legend */
 .legend{display:flex;gap:1.4rem;flex-wrap:wrap;font-size:.78rem;color:var(--mid)}
@@ -223,7 +242,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Roboto,Arial,
 
     <div class="card">
       <div class="card-head">
-        <span class="title">Tasks <span class="sub" id="task-sel-lbl"></span></span>
+        <span class="title">Tasks <span class="sub" id="task-sel-lbl"></span>
+          <span class="sub">&mdash; edit any field to adjust the plan without re-uploading</span></span>
         <div class="controls-row">
           <button class="mini-btn" id="task-all">Select all</button>
           <button class="mini-btn" id="task-none">Clear</button>
@@ -516,7 +536,9 @@ function parseExcel(buf){
   if(!weeks.length)
     throw new Error('No dated tasks found. Give at least one task a Start Date and an End Date.');
 
-  return {title:title,sheetNow:sheetNow,
+  // planStart/sheetWeeks are kept so the axis can be rebuilt when a task date
+  // is edited — the sheet's own window still bounds it, not just the tasks.
+  return {title:title,sheetNow:sheetNow,planStart:planStart,sheetWeeks:sheetWeeks,
     weeks:weeks,tasks:tasks,weekFrom:0,weekTo:weeks.length-1,
     nowDate:null,colorMode:'status'};
 }
@@ -688,9 +710,13 @@ function renderPreview(L,data){
   var el=document.getElementById('slide-preview');
   el.innerHTML='';
 
+  // Size from the rounded edges rather than rounding the size: blocks that share
+  // an edge in inches then share it in pixels too, so the month and week bands
+  // finish flush with the chart body instead of a pixel or two short of it.
   function dv(x,y,w,h,bg,ex){
     var d=document.createElement('div');
-    d.style.cssText='left:'+p(x)+'px;top:'+p(y)+'px;width:'+p(w)+'px;height:'+p(h)+'px;'
+    d.style.cssText='left:'+p(x)+'px;top:'+p(y)+'px;'
+      +'width:'+(p(x+w)-p(x))+'px;height:'+(p(y+h)-p(y))+'px;'
       +(bg?'background:#'+bg+';':'')+(ex||'');
     el.appendChild(d);return d;
   }
@@ -1108,10 +1134,26 @@ function clearError(){document.getElementById('error-msg').classList.add('hidden
 
 function escH(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML}
 
-function statusBadge(s){
+function escA(s){return escH(s).replace(/"/g,'&quot;')}
+
+// The statuses the Excel template validates against. A file carrying anything
+// else (an older "Milestone", a house status) keeps it as an extra option
+// rather than having it silently rewritten.
+var STATUS_OPTS=['','Not Started','In Progress','Done','Blocked'];
+
+function statusClass(s){
   var M={Done:'sb-d','In Progress':'sb-p','Not Started':'sb-n',Blocked:'sb-b',Milestone:'sb-m'};
-  var cls=Object.prototype.hasOwnProperty.call(M,s)?M[s]:'';
-  return s?'<span class="sb '+cls+'">'+escH(s)+'</span>':'';
+  if(!s)return 'sb-blank';
+  return Object.prototype.hasOwnProperty.call(M,s)?M[s]:'sb-n';
+}
+
+function statusSelect(t,idx){
+  var opts=STATUS_OPTS.slice();
+  if(t.status&&opts.indexOf(t.status)<0)opts.push(t.status);
+  var html=opts.map(function(o){
+    return '<option value="'+escA(o)+'"'+(o===t.status?' selected':'')+'>'+(o?escH(o):'—')+'</option>';
+  }).join('');
+  return '<select class="sb '+statusClass(t.status)+' f-status" data-i="'+idx+'" title="Status">'+html+'</select>';
 }
 
 function buildLegend(){
@@ -1124,15 +1166,38 @@ function buildLegend(){
 }
 
 // ---- Week range (From / To) ----
-function populateWeekSelects(){
-  var from=document.getElementById('wk-from'), to=document.getElementById('wk-to');
-  var html=currentData.weeks.map(function(d,i){
+function weekOptionsHtml(){
+  return currentData.weeks.map(function(d,i){
     return '<option value="'+i+'">'+escH(fmtFull(d))+'</option>';
   }).join('');
+}
+
+function populateWeekSelects(){
+  var from=document.getElementById('wk-from'), to=document.getElementById('wk-to');
+  var html=weekOptionsHtml();
   from.innerHTML=html; to.innerHTML=html;
   var auto=autoWeekRange(currentData);
   from.value=auto[0]; to.value=auto[1];
   applyWeekRange();
+}
+
+// Editing a task date can push the plan outside the current axis, so rebuild it
+// and carry the visible window across by date rather than by index.
+function refreshWeekAxis(){
+  var fromD=currentData.weeks[currentData.weekFrom];
+  var toD=currentData.weeks[currentData.weekTo];
+  var weeks=buildWeeks(currentData.planStart,currentData.tasks,currentData.sheetWeeks);
+  if(!weeks.length)return;                    // every date cleared — keep the axis
+  currentData.weeks=weeks;
+  currentData.weekFrom=weekIndex(weeks,fromD);
+  currentData.weekTo=Math.max(currentData.weekFrom,weekIndex(weeks,toD));
+  var from=document.getElementById('wk-from'), to=document.getElementById('wk-to');
+  var html=weekOptionsHtml();
+  from.innerHTML=html; to.innerHTML=html;
+  from.value=currentData.weekFrom; to.value=currentData.weekTo;
+  document.getElementById('week-count-lbl').textContent=
+    (currentData.weekTo-currentData.weekFrom+1)+' of '+weeks.length
+    +' week'+(weeks.length===1?'':'s');
 }
 
 function applyWeekRange(){
@@ -1161,21 +1226,54 @@ function buildTaskTable(){
     var tr=document.createElement('tr');
     tr.setAttribute('data-i',idx);
     if(t.selected===false)tr.className='off';
-    tr.innerHTML='<td class="cbcol"><input type="checkbox" data-i="'+idx+'"'+(t.selected!==false?' checked':'')+'></td>'
-      +'<td>'+escH(t.name)+'</td><td>'+escH(t.section||'')+'</td><td>'+statusBadge(t.status)+'</td><td>'
-      +(t.start?escH(fmtFull(t.start)):'')+'</td><td>'+(t.end?escH(fmtFull(t.end)):'')+'</td><td>'
-      +(t.milestone?'&#10003;':'')+'</td>';
+    tr.innerHTML=
+      '<td class="cbcol"><input type="checkbox" class="f-show" data-i="'+idx+'"'
+        +(t.selected!==false?' checked':'')+' title="Show on the plan"></td>'
+      +'<td class="namecell"><input type="text" class="cell f-name" data-i="'+idx+'" value="'
+        +escA(t.name)+'" title="Task"><span class="tags"></span></td>'
+      +'<td><input type="text" class="cell f-section" data-i="'+idx+'" value="'
+        +escA(t.section||'')+'" title="Category"></td>'
+      +'<td>'+statusSelect(t,idx)+'</td>'
+      +'<td><input type="date" class="cell f-start" data-i="'+idx+'" value="'
+        +(t.start?toInput(t.start):'')+'" title="Start date"></td>'
+      +'<td><input type="date" class="cell f-end" data-i="'+idx+'" value="'
+        +(t.end?toInput(t.end):'')+'" title="End date"></td>'
+      +'<td class="cbcol"><input type="checkbox" class="f-ms" data-i="'+idx+'"'
+        +(t.milestone?' checked':'')+' title="Milestone"></td>';
     tb.appendChild(tr);
   });
-  tb.querySelectorAll('input[type=checkbox]').forEach(function(cb){
-    cb.addEventListener('change',function(){
-      var i=+cb.getAttribute('data-i');
-      currentData.tasks[i].selected=cb.checked;
-      cb.closest('tr').classList.toggle('off',!cb.checked);
-      updateTaskCount();updateUI();
-    });
-  });
   updateTaskCount();
+}
+
+// One delegated handler for the whole table, wired once — rebuilding rows on
+// every keystroke would take the caret with it.
+function onTaskEdit(e){
+  if(!currentData)return;
+  var el=e.target, i=+el.getAttribute('data-i');
+  if(isNaN(i))return;
+  var t=currentData.tasks[i];
+  if(!t)return;
+  var typed=e.type==='input', changed=e.type==='change';
+
+  if(el.classList.contains('f-name')&&typed){t.name=el.value;updateUI();return}
+  if(el.classList.contains('f-section')&&typed){t.section=el.value;updateUI();return}
+  if(!changed)return;
+
+  if(el.classList.contains('f-show')){
+    t.selected=el.checked;
+    el.closest('tr').classList.toggle('off',!el.checked);
+    updateTaskCount();updateUI();
+  }else if(el.classList.contains('f-status')){
+    t.status=el.value;
+    el.className='sb '+statusClass(t.status)+' f-status';
+    updateUI();
+  }else if(el.classList.contains('f-ms')){
+    t.milestone=el.checked;updateUI();
+  }else if(el.classList.contains('f-start')||el.classList.contains('f-end')){
+    var d=el.value?fromInput(el.value):null;
+    if(el.classList.contains('f-start'))t.start=d; else t.end=d;
+    refreshWeekAxis();updateUI();
+  }
 }
 
 function updateTaskCount(){
@@ -1212,10 +1310,11 @@ function renderHiddenNote(hidden,undated){
   undated.forEach(function(t){uset[currentData.tasks.indexOf(t)]=true});
   document.querySelectorAll('#task-tbody tr').forEach(function(tr){
     var i=+tr.getAttribute('data-i');
-    var name=tr.children[1];
+    var host=tr.querySelector('.tags');
+    if(!host)return;
     function tag(cls,txt,on){
-      var ex=name.querySelector('.'+cls);
-      if(on&&!ex){var s=document.createElement('span');s.className=cls;s.textContent=txt;name.appendChild(s)}
+      var ex=host.querySelector('.'+cls);
+      if(on&&!ex){var s=document.createElement('span');s.className=cls;s.textContent=txt;host.appendChild(s)}
       else if(!on&&ex)ex.remove();
     }
     tr.classList.toggle('offplan',!!hset[i]||!!uset[i]);
@@ -1334,6 +1433,10 @@ function init(){
   document.getElementById('wk-reset').addEventListener('click',resetWeekRange);
 
   document.getElementById('btn-copy-img').addEventListener('click',copyPlanImage);
+
+  var tbody=document.getElementById('task-tbody');
+  tbody.addEventListener('input',onTaskEdit);
+  tbody.addEventListener('change',onTaskEdit);
 
   document.getElementById('task-all').addEventListener('click',function(){setAllTasks(true)});
   document.getElementById('task-none').addEventListener('click',function(){setAllTasks(false)});
