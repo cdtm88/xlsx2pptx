@@ -138,13 +138,21 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Roboto,Arial,
 
 /* Editable task cells — plain text until hovered, so the table still reads as
    a table rather than a form */
-.task-table td.namecell{display:flex;align-items:center;gap:.35rem}
+/* the flex wrapper sits inside the cell, not on it — a display:flex <td> drops
+   out of table layout and stops stretching to the row height, which knocks its
+   bottom border out of line with the rest of the row */
+.task-table .namecell{display:flex;align-items:center;gap:.35rem}
 .task-table .cell{width:100%;min-width:0;font-family:inherit;font-size:.82rem;color:var(--charcoal);
   background:transparent;border:1px solid transparent;border-radius:6px;padding:.26rem .38rem;
   transition:border-color .15s,background .15s,box-shadow .15s}
 .task-table .cell:hover{border-color:var(--line);background:#fff}
 .task-table .cell:focus{outline:none;border-color:var(--teal);background:#fff;box-shadow:0 0 0 3px rgba(0,169,206,.14)}
-.task-table input[type=date].cell{min-width:8.4rem}
+/* Chrome reserves slack inside a date input, so even at its intrinsic width the
+   value and the picker icon sit apart. Sized to a ten-character date plus the
+   icon instead, which closes the gap without clipping either. */
+.task-table input[type=date].cell{width:7rem;min-width:0}
+.task-table td.datecell,.task-table th.datecell{width:1%;white-space:nowrap;padding-left:.3rem;padding-right:.3rem}
+.task-table th.mscol,.task-table td.mscol{width:1%;text-align:center;padding-left:.5rem;padding-right:.5rem}
 .task-table select.sb{appearance:none;-webkit-appearance:none;font-family:inherit;cursor:pointer;
   border:1px solid transparent;max-width:100%;transition:box-shadow .15s}
 .task-table select.sb.sb-n,.task-table select.sb.sb-blank{border-style:solid}
@@ -252,7 +260,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Roboto,Arial,
       <div class="table-wrap">
         <table class="task-table"><thead><tr>
           <th class="cbcol"><input type="checkbox" id="task-head-cb" title="Select all"></th>
-          <th>Task</th><th>Category</th><th>Status</th><th>Start</th><th>End</th><th>Milestone</th>
+          <th>Task</th><th>Category</th><th>Status</th>
+          <th class="datecell">Start</th><th class="datecell">End</th><th class="mscol">Milestone</th>
         </tr></thead><tbody id="task-tbody"></tbody></table>
       </div>
     </div>
@@ -1244,16 +1253,16 @@ function buildTaskTable(){
     tr.innerHTML=
       '<td class="cbcol"><input type="checkbox" class="f-show" data-i="'+idx+'"'
         +(t.selected!==false?' checked':'')+' title="Show on the plan"></td>'
-      +'<td class="namecell"><input type="text" class="cell f-name" data-i="'+idx+'" value="'
-        +escA(t.name)+'" title="Task"><span class="tags"></span></td>'
+      +'<td><div class="namecell"><input type="text" class="cell f-name" data-i="'+idx+'" value="'
+        +escA(t.name)+'" title="Task"><span class="tags"></span></div></td>'
       +'<td><input type="text" class="cell f-section" data-i="'+idx+'" value="'
         +escA(t.section||'')+'" title="Category"></td>'
       +'<td>'+statusSelect(t,idx)+'</td>'
-      +'<td><input type="date" class="cell f-start" data-i="'+idx+'" value="'
+      +'<td class="datecell"><input type="date" class="cell f-start" data-i="'+idx+'" value="'
         +(t.start?toInput(t.start):'')+'" title="Start date"></td>'
-      +'<td><input type="date" class="cell f-end" data-i="'+idx+'" value="'
+      +'<td class="datecell"><input type="date" class="cell f-end" data-i="'+idx+'" value="'
         +(t.end?toInput(t.end):'')+'" title="End date"></td>'
-      +'<td class="cbcol"><input type="checkbox" class="f-ms" data-i="'+idx+'"'
+      +'<td class="mscol"><input type="checkbox" class="f-ms" data-i="'+idx+'"'
         +(t.milestone?' checked':'')+' title="Milestone"></td>';
     tb.appendChild(tr);
   });
