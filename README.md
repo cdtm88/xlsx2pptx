@@ -24,10 +24,29 @@ with the network off, and brand-consistent styling.
 ## `delivery-plan.html`
 
 Drag in an Excel delivery plan (or start from the built-in blank template),
-adjust the title, dates, sprint range, and which tasks are shown, then download
-a PowerPoint Gantt-chart slide. Bars are coloured by status or a single colour,
+adjust the title, the week range and which tasks are shown, then download a
+PowerPoint Gantt-chart slide. Bars are coloured by status or a single colour,
 grouped into category swimlanes, with a proportional "Today" marker and
 PowerPoint-safe margins.
+
+The plan is keyed on **real dates**: each task gets a Start Date and an End
+Date, and the slide's timeline is months across the top with week-commencing
+(w/c) dates beneath — so a task that starts mid-week starts mid-column rather
+than being rounded to a sprint boundary. Weeks always commence **Monday**: set
+the plan's Start to a Wednesday and the timeline still runs Monday to Monday,
+opening from the Monday of that week. Plans written against the older
+sprint-based template still open: each `Q#.#` label is resolved to the dates
+that sprint covered and drawn on the same week timeline.
+
+Every field in the Tasks table is **editable in the page** — name, category,
+status, start and end dates, and the milestone flag — so a late change goes
+straight in without editing the spreadsheet and re-uploading. Moving a date
+past the end of the timeline extends it rather than dropping the task.
+
+**Copy image** on the slide preview puts the plan and its key on the clipboard
+as a PNG — without the title, so it drops under whatever heading the slide or
+email already has. Where the browser blocks clipboard writes (some `file://`
+setups), the image downloads instead.
 
 ## `waqti-exceptions.html`
 
