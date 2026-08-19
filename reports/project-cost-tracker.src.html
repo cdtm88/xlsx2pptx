@@ -41,11 +41,27 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 }
 
 /* set-up fields */
-.pct-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.7rem .9rem;align-items:end}
-.pct-fields.fx{grid-template-columns:repeat(auto-fit,160px);justify-content:start}
+.pct-fields{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:.75rem .9rem;align-items:end}
+#fxFields{display:contents}
 .pct-field label{display:block;font-size:.72rem;font-weight:600;color:var(--slate);margin:0 0 .25rem;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pct-field.c2{grid-column:span 2}
+.pct-field.c3{grid-column:span 3}
+.pct-field.c4{grid-column:span 4}
+.pct-field.c6{grid-column:span 6}
 .pct-field.wide{grid-column:1/-1}
+/* the rates note sits under the rates it explains, not across the whole card */
+.pct-fields .note{grid-column:7/-1;margin:.15rem 0 0}
+/* Fewer, wider columns as the card narrows. The spans are equalised at each step
+   so the fields divide evenly into rows instead of leaving one stranded: four
+   across, then two, then one. */
+@media (max-width:1040px){
+  .pct-field.c2,.pct-field.c3,.pct-field.c4{grid-column:span 3}
+  .pct-field.c6{grid-column:span 12}
+  .pct-fields .note{grid-column:1/-1}
+}
+@media (max-width:700px){ .pct-field.c2,.pct-field.c3,.pct-field.c4{grid-column:span 6} }
+@media (max-width:430px){ .pct-fields .pct-field{grid-column:1/-1} }
 .pct-divider{grid-column:1/-1;border-top:1px solid var(--line-soft);margin:.3rem 0 0}
 
 /* KPI tiles — kit .kpi, three lines instead of two */
@@ -127,7 +143,6 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 .pct-matrix th.mhead{text-align:center;font-size:.64rem;padding:.45rem .25rem}
 .pct-matrix td.mcell{padding:.22rem .18rem}
 .pct-matrix td.mcell input{width:58px;text-align:center}
-.pct-matrix td.allcell input{width:62px;text-align:center;border-color:var(--teal)}
 .pct-matrix td.money{text-align:right;font-variant-numeric:tabular-nums;font-weight:700;color:var(--teal-dark)}
 .pct-matrix td.foot-num{text-align:center;font-size:.72rem;font-variant-numeric:tabular-nums;color:var(--slate)}
 .pct-matrix .c-role input{min-width:110px}
@@ -141,7 +156,6 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 
 /* vendor matrix — same skeleton as the team matrix, money cells instead of days */
 .pct-vendors td.mcell input{width:82px;text-align:right}
-.pct-vendors td.allcell input{width:82px;text-align:right}
 .pct-vendors .c-scope input{min-width:130px}
 .pct-vendors .c-contract input{min-width:96px;text-align:right}
 .pct-vendors th.mhead{text-align:right;padding-right:.5rem}
@@ -169,6 +183,47 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 /* timesheet import: staff match table */
 #matchTable select{padding:.32rem .45rem;font-size:.8rem;border-radius:6px;min-width:190px;width:auto}
 #matchTable td{white-space:nowrap}
+
+/* review modal */
+.pct-overlay{position:fixed;inset:0;background:rgba(23,43,77,.45);z-index:80;display:flex;align-items:center;
+  justify-content:center;padding:1.5rem}
+.pct-dialog{background:var(--card);border-radius:var(--radius);box-shadow:0 12px 40px rgba(23,43,77,.25);
+  width:min(980px,100%);max-height:90vh;display:flex;flex-direction:column;overflow:hidden}
+.pct-dialog-head{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;
+  padding:1.1rem 1.4rem;border-bottom:1px solid var(--line)}
+.pct-dialog-head h2{font-size:1rem;font-weight:800;color:var(--slate);letter-spacing:-.01em}
+.pct-dialog-body{padding:1.1rem 1.4rem;overflow:auto}
+.pct-dialog-foot{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;
+  padding:.9rem 1.4rem;border-top:1px solid var(--line);background:var(--light-grey)}
+@media (max-width:640px){ .pct-overlay{padding:0} .pct-dialog{max-height:100vh;border-radius:0} }
+
+/* code picker */
+.pct-code{display:flex;align-items:center;gap:.8rem;width:100%;text-align:left;padding:.6rem .8rem;
+  border:1px solid var(--line);background:#fff;border-radius:8px;margin-bottom:.4rem;cursor:pointer;font-family:inherit}
+.pct-code:hover{border-color:var(--teal);background:var(--teal-tint)}
+.pct-code .c-name{flex:1;font-weight:600;color:var(--slate);font-size:.86rem;word-break:break-word}
+.pct-code .c-meta{font-size:.76rem;color:var(--mid);white-space:nowrap;font-variant-numeric:tabular-nums}
+.pct-code.leave{opacity:.6}
+
+/* callouts stack flush by default, which reads as one block colliding with the
+   toolbar under it — space them, and give the toolbar its own gap */
+#tsFlags{display:flex;flex-direction:column;gap:.45rem}
+#tsFlags:not(:empty){margin-bottom:1rem}
+
+/* preview rows */
+.pct-preview td.num{font-variant-numeric:tabular-nums}
+.pct-preview input[type=number]{width:88px;padding:.3rem .45rem;font-size:.8rem;text-align:right;border-radius:6px}
+.pct-preview input[type=checkbox]{accent-color:var(--teal);width:16px;height:16px;cursor:pointer}
+/* held back: a fall in a month the file only part covers, unticked by default */
+.pct-preview tr.hold td{background:#FDF3E7}
+.pct-preview tr.hold:nth-child(even) td{background:#FBEDDC}
+.pct-preview td .sub2{display:block;font-size:.72rem;color:var(--mid);font-weight:500}
+.pct-preview td.up{color:#3F8F41;font-weight:700}
+.pct-preview td.dn{color:#9A6212;font-weight:700}
+.pct-preview .who{font-weight:600}
+.pct-preview .who .sub2{display:block;font-size:.72rem;color:var(--mid);font-weight:500}
+.pct-newp{display:inline-block;font-size:.66rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;
+  color:#9A6212;background:#FDF3E7;border:1px solid #F0D6A6;border-radius:20px;padding:.05rem .45rem;margin-left:.35rem}
 
 /* toast */
 #toast{position:fixed;left:50%;transform:translateX(-50%);bottom:24px;background:var(--slate);color:#fff;
@@ -215,43 +270,51 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
       <button type="button" class="mini-btn pct-toggle" data-panel="setup" aria-expanded="true" aria-controls="panel-setup">Hide</button>
     </div>
     <div id="panel-setup" class="hidden">
+      <!-- one 12-column grid: every field is as wide as what it holds, so a
+           two-digit month count does not get the same box as a project name.
+           Rows come out 6+3+3, 3+2+3+2+2, then 6+2+2+2 for the code and rates. -->
       <div class="pct-fields">
-        <div class="pct-field wide">
+        <div class="pct-field c6">
           <label for="pname">Project name</label>
           <input type="text" id="pname" spellcheck="false" placeholder="Untitled project">
         </div>
-        <div class="pct-field">
+        <div class="pct-field c4">
           <label for="estimate" title="Total approved estimate">Estimate</label>
           <input type="number" id="estimate" min="0" step="any">
         </div>
-        <div class="pct-field">
+        <div class="pct-field c2">
           <label for="base" title="Base currency — every figure is reported in this">Currency</label>
           <select id="base"></select>
         </div>
-        <div class="pct-field">
+        <div class="pct-field c3">
           <label for="start">Start month</label>
           <input type="month" id="start">
         </div>
-        <div class="pct-field">
+        <div class="pct-field c2">
           <label for="duration" title="Duration in months">Months</label>
           <input type="number" id="duration" min="1" max="60" step="1">
         </div>
-        <div class="pct-field">
+        <div class="pct-field c3">
           <label for="today" title="The month you are reporting from">Now</label>
           <input type="month" id="today">
         </div>
-        <div class="pct-field">
+        <div class="pct-field c2">
           <label for="wdays" title="Working days per month">Days / month</label>
           <input type="number" id="wdays" min="1" max="31" step="any">
         </div>
-        <div class="pct-field">
+        <div class="pct-field c2">
           <label for="hpd" title="Default hours per day for newly added people">Hours / day</label>
           <input type="number" id="hpd" min="0.5" max="24" step="any">
         </div>
         <div class="pct-divider"></div>
+        <div class="pct-field c6">
+          <label for="ukCode" title="The ProjectName this project appears under in the UK timesheet export">UK timesheet code</label>
+          <input type="text" id="ukCode" spellcheck="false" placeholder="Set on the first import, or paste it here">
+        </div>
+        <!-- display:contents, so the rate fields sit in this grid rather than a nested one -->
+        <div id="fxFields"></div>
+        <div class="note" id="fxNote"></div>
       </div>
-      <div class="pct-fields fx" id="fxFields" style="margin-top:.7rem;"></div>
-      <div class="note" id="fxNote"></div>
 
       <div class="pct-divider" style="margin-top:.9rem;"></div>
       <div class="controls-row" style="margin-top:.8rem;">
@@ -312,12 +375,43 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
       <svg id="chart" viewBox="0 0 900 340" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Cumulative spend against the estimate"></svg>
     </div>
     <div class="pct-legend" style="padding-left:.2rem;">
-      <span><span class="pct-key" style="border-color:#007A99"></span>Actual</span>
+      <span><span class="pct-key" style="border-color:#007A99;border-top-width:3px"></span>Actual</span>
       <span><span class="pct-key" style="border-color:#007A99;border-top-style:dashed"></span>Forecast</span>
-      <span><span class="pct-key" style="border-color:#6B6B6B"></span>Plan</span>
-      <span><span class="pct-key" style="border-color:#3D3D3D;border-top-style:dashed"></span>Estimate</span>
-      <span class="hidden" id="legendBaseline"><span class="pct-key" style="border-color:#9AA5AD;border-top-style:dotted"></span>Baseline plan</span>
+      <span><span class="pct-key" style="border-color:#7A848C"></span>Plan</span>
+      <span><span class="pct-key" style="border-color:#3D3D3D;border-top-style:dashed;border-top-width:1.5px"></span>Estimate</span>
+      <span class="hidden" id="legendBaseline"><span class="pct-key" style="border-color:#B4BEC5;border-top-style:dotted;border-top-width:1.5px"></span>Baseline plan</span>
     </div>
+    </div>
+  </section>
+
+  <!-- ============ TIMESHEET IMPORT ============ -->
+  <section class="card no-print">
+    <div class="card-head">
+      <div>
+        <span class="title">Timesheet import</span>
+        <span class="sub" id="importSub">Drop a UK timesheet export to update actual hours</span>
+      </div>
+      <button type="button" class="mini-btn pct-toggle" data-panel="import" aria-expanded="false" aria-controls="panel-import">Show</button>
+    </div>
+    <div id="panel-import" class="hidden">
+      <div class="upload-area" id="tsDrop" tabindex="0" role="button" aria-label="Drop a UK timesheet xlsx export here, or press Enter to browse">
+        <div class="big">Drop the UK timesheet .xlsx here</div>
+        <div class="or">or</div>
+        <button type="button" class="btn btn-primary" id="tsBrowse">Browse for file</button>
+        <input type="file" id="tsFile" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" class="hidden">
+      </div>
+      <div id="tsError" class="err hidden"></div>
+      <div class="note" id="tsNote" style="margin-bottom:0;">
+        Hours are totalled per person per month and compared with what is already recorded. Nothing changes until you
+        approve it. Months with no rows in the file are left alone &mdash; a shorter export never means zero.
+      </div>
+      <div id="tsMapper" class="hidden" style="margin-top:1rem;">
+        <div style="font-size:.74rem;font-weight:700;color:var(--slate);margin-bottom:.4rem;">Map the required columns</div>
+        <p class="sub">Not all expected headers were found. Match each field to a column, then confirm.</p>
+        <div id="tsMapperFields" style="margin-top:.5rem;"></div>
+        <div class="controls-row" style="margin-top:.7rem;"><button type="button" class="btn btn-primary" id="tsMapperConfirm">Confirm mapping</button></div>
+        <div id="tsMapperError" class="err hidden"></div>
+      </div>
     </div>
   </section>
 
@@ -483,8 +577,53 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 </div>
 
 <footer class="app-footer">Dreamt up by Christian, built with Claude &mdash; a human + AI double act 🤝</footer>
+<div class="pct-overlay hidden" id="tsModal" role="dialog" aria-modal="true" aria-labelledby="tsModalTitle">
+  <div class="pct-dialog">
+    <div class="pct-dialog-head">
+      <div>
+        <h2 id="tsModalTitle">Review timesheet changes</h2>
+        <p class="sub" id="tsSummary"></p>
+      </div>
+      <button type="button" class="mini-btn" id="tsClose" aria-label="Close">Cancel</button>
+    </div>
+    <div class="pct-dialog-body">
+      <div id="tsPickCode" class="hidden">
+        <p class="sub" style="margin-bottom:.6rem;">Which of these is this project? The choice is remembered as the project's UK timesheet code.</p>
+        <div id="tsCodeList"></div>
+      </div>
+      <div id="tsReview" class="hidden">
+        <div id="tsFlags"></div>
+        <div class="ms-toolbar">
+          <span class="ms-count" id="tsCount"></span>
+          <button type="button" class="mini-btn" id="tsAll">Select all</button>
+          <button type="button" class="mini-btn" id="tsNone">Select none</button>
+          <button type="button" class="mini-btn" id="tsIncreases">Only increases</button>
+        </div>
+        <div class="table-wrap pct-scroll" style="max-height:26rem">
+          <table class="data pct-preview" id="tsTable">
+            <thead><tr>
+              <th>Person</th><th>Month</th><th class="num">Recorded</th><th class="num">In the file</th>
+              <th class="num">Change</th><th class="num">Apply</th><th class="c">Use</th>
+            </tr></thead>
+            <tbody id="tsBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="pct-dialog-foot">
+      <span class="sub" id="tsFootNote"></span>
+      <div class="controls-row">
+        <button type="button" class="btn btn-ghost" id="tsDecline">Decline</button>
+        <button type="button" class="btn btn-primary" id="tsAccept">Apply selected</button>
+      </div>
+    </div>
+  </div>
+</div>
 <div id="toast" role="status" aria-live="polite"></div>
 
+<script>
+/*@include framework/vendor/sheetjs.js@*/
+</script>
 <script>
 /*@include framework/report-kit.js@*/
 </script>
@@ -502,11 +641,11 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 (function () {
   "use strict";
   var $ = RK.$, esc = RK.esc, show = RK.show, hide = RK.hide;
-  var VERSION = "v1.4.0";
+  var VERSION = "v1.5.0";
   var LS_KEY = "project-cost-tracker:v1";
   var LEGACY_KEY = "project-cost-tracker-v3";   // key used by the pre-Report-Kit build
   var CCYS = ["AED", "GBP", "USD", "EUR"];
-  var STATE_VERSION = 9;
+  var STATE_VERSION = 10;
   var MAX_MONEY = 1e12;
   $("version").textContent = VERSION;
 
@@ -525,9 +664,9 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
   /* ---------- panels ----------
      Every card collapses. The defaults open what you read and close what you
      edit, so the page opens as a report rather than a form. */
-  var PANEL_KEYS = ["setup", "position", "burnup", "team", "vendors", "drivers", "ledger", "data"];
+  var PANEL_KEYS = ["setup", "import", "position", "burnup", "team", "vendors", "drivers", "ledger", "data"];
   function defaultPanels() {
-    return { setup: false, position: true, burnup: true, team: true, vendors: false, drivers: false, ledger: true, data: true };
+    return { setup: false, "import": false, position: true, burnup: true, team: true, vendors: false, drivers: false, ledger: true, data: true };
   }
 
   /* ---------- state ---------- */
@@ -541,6 +680,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
       rates: { AED: 1, GBP: 4.85, USD: 3.6725, EUR: 4.00 },
       estimate: 0, start: now, duration: 12, today: now,
       workDays: 21, hoursPerDay: 8.4, panels: defaultPanels(), daysView: "planned", vendorView: "planned",
+      ukCode: "",
       team: [], vendors: [], actuals: {}, baseline: null
     };
   }
@@ -678,6 +818,9 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     }
     s.panels = panels;
     delete s.setupOpen;
+
+    // v10: the ProjectName this project appears under in the UK timesheet export
+    s.ukCode = typeof o.ukCode === "string" ? o.ukCode : "";
 
     // v7 added the baseline. A file without one simply has no baseline.
     s.baseline = (o.baseline && typeof o.baseline === "object" && !Array.isArray(o.baseline)) ? o.baseline : null;
@@ -829,6 +972,11 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 
     var wa = rows.filter(function (r) { return r.hasActual; });
     var lastActualIdx = wa.length ? wa[wa.length - 1].i : -1;
+    // A month with nothing booked, sitting BEFORE a month that has something, is a
+    // hole in the reporting rather than a month that cost nothing — but every
+    // cumulative figure here has to treat it as zero. Surface it instead of
+    // letting it flatten the burn-up.
+    var gaps = rows.filter(function (r) { return r.i < lastActualIdx && !r.hasActual; });
     var spent = wa.reduce(function (s, r) { return s + r.actual; }, 0);
     var plannedToDate = rows.filter(function (r) { return r.i <= lastActualIdx; }).reduce(function (s, r) { return s + r.planned; }, 0);
     var burn = wa.length ? spent / wa.length : 0;
@@ -848,7 +996,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     for (var j = 0; j < rows.length; j++) { if (rows[j].cumForecast > S.estimate) { breachMonth = rows[j]; break; } }
 
     return {
-      rows: rows, spent: spent, plannedToDate: plannedToDate, totalPlanned: cp, burn: burn,
+      rows: rows, spent: spent, plannedToDate: plannedToDate, totalPlanned: cp, burn: burn, gaps: gaps, monthsBooked: wa.length,
       eac: eac, eacPlan: spent + remainingPlanned, variance: S.estimate - eac,
       burnVariance: plannedToDate ? (spent - plannedToDate) / plannedToDate : 0,
       lastActualIdx: lastActualIdx, remainingMonths: remainingMonths, breachMonth: breachMonth,
@@ -864,7 +1012,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     var M = model();
     renderMeta(M); renderKpis(M); renderMeter(M); renderAlerts(M); renderChart(M);
     renderFx(); renderTeam(); renderVendors(M); renderDrivers(M); renderLedger(M);
-    renderBaselineControls(M); renderSetup(); renderPanels(); renderUndo();
+    renderBaselineControls(M); renderSetup(); renderPanels(); renderUndo(); renderImportSub();
     $("thActual").textContent = "Actual (" + S.base + ")";
     $("thPlanned").textContent = "Planned (" + S.base + ")";
     return M;
@@ -921,7 +1069,10 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
       { k: "Total estimate", v: money(S.estimate), s: "Approved ceiling" },
       { k: "Spent to date", v: money(M.spent), s: pct(S.estimate ? M.spent / S.estimate : 0) + " of estimate" },
       { k: "Remaining", v: money(S.estimate - M.spent), s: M.remainingMonths + " months to run" },
-      { k: "Avg monthly burn", v: money(M.burn), s: M.lastActualIdx < 0 ? "No actuals" : (M.lastActualIdx + 1) + " months of actuals" },
+      { k: "Avg monthly burn", v: money(M.burn),
+        s: M.lastActualIdx < 0 ? "No actuals"
+          : M.monthsBooked + " month" + (M.monthsBooked === 1 ? "" : "s") + " with figures" +
+            (M.gaps.length ? ", " + M.gaps.length + " skipped" : "") },
       { k: "Forecast at completion", v: money(M.eac), s: "Plan-based " + money(M.eacPlan) },
       {
         k: M.variance < 0 ? "Forecast overrun" : "Forecast headroom", v: moneySigned(M.variance),
@@ -977,6 +1128,15 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
         " " + (rateless.length === 1 ? "has" : "have") + " hours booked at a zero day rate, so that time is costing nothing."]);
     }
     if (M.lastActualIdx < 0) out.push(["info", "Nothing booked yet", "Enter actual spend in the ledger below and the forecast will replace the plan."]);
+    if (M.gaps.length) {
+      var gl = M.gaps.map(function (r) { return r.label; });
+      out.push(["warn", "Months with nothing booked",
+        gl.slice(0, 6).join(", ") + (gl.length > 6 ? " and " + (gl.length - 6) + " more" : "") +
+        " " + (gl.length === 1 ? "has" : "have") + " no actuals, but " + M.rows[M.lastActualIdx].label +
+        " does. Spend is counted as zero for " + (gl.length === 1 ? "that month" : "those months") +
+        ", which flattens the burn-up and understates the run rate. Fill " +
+        (gl.length === 1 ? "it" : "them") + " in, or clear the later figure if it was booked to the wrong month."]);
+    }
     if (M.variance < 0) {
       out.push(["issue", "Forecast exceeds the estimate",
         "At the current run rate you land " + money(over) + " over, " + pct(S.estimate ? over / S.estimate : 0) + " above the estimate." +
@@ -1063,48 +1223,87 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     return { max: max, step: step, ticks: ticks };
   }
 
+  /* One palette for both renderers (on-screen SVG and the copy-as-image canvas),
+     so they cannot drift apart.
+
+     Readability rule: the teal pair — what we have spent and where that lands —
+     is the story and carries the weight. Everything else is reference and
+     recedes, separated by LIGHTNESS rather than by yet another dash pattern:
+     ceiling darkest, then plan, then the baseline ghost, then the "now" rule,
+     then the grid. Only one grey is dashed. The ceiling also gets a faint band
+     above it, so "past the estimate" reads as a region at a glance instead of
+     having to be traced along a line. */
+  var CH = {
+    grid: "#EDF0F2", axis: "#D8DEE2", ink: "#6B6B6B",
+    ceil: "#3D3D3D", band: "rgba(192,57,43,.055)",
+    plan: "#7A848C", base: "#B4BEC5", now: "#CBD3D9", nowInk: "#98A2AA",
+    teal: "#007A99", breach: "#C0392B"
+  };
+
   function renderChart(M) {
     var W = 900, H = 340, L = 96, R = 22, T = 18, B = 42;
     var iw = W - L - R, ih = H - T - B, rows = M.rows, n = rows.length;
     var sc = chartScale(M);
     var x = function (i) { return n <= 1 ? L : L + (i / (n - 1)) * iw; };
     var y = function (v) { return T + ih - (v / sc.max) * ih; };
+    var f = function (sz, w) { return 'font-family="Inter,Arial,sans-serif" font-size="' + sz + '"' + (w ? ' font-weight="' + w + '"' : ""); };
     var p = ['<rect x="0" y="0" width="' + W + '" height="' + H + '" fill="#FFFFFF"/>'];
+
+    var ey = y(S.estimate), over = M.eac > S.estimate * 1.0001;
+    // the tint MEANS something: it appears only once the forecast enters the zone,
+    // so a healthy project gets a clean chart and an overrun is unmistakable
+    if (over && ey > T + 1) p.push('<rect x="' + L + '" y="' + T + '" width="' + iw + '" height="' + (ey - T) + '" fill="' + CH.band + '"/>');
     sc.ticks.forEach(function (val) {
       var yy = y(val);
-      p.push('<line x1="' + L + '" y1="' + yy + '" x2="' + (W - R) + '" y2="' + yy + '" stroke="#E4E8EB" stroke-width="1"/>');
-      p.push('<text x="' + (L - 10) + '" y="' + (yy + 4) + '" text-anchor="end" font-family="Inter,Arial,sans-serif" font-size="12" fill="#6B6B6B">' + plain(val) + "</text>");
+      p.push('<line x1="' + L + '" y1="' + yy + '" x2="' + (W - R) + '" y2="' + yy + '" stroke="' + CH.grid + '" stroke-width="1"/>');
+      p.push('<text x="' + (L - 10) + '" y="' + (yy + 4) + '" text-anchor="end" ' + f(12) + ' fill="' + CH.ink + '">' + plain(val) + "</text>");
     });
-    var ey = y(S.estimate);
-    p.push('<line x1="' + L + '" y1="' + ey + '" x2="' + (W - R) + '" y2="' + ey + '" stroke="#3D3D3D" stroke-width="2" stroke-dasharray="7 5"/>');
-    p.push('<text x="' + (W - R) + '" y="' + (ey - 8) + '" text-anchor="end" font-family="Inter,Arial,sans-serif" font-size="12" fill="#3D3D3D">Estimate</text>');
+    p.push('<line x1="' + L + '" y1="' + ey + '" x2="' + (W - R) + '" y2="' + ey + '" stroke="' + CH.ceil + '" stroke-width="1.5" stroke-dasharray="10 6"/>');
+    p.push('<text x="' + (W - R) + '" y="' + (ey - 8) + '" text-anchor="end" ' + f(12, 600) + ' fill="' + CH.ceil + '">Estimate</text>');
+
     var every = n > 14 ? Math.ceil(n / 12) : 1;
     rows.forEach(function (r, i) {
       if (i % every) return;
-      p.push('<text x="' + x(i) + '" y="' + (H - 16) + '" text-anchor="middle" font-family="Inter,Arial,sans-serif" font-size="11" fill="#6B6B6B">' + esc(r.label) + "</text>");
+      p.push('<text x="' + x(i) + '" y="' + (H - 16) + '" text-anchor="middle" ' + f(11) + ' fill="' + CH.ink + '">' + esc(r.label) + "</text>");
     });
+
+    // the "now" rule is chrome, not a series: a plain hairline, labelled once
+    if (M.lastActualIdx >= 0 && M.lastActualIdx < n - 1) {
+      var nx = x(M.lastActualIdx);
+      p.push('<line x1="' + nx + '" y1="' + (T + 12) + '" x2="' + nx + '" y2="' + (T + ih) + '" stroke="' + CH.now + '" stroke-width="1"/>');
+      p.push('<text x="' + (nx + 5) + '" y="' + (T + 10) + '" ' + f(10.5, 600) + ' fill="' + CH.nowInk + '">now</text>');
+    }
+
     var path = function (vals, from) {
       return vals.map(function (v, i) { return (i === 0 ? "M" : "L") + x(i + from) + " " + y(v); }).join(" ");
     };
     var bl = baselineSeries(M);
-    if (bl && bl.length > 1) p.push('<path d="' + path(bl, 0) + '" fill="none" stroke="#9AA5AD" stroke-width="2" stroke-dasharray="2 4"/>');
-    p.push('<path d="' + path(rows.map(function (r) { return r.cumPlanned; }), 0) + '" fill="none" stroke="#6B6B6B" stroke-width="2"/>');
+    if (bl && bl.length > 1) p.push('<path d="' + path(bl, 0) + '" fill="none" stroke="' + CH.base + '" stroke-width="1.5" stroke-dasharray="2 5"/>');
+    p.push('<path d="' + path(rows.map(function (r) { return r.cumPlanned; }), 0) + '" fill="none" stroke="' + CH.plan + '" stroke-width="2"/>');
     if (M.lastActualIdx >= 0) {
       var av = rows.filter(function (r) { return r.i <= M.lastActualIdx; }).map(function (r) { return r.cumActual; });
-      p.push('<path d="' + path(av, 0) + '" fill="none" stroke="#007A99" stroke-width="3" stroke-linejoin="round"/>');
-      av.forEach(function (v, i) { p.push('<circle cx="' + x(i) + '" cy="' + y(v) + '" r="3.5" fill="#007A99"/>'); });
+      p.push('<path d="' + path(av, 0) + '" fill="none" stroke="' + CH.teal + '" stroke-width="3" stroke-linejoin="round"/>');
+      av.forEach(function (v, i) {
+        if (i === av.length - 1) return;
+        p.push(rows[i].hasActual
+          ? '<circle cx="' + x(i) + '" cy="' + y(v) + '" r="3" fill="' + CH.teal + '"/>'
+          : '<circle cx="' + x(i) + '" cy="' + y(v) + '" r="3.5" fill="#FFFFFF" stroke="' + CH.teal + '" stroke-width="1.5"/>');
+      });
+      var lastY = y(av[av.length - 1]);
+      p.push('<circle cx="' + x(av.length - 1) + '" cy="' + lastY + '" r="4.5" fill="' + CH.teal + '" stroke="#FFFFFF" stroke-width="2"/>');
       var fv = rows.filter(function (r) { return r.i >= M.lastActualIdx; }).map(function (r) { return r.cumForecast; });
-      if (fv.length > 1) p.push('<path d="' + path(fv, M.lastActualIdx) + '" fill="none" stroke="#007A99" stroke-width="2.5" stroke-dasharray="6 5"/>');
-      p.push('<line x1="' + x(M.lastActualIdx) + '" y1="' + T + '" x2="' + x(M.lastActualIdx) + '" y2="' + (T + ih) + '" stroke="#3D3D3D" stroke-width="1" stroke-dasharray="2 4"/>');
+      // no endpoint label: plan and forecast converge at the right edge with no
+      // room for one, and the figure is already a headline KPI above the chart
+      if (fv.length > 1) p.push('<path d="' + path(fv, M.lastActualIdx) + '" fill="none" stroke="' + CH.teal + '" stroke-width="2.5" stroke-dasharray="6 5"/>');
     }
     if (M.breachMonth) {
       var bx = x(M.breachMonth.i);
-      p.push('<circle cx="' + bx + '" cy="' + ey + '" r="5" fill="#FFFFFF" stroke="#C0392B" stroke-width="2.5"/>');
+      p.push('<circle cx="' + bx + '" cy="' + ey + '" r="5" fill="#FFFFFF" stroke="' + CH.breach + '" stroke-width="2.5"/>');
       var anchor = M.breachMonth.i > n * 0.7 ? "end" : "start";
       p.push('<text x="' + (bx + (anchor === "end" ? -10 : 10)) + '" y="' + (ey + 20) + '" text-anchor="' + anchor +
-        '" font-family="Inter,Arial,sans-serif" font-size="12" fill="#C0392B">Ceiling hit ' + esc(M.breachMonth.label) + "</text>");
+        '" ' + f(12, 600) + ' fill="' + CH.breach + '">Ceiling hit ' + esc(M.breachMonth.label) + "</text>");
     }
-    p.push('<line x1="' + L + '" y1="' + (T + ih) + '" x2="' + (W - R) + '" y2="' + (T + ih) + '" stroke="#CFCFCF" stroke-width="1"/>');
+    p.push('<line x1="' + L + '" y1="' + (T + ih) + '" x2="' + (W - R) + '" y2="' + (T + ih) + '" stroke="' + CH.axis + '" stroke-width="1"/>');
     $("chart").innerHTML = p.join("");
   }
 
@@ -1115,7 +1314,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     }
     sel.value = S.base;
     $("fxFields").innerHTML = CCYS.filter(function (c) { return c !== S.base; }).map(function (c) {
-      return '<div class="pct-field"><label for="fx-' + c + '" title="1 ' + c + " in " + S.base + '">' + c + " → " + S.base + "</label>" +
+      return '<div class="pct-field c2"><label for="fx-' + c + '" title="1 ' + c + " in " + S.base + '">' + c + " → " + S.base + "</label>" +
         '<input id="fx-' + c + '" type="number" min="0" step="any" data-fx="' + c + '" value="' + num(S.rates[c]) + '"></div>';
     }).join("");
     var used = S.team.concat(S.vendors).map(function (e) { return e.ccy; })
@@ -1138,30 +1337,16 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
      followed by one input per month. Only the leading columns differ. */
   function monthCellsHtml(vals, idx, opts) {
     var cap = ' max="' + opts.max + '"';
-    var cells = '<td class="allcell"><input type="number" min="0"' + cap +
-      ' step="any" data-all="' + idx + '" placeholder="set" aria-label="Set every month"></td>';
-    return cells + vals.map(function (v, i) {
+    return vals.map(function (v, i) {
       var st = opts.styleOf ? opts.styleOf(v) : "";
       return '<td class="mcell"><input type="number" min="0"' + cap + ' step="any" data-m="' + i +
         '" value="' + num(v) + '"' + (st ? ' style="' + st + '"' : "") +
         ' aria-label="' + esc(opts.label(i)) + '"></td>';
     }).join("");
   }
-  // Applies an "All" fill or a single-month edit to `arr` in place. Returns false
-  // if the event was not a month edit at all.
+  // Applies a single-month edit to `arr` in place. Returns false if the event
+  // was not a month edit at all.
   function monthCellEdit(t, tr, arr, cap, styleOf) {
-    if (t.hasAttribute("data-all")) {
-      if (t.value === "") return false;          // cleared, not an edit
-      snapshot("bulk fill", 4000);               // coalesce the keystroke burst
-      var all = clamp(num(t.value), 0, cap);
-      var n = Math.min(arr.length, S.duration);  // never reaches into hidden months
-      for (var i = 0; i < n; i++) arr[i] = all;
-      tr.querySelectorAll("input[data-m]").forEach(function (inp) {
-        inp.value = all;
-        if (styleOf) inp.setAttribute("style", styleOf(all));
-      });
-      return true;
-    }
     if (t.hasAttribute("data-m")) {
       var v = clamp(num(t.value), 0, cap);
       arr[+t.getAttribute("data-m")] = v;
@@ -1186,10 +1371,8 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     $("teamHead").innerHTML =
       '<th class="sticky">Name</th><th>Role</th><th>Ccy</th><th class="num">Day rate</th><th class="num">Hrs / day</th>' +
       '<th class="num">' + (actual ? "Actual" : "Planned") + " (" + S.base + ")</th>" +
-      '<th class="no-print"></th><th class="mhead">All</th>' +
-      ms.map(function (k) {
-        return '<th class="mhead">' + monthLabel(k) + (actual ? ' <span style="opacity:.7">hrs</span>' : "") + "</th>";
-      }).join("") + '<th class="spacer"></th>';
+      ms.map(function (k) { return '<th class="mhead">' + monthLabel(k) + "</th>"; }).join("") +
+      '<th class="no-print"></th><th class="spacer"></th>';
 
     $("teamBody").innerHTML = S.team.length ? S.team.map(function (p, idx) {
       return '<tr data-idx="' + idx + '">' +
@@ -1201,14 +1384,15 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
         '<td class="c-rate"><input type="number" step="any" min="0" data-f="rate" value="' + num(p.rate).toFixed(2) + '" aria-label="Day rate"></td>' +
         '<td class="c-hpd"><input type="number" step="any" min="0.5" max="24" data-f="hpd" value="' + hpdOf(p) + '" aria-label="Hours per day"></td>' +
         '<td class="money">' + plain(totalIn(p, field)) + "</td>" +
-        '<td class="del no-print"><button type="button" class="pct-icon" data-del="' + idx + '" title="Remove person" aria-label="Remove person">×</button></td>' +
         monthCellsHtml(span(p[field]), idx, {
           max: max,
           styleOf: function (v) { return dayTint(num(v), fullOf(p)); },
           label: function (i) { return p.name + " " + monthLabel(ms[i]); }
-        }) + '<td class="spacer"></td></tr>';
+        }) +
+        '<td class="del no-print"><button type="button" class="pct-icon" data-del="' + idx + '" title="Remove person" aria-label="Remove person">×</button></td>' +
+        '<td class="spacer"></td></tr>';
     }).join("")
-      : '<tr><td class="sticky pct-muted">No people yet</td><td class="pct-muted" colspan="' + (8 + S.duration) +
+      : '<tr><td class="sticky pct-muted">No people yet</td><td class="pct-muted" colspan="' + (7 + S.duration) +
         '">Use Add person to start, Load data to bring in a saved tracker, or Load demo project for a look around.</td></tr>';
 
     refreshTeamFoot();
@@ -1220,9 +1404,9 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     var grand = 0;
     for (var i = 0; i < S.duration; i++) grand += per(i);
     var cells = '<td class="sticky">' + (actual ? "Actual cost" : "Planned cost") + "</td><td></td><td></td><td></td><td></td>" +
-      '<td class="money">' + plain(grand) + '</td><td class="no-print"></td><td></td>';
+      '<td class="money">' + plain(grand) + "</td>";
     for (var j = 0; j < S.duration; j++) cells += '<td class="foot-num">' + plain(per(j)) + "</td>";
-    $("teamFoot").innerHTML = cells + '<td class="spacer"></td>';
+    $("teamFoot").innerHTML = cells + '<td class="no-print"></td><td class="spacer"></td>';
   }
 
   function refreshTeamRow(idx) {
@@ -1259,8 +1443,8 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     $("vendorHead").innerHTML =
       '<th class="sticky">Vendor</th><th>Scope</th><th>Ccy</th><th class="num">Contract</th>' +
       '<th class="num">' + (invoiced ? "Invoiced" : "Planned") + " (" + S.base + ")</th>" +
-      '<th class="no-print"></th><th class="mhead">All</th>' +
-      ms.map(function (k) { return '<th class="mhead">' + monthLabel(k) + "</th>"; }).join("") + '<th class="spacer"></th>';
+      ms.map(function (k) { return '<th class="mhead">' + monthLabel(k) + "</th>"; }).join("") +
+      '<th class="no-print"></th><th class="spacer"></th>';
 
     $("vendorBody").innerHTML = S.vendors.map(function (v, idx) {
       var pos = M.vendors[idx] || {};
@@ -1274,11 +1458,12 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
         '<td class="c-contract"><input type="number" step="any" min="0" data-f="contract" value="' + num(v.contract) +
           '" placeholder="none" title="Contract or PO value in ' + esc(v.ccy) + '. Leave at zero for time and materials — nothing is flagged." aria-label="Contract value"></td>' +
         '<td class="' + totalCls + '">' + plain(vendorTotalIn(v, field)) + "</td>" +
-        '<td class="del no-print"><button type="button" class="pct-icon" data-del="' + idx + '" title="Remove vendor" aria-label="Remove vendor">×</button></td>' +
         monthCellsHtml(span(v[field]), idx, {
           max: MAX_MONEY,
           label: function (i) { return v.name + " " + monthLabel(ms[i]); }
-        }) + '<td class="spacer"></td></tr>';
+        }) +
+        '<td class="del no-print"><button type="button" class="pct-icon" data-del="' + idx + '" title="Remove vendor" aria-label="Remove vendor">×</button></td>' +
+        '<td class="spacer"></td></tr>';
     }).join("");
 
     refreshVendorFoot();
@@ -1290,9 +1475,9 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     var grand = 0;
     for (var i = 0; i < S.duration; i++) grand += vendorSum(field, i);
     var cells = '<td class="sticky">' + (field === "invoiced" ? "Invoiced" : "Planned") + " cost</td><td></td><td></td><td></td>" +
-      '<td class="money">' + plain(grand) + '</td><td class="no-print"></td><td></td>';
+      '<td class="money">' + plain(grand) + "</td>";
     for (var j = 0; j < S.duration; j++) cells += '<td class="foot-num">' + plain(vendorSum(field, j)) + "</td>";
-    $("vendorFoot").innerHTML = cells + '<td class="spacer"></td>';
+    $("vendorFoot").innerHTML = cells + '<td class="no-print"></td><td class="spacer"></td>';
   }
 
   function refreshVendorRow(idx) {
@@ -1534,28 +1719,38 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     g.fillStyle = "#FFFFFF"; g.fillRect(0, 0, W, H);
     g.textBaseline = "alphabetic";
 
+    var ey = y(S.estimate);
+    if (M.eac > S.estimate * 1.0001 && ey > T + 1) { g.fillStyle = CH.band; g.fillRect(L, T, W - L - R, ey - T); }
+
     g.font = F(400, 12);
     sc.ticks.forEach(function (v) {
       var yy = y(v);
-      g.strokeStyle = "#E4E8EB"; g.lineWidth = 1;
+      g.strokeStyle = CH.grid; g.lineWidth = 1;
       g.beginPath(); g.moveTo(L, yy); g.lineTo(W - R, yy); g.stroke();
-      g.fillStyle = "#6B6B6B"; g.textAlign = "right";
+      g.fillStyle = CH.ink; g.textAlign = "right";
       g.fillText(plain(v), L - 10, yy + 4);
     });
     g.textAlign = "left";
 
-    var ey = y(S.estimate);
-    g.strokeStyle = "#3D3D3D"; g.lineWidth = 2; g.setLineDash([7, 5]);
+    g.strokeStyle = CH.ceil; g.lineWidth = 1.5; g.setLineDash([10, 6]);
     g.beginPath(); g.moveTo(L, ey); g.lineTo(W - R, ey); g.stroke();
     g.setLineDash([]);
-    g.fillStyle = "#3D3D3D"; g.textAlign = "right"; g.font = F(600, 12);
+    g.fillStyle = CH.ceil; g.textAlign = "right"; g.font = F(600, 12);
     g.fillText("Estimate " + money(S.estimate), W - R, ey - 9);
     g.textAlign = "left";
 
     var every = n > 14 ? Math.ceil(n / 12) : 1;
-    g.fillStyle = "#6B6B6B"; g.font = F(400, 12); g.textAlign = "center";
+    g.fillStyle = CH.ink; g.font = F(400, 12); g.textAlign = "center";
     rows.forEach(function (r, i) { if (i % every) return; g.fillText(r.label, x(i), T + ih + 22); });
     g.textAlign = "left";
+
+    if (M.lastActualIdx >= 0 && M.lastActualIdx < n - 1) {
+      var nx = x(M.lastActualIdx);
+      g.strokeStyle = CH.now; g.lineWidth = 1;
+      g.beginPath(); g.moveTo(nx, T + 12); g.lineTo(nx, T + ih); g.stroke();
+      g.fillStyle = CH.nowInk; g.font = F(600, 10.5);
+      g.fillText("now", nx + 5, T + 10);
+    }
 
     var line = function (vals, from, colour, width, dash) {
       if (vals.length < 2) return;
@@ -1565,40 +1760,52 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
       g.stroke(); g.setLineDash([]);
     };
     var blc = baselineSeries(M);
-    if (blc) line(blc, 0, "#9AA5AD", 2, [2, 4]);
-    line(rows.map(function (r) { return r.cumPlanned; }), 0, "#6B6B6B", 2);
+    if (blc) line(blc, 0, CH.base, 1.5, [2, 5]);
+    line(rows.map(function (r) { return r.cumPlanned; }), 0, CH.plan, 2);
     if (M.lastActualIdx >= 0) {
       var av = rows.filter(function (r) { return r.i <= M.lastActualIdx; }).map(function (r) { return r.cumActual; });
-      line(av, 0, "#007A99", 3);
-      g.fillStyle = "#007A99";
-      av.forEach(function (v, i) { g.beginPath(); g.arc(x(i), y(v), 3.5, 0, Math.PI * 2); g.fill(); });
-      line(rows.filter(function (r) { return r.i >= M.lastActualIdx; }).map(function (r) { return r.cumForecast; }),
-        M.lastActualIdx, "#007A99", 2.5, [6, 5]);
+      line(av, 0, CH.teal, 3);
+      av.forEach(function (v, i) {
+        if (i === av.length - 1) return;
+        g.beginPath();
+        if (rows[i].hasActual) { g.fillStyle = CH.teal; g.arc(x(i), y(v), 3, 0, Math.PI * 2); g.fill(); }
+        else {
+          g.arc(x(i), y(v), 3.5, 0, Math.PI * 2);
+          g.fillStyle = "#FFFFFF"; g.fill();
+          g.strokeStyle = CH.teal; g.lineWidth = 1.5; g.stroke();
+        }
+      });
+      g.fillStyle = CH.teal;
+      var lastY = y(av[av.length - 1]);
+      g.beginPath(); g.arc(x(av.length - 1), lastY, 4.5, 0, Math.PI * 2); g.fill();
+      g.strokeStyle = "#FFFFFF"; g.lineWidth = 2; g.stroke();
+      var fvc = rows.filter(function (r) { return r.i >= M.lastActualIdx; }).map(function (r) { return r.cumForecast; });
+      line(fvc, M.lastActualIdx, CH.teal, 2.5, [6, 5]);
     }
     if (M.breachMonth) {
       var bx = x(M.breachMonth.i);
-      g.fillStyle = "#FFFFFF"; g.strokeStyle = "#C0392B"; g.lineWidth = 2.5;
+      g.fillStyle = "#FFFFFF"; g.strokeStyle = CH.breach; g.lineWidth = 2.5;
       g.beginPath(); g.arc(bx, ey, 5, 0, Math.PI * 2); g.fill(); g.stroke();
-      g.fillStyle = "#C0392B"; g.font = F(600, 12);
+      g.fillStyle = CH.breach; g.font = F(600, 12);
       var right = M.breachMonth.i > n * 0.7;
       g.textAlign = right ? "right" : "left";
       g.fillText("Ceiling hit " + M.breachMonth.label, bx + (right ? -10 : 10), ey + 22);
       g.textAlign = "left";
     }
-    g.strokeStyle = "#CFCFCF"; g.lineWidth = 1;
+    g.strokeStyle = CH.axis; g.lineWidth = 1;
     g.beginPath(); g.moveTo(L, T + ih); g.lineTo(W - R, T + ih); g.stroke();
 
     var ly = H - 42, lx = PAD;
-    var key = function (colour, dash, label) {
-      g.strokeStyle = colour; g.lineWidth = 2.5; g.setLineDash(dash || []);
+    var key = function (colour, dash, width, label) {
+      g.strokeStyle = colour; g.lineWidth = width; g.setLineDash(dash || []);
       g.beginPath(); g.moveTo(lx, ly - 4); g.lineTo(lx + 24, ly - 4); g.stroke(); g.setLineDash([]);
-      g.fillStyle = "#6B6B6B"; g.font = F(400, 12.5);
+      g.fillStyle = CH.ink; g.font = F(400, 12.5);
       g.fillText(label, lx + 31, ly);
       lx += 31 + g.measureText(label).width + 26;
     };
-    key("#007A99", null, "Actual"); key("#007A99", [6, 5], "Forecast");
-    key("#6B6B6B", null, "Plan"); key("#3D3D3D", [7, 5], "Estimate");
-    if (blc) key("#9AA5AD", [2, 4], "Baseline plan");
+    key(CH.teal, null, 3, "Actual"); key(CH.teal, [6, 5], 2.5, "Forecast");
+    key(CH.plan, null, 2, "Plan"); key(CH.ceil, [10, 6], 1.5, "Estimate");
+    if (blc) key(CH.base, [2, 5], 1.5, "Baseline plan");
     return c;
   }
 
@@ -1622,7 +1829,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
   }
 
   /* ---------- undo ----------
-     Snapshots before the destructive things only — bulk fills, deletes, imports,
+     Snapshots before the destructive things only — deletes, imports,
      baselining. Per-keystroke edits are not worth a stack entry. */
   var undoStack = [], lastSnapAt = 0;
   function snapshot(label, coalesceMs) {
@@ -1641,6 +1848,332 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     b.textContent = "Undo " + label;
     b.title = "Undo " + label;
     show(b);
+  }
+
+  /* ============================================================
+     UK TIMESHEET IMPORT
+
+     The export is a rolling window over every project, one row per
+     person per day. Hours are totalled per person per month for this
+     project's code and offered as a reviewable set of changes.
+
+     Three rules come from how the window moves:
+       - Silence is not zero. A month with no rows in the file, or a
+         person with no line in a month the project was booked in, keeps
+         what is recorded. The window starts mid-month and drops old
+         months entirely (the financial year rolls over and March
+         disappears), and lines vanish when time is re-coded; none of
+         that is an instruction to erase hours.
+       - Inside a month the file covers END TO END the file wins, up or
+         down. Timesheets are filled in late and corrected afterwards,
+         so a fall there is a correction and is offered like any other
+         change.
+       - At the ragged EDGES of the window — the part-covered first and
+         last months — a fall is more likely the window moving than a
+         correction, so it is shown, marked, and left unticked.
+     ============================================================ */
+  var TS_FIELDS = [
+    { field: "date", canonical: "Date", required: true, aliases: ["date", "work date", "day"] },
+    { field: "name", canonical: "Name", required: true, aliases: ["name", "employee name", "staff name"] },
+    { field: "employeeNo", canonical: "EmployeeNumber", required: true, aliases: ["employeenumber", "employee number", "employee no", "staff id"] },
+    { field: "hours", canonical: "Hours (Standard)", required: true, aliases: ["hours (standard)", "hours", "standard hours"] },
+    { field: "project", canonical: "ProjectName", required: true, aliases: ["projectname", "project name", "project"] }
+  ];
+  // Leave is booked as a project in the export; it must never be costed as one.
+  var TS_LEAVE = /^absent\b|annual leave|bank holiday|\bsick\b/i;
+  var ts = { buffer: null, fileName: "", mapping: null, byCode: null, rows: null, span: null, changes: null, newPeople: null, gone: null };
+
+  function tsError(msg) { var el = $("tsError"); el.textContent = msg; show(el); }
+  function tsMonthOf(rawDate, txtDate) {
+    if (typeof rawDate === "number" && isFinite(rawDate) && rawDate > 1000) {
+      var d = new Date(Date.UTC(1899, 11, 30) + Math.floor(rawDate) * 86400000);   // floor: a date-time must not round into the next day
+      if (!isNaN(d.getTime())) return { key: d.getUTCFullYear() + "-" + pad2(d.getUTCMonth() + 1), day: d.getTime() };
+    }
+    var s = String(txtDate || "").trim();
+    var m = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(s);
+    if (m) return { key: m[1] + "-" + pad2(+m[2]), day: Date.UTC(+m[1], +m[2] - 1, +m[3]) };
+    m = /^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})/.exec(s);   // the export writes MM/DD/YYYY in .w
+    if (m) return { key: m[3] + "-" + pad2(+m[1]), day: Date.UTC(+m[3], +m[1] - 1, +m[2]) };
+    return null;
+  }
+  function pad2(n) { return String(n).padStart(2, "0"); }
+
+  // Read the whole export once, grouped by project code, so the code picker can
+  // show what is actually in the file rather than asking anyone to type it.
+  function tsParse(mapping) {
+    var wb, sheet;
+    try { wb = RK.xlsx.read(ts.buffer); sheet = RK.xlsx.sheet(wb); }
+    catch (e) { tsError("Could not read " + ts.fileName + ": " + e.message + "\nNothing has changed."); return; }
+    var res = RK.xlsx.resolve(sheet, TS_FIELDS, mapping);
+    if (res.missing.length) { tsRenderMapper(sheet); return; }
+    hide($("tsMapper")); hide($("tsError"));
+    var r = res.resolved, byCode = {}, undated = 0, minDay = null, maxDay = null;
+
+    for (var row = sheet.range.s.r + 1; row <= sheet.range.e.r; row++) {
+      var code = sheet.txt(row, r.project).trim();
+      if (!code) continue;
+      var hours = Number(sheet.rawv(row, r.hours));
+      if (!isFinite(hours) || hours <= 0) continue;
+      var when = tsMonthOf(sheet.rawv(row, r.date), sheet.txt(row, r.date));
+      if (!when) { undated++; continue; }
+      var no = sheet.txt(row, r.employeeNo).trim().toUpperCase();
+      var nm = sheet.txt(row, r.name).trim();
+      var g = byCode[code] || (byCode[code] = { code: code, rows: 0, hours: 0, people: {}, months: {} });
+      g.rows++; g.hours += hours; g.months[when.key] = 1;
+      var pKey = no || nm.toUpperCase();
+      var per = g.people[pKey] || (g.people[pKey] = { no: no, name: nm, byMonth: {}, total: 0 });
+      if (!per.name && nm) per.name = nm;
+      per.byMonth[when.key] = (per.byMonth[when.key] || 0) + hours;
+      per.total += hours;
+      if (when.day) {
+        if (minDay === null || when.day < minDay) minDay = when.day;
+        if (maxDay === null || when.day > maxDay) maxDay = when.day;
+      }
+    }
+    if (!Object.keys(byCode).length) { tsError("No booked hours found in " + ts.fileName + ".\nNothing has changed."); return; }
+    ts.mapping = mapping; ts.byCode = byCode; ts.undated = undated;
+    ts.span = (minDay !== null) ? { from: new Date(minDay), to: new Date(maxDay) } : null;
+    tsOpen();
+  }
+
+  function tsRenderMapper(sheet) {
+    show($("tsMapper"));
+    RK.xlsx.renderMapper({
+      headers: sheet.headers, fieldSpecs: TS_FIELDS,
+      fieldsEl: $("tsMapperFields"), errorEl: $("tsMapperError"), confirmBtn: $("tsMapperConfirm"),
+      onConfirm: function (m) { tsParse(m); }
+    });
+  }
+
+  function tsSpanText() {
+    if (!ts.span) return "";
+    var f = ts.span.from, t = ts.span.to;
+    var fmtd = function (d) { return d.getUTCDate() + " " + MONTH_NAMES[d.getUTCMonth()] + " " + String(d.getUTCFullYear()).slice(2); };
+    return fmtd(f) + " to " + fmtd(t);
+  }
+
+  function tsOpen() {
+    show($("tsModal"));
+    $("tsSummary").textContent = ts.fileName + (ts.span ? " · covers " + tsSpanText() : "");
+    var g = S.ukCode ? ts.byCode[S.ukCode] : null;
+    if (!g) { tsShowCodePicker(); return; }
+    tsBuildChanges(g);
+  }
+  function tsClose() {
+    hide($("tsModal"));
+    ts.buffer = null; ts.byCode = null; ts.changes = null; ts.gone = null;
+  }
+
+  function tsShowCodePicker() {
+    show($("tsPickCode")); hide($("tsReview"));
+    $("tsFootNote").textContent = S.ukCode
+      ? "“" + S.ukCode + "” is not in this file. Pick the right one, or cancel."
+      : "This project has no UK timesheet code yet.";
+    $("tsAccept").disabled = true;
+    var codes = Object.keys(ts.byCode).sort(function (a, b) { return ts.byCode[b].hours - ts.byCode[a].hours; });
+    $("tsCodeList").innerHTML = codes.map(function (c) {
+      var g = ts.byCode[c], leave = TS_LEAVE.test(c);
+      return '<button type="button" class="pct-code' + (leave ? " leave" : "") + '" data-code="' + esc(c) + '">' +
+        '<span class="c-name">' + esc(c) + (leave ? ' <span class="pct-newp">leave</span>' : "") + "</span>" +
+        '<span class="c-meta">' + Object.keys(g.people).length + " people · " + RK.fmtHrs(g.hours) + " h</span></button>";
+    }).join("");
+  }
+
+  // Match a person in the file to a team member: remembered id first, then an
+  // exact name match, else they are new.
+  function tsMatch(per) {
+    var i;
+    for (i = 0; i < S.team.length; i++) {
+      var ids = Array.isArray(S.team[i].staffIds) ? S.team[i].staffIds : [];
+      if (per.no && ids.indexOf(per.no) >= 0) return S.team[i];
+    }
+    var nm = (per.name || "").trim().toLowerCase();
+    if (nm) for (i = 0; i < S.team.length; i++) {
+      if (String(S.team[i].name || "").trim().toLowerCase() === nm) return S.team[i];
+    }
+    return null;
+  }
+
+  // Does the export's window cover this calendar month end to end? A rolling
+  // window is ragged at both edges, and hours in a month it only half covers
+  // are half the story — so a fall there is probably the window moving, not a
+  // correction. In the middle of the window the file is authoritative.
+  function tsWholeMonth(mk) {
+    if (!ts.span) return false;
+    var y = +mk.slice(0, 4), m = +mk.slice(5) - 1;
+    return ts.span.from.getTime() <= Date.UTC(y, m, 1) && ts.span.to.getTime() >= Date.UTC(y, m + 1, 0);
+  }
+
+  function tsBuildChanges(g) {
+    hide($("tsPickCode")); show($("tsReview"));
+    $("tsAccept").disabled = false;
+    normalise();
+    var ms = months(), idx = {};
+    ms.forEach(function (k, i) { idx[k] = i; });
+
+    var changes = [], newPeople = [], outside = {}, seen = {};
+    Object.keys(g.people).forEach(function (key) {
+      var per = g.people[key], person = tsMatch(per), isNew = !person;
+      if (isNew) newPeople.push(per);
+      Object.keys(per.byMonth).sort().forEach(function (mk) {
+        if (person) seen[person.id + "|" + mk] = 1;
+        if (idx[mk] === undefined) { outside[mk] = 1; return; }          // outside this project's months
+        var incoming = Math.round(per.byMonth[mk] * 100) / 100;
+        var current = person ? num(person.actualHours[idx[mk]]) : 0;
+        if (Math.abs(incoming - current) < 0.005) return;                 // nothing to say
+        var whole = tsWholeMonth(mk);
+        changes.push({
+          key: key, no: per.no, name: per.name, person: person, isNew: isNew,
+          monthKey: mk, monthIdx: idx[mk], current: current, incoming: incoming,
+          apply: incoming, whole: whole,
+          // A fall inside a month the file covers in full is a correction — timesheets
+          // get fixed after the fact — so it is offered like any other change. A fall in
+          // a part-covered month is held back: that is the window, not a correction.
+          use: incoming > current || whole,
+          hold: incoming < current && !whole
+        });
+      });
+    });
+    changes.sort(function (a, b) {
+      if (a.name !== b.name) return a.name < b.name ? -1 : 1;
+      return a.monthKey < b.monthKey ? -1 : 1;
+    });
+
+    // Recorded hours the file has nothing to say about: the project was booked
+    // that month, but this person has no line in it. A vanished line is not a
+    // correction to zero, so it is reported and left exactly as it is.
+    var gone = [];
+    S.team.forEach(function (t) {
+      ms.forEach(function (mk, i) {
+        if (!g.months[mk] || seen[t.id + "|" + mk]) return;
+        if (num(t.actualHours[i]) <= 0) return;
+        gone.push({ name: t.name || "Unnamed", monthKey: mk, hours: num(t.actualHours[i]) });
+      });
+    });
+
+    ts.changes = changes; ts.newPeople = newPeople; ts.outside = Object.keys(outside).sort();
+    ts.gone = gone; ts.code = g.code;
+    tsRenderReview(g);
+  }
+
+  function tsRenderReview(g) {
+    var flags = [];
+    flags.push('<div class="callout"><span class="lab">' + esc(g.code) + "</span>" +
+      Object.keys(g.people).length + " people · " + RK.fmtHrs(g.hours) + " hours in the file" +
+      (ts.span ? " · " + esc(tsSpanText()) : "") + ".</div>");
+    if (ts.newPeople.length) {
+      flags.push('<div class="callout pct-warn"><span class="lab">New to this tracker</span>' +
+        ts.newPeople.map(function (p) { return esc(p.name || p.no); }).join(", ") +
+        " will be added with a <strong>zero day rate</strong>, so their time costs nothing until you set one.</div>");
+    }
+    var corrections = ts.changes.filter(function (c) { return c.incoming < c.current && c.whole; });
+    if (corrections.length) {
+      flags.push('<div class="callout"><span class="lab">' + corrections.length + " corrected down</span>" +
+        "Fewer hours than recorded, in " + (corrections.length === 1 ? "a month" : "months") +
+        " this file covers end to end — so the file is the better number. <strong>Selected.</strong></div>");
+    }
+    var held = ts.changes.filter(function (c) { return c.hold; });
+    if (held.length) {
+      flags.push('<div class="callout pct-warn"><span class="lab">' + held.length + " held back</span>" +
+        (held.length === 1 ? "This falls" : "These fall") + " in a month the file only <strong>part covers</strong>" +
+        (ts.span ? " (it runs " + esc(tsSpanText()) + ")" : "") +
+        ", so lower hours there are probably the window rather than a correction. " +
+        "<strong>Not selected</strong> — tick any you do want to apply.</div>");
+    }
+    if (ts.gone && ts.gone.length) {
+      // grouped per person, so one absent contractor is one phrase and not three
+      var byWho = [], seenWho = {};
+      ts.gone.forEach(function (x) {
+        if (!seenWho[x.name]) { seenWho[x.name] = []; byWho.push(x.name); }
+        seenWho[x.name].push(monthLabel(x.monthKey));
+      });
+      var list = byWho.slice(0, 6).map(function (n) { return esc(n) + " (" + seenWho[n].join(", ") + ")"; });
+      flags.push('<div class="callout"><span class="lab">' + byWho.length + " not in this file</span>" +
+        "Hours are recorded for " + list.join(", ") + (byWho.length > 6 ? " and " + (byWho.length - 6) + " more" : "") +
+        ", but there is no line for " + (byWho.length === 1 ? "them" : "any of them") +
+        " here. A missing line is not a correction to zero, so those hours are " +
+        "<strong>left as recorded</strong>.</div>");
+    }
+    if (ts.outside.length) {
+      flags.push('<div class="callout"><span class="lab">Outside this project</span>' +
+        ts.outside.map(monthLabel).join(", ") + " " + (ts.outside.length === 1 ? "is" : "are") +
+        " not in the project's months, so " + (ts.outside.length === 1 ? "it was" : "they were") + " skipped.</div>");
+    }
+    if (ts.undated) {
+      flags.push('<div class="callout"><span class="lab">Skipped</span>' + ts.undated +
+        " row" + (ts.undated === 1 ? "" : "s") + " had no readable date.</div>");
+    }
+    $("tsFlags").innerHTML = flags.join("");
+
+    if (!ts.changes.length) {
+      $("tsBody").innerHTML = '<tr><td colspan="7" class="pct-muted">Nothing to change — the recorded hours already match the file.</td></tr>';
+      $("tsCount").textContent = "";
+      $("tsFootNote").textContent = "Already up to date.";
+      $("tsAccept").disabled = true;
+      return;
+    }
+    $("tsBody").innerHTML = ts.changes.map(function (c, i) {
+      var delta = c.incoming - c.current, dn = delta < 0;
+      return '<tr class="' + (c.hold ? "hold" : "") + '" data-i="' + i + '">' +
+        '<td class="who">' + esc(c.name || c.no) + (c.isNew ? '<span class="pct-newp">new</span>' : "") +
+          (c.no ? '<span class="sub2">' + esc(c.no) + "</span>" : "") + "</td>" +
+        "<td>" + monthLabel(c.monthKey) +
+          (c.whole ? "" : '<span class="sub2">part covered</span>') + "</td>" +
+        '<td class="num">' + RK.fmtHrs(c.current) + "</td>" +
+        '<td class="num">' + RK.fmtHrs(c.incoming) + "</td>" +
+        '<td class="num ' + (dn ? "dn" : "up") + '">' + (delta > 0 ? "+" : "−") + RK.fmtHrs(Math.abs(delta)) + "</td>" +
+        '<td class="num"><input type="number" step="any" min="0" data-apply="' + i + '" value="' + c.apply + '" aria-label="Hours to apply"></td>' +
+        '<td class="c"><input type="checkbox" data-use="' + i + '"' + (c.use ? " checked" : "") + ' aria-label="Apply this change"></td>' +
+        "</tr>";
+    }).join("");
+    tsUpdateCount();
+  }
+
+  function tsUpdateCount() {
+    var on = ts.changes.filter(function (c) { return c.use; }).length;
+    $("tsCount").textContent = on + " of " + ts.changes.length + " selected";
+    $("tsFootNote").textContent = on ? "" : "Nothing selected — Apply will do nothing.";
+    $("tsAccept").disabled = !on;
+  }
+
+  function tsApply() {
+    var picked = ts.changes.filter(function (c) { return c.use; });
+    if (!picked.length) return;
+    snapshot("timesheet import");
+    if (S.ukCode !== ts.code) { S.ukCode = ts.code; }
+
+    var made = {}, added = 0, touched = 0;
+    picked.forEach(function (c) {
+      var person = c.person;
+      if (!person) {
+        person = made[c.key];
+        if (!person) {
+          var d = [], z = [];
+          for (var i = 0; i < S.duration; i++) { d.push(0); z.push(0); }
+          person = { id: uid(), name: c.name || c.no, role: "", ccy: S.base, rate: 0,
+            hpd: defaultHpd(), days: d, actualHours: z, staffIds: [] };
+          S.team.push(person); made[c.key] = person; added++;
+        }
+      }
+      if (!Array.isArray(person.staffIds)) person.staffIds = [];
+      if (c.no && person.staffIds.indexOf(c.no) < 0) person.staffIds.push(c.no);
+      normDays(person);
+      person.actualHours[c.monthIdx] = Math.max(0, num(c.apply));
+      touched++;
+    });
+
+    S.daysView = "actual";
+    openPanel("team");
+    tsClose();
+    syncInputs(); render(); saveNow();
+    toast("Updated " + touched + " person-month" + (touched === 1 ? "" : "s") +
+      (added ? ", added " + added + " new " + (added === 1 ? "person" : "people") : ""));
+  }
+
+  function renderImportSub() {
+    $("importSub").textContent = S.ukCode
+      ? "UK code: " + S.ukCode
+      : "Drop a UK timesheet export to update actual hours";
   }
 
   /* ============================================================
@@ -2096,6 +2629,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     S.workDays = clamp(num(e.target.value) || 21, 1, 31);
     e.target.value = S.workDays; render(); queueSave();
   });
+  on("ukCode", "input", function (e) { S.ukCode = e.target.value.trim(); renderImportSub(); queueSave(); });
   on("hpd", "change", function (e) {
     S.hoursPerDay = clamp(num(e.target.value) || 8.4, 0.5, 24);
     e.target.value = S.hoursPerDay; renderSetup(); queueSave();
@@ -2346,6 +2880,51 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     });
   }
 
+  /* ---------- timesheet import events ---------- */
+  RK.upload({
+    drop: $("tsDrop"), fileInput: $("tsFile"), browseBtn: $("tsBrowse"),
+    onFile: function (buf, filename) {
+      hide($("tsError")); hide($("tsMapper"));
+      ts.buffer = buf; ts.fileName = filename; ts.mapping = null;
+      tsParse(null);
+    },
+    onError: tsError
+  });
+  $("tsCodeList").addEventListener("click", function (e) {
+    var btn = e.target.closest("[data-code]");
+    if (!btn) return;
+    var code = btn.getAttribute("data-code");
+    if (TS_LEAVE.test(code) && !confirm("“" + code + "” looks like leave rather than project work. Use it anyway?")) return;
+    S.ukCode = code;
+    $("ukCode").value = code;
+    renderImportSub(); queueSave();
+    tsBuildChanges(ts.byCode[code]);
+  });
+  $("tsBody").addEventListener("input", function (e) {
+    var t = e.target, i = t.getAttribute("data-apply");
+    if (i !== null) { ts.changes[+i].apply = Math.max(0, num(t.value)); return; }
+    i = t.getAttribute("data-use");
+    if (i !== null) { ts.changes[+i].use = t.checked; tsUpdateCount(); }
+  });
+  function tsSet(pred) {
+    ts.changes.forEach(function (c, i) {
+      c.use = pred(c);
+      var box = $("tsBody").querySelector('[data-use="' + i + '"]');
+      if (box) box.checked = c.use;
+    });
+    tsUpdateCount();
+  }
+  on("tsAll", "click", function () { tsSet(function () { return true; }); });
+  on("tsNone", "click", function () { tsSet(function () { return false; }); });
+  on("tsIncreases", "click", function () { tsSet(function (c) { return c.incoming > c.current; }); });
+  on("tsAccept", "click", tsApply);
+  on("tsDecline", "click", tsClose);
+  on("tsClose", "click", tsClose);
+  $("tsModal").addEventListener("click", function (e) { if (e.target === $("tsModal")) tsClose(); });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape" && !$("tsModal").classList.contains("hidden")) tsClose();
+  });
+
   /* ---------- boot ---------- */
   function syncInputs() {
     $("pname").value = S.name;
@@ -2355,6 +2934,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     $("today").value = S.today;
     $("wdays").value = S.workDays;
     $("hpd").value = S.hoursPerDay;
+    $("ukCode").value = S.ukCode || "";
     document.title = (S.name || "Project") + " cost tracker";
   }
   function loadSaved() {
