@@ -41,15 +41,27 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 }
 
 /* set-up fields */
-.pct-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.7rem .9rem;align-items:end}
-.pct-fields.fx{grid-template-columns:repeat(auto-fit,160px);justify-content:start}
+.pct-fields{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:.75rem .9rem;align-items:end}
+#fxFields{display:contents}
 .pct-field label{display:block;font-size:.72rem;font-weight:600;color:var(--slate);margin:0 0 .25rem;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pct-field.c2{grid-column:span 2}
+.pct-field.c3{grid-column:span 3}
+.pct-field.c4{grid-column:span 4}
+.pct-field.c6{grid-column:span 6}
 .pct-field.wide{grid-column:1/-1}
-/* the code / FX row: half and half, stacking when there is no room for two */
-.pct-tail{display:grid;grid-template-columns:1fr 1fr;gap:.7rem 1.6rem;align-items:start;margin-top:.75rem}
-.pct-tail .fx{justify-content:end}
-@media (max-width:860px){ .pct-tail{grid-template-columns:1fr} .pct-tail .fx{justify-content:start} }
+/* the rates note sits under the rates it explains, not across the whole card */
+.pct-fields .note{grid-column:7/-1;margin:.15rem 0 0}
+/* Fewer, wider columns as the card narrows. The spans are equalised at each step
+   so the fields divide evenly into rows instead of leaving one stranded: four
+   across, then two, then one. */
+@media (max-width:1040px){
+  .pct-field.c2,.pct-field.c3,.pct-field.c4{grid-column:span 3}
+  .pct-field.c6{grid-column:span 12}
+  .pct-fields .note{grid-column:1/-1}
+}
+@media (max-width:700px){ .pct-field.c2,.pct-field.c3,.pct-field.c4{grid-column:span 6} }
+@media (max-width:430px){ .pct-fields .pct-field{grid-column:1/-1} }
 .pct-divider{grid-column:1/-1;border-top:1px solid var(--line-soft);margin:.3rem 0 0}
 
 /* KPI tiles — kit .kpi, three lines instead of two */
@@ -258,52 +270,50 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
       <button type="button" class="mini-btn pct-toggle" data-panel="setup" aria-expanded="true" aria-controls="panel-setup">Hide</button>
     </div>
     <div id="panel-setup" class="hidden">
+      <!-- one 12-column grid: every field is as wide as what it holds, so a
+           two-digit month count does not get the same box as a project name.
+           Rows come out 6+3+3, 3+2+3+2+2, then 6+2+2+2 for the code and rates. -->
       <div class="pct-fields">
-        <div class="pct-field wide">
+        <div class="pct-field c6">
           <label for="pname">Project name</label>
           <input type="text" id="pname" spellcheck="false" placeholder="Untitled project">
         </div>
-        <div class="pct-field">
+        <div class="pct-field c4">
           <label for="estimate" title="Total approved estimate">Estimate</label>
           <input type="number" id="estimate" min="0" step="any">
         </div>
-        <div class="pct-field">
+        <div class="pct-field c2">
           <label for="base" title="Base currency — every figure is reported in this">Currency</label>
           <select id="base"></select>
         </div>
-        <div class="pct-field">
+        <div class="pct-field c3">
           <label for="start">Start month</label>
           <input type="month" id="start">
         </div>
-        <div class="pct-field">
+        <div class="pct-field c2">
           <label for="duration" title="Duration in months">Months</label>
           <input type="number" id="duration" min="1" max="60" step="1">
         </div>
-        <div class="pct-field">
+        <div class="pct-field c3">
           <label for="today" title="The month you are reporting from">Now</label>
           <input type="month" id="today">
         </div>
-        <div class="pct-field">
+        <div class="pct-field c2">
           <label for="wdays" title="Working days per month">Days / month</label>
           <input type="number" id="wdays" min="1" max="31" step="any">
         </div>
-        <div class="pct-field">
+        <div class="pct-field c2">
           <label for="hpd" title="Default hours per day for newly added people">Hours / day</label>
           <input type="number" id="hpd" min="0.5" max="24" step="any">
         </div>
         <div class="pct-divider"></div>
-      </div>
-      <!-- codes and rates: the project's timesheet key on the left, the FX it is
-           reported in on the right, so neither runs the full width for no reason -->
-      <div class="pct-tail">
-        <div class="pct-field">
+        <div class="pct-field c6">
           <label for="ukCode" title="The ProjectName this project appears under in the UK timesheet export">UK timesheet code</label>
           <input type="text" id="ukCode" spellcheck="false" placeholder="Set on the first import, or paste it here">
         </div>
-        <div>
-          <div class="pct-fields fx" id="fxFields"></div>
-          <div class="note" id="fxNote"></div>
-        </div>
+        <!-- display:contents, so the rate fields sit in this grid rather than a nested one -->
+        <div id="fxFields"></div>
+        <div class="note" id="fxNote"></div>
       </div>
 
       <div class="pct-divider" style="margin-top:.9rem;"></div>
@@ -1304,7 +1314,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     }
     sel.value = S.base;
     $("fxFields").innerHTML = CCYS.filter(function (c) { return c !== S.base; }).map(function (c) {
-      return '<div class="pct-field"><label for="fx-' + c + '" title="1 ' + c + " in " + S.base + '">' + c + " → " + S.base + "</label>" +
+      return '<div class="pct-field c2"><label for="fx-' + c + '" title="1 ' + c + " in " + S.base + '">' + c + " → " + S.base + "</label>" +
         '<input id="fx-' + c + '" type="number" min="0" step="any" data-fx="' + c + '" value="' + num(S.rates[c]) + '"></div>';
     }).join("");
     var used = S.team.concat(S.vendors).map(function (e) { return e.ccy; })
