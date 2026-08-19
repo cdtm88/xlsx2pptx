@@ -98,13 +98,20 @@ is identified by its **UK timesheet code** (the export's `ProjectName`); on the
 first import you pick it from a list of every code in the file and it is
 remembered from then on.
 
-Because the export is a rolling window — UK timesheets run mid-month to
-mid-month — the import never treats missing data as zero. A month that is not in
-the file is left exactly as it is, and a month whose hours would *go down* is
-listed but left unticked, so a window that has moved on can never quietly erase
-recorded time. People in the file who aren't on the team yet are added with a
-zero day rate and flagged, both in the review and as an alert, so they cost
-nothing until you give them a rate. The whole import is a single undo step.
+The export is a rolling window — UK timesheets run mid-month to mid-month — so
+the import is careful about what a *fall* in hours means. Where the file covers a
+month end to end it is the better number and wins, up or down: late and careless
+timesheets get corrected, and the correction is what you want. Where the file
+only *part* covers a month, at the ragged start and end of its window, a fall is
+more likely the window moving than a correction, so those rows are tagged, tinted
+and left unticked for you to decide.
+
+Silence is never read as zero. A month absent from the file keeps its hours, and
+so does a person whose line has disappeared from a month the project *was*
+booked in — that one is reported, naming who and when, but never applied. People
+in the file who aren't on the team yet are added with a zero day rate and
+flagged, both in the review and as an alert, so they cost nothing until you give
+them a rate. The whole import is a single undo step.
 
 **Cost drivers** ranks every person and vendor by what they contribute to the
 plan, so an overrun points at a line rather than just a number. **Set a baseline**

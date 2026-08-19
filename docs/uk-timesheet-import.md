@@ -53,33 +53,61 @@ modal before you accept, and as a standing alert afterwards. They therefore cost
 the project nothing until someone gives them a rate, which is a visible gap
 rather than a silent understatement.
 
-## 4. The rolling-window rule
+## 4. The rolling-window rules
 
 This is the part that matters.
 
 UK timesheets run mid-month to mid-month, and the intended use is a **weekly**
-upload of a rolling export. So any given file:
+upload of a rolling export, so trends are visible in the weekly meeting rather
+than a month later. That means any given file:
 
-- starts and ends part-way through a month, making its first and last months partial;
-- will, as the window rolls forward, stop covering months it used to cover.
+- starts and ends part-way through a month, so its first and last months are
+  only partly covered;
+- stops covering months it used to cover, as the window rolls forward.
 
-Two failure modes follow, and the import is built to make both impossible by
-accident:
+**Hours legitimately go down.** Timesheets get filled in carelessly and then
+corrected; a week later the same period reports fewer hours, and that correction
+is the number you want. So a fall is not treated as suspicious in itself. What
+the import has to separate is a real correction from an artefact of the window
+moving, and it does that by asking whether the file covers the month **end to
+end**.
 
-**A month absent from the file is never touched.** Only months that actually
-appear in the file are considered at all. When the window rolls past March at
-the FY boundary, March simply produces no row, and the hours recorded against it
-stay exactly as they are. Missing is not zero.
+The file's coverage window is taken from the earliest and latest dated rows
+across the whole export — every project, not just this one — so it is a good
+estimate of the period the export was run for.
 
-**A month whose hours would go down is offered, but not selected.** A decrease
-is the signature of a window that has moved on — the file now covers only part
-of a month it previously covered in full. It is shown, marked, and counted in
-the flags line ("… would go down"), but its checkbox starts clear, so accepting
-the import as presented cannot reduce recorded time. If a decrease is genuinely
-correct, tick it.
+### Inside the window: the file wins, up or down
 
-Increases are selected by default, because that is the normal week-to-week case.
-Rows where the file and the record already agree (within 0.005 h) are not shown.
+If the window spans the whole calendar month, the file's total for that month is
+complete, so it replaces what is recorded whether it is higher or lower. These
+rows are ticked by default and a fall among them is reported as
+"*n* corrected down".
+
+### At the edges: falls are held back
+
+In a month the window only part covers, a lower figure is more likely to mean
+"the window now starts on the 26th" than "someone corrected their timesheet".
+Those rows are shown, tagged **part covered**, tinted, counted as "*n* held
+back", and left **unticked** — so accepting an import as presented can never
+lose recorded time to the window moving. Tick any that are genuinely right.
+
+Increases in a part-covered month are still ticked by default: hours only
+accumulate as a period fills in.
+
+### Silence is never zero
+
+Two different absences, both left exactly as recorded:
+
+- **A month with no rows in the file.** It produces no row at all. When the
+  window rolls past March at the FY boundary, March keeps its hours.
+- **A person with no line in a month the project *was* booked in.** Their line
+  may have been re-coded to another project, or simply not entered yet. This is
+  reported — "*n* not in this file", naming who and when — but never applied,
+  because a vanished line is not a correction to zero. If the hours really
+  should go, clear the cell in the team grid by hand.
+
+Rows where the file and the record already agree (within 0.005 h) are not shown
+at all.
 
 ## 5. The review step
 

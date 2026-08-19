@@ -329,8 +329,10 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 .pct-preview td.num{font-variant-numeric:tabular-nums}
 .pct-preview input[type=number]{width:88px;padding:.3rem .45rem;font-size:.8rem;text-align:right;border-radius:6px}
 .pct-preview input[type=checkbox]{accent-color:var(--teal);width:16px;height:16px;cursor:pointer}
-.pct-preview tr.down td{background:#FDF3E7}
-.pct-preview tr.down:nth-child(even) td{background:#FBEDDC}
+/* held back: a fall in a month the file only part covers, unticked by default */
+.pct-preview tr.hold td{background:#FDF3E7}
+.pct-preview tr.hold:nth-child(even) td{background:#FBEDDC}
+.pct-preview td .sub2{display:block;font-size:.72rem;color:var(--mid);font-weight:500}
 .pct-preview td.up{color:#3F8F41;font-weight:700}
 .pct-preview td.dn{color:#9A6212;font-weight:700}
 .pct-preview .who{font-weight:600}
@@ -2222,16 +2224,20 @@ window.RK = (function () {
      person per day. Hours are totalled per person per month for this
      project's code and offered as a reviewable set of changes.
 
-     Two rules come from how the window moves:
-       - A month with no rows in the file is NOT zero. The window starts
-         mid-month and drops old months entirely (the financial year
-         rolls over and March disappears); silence means "no news", so
-         the recorded figure stands.
-       - A month the file does cover replaces what is recorded, because
-         each upload supersedes the last for the days it covers. That
-         can move a figure DOWN if the window has moved forward past
-         part of the month, so decreases are the thing to look at, and
-         they are not selected by default.
+     Three rules come from how the window moves:
+       - Silence is not zero. A month with no rows in the file, or a
+         person with no line in a month the project was booked in, keeps
+         what is recorded. The window starts mid-month and drops old
+         months entirely (the financial year rolls over and March
+         disappears), and lines vanish when time is re-coded; none of
+         that is an instruction to erase hours.
+       - Inside a month the file covers END TO END the file wins, up or
+         down. Timesheets are filled in late and corrected afterwards,
+         so a fall there is a correction and is offered like any other
+         change.
+       - At the ragged EDGES of the window — the part-covered first and
+         last months — a fall is more likely the window moving than a
+         correction, so it is shown, marked, and left unticked.
      ============================================================ */
   var TS_FIELDS = [
     { field: "date", canonical: "Date", required: true, aliases: ["date", "work date", "day"] },
@@ -2242,7 +2248,7 @@ window.RK = (function () {
   ];
   // Leave is booked as a project in the export; it must never be costed as one.
   var TS_LEAVE = /^absent\b|annual leave|bank holiday|\bsick\b/i;
-  var ts = { buffer: null, fileName: "", mapping: null, byCode: null, rows: null, span: null, changes: null, newPeople: null };
+  var ts = { buffer: null, fileName: "", mapping: null, byCode: null, rows: null, span: null, changes: null, newPeople: null, gone: null };
 
   function tsError(msg) { var el = $("tsError"); el.textContent = msg; show(el); }
   function tsMonthOf(rawDate, txtDate) {
@@ -2322,7 +2328,7 @@ window.RK = (function () {
   }
   function tsClose() {
     hide($("tsModal"));
-    ts.buffer = null; ts.byCode = null; ts.changes = null;
+    ts.buffer = null; ts.byCode = null; ts.changes = null; ts.gone = null;
   }
 
   function tsShowCodePicker() {
@@ -2355,6 +2361,16 @@ window.RK = (function () {
     return null;
   }
 
+  // Does the export's window cover this calendar month end to end? A rolling
+  // window is ragged at both edges, and hours in a month it only half covers
+  // are half the story — so a fall there is probably the window moving, not a
+  // correction. In the middle of the window the file is authoritative.
+  function tsWholeMonth(mk) {
+    if (!ts.span) return false;
+    var y = +mk.slice(0, 4), m = +mk.slice(5) - 1;
+    return ts.span.from.getTime() <= Date.UTC(y, m, 1) && ts.span.to.getTime() >= Date.UTC(y, m + 1, 0);
+  }
+
   function tsBuildChanges(g) {
     hide($("tsPickCode")); show($("tsReview"));
     $("tsAccept").disabled = false;
@@ -2362,21 +2378,26 @@ window.RK = (function () {
     var ms = months(), idx = {};
     ms.forEach(function (k, i) { idx[k] = i; });
 
-    var changes = [], newPeople = [], outside = {};
+    var changes = [], newPeople = [], outside = {}, seen = {};
     Object.keys(g.people).forEach(function (key) {
       var per = g.people[key], person = tsMatch(per), isNew = !person;
       if (isNew) newPeople.push(per);
       Object.keys(per.byMonth).sort().forEach(function (mk) {
+        if (person) seen[person.id + "|" + mk] = 1;
         if (idx[mk] === undefined) { outside[mk] = 1; return; }          // outside this project's months
         var incoming = Math.round(per.byMonth[mk] * 100) / 100;
         var current = person ? num(person.actualHours[idx[mk]]) : 0;
         if (Math.abs(incoming - current) < 0.005) return;                 // nothing to say
+        var whole = tsWholeMonth(mk);
         changes.push({
           key: key, no: per.no, name: per.name, person: person, isNew: isNew,
           monthKey: mk, monthIdx: idx[mk], current: current, incoming: incoming,
-          apply: incoming,
-          // a decrease is the signal that the window moved on — never silently applied
-          use: incoming > current
+          apply: incoming, whole: whole,
+          // A fall inside a month the file covers in full is a correction — timesheets
+          // get fixed after the fact — so it is offered like any other change. A fall in
+          // a part-covered month is held back: that is the window, not a correction.
+          use: incoming > current || whole,
+          hold: incoming < current && !whole
         });
       });
     });
@@ -2384,8 +2405,21 @@ window.RK = (function () {
       if (a.name !== b.name) return a.name < b.name ? -1 : 1;
       return a.monthKey < b.monthKey ? -1 : 1;
     });
+
+    // Recorded hours the file has nothing to say about: the project was booked
+    // that month, but this person has no line in it. A vanished line is not a
+    // correction to zero, so it is reported and left exactly as it is.
+    var gone = [];
+    S.team.forEach(function (t) {
+      ms.forEach(function (mk, i) {
+        if (!g.months[mk] || seen[t.id + "|" + mk]) return;
+        if (num(t.actualHours[i]) <= 0) return;
+        gone.push({ name: t.name || "Unnamed", monthKey: mk, hours: num(t.actualHours[i]) });
+      });
+    });
+
     ts.changes = changes; ts.newPeople = newPeople; ts.outside = Object.keys(outside).sort();
-    ts.code = g.code;
+    ts.gone = gone; ts.code = g.code;
     tsRenderReview(g);
   }
 
@@ -2399,11 +2433,33 @@ window.RK = (function () {
         ts.newPeople.map(function (p) { return esc(p.name || p.no); }).join(", ") +
         " will be added with a <strong>zero day rate</strong>, so their time costs nothing until you set one.</div>");
     }
-    var down = ts.changes.filter(function (c) { return c.incoming < c.current; });
-    if (down.length) {
-      flags.push('<div class="callout pct-warn"><span class="lab">' + down.length + " would go down</span>" +
-        "The file has fewer hours than recorded for these. That is expected when the window has moved past part of a month. " +
-        "They are <strong>not selected</strong> — tick any you do want to apply.</div>");
+    var corrections = ts.changes.filter(function (c) { return c.incoming < c.current && c.whole; });
+    if (corrections.length) {
+      flags.push('<div class="callout"><span class="lab">' + corrections.length + " corrected down</span>" +
+        "Fewer hours than recorded, in " + (corrections.length === 1 ? "a month" : "months") +
+        " this file covers end to end — so the file is the better number. <strong>Selected.</strong></div>");
+    }
+    var held = ts.changes.filter(function (c) { return c.hold; });
+    if (held.length) {
+      flags.push('<div class="callout pct-warn"><span class="lab">' + held.length + " held back</span>" +
+        (held.length === 1 ? "This falls" : "These fall") + " in a month the file only <strong>part covers</strong>" +
+        (ts.span ? " (it runs " + esc(tsSpanText()) + ")" : "") +
+        ", so lower hours there are probably the window rather than a correction. " +
+        "<strong>Not selected</strong> — tick any you do want to apply.</div>");
+    }
+    if (ts.gone && ts.gone.length) {
+      // grouped per person, so one absent contractor is one phrase and not three
+      var byWho = [], seenWho = {};
+      ts.gone.forEach(function (x) {
+        if (!seenWho[x.name]) { seenWho[x.name] = []; byWho.push(x.name); }
+        seenWho[x.name].push(monthLabel(x.monthKey));
+      });
+      var list = byWho.slice(0, 6).map(function (n) { return esc(n) + " (" + seenWho[n].join(", ") + ")"; });
+      flags.push('<div class="callout"><span class="lab">' + byWho.length + " not in this file</span>" +
+        "Hours are recorded for " + list.join(", ") + (byWho.length > 6 ? " and " + (byWho.length - 6) + " more" : "") +
+        ", but there is no line for " + (byWho.length === 1 ? "them" : "any of them") +
+        " here. A missing line is not a correction to zero, so those hours are " +
+        "<strong>left as recorded</strong>.</div>");
     }
     if (ts.outside.length) {
       flags.push('<div class="callout"><span class="lab">Outside this project</span>' +
@@ -2425,10 +2481,11 @@ window.RK = (function () {
     }
     $("tsBody").innerHTML = ts.changes.map(function (c, i) {
       var delta = c.incoming - c.current, dn = delta < 0;
-      return '<tr class="' + (dn ? "down" : "") + '" data-i="' + i + '">' +
+      return '<tr class="' + (c.hold ? "hold" : "") + '" data-i="' + i + '">' +
         '<td class="who">' + esc(c.name || c.no) + (c.isNew ? '<span class="pct-newp">new</span>' : "") +
           (c.no ? '<span class="sub2">' + esc(c.no) + "</span>" : "") + "</td>" +
-        "<td>" + monthLabel(c.monthKey) + "</td>" +
+        "<td>" + monthLabel(c.monthKey) +
+          (c.whole ? "" : '<span class="sub2">part covered</span>') + "</td>" +
         '<td class="num">' + RK.fmtHrs(c.current) + "</td>" +
         '<td class="num">' + RK.fmtHrs(c.incoming) + "</td>" +
         '<td class="num ' + (dn ? "dn" : "up") + '">' + (delta > 0 ? "+" : "−") + RK.fmtHrs(Math.abs(delta)) + "</td>" +
