@@ -84,7 +84,8 @@ and raises it to an issue once the invoices themselves go over.
 You get six headline figures (estimate, spent, remaining, average burn, forecast
 at completion, headroom or overrun), a budget-consumption meter, plain-English
 alerts — forecast overrun, thin headroom, burn ahead of plan, runway shorter than
-the delivery, vendor past contract — and a burn-up chart that marks the month the
+the delivery, vendor past contract, a month left unbooked while a later one has
+figures — and a burn-up chart that marks the month the
 ceiling is breached. The burn-up keeps one story in colour — spent so far, and
 where that lands — with the plan, the baseline and the estimate ceiling reading
 as progressively quieter reference lines behind it. The zone above the ceiling is
@@ -121,8 +122,13 @@ plan, so an overrun points at a line rather than just a number. **Set a baseline
 once the plan is approved and the tracker keeps score against it: a drift alert,
 a baseline column in the ledger and the CSV, a baseline line on the burn-up, and
 a per-line delta showing exactly what moved — including lines that have since
-been removed. **Undo** covers the destructive things (bulk fills, deletes,
-imports, clearing) rather than every keystroke.
+been removed. **Undo** covers the destructive things (deletes, imports,
+clearing) rather than every keystroke.
+
+A cumulative chart has to treat a month with nothing booked as zero spend, which
+flattens the burn-up and quietly understates the run rate. So a month left empty
+while a later month has figures is called out by name, and the burn-up draws it
+as a hollow point — "nothing booked here", not "nothing spent here".
 
 Every card collapses, and each grid sits in a fixed-height scroller with its
 header and totals row pinned, so a long team or a 60-month project never pushes

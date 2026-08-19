@@ -265,7 +265,6 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 .pct-matrix th.mhead{text-align:center;font-size:.64rem;padding:.45rem .25rem}
 .pct-matrix td.mcell{padding:.22rem .18rem}
 .pct-matrix td.mcell input{width:58px;text-align:center}
-.pct-matrix td.allcell input{width:62px;text-align:center;border-color:var(--teal)}
 .pct-matrix td.money{text-align:right;font-variant-numeric:tabular-nums;font-weight:700;color:var(--teal-dark)}
 .pct-matrix td.foot-num{text-align:center;font-size:.72rem;font-variant-numeric:tabular-nums;color:var(--slate)}
 .pct-matrix .c-role input{min-width:110px}
@@ -279,7 +278,6 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 
 /* vendor matrix — same skeleton as the team matrix, money cells instead of days */
 .pct-vendors td.mcell input{width:82px;text-align:right}
-.pct-vendors td.allcell input{width:82px;text-align:right}
 .pct-vendors .c-scope input{min-width:130px}
 .pct-vendors .c-contract input{min-width:96px;text-align:right}
 .pct-vendors th.mhead{text-align:right;padding-right:.5rem}
@@ -1418,6 +1416,11 @@ window.RK = (function () {
 
     var wa = rows.filter(function (r) { return r.hasActual; });
     var lastActualIdx = wa.length ? wa[wa.length - 1].i : -1;
+    // A month with nothing booked, sitting BEFORE a month that has something, is a
+    // hole in the reporting rather than a month that cost nothing — but every
+    // cumulative figure here has to treat it as zero. Surface it instead of
+    // letting it flatten the burn-up.
+    var gaps = rows.filter(function (r) { return r.i < lastActualIdx && !r.hasActual; });
     var spent = wa.reduce(function (s, r) { return s + r.actual; }, 0);
     var plannedToDate = rows.filter(function (r) { return r.i <= lastActualIdx; }).reduce(function (s, r) { return s + r.planned; }, 0);
     var burn = wa.length ? spent / wa.length : 0;
@@ -1437,7 +1440,7 @@ window.RK = (function () {
     for (var j = 0; j < rows.length; j++) { if (rows[j].cumForecast > S.estimate) { breachMonth = rows[j]; break; } }
 
     return {
-      rows: rows, spent: spent, plannedToDate: plannedToDate, totalPlanned: cp, burn: burn,
+      rows: rows, spent: spent, plannedToDate: plannedToDate, totalPlanned: cp, burn: burn, gaps: gaps, monthsBooked: wa.length,
       eac: eac, eacPlan: spent + remainingPlanned, variance: S.estimate - eac,
       burnVariance: plannedToDate ? (spent - plannedToDate) / plannedToDate : 0,
       lastActualIdx: lastActualIdx, remainingMonths: remainingMonths, breachMonth: breachMonth,
@@ -1510,7 +1513,10 @@ window.RK = (function () {
       { k: "Total estimate", v: money(S.estimate), s: "Approved ceiling" },
       { k: "Spent to date", v: money(M.spent), s: pct(S.estimate ? M.spent / S.estimate : 0) + " of estimate" },
       { k: "Remaining", v: money(S.estimate - M.spent), s: M.remainingMonths + " months to run" },
-      { k: "Avg monthly burn", v: money(M.burn), s: M.lastActualIdx < 0 ? "No actuals" : (M.lastActualIdx + 1) + " months of actuals" },
+      { k: "Avg monthly burn", v: money(M.burn),
+        s: M.lastActualIdx < 0 ? "No actuals"
+          : M.monthsBooked + " month" + (M.monthsBooked === 1 ? "" : "s") + " with figures" +
+            (M.gaps.length ? ", " + M.gaps.length + " skipped" : "") },
       { k: "Forecast at completion", v: money(M.eac), s: "Plan-based " + money(M.eacPlan) },
       {
         k: M.variance < 0 ? "Forecast overrun" : "Forecast headroom", v: moneySigned(M.variance),
@@ -1566,6 +1572,15 @@ window.RK = (function () {
         " " + (rateless.length === 1 ? "has" : "have") + " hours booked at a zero day rate, so that time is costing nothing."]);
     }
     if (M.lastActualIdx < 0) out.push(["info", "Nothing booked yet", "Enter actual spend in the ledger below and the forecast will replace the plan."]);
+    if (M.gaps.length) {
+      var gl = M.gaps.map(function (r) { return r.label; });
+      out.push(["warn", "Months with nothing booked",
+        gl.slice(0, 6).join(", ") + (gl.length > 6 ? " and " + (gl.length - 6) + " more" : "") +
+        " " + (gl.length === 1 ? "has" : "have") + " no actuals, but " + M.rows[M.lastActualIdx].label +
+        " does. Spend is counted as zero for " + (gl.length === 1 ? "that month" : "those months") +
+        ", which flattens the burn-up and understates the run rate. Fill " +
+        (gl.length === 1 ? "it" : "them") + " in, or clear the later figure if it was booked to the wrong month."]);
+    }
     if (M.variance < 0) {
       out.push(["issue", "Forecast exceeds the estimate",
         "At the current run rate you land " + money(over) + " over, " + pct(S.estimate ? over / S.estimate : 0) + " above the estimate." +
@@ -1712,7 +1727,12 @@ window.RK = (function () {
     if (M.lastActualIdx >= 0) {
       var av = rows.filter(function (r) { return r.i <= M.lastActualIdx; }).map(function (r) { return r.cumActual; });
       p.push('<path d="' + path(av, 0) + '" fill="none" stroke="' + CH.teal + '" stroke-width="3" stroke-linejoin="round"/>');
-      av.forEach(function (v, i) { if (i < av.length - 1) p.push('<circle cx="' + x(i) + '" cy="' + y(v) + '" r="3" fill="' + CH.teal + '"/>'); });
+      av.forEach(function (v, i) {
+        if (i === av.length - 1) return;
+        p.push(rows[i].hasActual
+          ? '<circle cx="' + x(i) + '" cy="' + y(v) + '" r="3" fill="' + CH.teal + '"/>'
+          : '<circle cx="' + x(i) + '" cy="' + y(v) + '" r="3.5" fill="#FFFFFF" stroke="' + CH.teal + '" stroke-width="1.5"/>');
+      });
       var lastY = y(av[av.length - 1]);
       p.push('<circle cx="' + x(av.length - 1) + '" cy="' + lastY + '" r="4.5" fill="' + CH.teal + '" stroke="#FFFFFF" stroke-width="2"/>');
       var fv = rows.filter(function (r) { return r.i >= M.lastActualIdx; }).map(function (r) { return r.cumForecast; });
@@ -1761,30 +1781,16 @@ window.RK = (function () {
      followed by one input per month. Only the leading columns differ. */
   function monthCellsHtml(vals, idx, opts) {
     var cap = ' max="' + opts.max + '"';
-    var cells = '<td class="allcell"><input type="number" min="0"' + cap +
-      ' step="any" data-all="' + idx + '" placeholder="set" aria-label="Set every month"></td>';
-    return cells + vals.map(function (v, i) {
+    return vals.map(function (v, i) {
       var st = opts.styleOf ? opts.styleOf(v) : "";
       return '<td class="mcell"><input type="number" min="0"' + cap + ' step="any" data-m="' + i +
         '" value="' + num(v) + '"' + (st ? ' style="' + st + '"' : "") +
         ' aria-label="' + esc(opts.label(i)) + '"></td>';
     }).join("");
   }
-  // Applies an "All" fill or a single-month edit to `arr` in place. Returns false
-  // if the event was not a month edit at all.
+  // Applies a single-month edit to `arr` in place. Returns false if the event
+  // was not a month edit at all.
   function monthCellEdit(t, tr, arr, cap, styleOf) {
-    if (t.hasAttribute("data-all")) {
-      if (t.value === "") return false;          // cleared, not an edit
-      snapshot("bulk fill", 4000);               // coalesce the keystroke burst
-      var all = clamp(num(t.value), 0, cap);
-      var n = Math.min(arr.length, S.duration);  // never reaches into hidden months
-      for (var i = 0; i < n; i++) arr[i] = all;
-      tr.querySelectorAll("input[data-m]").forEach(function (inp) {
-        inp.value = all;
-        if (styleOf) inp.setAttribute("style", styleOf(all));
-      });
-      return true;
-    }
     if (t.hasAttribute("data-m")) {
       var v = clamp(num(t.value), 0, cap);
       arr[+t.getAttribute("data-m")] = v;
@@ -1809,10 +1815,8 @@ window.RK = (function () {
     $("teamHead").innerHTML =
       '<th class="sticky">Name</th><th>Role</th><th>Ccy</th><th class="num">Day rate</th><th class="num">Hrs / day</th>' +
       '<th class="num">' + (actual ? "Actual" : "Planned") + " (" + S.base + ")</th>" +
-      '<th class="no-print"></th><th class="mhead">All</th>' +
-      ms.map(function (k) {
-        return '<th class="mhead">' + monthLabel(k) + (actual ? ' <span style="opacity:.7">hrs</span>' : "") + "</th>";
-      }).join("") + '<th class="spacer"></th>';
+      ms.map(function (k) { return '<th class="mhead">' + monthLabel(k) + "</th>"; }).join("") +
+      '<th class="no-print"></th><th class="spacer"></th>';
 
     $("teamBody").innerHTML = S.team.length ? S.team.map(function (p, idx) {
       return '<tr data-idx="' + idx + '">' +
@@ -1824,14 +1828,15 @@ window.RK = (function () {
         '<td class="c-rate"><input type="number" step="any" min="0" data-f="rate" value="' + num(p.rate).toFixed(2) + '" aria-label="Day rate"></td>' +
         '<td class="c-hpd"><input type="number" step="any" min="0.5" max="24" data-f="hpd" value="' + hpdOf(p) + '" aria-label="Hours per day"></td>' +
         '<td class="money">' + plain(totalIn(p, field)) + "</td>" +
-        '<td class="del no-print"><button type="button" class="pct-icon" data-del="' + idx + '" title="Remove person" aria-label="Remove person">×</button></td>' +
         monthCellsHtml(span(p[field]), idx, {
           max: max,
           styleOf: function (v) { return dayTint(num(v), fullOf(p)); },
           label: function (i) { return p.name + " " + monthLabel(ms[i]); }
-        }) + '<td class="spacer"></td></tr>';
+        }) +
+        '<td class="del no-print"><button type="button" class="pct-icon" data-del="' + idx + '" title="Remove person" aria-label="Remove person">×</button></td>' +
+        '<td class="spacer"></td></tr>';
     }).join("")
-      : '<tr><td class="sticky pct-muted">No people yet</td><td class="pct-muted" colspan="' + (8 + S.duration) +
+      : '<tr><td class="sticky pct-muted">No people yet</td><td class="pct-muted" colspan="' + (7 + S.duration) +
         '">Use Add person to start, Load data to bring in a saved tracker, or Load demo project for a look around.</td></tr>';
 
     refreshTeamFoot();
@@ -1843,9 +1848,9 @@ window.RK = (function () {
     var grand = 0;
     for (var i = 0; i < S.duration; i++) grand += per(i);
     var cells = '<td class="sticky">' + (actual ? "Actual cost" : "Planned cost") + "</td><td></td><td></td><td></td><td></td>" +
-      '<td class="money">' + plain(grand) + '</td><td class="no-print"></td><td></td>';
+      '<td class="money">' + plain(grand) + "</td>";
     for (var j = 0; j < S.duration; j++) cells += '<td class="foot-num">' + plain(per(j)) + "</td>";
-    $("teamFoot").innerHTML = cells + '<td class="spacer"></td>';
+    $("teamFoot").innerHTML = cells + '<td class="no-print"></td><td class="spacer"></td>';
   }
 
   function refreshTeamRow(idx) {
@@ -1882,8 +1887,8 @@ window.RK = (function () {
     $("vendorHead").innerHTML =
       '<th class="sticky">Vendor</th><th>Scope</th><th>Ccy</th><th class="num">Contract</th>' +
       '<th class="num">' + (invoiced ? "Invoiced" : "Planned") + " (" + S.base + ")</th>" +
-      '<th class="no-print"></th><th class="mhead">All</th>' +
-      ms.map(function (k) { return '<th class="mhead">' + monthLabel(k) + "</th>"; }).join("") + '<th class="spacer"></th>';
+      ms.map(function (k) { return '<th class="mhead">' + monthLabel(k) + "</th>"; }).join("") +
+      '<th class="no-print"></th><th class="spacer"></th>';
 
     $("vendorBody").innerHTML = S.vendors.map(function (v, idx) {
       var pos = M.vendors[idx] || {};
@@ -1897,11 +1902,12 @@ window.RK = (function () {
         '<td class="c-contract"><input type="number" step="any" min="0" data-f="contract" value="' + num(v.contract) +
           '" placeholder="none" title="Contract or PO value in ' + esc(v.ccy) + '. Leave at zero for time and materials — nothing is flagged." aria-label="Contract value"></td>' +
         '<td class="' + totalCls + '">' + plain(vendorTotalIn(v, field)) + "</td>" +
-        '<td class="del no-print"><button type="button" class="pct-icon" data-del="' + idx + '" title="Remove vendor" aria-label="Remove vendor">×</button></td>' +
         monthCellsHtml(span(v[field]), idx, {
           max: MAX_MONEY,
           label: function (i) { return v.name + " " + monthLabel(ms[i]); }
-        }) + '<td class="spacer"></td></tr>';
+        }) +
+        '<td class="del no-print"><button type="button" class="pct-icon" data-del="' + idx + '" title="Remove vendor" aria-label="Remove vendor">×</button></td>' +
+        '<td class="spacer"></td></tr>';
     }).join("");
 
     refreshVendorFoot();
@@ -1913,9 +1919,9 @@ window.RK = (function () {
     var grand = 0;
     for (var i = 0; i < S.duration; i++) grand += vendorSum(field, i);
     var cells = '<td class="sticky">' + (field === "invoiced" ? "Invoiced" : "Planned") + " cost</td><td></td><td></td><td></td>" +
-      '<td class="money">' + plain(grand) + '</td><td class="no-print"></td><td></td>';
+      '<td class="money">' + plain(grand) + "</td>";
     for (var j = 0; j < S.duration; j++) cells += '<td class="foot-num">' + plain(vendorSum(field, j)) + "</td>";
-    $("vendorFoot").innerHTML = cells + '<td class="spacer"></td>';
+    $("vendorFoot").innerHTML = cells + '<td class="no-print"></td><td class="spacer"></td>';
   }
 
   function refreshVendorRow(idx) {
@@ -2203,8 +2209,17 @@ window.RK = (function () {
     if (M.lastActualIdx >= 0) {
       var av = rows.filter(function (r) { return r.i <= M.lastActualIdx; }).map(function (r) { return r.cumActual; });
       line(av, 0, CH.teal, 3);
+      av.forEach(function (v, i) {
+        if (i === av.length - 1) return;
+        g.beginPath();
+        if (rows[i].hasActual) { g.fillStyle = CH.teal; g.arc(x(i), y(v), 3, 0, Math.PI * 2); g.fill(); }
+        else {
+          g.arc(x(i), y(v), 3.5, 0, Math.PI * 2);
+          g.fillStyle = "#FFFFFF"; g.fill();
+          g.strokeStyle = CH.teal; g.lineWidth = 1.5; g.stroke();
+        }
+      });
       g.fillStyle = CH.teal;
-      av.forEach(function (v, i) { if (i < av.length - 1) { g.beginPath(); g.arc(x(i), y(v), 3, 0, Math.PI * 2); g.fill(); } });
       var lastY = y(av[av.length - 1]);
       g.beginPath(); g.arc(x(av.length - 1), lastY, 4.5, 0, Math.PI * 2); g.fill();
       g.strokeStyle = "#FFFFFF"; g.lineWidth = 2; g.stroke();
@@ -2258,7 +2273,7 @@ window.RK = (function () {
   }
 
   /* ---------- undo ----------
-     Snapshots before the destructive things only — bulk fills, deletes, imports,
+     Snapshots before the destructive things only — deletes, imports,
      baselining. Per-keystroke edits are not worth a stack entry. */
   var undoStack = [], lastSnapAt = 0;
   function snapshot(label, coalesceMs) {
