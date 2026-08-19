@@ -14,7 +14,7 @@ machine.
 | [`delivery-plan.html`](delivery-plan.html) | an Excel delivery plan | a PowerPoint Gantt-chart slide (`.pptx`) |
 | [`waqti-exceptions.html`](waqti-exceptions.html) | a Waqti timesheet export + an approved-demand allowlist | a copy-paste correction email |
 | [`waqti-demand-summary.html`](waqti-demand-summary.html) | a Waqti timesheet export | an on-screen per-demand summary of hours by person and feature |
-| [`project-cost-tracker.html`](project-cost-tracker.html) | a team and their day rates, plus any vendor contracts | a live cost position, burn-up and monthly ledger against the estimate |
+| [`project-cost-tracker.html`](project-cost-tracker.html) | a team and their day rates, any vendor contracts, and a UK timesheet export | a live cost position, burn-up and monthly ledger against the estimate |
 
 Common to all: a single HTML file, inline-vendored libraries, works over `file://`
 with the network off, and brand-consistent styling.
@@ -89,6 +89,23 @@ ceiling is breached.
 The Position panel and the burn-up each copy to the clipboard as a PNG for
 pasting into a slide or an email.
 
+**UK timesheet import.** Drop the raw `.xlsx` export from the UK timesheet
+system and the tracker reads it, costs nothing yet, and shows you exactly what
+it proposes to change — one row per person and month, with the hours it has
+recorded now beside the hours in the file. Tick the rows you want, edit any
+figure by hand, then accept, or decline and nothing happens at all. The project
+is identified by its **UK timesheet code** (the export's `ProjectName`); on the
+first import you pick it from a list of every code in the file and it is
+remembered from then on.
+
+Because the export is a rolling window — UK timesheets run mid-month to
+mid-month — the import never treats missing data as zero. A month that is not in
+the file is left exactly as it is, and a month whose hours would *go down* is
+listed but left unticked, so a window that has moved on can never quietly erase
+recorded time. People in the file who aren't on the team yet are added with a
+zero day rate and flagged, both in the review and as an alert, so they cost
+nothing until you give them a rate. The whole import is a single undo step.
+
 **Cost drivers** ranks every person and vendor by what they contribute to the
 plan, so an overrun points at a line rather than just a number. **Set a baseline**
 once the plan is approved and the tracker keeps score against it: a drift alert,
@@ -100,7 +117,8 @@ imports, clearing) rather than every keystroke.
 Every card collapses, and each grid sits in a fixed-height scroller with its
 header and totals row pinned, so a long team or a 60-month project never pushes
 the rest of the page out of view. The page opens as a report — position,
-burn-up, team and ledger — with set-up, vendors and cost drivers a click away.
+burn-up, team and ledger — with set-up, the timesheet import, vendors and cost
+drivers a click away.
 
 Day rates and vendor costs can be in AED, GBP, USD or EUR and are converted at
 rates you set; everything is reported in one base currency.
@@ -117,6 +135,9 @@ holds one project at a time and says so. **Save JSON** still downloads a standal
 as a version, **Load data** reads one back (files from every earlier version of
 the tracker still load), and **Export ledger CSV** gives you the monthly table.
 No file to open — start with **Load demo project** for a look around.
+
+See [`docs/uk-timesheet-import.md`](docs/uk-timesheet-import.md) for the columns
+the import reads, how people are matched, and the rolling-window rules.
 
 See [`docs/storage-design.md`](docs/storage-design.md) for why it works this way:
 every `file://` page shares one origin, so browser storage cannot hold more than

@@ -170,6 +170,40 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 #matchTable select{padding:.32rem .45rem;font-size:.8rem;border-radius:6px;min-width:190px;width:auto}
 #matchTable td{white-space:nowrap}
 
+/* review modal */
+.pct-overlay{position:fixed;inset:0;background:rgba(23,43,77,.45);z-index:80;display:flex;align-items:center;
+  justify-content:center;padding:1.5rem}
+.pct-dialog{background:var(--card);border-radius:var(--radius);box-shadow:0 12px 40px rgba(23,43,77,.25);
+  width:min(980px,100%);max-height:90vh;display:flex;flex-direction:column;overflow:hidden}
+.pct-dialog-head{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;
+  padding:1.1rem 1.4rem;border-bottom:1px solid var(--line)}
+.pct-dialog-head h2{font-size:1rem;font-weight:800;color:var(--slate);letter-spacing:-.01em}
+.pct-dialog-body{padding:1.1rem 1.4rem;overflow:auto}
+.pct-dialog-foot{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;
+  padding:.9rem 1.4rem;border-top:1px solid var(--line);background:var(--light-grey)}
+@media (max-width:640px){ .pct-overlay{padding:0} .pct-dialog{max-height:100vh;border-radius:0} }
+
+/* code picker */
+.pct-code{display:flex;align-items:center;gap:.8rem;width:100%;text-align:left;padding:.6rem .8rem;
+  border:1px solid var(--line);background:#fff;border-radius:8px;margin-bottom:.4rem;cursor:pointer;font-family:inherit}
+.pct-code:hover{border-color:var(--teal);background:var(--teal-tint)}
+.pct-code .c-name{flex:1;font-weight:600;color:var(--slate);font-size:.86rem;word-break:break-word}
+.pct-code .c-meta{font-size:.76rem;color:var(--mid);white-space:nowrap;font-variant-numeric:tabular-nums}
+.pct-code.leave{opacity:.6}
+
+/* preview rows */
+.pct-preview td.num{font-variant-numeric:tabular-nums}
+.pct-preview input[type=number]{width:88px;padding:.3rem .45rem;font-size:.8rem;text-align:right;border-radius:6px}
+.pct-preview input[type=checkbox]{accent-color:var(--teal);width:16px;height:16px;cursor:pointer}
+.pct-preview tr.down td{background:#FDF3E7}
+.pct-preview tr.down:nth-child(even) td{background:#FBEDDC}
+.pct-preview td.up{color:#3F8F41;font-weight:700}
+.pct-preview td.dn{color:#9A6212;font-weight:700}
+.pct-preview .who{font-weight:600}
+.pct-preview .who .sub2{display:block;font-size:.72rem;color:var(--mid);font-weight:500}
+.pct-newp{display:inline-block;font-size:.66rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;
+  color:#9A6212;background:#FDF3E7;border:1px solid #F0D6A6;border-radius:20px;padding:.05rem .45rem;margin-left:.35rem}
+
 /* toast */
 #toast{position:fixed;left:50%;transform:translateX(-50%);bottom:24px;background:var(--slate);color:#fff;
   padding:.6rem 1rem;font-size:.82rem;font-weight:600;border-radius:9px;z-index:60;opacity:0;pointer-events:none;
@@ -248,6 +282,10 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
           <label for="hpd" title="Default hours per day for newly added people">Hours / day</label>
           <input type="number" id="hpd" min="0.5" max="24" step="any">
         </div>
+        <div class="pct-field wide">
+          <label for="ukCode" title="The ProjectName this project appears under in the UK timesheet export">UK timesheet code</label>
+          <input type="text" id="ukCode" spellcheck="false" placeholder="Set on the first import, or paste it here">
+        </div>
         <div class="pct-divider"></div>
       </div>
       <div class="pct-fields fx" id="fxFields" style="margin-top:.7rem;"></div>
@@ -318,6 +356,37 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
       <span><span class="pct-key" style="border-color:#3D3D3D;border-top-style:dashed"></span>Estimate</span>
       <span class="hidden" id="legendBaseline"><span class="pct-key" style="border-color:#9AA5AD;border-top-style:dotted"></span>Baseline plan</span>
     </div>
+    </div>
+  </section>
+
+  <!-- ============ TIMESHEET IMPORT ============ -->
+  <section class="card no-print">
+    <div class="card-head">
+      <div>
+        <span class="title">Timesheet import</span>
+        <span class="sub" id="importSub">Drop a UK timesheet export to update actual hours</span>
+      </div>
+      <button type="button" class="mini-btn pct-toggle" data-panel="import" aria-expanded="false" aria-controls="panel-import">Show</button>
+    </div>
+    <div id="panel-import" class="hidden">
+      <div class="upload-area" id="tsDrop" tabindex="0" role="button" aria-label="Drop a UK timesheet xlsx export here, or press Enter to browse">
+        <div class="big">Drop the UK timesheet .xlsx here</div>
+        <div class="or">or</div>
+        <button type="button" class="btn btn-primary" id="tsBrowse">Browse for file</button>
+        <input type="file" id="tsFile" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" class="hidden">
+      </div>
+      <div id="tsError" class="err hidden"></div>
+      <div class="note" id="tsNote" style="margin-bottom:0;">
+        Hours are totalled per person per month and compared with what is already recorded. Nothing changes until you
+        approve it. Months with no rows in the file are left alone &mdash; a shorter export never means zero.
+      </div>
+      <div id="tsMapper" class="hidden" style="margin-top:1rem;">
+        <div style="font-size:.74rem;font-weight:700;color:var(--slate);margin-bottom:.4rem;">Map the required columns</div>
+        <p class="sub">Not all expected headers were found. Match each field to a column, then confirm.</p>
+        <div id="tsMapperFields" style="margin-top:.5rem;"></div>
+        <div class="controls-row" style="margin-top:.7rem;"><button type="button" class="btn btn-primary" id="tsMapperConfirm">Confirm mapping</button></div>
+        <div id="tsMapperError" class="err hidden"></div>
+      </div>
     </div>
   </section>
 
@@ -483,8 +552,53 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 </div>
 
 <footer class="app-footer">Dreamt up by Christian, built with Claude &mdash; a human + AI double act 🤝</footer>
+<div class="pct-overlay hidden" id="tsModal" role="dialog" aria-modal="true" aria-labelledby="tsModalTitle">
+  <div class="pct-dialog">
+    <div class="pct-dialog-head">
+      <div>
+        <h2 id="tsModalTitle">Review timesheet changes</h2>
+        <p class="sub" id="tsSummary"></p>
+      </div>
+      <button type="button" class="mini-btn" id="tsClose" aria-label="Close">Cancel</button>
+    </div>
+    <div class="pct-dialog-body">
+      <div id="tsPickCode" class="hidden">
+        <p class="sub" style="margin-bottom:.6rem;">Which of these is this project? The choice is remembered as the project's UK timesheet code.</p>
+        <div id="tsCodeList"></div>
+      </div>
+      <div id="tsReview" class="hidden">
+        <div id="tsFlags"></div>
+        <div class="ms-toolbar">
+          <span class="ms-count" id="tsCount"></span>
+          <button type="button" class="mini-btn" id="tsAll">Select all</button>
+          <button type="button" class="mini-btn" id="tsNone">Select none</button>
+          <button type="button" class="mini-btn" id="tsIncreases">Only increases</button>
+        </div>
+        <div class="table-wrap pct-scroll" style="max-height:26rem">
+          <table class="data pct-preview" id="tsTable">
+            <thead><tr>
+              <th>Person</th><th>Month</th><th class="num">Recorded</th><th class="num">In the file</th>
+              <th class="num">Change</th><th class="num">Apply</th><th class="c">Use</th>
+            </tr></thead>
+            <tbody id="tsBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="pct-dialog-foot">
+      <span class="sub" id="tsFootNote"></span>
+      <div class="controls-row">
+        <button type="button" class="btn btn-ghost" id="tsDecline">Decline</button>
+        <button type="button" class="btn btn-primary" id="tsAccept">Apply selected</button>
+      </div>
+    </div>
+  </div>
+</div>
 <div id="toast" role="status" aria-live="polite"></div>
 
+<script>
+/*@include framework/vendor/sheetjs.js@*/
+</script>
 <script>
 /*@include framework/report-kit.js@*/
 </script>
@@ -502,11 +616,11 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 (function () {
   "use strict";
   var $ = RK.$, esc = RK.esc, show = RK.show, hide = RK.hide;
-  var VERSION = "v1.4.0";
+  var VERSION = "v1.5.0";
   var LS_KEY = "project-cost-tracker:v1";
   var LEGACY_KEY = "project-cost-tracker-v3";   // key used by the pre-Report-Kit build
   var CCYS = ["AED", "GBP", "USD", "EUR"];
-  var STATE_VERSION = 9;
+  var STATE_VERSION = 10;
   var MAX_MONEY = 1e12;
   $("version").textContent = VERSION;
 
@@ -525,9 +639,9 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
   /* ---------- panels ----------
      Every card collapses. The defaults open what you read and close what you
      edit, so the page opens as a report rather than a form. */
-  var PANEL_KEYS = ["setup", "position", "burnup", "team", "vendors", "drivers", "ledger", "data"];
+  var PANEL_KEYS = ["setup", "import", "position", "burnup", "team", "vendors", "drivers", "ledger", "data"];
   function defaultPanels() {
-    return { setup: false, position: true, burnup: true, team: true, vendors: false, drivers: false, ledger: true, data: true };
+    return { setup: false, "import": false, position: true, burnup: true, team: true, vendors: false, drivers: false, ledger: true, data: true };
   }
 
   /* ---------- state ---------- */
@@ -541,6 +655,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
       rates: { AED: 1, GBP: 4.85, USD: 3.6725, EUR: 4.00 },
       estimate: 0, start: now, duration: 12, today: now,
       workDays: 21, hoursPerDay: 8.4, panels: defaultPanels(), daysView: "planned", vendorView: "planned",
+      ukCode: "",
       team: [], vendors: [], actuals: {}, baseline: null
     };
   }
@@ -678,6 +793,9 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     }
     s.panels = panels;
     delete s.setupOpen;
+
+    // v10: the ProjectName this project appears under in the UK timesheet export
+    s.ukCode = typeof o.ukCode === "string" ? o.ukCode : "";
 
     // v7 added the baseline. A file without one simply has no baseline.
     s.baseline = (o.baseline && typeof o.baseline === "object" && !Array.isArray(o.baseline)) ? o.baseline : null;
@@ -864,7 +982,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     var M = model();
     renderMeta(M); renderKpis(M); renderMeter(M); renderAlerts(M); renderChart(M);
     renderFx(); renderTeam(); renderVendors(M); renderDrivers(M); renderLedger(M);
-    renderBaselineControls(M); renderSetup(); renderPanels(); renderUndo();
+    renderBaselineControls(M); renderSetup(); renderPanels(); renderUndo(); renderImportSub();
     $("thActual").textContent = "Actual (" + S.base + ")";
     $("thPlanned").textContent = "Planned (" + S.base + ")";
     return M;
@@ -1644,6 +1762,277 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
   }
 
   /* ============================================================
+     UK TIMESHEET IMPORT
+
+     The export is a rolling window over every project, one row per
+     person per day. Hours are totalled per person per month for this
+     project's code and offered as a reviewable set of changes.
+
+     Two rules come from how the window moves:
+       - A month with no rows in the file is NOT zero. The window starts
+         mid-month and drops old months entirely (the financial year
+         rolls over and March disappears); silence means "no news", so
+         the recorded figure stands.
+       - A month the file does cover replaces what is recorded, because
+         each upload supersedes the last for the days it covers. That
+         can move a figure DOWN if the window has moved forward past
+         part of the month, so decreases are the thing to look at, and
+         they are not selected by default.
+     ============================================================ */
+  var TS_FIELDS = [
+    { field: "date", canonical: "Date", required: true, aliases: ["date", "work date", "day"] },
+    { field: "name", canonical: "Name", required: true, aliases: ["name", "employee name", "staff name"] },
+    { field: "employeeNo", canonical: "EmployeeNumber", required: true, aliases: ["employeenumber", "employee number", "employee no", "staff id"] },
+    { field: "hours", canonical: "Hours (Standard)", required: true, aliases: ["hours (standard)", "hours", "standard hours"] },
+    { field: "project", canonical: "ProjectName", required: true, aliases: ["projectname", "project name", "project"] }
+  ];
+  // Leave is booked as a project in the export; it must never be costed as one.
+  var TS_LEAVE = /^absent\b|annual leave|bank holiday|\bsick\b/i;
+  var ts = { buffer: null, fileName: "", mapping: null, byCode: null, rows: null, span: null, changes: null, newPeople: null };
+
+  function tsError(msg) { var el = $("tsError"); el.textContent = msg; show(el); }
+  function tsMonthOf(rawDate, txtDate) {
+    if (typeof rawDate === "number" && isFinite(rawDate) && rawDate > 1000) {
+      var d = new Date(Date.UTC(1899, 11, 30) + Math.floor(rawDate) * 86400000);   // floor: a date-time must not round into the next day
+      if (!isNaN(d.getTime())) return { key: d.getUTCFullYear() + "-" + pad2(d.getUTCMonth() + 1), day: d.getTime() };
+    }
+    var s = String(txtDate || "").trim();
+    var m = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(s);
+    if (m) return { key: m[1] + "-" + pad2(+m[2]), day: Date.UTC(+m[1], +m[2] - 1, +m[3]) };
+    m = /^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})/.exec(s);   // the export writes MM/DD/YYYY in .w
+    if (m) return { key: m[3] + "-" + pad2(+m[1]), day: Date.UTC(+m[3], +m[1] - 1, +m[2]) };
+    return null;
+  }
+  function pad2(n) { return String(n).padStart(2, "0"); }
+
+  // Read the whole export once, grouped by project code, so the code picker can
+  // show what is actually in the file rather than asking anyone to type it.
+  function tsParse(mapping) {
+    var wb, sheet;
+    try { wb = RK.xlsx.read(ts.buffer); sheet = RK.xlsx.sheet(wb); }
+    catch (e) { tsError("Could not read " + ts.fileName + ": " + e.message + "\nNothing has changed."); return; }
+    var res = RK.xlsx.resolve(sheet, TS_FIELDS, mapping);
+    if (res.missing.length) { tsRenderMapper(sheet); return; }
+    hide($("tsMapper")); hide($("tsError"));
+    var r = res.resolved, byCode = {}, undated = 0, minDay = null, maxDay = null;
+
+    for (var row = sheet.range.s.r + 1; row <= sheet.range.e.r; row++) {
+      var code = sheet.txt(row, r.project).trim();
+      if (!code) continue;
+      var hours = Number(sheet.rawv(row, r.hours));
+      if (!isFinite(hours) || hours <= 0) continue;
+      var when = tsMonthOf(sheet.rawv(row, r.date), sheet.txt(row, r.date));
+      if (!when) { undated++; continue; }
+      var no = sheet.txt(row, r.employeeNo).trim().toUpperCase();
+      var nm = sheet.txt(row, r.name).trim();
+      var g = byCode[code] || (byCode[code] = { code: code, rows: 0, hours: 0, people: {}, months: {} });
+      g.rows++; g.hours += hours; g.months[when.key] = 1;
+      var pKey = no || nm.toUpperCase();
+      var per = g.people[pKey] || (g.people[pKey] = { no: no, name: nm, byMonth: {}, total: 0 });
+      if (!per.name && nm) per.name = nm;
+      per.byMonth[when.key] = (per.byMonth[when.key] || 0) + hours;
+      per.total += hours;
+      if (when.day) {
+        if (minDay === null || when.day < minDay) minDay = when.day;
+        if (maxDay === null || when.day > maxDay) maxDay = when.day;
+      }
+    }
+    if (!Object.keys(byCode).length) { tsError("No booked hours found in " + ts.fileName + ".\nNothing has changed."); return; }
+    ts.mapping = mapping; ts.byCode = byCode; ts.undated = undated;
+    ts.span = (minDay !== null) ? { from: new Date(minDay), to: new Date(maxDay) } : null;
+    tsOpen();
+  }
+
+  function tsRenderMapper(sheet) {
+    show($("tsMapper"));
+    RK.xlsx.renderMapper({
+      headers: sheet.headers, fieldSpecs: TS_FIELDS,
+      fieldsEl: $("tsMapperFields"), errorEl: $("tsMapperError"), confirmBtn: $("tsMapperConfirm"),
+      onConfirm: function (m) { tsParse(m); }
+    });
+  }
+
+  function tsSpanText() {
+    if (!ts.span) return "";
+    var f = ts.span.from, t = ts.span.to;
+    var fmtd = function (d) { return d.getUTCDate() + " " + MONTH_NAMES[d.getUTCMonth()] + " " + String(d.getUTCFullYear()).slice(2); };
+    return fmtd(f) + " to " + fmtd(t);
+  }
+
+  function tsOpen() {
+    show($("tsModal"));
+    $("tsSummary").textContent = ts.fileName + (ts.span ? " · covers " + tsSpanText() : "");
+    var g = S.ukCode ? ts.byCode[S.ukCode] : null;
+    if (!g) { tsShowCodePicker(); return; }
+    tsBuildChanges(g);
+  }
+  function tsClose() {
+    hide($("tsModal"));
+    ts.buffer = null; ts.byCode = null; ts.changes = null;
+  }
+
+  function tsShowCodePicker() {
+    show($("tsPickCode")); hide($("tsReview"));
+    $("tsFootNote").textContent = S.ukCode
+      ? "“" + S.ukCode + "” is not in this file. Pick the right one, or cancel."
+      : "This project has no UK timesheet code yet.";
+    $("tsAccept").disabled = true;
+    var codes = Object.keys(ts.byCode).sort(function (a, b) { return ts.byCode[b].hours - ts.byCode[a].hours; });
+    $("tsCodeList").innerHTML = codes.map(function (c) {
+      var g = ts.byCode[c], leave = TS_LEAVE.test(c);
+      return '<button type="button" class="pct-code' + (leave ? " leave" : "") + '" data-code="' + esc(c) + '">' +
+        '<span class="c-name">' + esc(c) + (leave ? ' <span class="pct-newp">leave</span>' : "") + "</span>" +
+        '<span class="c-meta">' + Object.keys(g.people).length + " people · " + RK.fmtHrs(g.hours) + " h</span></button>";
+    }).join("");
+  }
+
+  // Match a person in the file to a team member: remembered id first, then an
+  // exact name match, else they are new.
+  function tsMatch(per) {
+    var i;
+    for (i = 0; i < S.team.length; i++) {
+      var ids = Array.isArray(S.team[i].staffIds) ? S.team[i].staffIds : [];
+      if (per.no && ids.indexOf(per.no) >= 0) return S.team[i];
+    }
+    var nm = (per.name || "").trim().toLowerCase();
+    if (nm) for (i = 0; i < S.team.length; i++) {
+      if (String(S.team[i].name || "").trim().toLowerCase() === nm) return S.team[i];
+    }
+    return null;
+  }
+
+  function tsBuildChanges(g) {
+    hide($("tsPickCode")); show($("tsReview"));
+    $("tsAccept").disabled = false;
+    normalise();
+    var ms = months(), idx = {};
+    ms.forEach(function (k, i) { idx[k] = i; });
+
+    var changes = [], newPeople = [], outside = {};
+    Object.keys(g.people).forEach(function (key) {
+      var per = g.people[key], person = tsMatch(per), isNew = !person;
+      if (isNew) newPeople.push(per);
+      Object.keys(per.byMonth).sort().forEach(function (mk) {
+        if (idx[mk] === undefined) { outside[mk] = 1; return; }          // outside this project's months
+        var incoming = Math.round(per.byMonth[mk] * 100) / 100;
+        var current = person ? num(person.actualHours[idx[mk]]) : 0;
+        if (Math.abs(incoming - current) < 0.005) return;                 // nothing to say
+        changes.push({
+          key: key, no: per.no, name: per.name, person: person, isNew: isNew,
+          monthKey: mk, monthIdx: idx[mk], current: current, incoming: incoming,
+          apply: incoming,
+          // a decrease is the signal that the window moved on — never silently applied
+          use: incoming > current
+        });
+      });
+    });
+    changes.sort(function (a, b) {
+      if (a.name !== b.name) return a.name < b.name ? -1 : 1;
+      return a.monthKey < b.monthKey ? -1 : 1;
+    });
+    ts.changes = changes; ts.newPeople = newPeople; ts.outside = Object.keys(outside).sort();
+    ts.code = g.code;
+    tsRenderReview(g);
+  }
+
+  function tsRenderReview(g) {
+    var flags = [];
+    flags.push('<div class="callout"><span class="lab">' + esc(g.code) + "</span>" +
+      Object.keys(g.people).length + " people · " + RK.fmtHrs(g.hours) + " hours in the file" +
+      (ts.span ? " · " + esc(tsSpanText()) : "") + ".</div>");
+    if (ts.newPeople.length) {
+      flags.push('<div class="callout pct-warn"><span class="lab">New to this tracker</span>' +
+        ts.newPeople.map(function (p) { return esc(p.name || p.no); }).join(", ") +
+        " will be added with a <strong>zero day rate</strong>, so their time costs nothing until you set one.</div>");
+    }
+    var down = ts.changes.filter(function (c) { return c.incoming < c.current; });
+    if (down.length) {
+      flags.push('<div class="callout pct-warn"><span class="lab">' + down.length + " would go down</span>" +
+        "The file has fewer hours than recorded for these. That is expected when the window has moved past part of a month. " +
+        "They are <strong>not selected</strong> — tick any you do want to apply.</div>");
+    }
+    if (ts.outside.length) {
+      flags.push('<div class="callout"><span class="lab">Outside this project</span>' +
+        ts.outside.map(monthLabel).join(", ") + " " + (ts.outside.length === 1 ? "is" : "are") +
+        " not in the project's months, so " + (ts.outside.length === 1 ? "it was" : "they were") + " skipped.</div>");
+    }
+    if (ts.undated) {
+      flags.push('<div class="callout"><span class="lab">Skipped</span>' + ts.undated +
+        " row" + (ts.undated === 1 ? "" : "s") + " had no readable date.</div>");
+    }
+    $("tsFlags").innerHTML = flags.join("");
+
+    if (!ts.changes.length) {
+      $("tsBody").innerHTML = '<tr><td colspan="7" class="pct-muted">Nothing to change — the recorded hours already match the file.</td></tr>';
+      $("tsCount").textContent = "";
+      $("tsFootNote").textContent = "Already up to date.";
+      $("tsAccept").disabled = true;
+      return;
+    }
+    $("tsBody").innerHTML = ts.changes.map(function (c, i) {
+      var delta = c.incoming - c.current, dn = delta < 0;
+      return '<tr class="' + (dn ? "down" : "") + '" data-i="' + i + '">' +
+        '<td class="who">' + esc(c.name || c.no) + (c.isNew ? '<span class="pct-newp">new</span>' : "") +
+          (c.no ? '<span class="sub2">' + esc(c.no) + "</span>" : "") + "</td>" +
+        "<td>" + monthLabel(c.monthKey) + "</td>" +
+        '<td class="num">' + RK.fmtHrs(c.current) + "</td>" +
+        '<td class="num">' + RK.fmtHrs(c.incoming) + "</td>" +
+        '<td class="num ' + (dn ? "dn" : "up") + '">' + (delta > 0 ? "+" : "−") + RK.fmtHrs(Math.abs(delta)) + "</td>" +
+        '<td class="num"><input type="number" step="any" min="0" data-apply="' + i + '" value="' + c.apply + '" aria-label="Hours to apply"></td>' +
+        '<td class="c"><input type="checkbox" data-use="' + i + '"' + (c.use ? " checked" : "") + ' aria-label="Apply this change"></td>' +
+        "</tr>";
+    }).join("");
+    tsUpdateCount();
+  }
+
+  function tsUpdateCount() {
+    var on = ts.changes.filter(function (c) { return c.use; }).length;
+    $("tsCount").textContent = on + " of " + ts.changes.length + " selected";
+    $("tsFootNote").textContent = on ? "" : "Nothing selected — Apply will do nothing.";
+    $("tsAccept").disabled = !on;
+  }
+
+  function tsApply() {
+    var picked = ts.changes.filter(function (c) { return c.use; });
+    if (!picked.length) return;
+    snapshot("timesheet import");
+    if (S.ukCode !== ts.code) { S.ukCode = ts.code; }
+
+    var made = {}, added = 0, touched = 0;
+    picked.forEach(function (c) {
+      var person = c.person;
+      if (!person) {
+        person = made[c.key];
+        if (!person) {
+          var d = [], z = [];
+          for (var i = 0; i < S.duration; i++) { d.push(0); z.push(0); }
+          person = { id: uid(), name: c.name || c.no, role: "", ccy: S.base, rate: 0,
+            hpd: defaultHpd(), days: d, actualHours: z, staffIds: [] };
+          S.team.push(person); made[c.key] = person; added++;
+        }
+      }
+      if (!Array.isArray(person.staffIds)) person.staffIds = [];
+      if (c.no && person.staffIds.indexOf(c.no) < 0) person.staffIds.push(c.no);
+      normDays(person);
+      person.actualHours[c.monthIdx] = Math.max(0, num(c.apply));
+      touched++;
+    });
+
+    S.daysView = "actual";
+    openPanel("team");
+    tsClose();
+    syncInputs(); render(); saveNow();
+    toast("Updated " + touched + " person-month" + (touched === 1 ? "" : "s") +
+      (added ? ", added " + added + " new " + (added === 1 ? "person" : "people") : ""));
+  }
+
+  function renderImportSub() {
+    $("importSub").textContent = S.ukCode
+      ? "UK code: " + S.ukCode
+      : "Drop a UK timesheet export to update actual hours";
+  }
+
+  /* ============================================================
      PERSISTENCE
 
      The project file is the document; this page is an editor for it. Every
@@ -2096,6 +2485,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     S.workDays = clamp(num(e.target.value) || 21, 1, 31);
     e.target.value = S.workDays; render(); queueSave();
   });
+  on("ukCode", "input", function (e) { S.ukCode = e.target.value.trim(); renderImportSub(); queueSave(); });
   on("hpd", "change", function (e) {
     S.hoursPerDay = clamp(num(e.target.value) || 8.4, 0.5, 24);
     e.target.value = S.hoursPerDay; renderSetup(); queueSave();
@@ -2346,6 +2736,51 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     });
   }
 
+  /* ---------- timesheet import events ---------- */
+  RK.upload({
+    drop: $("tsDrop"), fileInput: $("tsFile"), browseBtn: $("tsBrowse"),
+    onFile: function (buf, filename) {
+      hide($("tsError")); hide($("tsMapper"));
+      ts.buffer = buf; ts.fileName = filename; ts.mapping = null;
+      tsParse(null);
+    },
+    onError: tsError
+  });
+  $("tsCodeList").addEventListener("click", function (e) {
+    var btn = e.target.closest("[data-code]");
+    if (!btn) return;
+    var code = btn.getAttribute("data-code");
+    if (TS_LEAVE.test(code) && !confirm("“" + code + "” looks like leave rather than project work. Use it anyway?")) return;
+    S.ukCode = code;
+    $("ukCode").value = code;
+    renderImportSub(); queueSave();
+    tsBuildChanges(ts.byCode[code]);
+  });
+  $("tsBody").addEventListener("input", function (e) {
+    var t = e.target, i = t.getAttribute("data-apply");
+    if (i !== null) { ts.changes[+i].apply = Math.max(0, num(t.value)); return; }
+    i = t.getAttribute("data-use");
+    if (i !== null) { ts.changes[+i].use = t.checked; tsUpdateCount(); }
+  });
+  function tsSet(pred) {
+    ts.changes.forEach(function (c, i) {
+      c.use = pred(c);
+      var box = $("tsBody").querySelector('[data-use="' + i + '"]');
+      if (box) box.checked = c.use;
+    });
+    tsUpdateCount();
+  }
+  on("tsAll", "click", function () { tsSet(function () { return true; }); });
+  on("tsNone", "click", function () { tsSet(function () { return false; }); });
+  on("tsIncreases", "click", function () { tsSet(function (c) { return c.incoming > c.current; }); });
+  on("tsAccept", "click", tsApply);
+  on("tsDecline", "click", tsClose);
+  on("tsClose", "click", tsClose);
+  $("tsModal").addEventListener("click", function (e) { if (e.target === $("tsModal")) tsClose(); });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape" && !$("tsModal").classList.contains("hidden")) tsClose();
+  });
+
   /* ---------- boot ---------- */
   function syncInputs() {
     $("pname").value = S.name;
@@ -2355,6 +2790,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     $("today").value = S.today;
     $("wdays").value = S.workDays;
     $("hpd").value = S.hoursPerDay;
+    $("ukCode").value = S.ukCode || "";
     document.title = (S.name || "Project") + " cost tracker";
   }
   function loadSaved() {
