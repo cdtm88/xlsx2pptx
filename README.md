@@ -85,7 +85,10 @@ You get six headline figures (estimate, spent, remaining, average burn, forecast
 at completion, headroom or overrun), a budget-consumption meter, plain-English
 alerts — forecast overrun, thin headroom, burn ahead of plan, runway shorter than
 the delivery, vendor past contract — and a burn-up chart that marks the month the
-ceiling is breached.
+ceiling is breached. The burn-up keeps one story in colour — spent so far, and
+where that lands — with the plan, the baseline and the estimate ceiling reading
+as progressively quieter reference lines behind it. The zone above the ceiling is
+tinted only once the forecast enters it, so the warning means something.
 The Position panel and the burn-up each copy to the clipboard as a PNG for
 pasting into a slide or an email.
 

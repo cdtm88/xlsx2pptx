@@ -46,6 +46,10 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 .pct-field label{display:block;font-size:.72rem;font-weight:600;color:var(--slate);margin:0 0 .25rem;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pct-field.wide{grid-column:1/-1}
+/* the code / FX row: half and half, stacking when there is no room for two */
+.pct-tail{display:grid;grid-template-columns:1fr 1fr;gap:.7rem 1.6rem;align-items:start;margin-top:.75rem}
+.pct-tail .fx{justify-content:end}
+@media (max-width:860px){ .pct-tail{grid-template-columns:1fr} .pct-tail .fx{justify-content:start} }
 .pct-divider{grid-column:1/-1;border-top:1px solid var(--line-soft);margin:.3rem 0 0}
 
 /* KPI tiles — kit .kpi, three lines instead of two */
@@ -191,6 +195,11 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 .pct-code .c-meta{font-size:.76rem;color:var(--mid);white-space:nowrap;font-variant-numeric:tabular-nums}
 .pct-code.leave{opacity:.6}
 
+/* callouts stack flush by default, which reads as one block colliding with the
+   toolbar under it — space them, and give the toolbar its own gap */
+#tsFlags{display:flex;flex-direction:column;gap:.45rem}
+#tsFlags:not(:empty){margin-bottom:1rem}
+
 /* preview rows */
 .pct-preview td.num{font-variant-numeric:tabular-nums}
 .pct-preview input[type=number]{width:88px;padding:.3rem .45rem;font-size:.8rem;text-align:right;border-radius:6px}
@@ -284,14 +293,20 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
           <label for="hpd" title="Default hours per day for newly added people">Hours / day</label>
           <input type="number" id="hpd" min="0.5" max="24" step="any">
         </div>
-        <div class="pct-field wide">
+        <div class="pct-divider"></div>
+      </div>
+      <!-- codes and rates: the project's timesheet key on the left, the FX it is
+           reported in on the right, so neither runs the full width for no reason -->
+      <div class="pct-tail">
+        <div class="pct-field">
           <label for="ukCode" title="The ProjectName this project appears under in the UK timesheet export">UK timesheet code</label>
           <input type="text" id="ukCode" spellcheck="false" placeholder="Set on the first import, or paste it here">
         </div>
-        <div class="pct-divider"></div>
+        <div>
+          <div class="pct-fields fx" id="fxFields"></div>
+          <div class="note" id="fxNote"></div>
+        </div>
       </div>
-      <div class="pct-fields fx" id="fxFields" style="margin-top:.7rem;"></div>
-      <div class="note" id="fxNote"></div>
 
       <div class="pct-divider" style="margin-top:.9rem;"></div>
       <div class="controls-row" style="margin-top:.8rem;">
@@ -352,11 +367,11 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
       <svg id="chart" viewBox="0 0 900 340" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Cumulative spend against the estimate"></svg>
     </div>
     <div class="pct-legend" style="padding-left:.2rem;">
-      <span><span class="pct-key" style="border-color:#007A99"></span>Actual</span>
+      <span><span class="pct-key" style="border-color:#007A99;border-top-width:3px"></span>Actual</span>
       <span><span class="pct-key" style="border-color:#007A99;border-top-style:dashed"></span>Forecast</span>
-      <span><span class="pct-key" style="border-color:#6B6B6B"></span>Plan</span>
-      <span><span class="pct-key" style="border-color:#3D3D3D;border-top-style:dashed"></span>Estimate</span>
-      <span class="hidden" id="legendBaseline"><span class="pct-key" style="border-color:#9AA5AD;border-top-style:dotted"></span>Baseline plan</span>
+      <span><span class="pct-key" style="border-color:#7A848C"></span>Plan</span>
+      <span><span class="pct-key" style="border-color:#3D3D3D;border-top-style:dashed;border-top-width:1.5px"></span>Estimate</span>
+      <span class="hidden" id="legendBaseline"><span class="pct-key" style="border-color:#B4BEC5;border-top-style:dotted;border-top-width:1.5px"></span>Baseline plan</span>
     </div>
     </div>
   </section>
@@ -1183,48 +1198,82 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     return { max: max, step: step, ticks: ticks };
   }
 
+  /* One palette for both renderers (on-screen SVG and the copy-as-image canvas),
+     so they cannot drift apart.
+
+     Readability rule: the teal pair — what we have spent and where that lands —
+     is the story and carries the weight. Everything else is reference and
+     recedes, separated by LIGHTNESS rather than by yet another dash pattern:
+     ceiling darkest, then plan, then the baseline ghost, then the "now" rule,
+     then the grid. Only one grey is dashed. The ceiling also gets a faint band
+     above it, so "past the estimate" reads as a region at a glance instead of
+     having to be traced along a line. */
+  var CH = {
+    grid: "#EDF0F2", axis: "#D8DEE2", ink: "#6B6B6B",
+    ceil: "#3D3D3D", band: "rgba(192,57,43,.055)",
+    plan: "#7A848C", base: "#B4BEC5", now: "#CBD3D9", nowInk: "#98A2AA",
+    teal: "#007A99", breach: "#C0392B"
+  };
+
   function renderChart(M) {
     var W = 900, H = 340, L = 96, R = 22, T = 18, B = 42;
     var iw = W - L - R, ih = H - T - B, rows = M.rows, n = rows.length;
     var sc = chartScale(M);
     var x = function (i) { return n <= 1 ? L : L + (i / (n - 1)) * iw; };
     var y = function (v) { return T + ih - (v / sc.max) * ih; };
+    var f = function (sz, w) { return 'font-family="Inter,Arial,sans-serif" font-size="' + sz + '"' + (w ? ' font-weight="' + w + '"' : ""); };
     var p = ['<rect x="0" y="0" width="' + W + '" height="' + H + '" fill="#FFFFFF"/>'];
+
+    var ey = y(S.estimate), over = M.eac > S.estimate * 1.0001;
+    // the tint MEANS something: it appears only once the forecast enters the zone,
+    // so a healthy project gets a clean chart and an overrun is unmistakable
+    if (over && ey > T + 1) p.push('<rect x="' + L + '" y="' + T + '" width="' + iw + '" height="' + (ey - T) + '" fill="' + CH.band + '"/>');
     sc.ticks.forEach(function (val) {
       var yy = y(val);
-      p.push('<line x1="' + L + '" y1="' + yy + '" x2="' + (W - R) + '" y2="' + yy + '" stroke="#E4E8EB" stroke-width="1"/>');
-      p.push('<text x="' + (L - 10) + '" y="' + (yy + 4) + '" text-anchor="end" font-family="Inter,Arial,sans-serif" font-size="12" fill="#6B6B6B">' + plain(val) + "</text>");
+      p.push('<line x1="' + L + '" y1="' + yy + '" x2="' + (W - R) + '" y2="' + yy + '" stroke="' + CH.grid + '" stroke-width="1"/>');
+      p.push('<text x="' + (L - 10) + '" y="' + (yy + 4) + '" text-anchor="end" ' + f(12) + ' fill="' + CH.ink + '">' + plain(val) + "</text>");
     });
-    var ey = y(S.estimate);
-    p.push('<line x1="' + L + '" y1="' + ey + '" x2="' + (W - R) + '" y2="' + ey + '" stroke="#3D3D3D" stroke-width="2" stroke-dasharray="7 5"/>');
-    p.push('<text x="' + (W - R) + '" y="' + (ey - 8) + '" text-anchor="end" font-family="Inter,Arial,sans-serif" font-size="12" fill="#3D3D3D">Estimate</text>');
+    p.push('<line x1="' + L + '" y1="' + ey + '" x2="' + (W - R) + '" y2="' + ey + '" stroke="' + CH.ceil + '" stroke-width="1.5" stroke-dasharray="10 6"/>');
+    p.push('<text x="' + (W - R) + '" y="' + (ey - 8) + '" text-anchor="end" ' + f(12, 600) + ' fill="' + CH.ceil + '">Estimate</text>');
+
     var every = n > 14 ? Math.ceil(n / 12) : 1;
     rows.forEach(function (r, i) {
       if (i % every) return;
-      p.push('<text x="' + x(i) + '" y="' + (H - 16) + '" text-anchor="middle" font-family="Inter,Arial,sans-serif" font-size="11" fill="#6B6B6B">' + esc(r.label) + "</text>");
+      p.push('<text x="' + x(i) + '" y="' + (H - 16) + '" text-anchor="middle" ' + f(11) + ' fill="' + CH.ink + '">' + esc(r.label) + "</text>");
     });
+
+    // the "now" rule is chrome, not a series: a plain hairline, labelled once
+    if (M.lastActualIdx >= 0 && M.lastActualIdx < n - 1) {
+      var nx = x(M.lastActualIdx);
+      p.push('<line x1="' + nx + '" y1="' + (T + 12) + '" x2="' + nx + '" y2="' + (T + ih) + '" stroke="' + CH.now + '" stroke-width="1"/>');
+      p.push('<text x="' + (nx + 5) + '" y="' + (T + 10) + '" ' + f(10.5, 600) + ' fill="' + CH.nowInk + '">now</text>');
+    }
+
     var path = function (vals, from) {
       return vals.map(function (v, i) { return (i === 0 ? "M" : "L") + x(i + from) + " " + y(v); }).join(" ");
     };
     var bl = baselineSeries(M);
-    if (bl && bl.length > 1) p.push('<path d="' + path(bl, 0) + '" fill="none" stroke="#9AA5AD" stroke-width="2" stroke-dasharray="2 4"/>');
-    p.push('<path d="' + path(rows.map(function (r) { return r.cumPlanned; }), 0) + '" fill="none" stroke="#6B6B6B" stroke-width="2"/>');
+    if (bl && bl.length > 1) p.push('<path d="' + path(bl, 0) + '" fill="none" stroke="' + CH.base + '" stroke-width="1.5" stroke-dasharray="2 5"/>');
+    p.push('<path d="' + path(rows.map(function (r) { return r.cumPlanned; }), 0) + '" fill="none" stroke="' + CH.plan + '" stroke-width="2"/>');
     if (M.lastActualIdx >= 0) {
       var av = rows.filter(function (r) { return r.i <= M.lastActualIdx; }).map(function (r) { return r.cumActual; });
-      p.push('<path d="' + path(av, 0) + '" fill="none" stroke="#007A99" stroke-width="3" stroke-linejoin="round"/>');
-      av.forEach(function (v, i) { p.push('<circle cx="' + x(i) + '" cy="' + y(v) + '" r="3.5" fill="#007A99"/>'); });
+      p.push('<path d="' + path(av, 0) + '" fill="none" stroke="' + CH.teal + '" stroke-width="3" stroke-linejoin="round"/>');
+      av.forEach(function (v, i) { if (i < av.length - 1) p.push('<circle cx="' + x(i) + '" cy="' + y(v) + '" r="3" fill="' + CH.teal + '"/>'); });
+      var lastY = y(av[av.length - 1]);
+      p.push('<circle cx="' + x(av.length - 1) + '" cy="' + lastY + '" r="4.5" fill="' + CH.teal + '" stroke="#FFFFFF" stroke-width="2"/>');
       var fv = rows.filter(function (r) { return r.i >= M.lastActualIdx; }).map(function (r) { return r.cumForecast; });
-      if (fv.length > 1) p.push('<path d="' + path(fv, M.lastActualIdx) + '" fill="none" stroke="#007A99" stroke-width="2.5" stroke-dasharray="6 5"/>');
-      p.push('<line x1="' + x(M.lastActualIdx) + '" y1="' + T + '" x2="' + x(M.lastActualIdx) + '" y2="' + (T + ih) + '" stroke="#3D3D3D" stroke-width="1" stroke-dasharray="2 4"/>');
+      // no endpoint label: plan and forecast converge at the right edge with no
+      // room for one, and the figure is already a headline KPI above the chart
+      if (fv.length > 1) p.push('<path d="' + path(fv, M.lastActualIdx) + '" fill="none" stroke="' + CH.teal + '" stroke-width="2.5" stroke-dasharray="6 5"/>');
     }
     if (M.breachMonth) {
       var bx = x(M.breachMonth.i);
-      p.push('<circle cx="' + bx + '" cy="' + ey + '" r="5" fill="#FFFFFF" stroke="#C0392B" stroke-width="2.5"/>');
+      p.push('<circle cx="' + bx + '" cy="' + ey + '" r="5" fill="#FFFFFF" stroke="' + CH.breach + '" stroke-width="2.5"/>');
       var anchor = M.breachMonth.i > n * 0.7 ? "end" : "start";
       p.push('<text x="' + (bx + (anchor === "end" ? -10 : 10)) + '" y="' + (ey + 20) + '" text-anchor="' + anchor +
-        '" font-family="Inter,Arial,sans-serif" font-size="12" fill="#C0392B">Ceiling hit ' + esc(M.breachMonth.label) + "</text>");
+        '" ' + f(12, 600) + ' fill="' + CH.breach + '">Ceiling hit ' + esc(M.breachMonth.label) + "</text>");
     }
-    p.push('<line x1="' + L + '" y1="' + (T + ih) + '" x2="' + (W - R) + '" y2="' + (T + ih) + '" stroke="#CFCFCF" stroke-width="1"/>');
+    p.push('<line x1="' + L + '" y1="' + (T + ih) + '" x2="' + (W - R) + '" y2="' + (T + ih) + '" stroke="' + CH.axis + '" stroke-width="1"/>');
     $("chart").innerHTML = p.join("");
   }
 
@@ -1654,28 +1703,38 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     g.fillStyle = "#FFFFFF"; g.fillRect(0, 0, W, H);
     g.textBaseline = "alphabetic";
 
+    var ey = y(S.estimate);
+    if (M.eac > S.estimate * 1.0001 && ey > T + 1) { g.fillStyle = CH.band; g.fillRect(L, T, W - L - R, ey - T); }
+
     g.font = F(400, 12);
     sc.ticks.forEach(function (v) {
       var yy = y(v);
-      g.strokeStyle = "#E4E8EB"; g.lineWidth = 1;
+      g.strokeStyle = CH.grid; g.lineWidth = 1;
       g.beginPath(); g.moveTo(L, yy); g.lineTo(W - R, yy); g.stroke();
-      g.fillStyle = "#6B6B6B"; g.textAlign = "right";
+      g.fillStyle = CH.ink; g.textAlign = "right";
       g.fillText(plain(v), L - 10, yy + 4);
     });
     g.textAlign = "left";
 
-    var ey = y(S.estimate);
-    g.strokeStyle = "#3D3D3D"; g.lineWidth = 2; g.setLineDash([7, 5]);
+    g.strokeStyle = CH.ceil; g.lineWidth = 1.5; g.setLineDash([10, 6]);
     g.beginPath(); g.moveTo(L, ey); g.lineTo(W - R, ey); g.stroke();
     g.setLineDash([]);
-    g.fillStyle = "#3D3D3D"; g.textAlign = "right"; g.font = F(600, 12);
+    g.fillStyle = CH.ceil; g.textAlign = "right"; g.font = F(600, 12);
     g.fillText("Estimate " + money(S.estimate), W - R, ey - 9);
     g.textAlign = "left";
 
     var every = n > 14 ? Math.ceil(n / 12) : 1;
-    g.fillStyle = "#6B6B6B"; g.font = F(400, 12); g.textAlign = "center";
+    g.fillStyle = CH.ink; g.font = F(400, 12); g.textAlign = "center";
     rows.forEach(function (r, i) { if (i % every) return; g.fillText(r.label, x(i), T + ih + 22); });
     g.textAlign = "left";
+
+    if (M.lastActualIdx >= 0 && M.lastActualIdx < n - 1) {
+      var nx = x(M.lastActualIdx);
+      g.strokeStyle = CH.now; g.lineWidth = 1;
+      g.beginPath(); g.moveTo(nx, T + 12); g.lineTo(nx, T + ih); g.stroke();
+      g.fillStyle = CH.nowInk; g.font = F(600, 10.5);
+      g.fillText("now", nx + 5, T + 10);
+    }
 
     var line = function (vals, from, colour, width, dash) {
       if (vals.length < 2) return;
@@ -1685,40 +1744,43 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
       g.stroke(); g.setLineDash([]);
     };
     var blc = baselineSeries(M);
-    if (blc) line(blc, 0, "#9AA5AD", 2, [2, 4]);
-    line(rows.map(function (r) { return r.cumPlanned; }), 0, "#6B6B6B", 2);
+    if (blc) line(blc, 0, CH.base, 1.5, [2, 5]);
+    line(rows.map(function (r) { return r.cumPlanned; }), 0, CH.plan, 2);
     if (M.lastActualIdx >= 0) {
       var av = rows.filter(function (r) { return r.i <= M.lastActualIdx; }).map(function (r) { return r.cumActual; });
-      line(av, 0, "#007A99", 3);
-      g.fillStyle = "#007A99";
-      av.forEach(function (v, i) { g.beginPath(); g.arc(x(i), y(v), 3.5, 0, Math.PI * 2); g.fill(); });
-      line(rows.filter(function (r) { return r.i >= M.lastActualIdx; }).map(function (r) { return r.cumForecast; }),
-        M.lastActualIdx, "#007A99", 2.5, [6, 5]);
+      line(av, 0, CH.teal, 3);
+      g.fillStyle = CH.teal;
+      av.forEach(function (v, i) { if (i < av.length - 1) { g.beginPath(); g.arc(x(i), y(v), 3, 0, Math.PI * 2); g.fill(); } });
+      var lastY = y(av[av.length - 1]);
+      g.beginPath(); g.arc(x(av.length - 1), lastY, 4.5, 0, Math.PI * 2); g.fill();
+      g.strokeStyle = "#FFFFFF"; g.lineWidth = 2; g.stroke();
+      var fvc = rows.filter(function (r) { return r.i >= M.lastActualIdx; }).map(function (r) { return r.cumForecast; });
+      line(fvc, M.lastActualIdx, CH.teal, 2.5, [6, 5]);
     }
     if (M.breachMonth) {
       var bx = x(M.breachMonth.i);
-      g.fillStyle = "#FFFFFF"; g.strokeStyle = "#C0392B"; g.lineWidth = 2.5;
+      g.fillStyle = "#FFFFFF"; g.strokeStyle = CH.breach; g.lineWidth = 2.5;
       g.beginPath(); g.arc(bx, ey, 5, 0, Math.PI * 2); g.fill(); g.stroke();
-      g.fillStyle = "#C0392B"; g.font = F(600, 12);
+      g.fillStyle = CH.breach; g.font = F(600, 12);
       var right = M.breachMonth.i > n * 0.7;
       g.textAlign = right ? "right" : "left";
       g.fillText("Ceiling hit " + M.breachMonth.label, bx + (right ? -10 : 10), ey + 22);
       g.textAlign = "left";
     }
-    g.strokeStyle = "#CFCFCF"; g.lineWidth = 1;
+    g.strokeStyle = CH.axis; g.lineWidth = 1;
     g.beginPath(); g.moveTo(L, T + ih); g.lineTo(W - R, T + ih); g.stroke();
 
     var ly = H - 42, lx = PAD;
-    var key = function (colour, dash, label) {
-      g.strokeStyle = colour; g.lineWidth = 2.5; g.setLineDash(dash || []);
+    var key = function (colour, dash, width, label) {
+      g.strokeStyle = colour; g.lineWidth = width; g.setLineDash(dash || []);
       g.beginPath(); g.moveTo(lx, ly - 4); g.lineTo(lx + 24, ly - 4); g.stroke(); g.setLineDash([]);
-      g.fillStyle = "#6B6B6B"; g.font = F(400, 12.5);
+      g.fillStyle = CH.ink; g.font = F(400, 12.5);
       g.fillText(label, lx + 31, ly);
       lx += 31 + g.measureText(label).width + 26;
     };
-    key("#007A99", null, "Actual"); key("#007A99", [6, 5], "Forecast");
-    key("#6B6B6B", null, "Plan"); key("#3D3D3D", [7, 5], "Estimate");
-    if (blc) key("#9AA5AD", [2, 4], "Baseline plan");
+    key(CH.teal, null, 3, "Actual"); key(CH.teal, [6, 5], 2.5, "Forecast");
+    key(CH.plan, null, 2, "Plan"); key(CH.ceil, [10, 6], 1.5, "Estimate");
+    if (blc) key(CH.base, [2, 5], 1.5, "Baseline plan");
     return c;
   }
 
