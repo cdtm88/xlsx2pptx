@@ -122,6 +122,9 @@ tr.pic-nocount td.pic-person{font-style:italic}
 .pic-toast{position:fixed;left:50%;bottom:1.4rem;transform:translateX(-50%);background:var(--charcoal);color:#fff;
   padding:.6rem 1rem;border-radius:9px;font-size:.83rem;font-weight:600;z-index:60;box-shadow:0 4px 14px rgba(0,0,0,.22)}
 
+/* the cadence note under the sprint strip — one quiet line, not a panel */
+.pic-cadence-note{margin-top:.55rem}
+
 /* the sprint preview strip */
 .pic-sprints{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.2rem}
 .pic-chip{border:1px solid var(--line);border-radius:9px;padding:.45rem .7rem;background:#fff;min-width:126px}
@@ -142,12 +145,15 @@ tr.pic-nocount td.pic-person{font-style:italic}
     <div class="spacer"></div>
     <span class="pic-save" id="saveState"><span class="pic-dot"></span>Starting up</span>
     <span class="ver" id="version">v1.0.0</span>
+    <button type="button" class="btn btn-ghost no-print pic-header-btn" id="settingsBtn">Settings</button>
     <button type="button" class="btn btn-ghost no-print pic-header-btn" id="topLoad">Load data</button>
     <button type="button" class="btn btn-primary no-print pic-header-btn" id="topSave">Save JSON</button>
   </div>
 </header>
 
 <div class="container">
+
+<div id="viewMain">
 
   <!-- ============ PI AND CADENCE ============ -->
   <section class="card no-print">
@@ -171,28 +177,17 @@ tr.pic-nocount td.pic-person{font-style:italic}
             <option value="3">Q3</option><option value="4">Q4</option>
           </select>
         </div>
-        <div class="pic-field c3">
-          <label for="anchor" title="The Wednesday that sprint Q1.1 of the anchor financial year begins">Q1.1 starts (anchor)</label>
-          <input type="date" id="anchor">
+        <div class="pic-field c2">
+          <label for="ppd" title="Story points a person delivers per available day — leave blank to report days only">Points / day</label>
+          <input type="number" id="ppd" min="0" step="any" placeholder="optional">
         </div>
-        <div class="pic-field c3">
-          <label for="anchorFy" title="Which financial year the anchor date belongs to">Anchor financial year</label>
-          <input type="text" id="anchorFy" spellcheck="false" placeholder="FY2627">
-        </div>
-        <div class="pic-field c3">
-          <label for="ppd" title="Story points a person delivers per available day — leave blank to report days only">Points per day (optional)</label>
-          <input type="number" id="ppd" min="0" step="any" placeholder="e.g. 1.5">
-        </div>
-        <div class="pic-field c3">
-          <label for="hoursPerDay" title="Used only to show capacity in hours alongside days">Hours per day</label>
+        <div class="pic-field c2">
+          <label for="hoursPerDay" title="Used only to show capacity in hours alongside days">Hours / day</label>
           <input type="number" id="hoursPerDay" min="0" max="24" step="any">
         </div>
-        <div class="pic-field c6">
-          <div class="note" id="anchorNote" style="margin:0"></div>
-        </div>
         <div class="pic-field wide">
-          <label>Sprints in this PI</label>
           <div class="pic-sprints" id="sprintStrip"></div>
+          <p class="sub pic-cadence-note" id="anchorNote"></p>
         </div>
       </div>
       <div class="err hidden" id="setupErr"></div>
@@ -208,12 +203,13 @@ tr.pic-nocount td.pic-person{font-style:italic}
       </div>
       <div class="controls-row no-print">
         <button type="button" class="mini-btn" id="copyMatrix">Copy table</button>
-        <button type="button" class="mini-btn" id="exportCsv">Export CSV</button>
         <button type="button" class="mini-btn pic-toggle" data-panel="cap" aria-expanded="true" aria-controls="panel-cap">Hide</button>
       </div>
     </div>
+    <!-- the headline figures stay put when the detail is collapsed: they are
+         the at-a-glance answer, and hiding the matrix should not hide them -->
+    <div class="kpi-row" id="kpis"></div>
     <div id="panel-cap">
-      <div class="kpi-row" id="kpis"></div>
       <div id="alerts"></div>
       <div class="pic-matrix" id="matrixWrap"></div>
       <div id="copyMsg"></div>
@@ -230,6 +226,7 @@ tr.pic-nocount td.pic-person{font-style:italic}
       </div>
       <div class="controls-row no-print">
         <label class="chk-inline"><input type="checkbox" id="onlyCounting"> Only counting roles</label>
+        <button type="button" class="mini-btn" id="exportPeopleCsv">Export CSV</button>
         <button type="button" class="mini-btn pic-toggle" data-panel="people" aria-expanded="true" aria-controls="panel-people">Hide</button>
       </div>
     </div>
@@ -264,6 +261,7 @@ tr.pic-nocount td.pic-person{font-style:italic}
       </div>
       <div class="controls-row">
         <button type="button" class="mini-btn" id="addLeave">Add leave</button>
+        <button type="button" class="mini-btn" id="exportLeaveCsv">Export CSV</button>
         <button type="button" class="mini-btn pic-toggle" data-panel="leave" aria-expanded="true" aria-controls="panel-leave">Hide</button>
       </div>
     </div>
@@ -280,6 +278,64 @@ tr.pic-nocount td.pic-person{font-style:italic}
     </div>
   </section>
 
+  <!-- ============ DATA ============ -->
+  <section class="card no-print">
+    <div class="card-head">
+      <div>
+        <span class="title">Data</span>
+        <span class="sub" id="dataSub"></span>
+      </div>
+      <button type="button" class="mini-btn pic-toggle" data-panel="data" aria-expanded="false" aria-controls="panel-data">Show</button>
+    </div>
+    <div id="panel-data" class="hidden">
+      <div class="controls-row">
+        <button type="button" class="btn btn-primary" id="saveJson">Save JSON</button>
+        <button type="button" class="btn btn-ghost" id="loadJson">Load data</button>
+      </div>
+      <div class="note" id="dataNote"></div>
+      <div class="err hidden" id="dataErr"></div>
+    </div>
+  </section>
+
+</div><!-- /viewMain -->
+
+<div id="viewSettings" class="hidden">
+
+  <section class="card no-print">
+    <div class="card-head">
+      <div>
+        <span class="title">Settings</span>
+        <span class="sub">Set these once and forget them. Everything here is shared by every PI.</span>
+      </div>
+      <button type="button" class="mini-btn" id="backBtn">Back to capacity</button>
+    </div>
+  </section>
+
+  <!-- ============ CADENCE ANCHOR ============ -->
+  <section class="card no-print">
+    <div class="card-head">
+      <div>
+        <span class="title">Cadence anchor</span>
+        <span class="sub" id="anchorSummary"></span>
+      </div>
+    </div>
+    <div class="pic-fields">
+      <div class="pic-field c3">
+        <label for="anchor" title="The Wednesday that sprint Q1.1 of the anchor financial year begins">Q1.1 starts</label>
+        <input type="date" id="anchor">
+      </div>
+      <div class="pic-field c3">
+        <label for="anchorFy" title="Which financial year the anchor date belongs to">Anchor financial year</label>
+        <input type="text" id="anchorFy" spellcheck="false" placeholder="FY2627">
+      </div>
+      <div class="pic-field c6">
+        <div class="note" style="margin:0">Every sprint of every year is derived from this one date. A quarter is
+          seven sprints, Wednesday to Tuesday &mdash; 1&ndash;6 of two weeks and a one-week sprint 7 &mdash; which is
+          exactly 13 weeks, so four quarters make a 364-day year and sprint starts never drift.</div>
+      </div>
+    </div>
+  </section>
+
   <!-- ============ LOCATIONS AND HOLIDAYS ============ -->
   <section class="card no-print">
     <div class="card-head">
@@ -292,10 +348,10 @@ tr.pic-nocount td.pic-person{font-style:italic}
         <button type="button" class="mini-btn" id="addHoliday">Add holiday</button>
         <button type="button" class="mini-btn" id="exportHols">Export holidays</button>
         <button type="button" class="mini-btn" id="importHols">Import holidays</button>
-        <button type="button" class="mini-btn pic-toggle" data-panel="hols" aria-expanded="false" aria-controls="panel-hols">Show</button>
       </div>
     </div>
-    <div id="panel-hols" class="hidden">
+    <div>
+      <div class="err hidden" id="holErr"></div>
       <div id="provisionalNote"></div>
       <label class="field">Locations</label>
       <div class="pic-scroll" style="max-height:220px" id="locWrap"></div>
@@ -317,41 +373,30 @@ tr.pic-nocount td.pic-person{font-style:italic}
         <span class="title">Roles</span>
         <span class="sub" id="rolesSummary"></span>
       </div>
-      <div class="controls-row">
-        <button type="button" class="mini-btn" id="addRole">Add role</button>
-        <button type="button" class="mini-btn pic-toggle" data-panel="roles" aria-expanded="false" aria-controls="panel-roles">Show</button>
-      </div>
+      <button type="button" class="mini-btn" id="addRole">Add role</button>
     </div>
-    <div id="panel-roles" class="hidden">
+    <div>
       <p class="sub" style="margin-bottom:.7rem">Everyone on a team is listed for visibility. Only the roles ticked
         here are added into the capacity a team commits against &mdash; by default, developers and QA.</p>
       <div class="pic-scroll" style="max-height:340px" id="rolesWrap"></div>
     </div>
   </section>
 
-  <!-- ============ DATA ============ -->
+  <!-- ============ START OVER ============ -->
   <section class="card no-print">
     <div class="card-head">
       <div>
-        <span class="title">Data</span>
-        <span class="sub">Everything stays on this machine. Nothing is uploaded.</span>
+        <span class="title">Start over</span>
+        <span class="sub">Both of these replace what is on screen. Save first if you want to keep it.</span>
       </div>
-      <button type="button" class="mini-btn pic-toggle" data-panel="data" aria-expanded="false" aria-controls="panel-data">Show</button>
     </div>
-    <div id="panel-data" class="hidden">
-      <div class="controls-row">
-        <button type="button" class="btn btn-ghost" id="saveJson">Save JSON</button>
-        <button type="button" class="btn btn-ghost" id="loadJson">Load data</button>
-        <button type="button" class="btn btn-ghost" id="csvBtn">Export CSV</button>
-        <button type="button" class="btn btn-ghost" id="demoBtn">Load demo</button>
-        <button type="button" class="btn btn-ghost" id="clearBtn">Clear everything</button>
-      </div>
-      <div class="note">The working copy is autosaved in this browser. <strong>Save JSON</strong> writes a standalone
-        file you can keep beside the PI&rsquo;s other artefacts or hand to someone else; <strong>Load data</strong>
-        reads one back.</div>
-      <div class="err hidden" id="dataErr"></div>
+    <div class="controls-row">
+      <button type="button" class="btn btn-ghost" id="demoBtn">Load demo</button>
+      <button type="button" class="btn btn-ghost" id="clearBtn">Clear teams and leave</button>
     </div>
   </section>
+
+</div><!-- /viewSettings -->
 
 </div>
 
@@ -749,7 +794,7 @@ tr.pic-nocount td.pic-person{font-style:italic}
       if (prov.length) out.push({
         level: "warn",
         text: prov.length + " public holiday date" + (prov.length === 1 ? "" : "s") + " in this PI " + (prov.length === 1 ? "is" : "are") +
-          " a seeded estimate, not a confirmed date — Eid and the Indian festivals move each year. Confirm them in Locations and public holidays before you commit to these numbers."
+          " a seeded estimate, not a confirmed date — Eid and the Indian festivals move each year. Confirm them under Settings → Locations and public holidays before you commit to these numbers."
       });
     }
     return out;
@@ -790,11 +835,13 @@ tr.pic-nocount td.pic-person{font-style:italic}
       }).join("");
     }
     var anchorMs = toUTC(st.anchorDate);
-    var noteBits = ["Sprints run <strong>Wednesday to Tuesday</strong>: sprints 1&ndash;6 are two weeks (10 working days) and sprint 7 is one week (5), so a quarter is exactly 13 weeks and a financial year 52."];
-    if (!isNaN(anchorMs) && dow(anchorMs) !== 3) noteBits.push('<strong style="color:#A8321F">The anchor is a ' + DAYS[dow(anchorMs)] + ", not a Wednesday.</strong>");
-    if (sprints.length) noteBits.push("This PI runs " + esc(fmtDateFull(sprints[0].start)) + " to " + esc(fmtDateFull(sprints[6].end)) + ".");
-    $("anchorNote").innerHTML = noteBits.join(" ");
+    var bad = !isNaN(anchorMs) && dow(anchorMs) !== 3;
+    $("anchorNote").innerHTML = (sprints.length
+      ? esc(fmtDateFull(sprints[0].start)) + " to " + esc(fmtDateFull(sprints[6].end)) + " &middot; Wed&ndash;Tue sprints, 10 working days each and 5 in " + esc(sprints[6].key) + "."
+      : "Set the cadence anchor in Settings to work out the sprint dates.") +
+      (bad ? ' <strong style="color:#A8321F">The anchor is a ' + DAYS[dow(anchorMs)] + ", not a Wednesday.</strong>" : "");
     $("setupSummary").textContent = st.fy + " " + "Q" + st.quarter + (sprints.length ? " · " + fmtDate(sprints[0].start) + " – " + fmtDate(sprints[6].end) : "");
+    $("anchorSummary").textContent = (st.anchorFy || "?") + " Q1.1 starts " + (st.anchorDate ? fmtDateFull(st.anchorDate) : "—");
   }
 
   /* ---------- render: capacity ---------- */
@@ -964,17 +1011,15 @@ tr.pic-nocount td.pic-person{font-style:italic}
   }
 
   /* ---------- render: planned leave ---------- */
-  function renderLeave() {
-    var R = lastCompute || compute();
+  // The rows the leave grid is showing, given the search box and the
+  // "only leave in this PI" toggle. Shared with the CSV export so the file
+  // and the screen can never disagree.
+  function shownLeave(R) {
     var q = ($("leaveSearch").value || "").trim().toLowerCase();
     var onlyPi = $("leaveThisPi").checked;
     var w0 = R.sprints.length ? R.sprints[0].startMs : -Infinity;
     var w1 = R.sprints.length ? R.sprints[6].endMs : Infinity;
-    var people = allMembers();
-    var peopleOpts = people.map(function (x) {
-      return { id: x.m.id, label: (x.m.name || "Unnamed") + " — " + (x.team.name || "Unnamed team") };
-    });
-    var shown = S.leave.filter(function (l) {
+    return S.leave.filter(function (l) {
       var mm = memberById(l.memberId);
       var hay = ((mm ? (mm.m.name || "") + " " + (mm.team.name || "") : "") + " " + (l.note || "") + " " + (l.type || "")).toLowerCase();
       if (q && hay.indexOf(q) === -1) return false;
@@ -985,6 +1030,15 @@ tr.pic-nocount td.pic-person{font-style:italic}
       }
       return true;
     });
+  }
+
+  function renderLeave() {
+    var R = lastCompute || compute();
+    var people = allMembers();
+    var peopleOpts = people.map(function (x) {
+      return { id: x.m.id, label: (x.m.name || "Unnamed") + " — " + (x.team.name || "Unnamed team") };
+    });
+    var shown = shownLeave(R);
     $("leaveCount").textContent = shown.length + " of " + plural(S.leave.length, "entry", "entries");
     if (!people.length) {
       $("leaveWrap").innerHTML = '<div class="empty">Add a team and its members first — leave is booked against a person.</div>';
@@ -1131,6 +1185,30 @@ tr.pic-nocount td.pic-person{font-style:italic}
     $("rolesSummary").textContent = counting.length ? "Counted: " + counting.join(", ") : "No role counts — capacity will be zero.";
   }
 
+  /* ---------- render: the Data card ----------
+     Says what the file on screen actually is, because a file shared with the
+     cost tracker is no longer just "this tool's data". */
+  function renderData() {
+    var fp = foreignProject();
+    $("dataSub").textContent = fp
+      ? "Shared with a cost tracker project" + (fp.name ? " — " + fp.name : "")
+      : "Autosaves to this browser as you type";
+    var note = "The working copy is autosaved in this browser. <strong>Save JSON</strong> writes a standalone file; " +
+      "<strong>Load data</strong> reads one back. One file holds every team, all the leave, the holidays and the " +
+      "settings, so switching PI is the dropdown above &mdash; not a different file.";
+    if (fp) {
+      note += "<br><br><strong>This file is shared with the Project Cost Tracker.</strong> It also holds the project " +
+        (fp.name ? "<em>" + esc(fp.name) + "</em> " : "") + "with " + plural(fp.people.length, "person", "people") +
+        " on it. Open the same file in either tool: each edits its own half and leaves the other untouched." +
+        ' <button type="button" class="mini-btn" id="importTeamBtn" style="margin-top:.5rem">Add those ' +
+        plural(fp.people.length, "person", "people") + " as a team</button>";
+    } else {
+      note += "<br><br>The same file can also hold a <strong>Project Cost Tracker</strong> project. Load a tracker " +
+        "file here and this tool adds its half without touching the tracker's, so one file covers both.";
+    }
+    $("dataNote").innerHTML = note;
+  }
+
   /* ---------- render everything ---------- */
   function renderAll() {
     reindexHolidays();
@@ -1142,6 +1220,7 @@ tr.pic-nocount td.pic-person{font-style:italic}
     renderLocations();
     renderHolidays();
     renderRoles();
+    renderData();
     $("headerSub").textContent = S.settings.fy + " Q" + S.settings.quarter + " · " +
       plural(S.teams.length, "team") + " · " + n1(lastCompute ? lastCompute.artTotal : 0) + " days";
   }
@@ -1155,16 +1234,63 @@ tr.pic-nocount td.pic-person{font-style:italic}
       plural(S.teams.length, "team") + " · " + n1(lastCompute ? lastCompute.artTotal : 0) + " days";
   }
 
-  /* ---------- persistence ---------- */
+  /* ---------- persistence, and sharing a file with the cost tracker ----------
+     A saved file is an envelope. This tool owns exactly one key in it —
+     `piCapacity` — and copies every other key straight back out on save.
+
+     The Project Cost Tracker writes its state object to a file verbatim and
+     loads it with Object.assign(defaults, file), so keys it does not know are
+     kept and written back too. The two therefore share one file with no
+     coordination and no changes to the tracker: open the same .json in both,
+     and each edits its own half while carrying the other's along untouched.
+
+     FOREIGN holds the tracker's half (and anything a future tool adds) between
+     load and save. It is never inspected except to offer the team import. */
+  var FOREIGN = {};
+  var OWN_KEY = "piCapacity";
+
+  function docEnvelope() {
+    S.generatedAt = RK.nowIso();
+    S.appVersion = APP_VERSION;
+    S.schemaVersion = SCHEMA_VERSION;
+    var out = {};
+    Object.keys(FOREIGN).forEach(function (k) { if (k !== OWN_KEY) out[k] = FOREIGN[k]; });
+    out[OWN_KEY] = S;
+    return out;
+  }
+  // Split a parsed file into our half and everyone else's.
+  function openDoc(data) {
+    if (!data || typeof data !== "object" || Array.isArray(data)) throw new Error("not a JSON object");
+    var payload, foreign = {};
+    if (data[OWN_KEY] && typeof data[OWN_KEY] === "object") {
+      payload = data[OWN_KEY];
+      Object.keys(data).forEach(function (k) { if (k !== OWN_KEY) foreign[k] = data[k]; });
+    } else if (data.teams || data.settings || data.leave) {
+      payload = data;                          // a flat file from before the envelope
+    } else {
+      // a cost tracker project with no capacity section yet — keep all of it
+      payload = null;
+      Object.keys(data).forEach(function (k) { foreign[k] = data[k]; });
+    }
+    S = migrate(payload || {});
+    FOREIGN = foreign;
+  }
+  // Does the file we are holding also carry a cost tracker project?
+  function foreignProject() {
+    var t = FOREIGN.team;
+    if (!Array.isArray(t) || !t.length) return null;
+    var named = t.filter(function (p) { return p && typeof p.name === "string" && p.name.trim(); });
+    if (!named.length) return null;
+    return { name: typeof FOREIGN.name === "string" ? FOREIGN.name : "", people: named };
+  }
+
   var saveTimer = null;
   function status(text, kind) {
     $("saveState").innerHTML = '<span class="pic-dot ' + (kind || "") + '"></span>' + esc(text);
   }
   function persist() {
-    S.generatedAt = RK.nowIso();
-    S.appVersion = APP_VERSION;
     var ok = true;
-    try { localStorage.setItem(LS_KEY, JSON.stringify(S)); } catch (e) { ok = false; }
+    try { localStorage.setItem(LS_KEY, JSON.stringify(docEnvelope())); } catch (e) { ok = false; }
     if (saveTimer) clearTimeout(saveTimer);
     if (ok) {
       status("Saved in this browser", "live");
@@ -1178,8 +1304,7 @@ tr.pic-nocount td.pic-person{font-style:italic}
     try { raw = localStorage.getItem(LS_KEY); } catch (e) { }
     if (!raw) { status("New PI — nothing saved yet"); return false; }
     try {
-      var parsed = JSON.parse(raw);
-      S = migrate(parsed);
+      openDoc(JSON.parse(raw));
       status("Saved in this browser", "live");
       return true;
     } catch (e) { status("Saved copy could not be read", "warn"); return false; }
@@ -1188,10 +1313,10 @@ tr.pic-nocount td.pic-person{font-style:italic}
   // Accepts this schema and any older one, and keeps fields it does not know
   // about so a file written by a newer build is not stripped on a round trip.
   function migrate(data) {
-    if (!data || typeof data !== "object") throw new Error("not an object");
+    if (!data || typeof data !== "object") data = {};
     var base = blankState();
     var out = {};
-    Object.keys(data).forEach(function (k) { out[k] = data[k]; });      // retain unknown top-level fields
+    Object.keys(data).forEach(function (k) { out[k] = data[k]; });      // retain unknown fields
     out.schemaVersion = SCHEMA_VERSION;
     out.settings = merge(base.settings, data.settings);
     out.roles = Array.isArray(data.roles) && data.roles.length ? data.roles.map(function (r) {
@@ -1236,33 +1361,103 @@ tr.pic-nocount td.pic-person{font-style:italic}
     return isFinite(n) ? n : dflt;
   }
 
-  /* ---------- export ---------- */
+  // Bring the cost tracker's people across as a team. Names and roles are all
+  // it has that we need; location, allocation and leave are ours to fill in.
+  function importForeignTeam() {
+    var fp = foreignProject();
+    if (!fp) return;
+    var defLoc = (S.locations[0] || {}).id || "uk";
+    var t = {
+      id: uid("t"), name: fp.name || "Imported team", focusFactor: 80,
+      members: fp.people.map(function (p) {
+        return {
+          id: uid("m"), name: p.name.trim(), roleId: guessRole(p.role, p.name),
+          locId: defLoc, allocation: 100, from: "", to: ""
+        };
+      })
+    };
+    S.teams.push(t);
+    persist(); renderAll();
+    toast("Added " + plural(t.members.length, "person", "people") + " from " + (fp.name || "the project file"));
+  }
+  // The tracker's role is free text ("Engineering", "Quality", "QA lead"), so
+  // match it loosely and fall back to a role that does not count rather than
+  // silently inflating capacity.
+  function guessRole(roleText, nameText) {
+    var hay = ((roleText || "") + " " + (nameText || "")).toLowerCase();
+    // Specific titles first: "Tech lead" in an "Engineering" role must land on
+    // Tech Lead, not Developer, or the import quietly adds capacity.
+    var pairs = [
+      ["techlead", /\b(tech lead|techlead|lead engineer|engineering lead)\b/], ["arch", /\barchitect\b/],
+      ["ba", /\b(ba|business analyst|analyst)\b/], ["po", /\b(po|product owner|product)\b/],
+      ["sm", /\b(sm|scrum)\b/], ["design", /\b(design|ux|ui)\b/],
+      ["dm", /\b(delivery|project manager|programme|program manager|pm)\b/],
+      ["qa", /\b(qa|test|tester|quality)\b/], ["dev", /\b(dev|engineer|engineering|developer|programmer)\b/]
+    ];
+    for (var i = 0; i < pairs.length; i++) {
+      if (pairs[i][1].test(hay) && role(pairs[i][0])) return pairs[i][0];
+    }
+    return role("other") ? "other" : ((S.roles[0] || {}).id || "dev");
+  }
+
+  /* ---------- export ----------
+     Both exports are the table as it is on screen: same columns, same order,
+     and the same filters applied. What you see is what lands in the file. */
   function csvCell(v) {
     v = v === null || v === undefined ? "" : String(v);
     return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
   }
-  function exportCsv() {
-    var R = lastCompute || compute(), st = S.settings;
-    if (!R.sprints.length) { toast("No sprint dates to export"); return; }
-    var lines = [];
-    lines.push(["PI", "Team", "Person", "Role", "Counts toward capacity", "Location", "Allocation %", "Focus factor %",
-      "Sprint", "Sprint start", "Sprint end", "Working days", "Days off team", "Public holidays", "Planned leave",
-      "Net days", "Capacity days"].concat(R.ppd === null ? [] : ["Capacity points"]).map(csvCell).join(","));
-    var pi = st.fy + " Q" + st.quarter;
+  function csvRows(rows) { return rows.map(function (r) { return r.map(csvCell).join(","); }).join("\n"); }
+  function piName() { return S.settings.fy + "Q" + S.settings.quarter; }
+
+  // Planned leave, exactly the rows the grid is showing.
+  function exportLeaveCsv() {
+    var R = lastCompute || compute();
+    var rows = shownLeave(R);
+    if (!rows.length) { toast("No leave rows to export"); return; }
+    var out = [["Person", "Team", "From", "To", "Half days", "Type", "Days in this PI", "Note"]];
+    rows.forEach(function (l) {
+      var mm = memberById(l.memberId);
+      out.push([
+        mm ? (mm.m.name || "Unnamed") : "(person removed)",
+        mm ? (mm.team.name || "Unnamed team") : "",
+        l.from || "", l.to || "", l.halfDay ? "yes" : "no", l.type || "",
+        n1(leaveDaysInPi(l, R)), l.note || ""
+      ]);
+    });
+    RK.download("pi-leave-" + piName() + ".csv", csvRows(out), "text/csv");
+    toast("Planned leave exported");
+  }
+
+  // Per-person breakdown, exactly as displayed — including the sprint columns
+  // for this PI and the "only counting roles" filter if it is on.
+  function exportPeopleCsv() {
+    var R = lastCompute || compute();
+    if (!R.sprints.length || !R.teams.length) { toast("Nothing to export yet"); return; }
+    var onlyCounting = $("onlyCounting").checked;
+    var head = ["Person", "Counted", "Team", "Role", "Location", "Allocation %"]
+      .concat(R.sprints.map(function (s) { return s.key; }))
+      .concat(["Holidays", "Leave", "Capacity"]);
+    if (R.ppd !== null) head.push("Capacity points");
+    var out = [head];
     R.teams.forEach(function (tt) {
       tt.rows.forEach(function (r) {
-        r.cells.forEach(function (c, i) {
-          var s = R.sprints[i];
-          var row = [pi, tt.t.name, r.m.name, r.roleName, r.counts ? "yes" : "no", r.locName,
-            clampPct(r.m.allocation, 100), clampPct(tt.t.focusFactor, 100),
-            s.key, s.start, s.end, c.nominal, c.offTeam, c.hol, round2(c.leave), round2(c.net), round2(c.cap)];
-          if (R.ppd !== null) row.push(round2(c.cap * R.ppd));
-          lines.push(row.map(csvCell).join(","));
-        });
+        if (onlyCounting && !r.counts) return;
+        var row = [r.m.name || "Unnamed", r.counts ? "counted" : "visibility",
+          tt.t.name || "Unnamed team", r.roleName, r.locName, clampPct(r.m.allocation, 100)]
+          .concat(r.cells.map(function (c) { return n1(c.cap); }))
+          .concat([n1(r.totalHol), n1(r.totalLeave), n1(r.total)]);
+        if (R.ppd !== null) row.push(n1(r.total * R.ppd));
+        out.push(row);
       });
     });
-    RK.download("pi-capacity-" + pi.replace(/\s+/g, "") + ".csv", lines.join("\n"), "text/csv");
-    toast("CSV downloaded");
+    var foot = ["Counted toward capacity", "", "", "", "", ""]
+      .concat(R.sprints.map(function (s, i) { return n1(R.artPerSprint[i]); }))
+      .concat([n1(R.artHol), n1(R.artLeave), n1(R.artTotal)]);
+    if (R.ppd !== null) foot.push(n1(R.artTotal * R.ppd));
+    out.push(foot);
+    RK.download("pi-per-person-" + piName() + ".csv", csvRows(out), "text/csv");
+    toast("Breakdown exported");
   }
 
   function matrixCopyPayload() {
@@ -1536,9 +1731,10 @@ tr.pic-nocount td.pic-person{font-style:italic}
 
   /* ---------- data buttons ---------- */
   function saveJson() {
-    S.generatedAt = RK.nowIso(); S.appVersion = APP_VERSION;
     var name = "pi-capacity-" + S.settings.fy + "Q" + S.settings.quarter + ".json";
-    RK.download(name, JSON.stringify(S, null, 2), "application/json");
+    var fp = foreignProject();
+    if (fp) name = "project-" + (fp.name || "shared").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) + ".json";
+    RK.download(name, JSON.stringify(docEnvelope(), null, 2), "application/json");
     toast("Saved " + name);
   }
   $("saveJson").addEventListener("click", saveJson);
@@ -1553,10 +1749,11 @@ tr.pic-nocount td.pic-person{font-style:italic}
     var fr = new FileReader();
     fr.onload = function () {
       try {
-        S = migrate(JSON.parse(fr.result));
+        openDoc(JSON.parse(fr.result));
         hide($("dataErr"));
         persist(); renderAll();
-        toast("Loaded " + f.name);
+        var fp = foreignProject();
+        toast(fp ? "Loaded " + f.name + " — it also holds a cost tracker project" : "Loaded " + f.name);
       } catch (e) {
         $("dataErr").textContent = "Could not read that file: " + e.message + "\nNothing was changed.";
         show($("dataErr"));
@@ -1568,8 +1765,8 @@ tr.pic-nocount td.pic-person{font-style:italic}
     };
     fr.readAsText(f);
   });
-  $("csvBtn").addEventListener("click", exportCsv);
-  $("exportCsv").addEventListener("click", exportCsv);
+  $("exportLeaveCsv").addEventListener("click", exportLeaveCsv);
+  $("exportPeopleCsv").addEventListener("click", exportPeopleCsv);
   $("copyMatrix").addEventListener("click", copyMatrix);
   $("demoBtn").addEventListener("click", function () {
     if (S.teams.length && !confirm("Replace what is here with the demo teams?")) return;
@@ -1585,6 +1782,22 @@ tr.pic-nocount td.pic-person{font-style:italic}
     persist(); renderAll();
     toast("Cleared");
   });
+  document.addEventListener("click", function (e) {
+    var b = e.target.closest ? e.target.closest("#importTeamBtn") : null;
+    if (b) importForeignTeam();
+  });
+
+  /* ---------- the two views ---------- */
+  function setView(settings) {
+    $("viewMain").classList.toggle("hidden", !!settings);
+    $("viewSettings").classList.toggle("hidden", !settings);
+    $("settingsBtn").textContent = settings ? "Back to capacity" : "Settings";
+    window.scrollTo(0, 0);
+  }
+  $("settingsBtn").addEventListener("click", function () {
+    setView($("viewSettings").classList.contains("hidden"));
+  });
+  $("backBtn").addEventListener("click", function () { setView(false); });
 
   /* ---------- holidays import / export ---------- */
   $("exportHols").addEventListener("click", function () {
@@ -1617,14 +1830,12 @@ tr.pic-nocount td.pic-person{font-style:italic}
         S.holidays = d.holidays.map(function (h) {
           return { id: uid("h"), loc: h.loc || "", date: h.date || "", name: String(h.name || ""), provisional: !!h.provisional };
         });
-        hide($("dataErr"));
+        hide($("holErr"));
         persist(); renderAll();
         toast("Imported " + plural(S.holidays.length, "holiday"));
       } catch (e) {
-        $("dataErr").textContent = "Could not read that holiday file: " + e.message + "\nThe current holidays are unchanged.";
-        show($("dataErr"));
-        var p = $("panel-data");
-        if (p && p.classList.contains("hidden")) p.classList.remove("hidden");
+        $("holErr").textContent = "Could not read that holiday file: " + e.message + "\nThe current holidays are unchanged.";
+        show($("holErr"));
       }
     };
     fr.readAsText(f);

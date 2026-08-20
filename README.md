@@ -198,12 +198,26 @@ tick-them-off worklist, so an approximate Eid date can never quietly change the
 number you commit to. Add locations of your own, and move the whole calendar
 between people with **Export / Import holidays**.
 
+The page opens as a report: the PI, the capacity, the per-person breakdown, the
+teams and the leave. The things you set once &mdash; the cadence anchor,
+locations and their holidays, and which roles count &mdash; live behind
+**Settings**. Collapsing the capacity card keeps its headline figures on screen,
+because they are the at-a-glance answer.
+
 Alerts call out the things that silently wreck a plan: a team with nobody in a
 counting role, a focus factor of zero, someone allocated 0% or over 100%, someone
 with no capacity anywhere in the PI, and leave whose dates read backwards.
-**Copy table** puts the capacity matrix on the clipboard for an email or a slide;
-**Export CSV** gives one row per person per sprint with every component of the
-calculation.
+**Copy table** puts the capacity matrix on the clipboard for an email or a slide,
+and the **Planned leave** and **Per-person breakdown** cards each export their
+own table as CSV &mdash; the same columns, filters and figures you are looking at.
+
+**One file can hold this and a cost tracker project.** A saved file is an
+envelope: this tool owns the `piCapacity` key and copies every other key straight
+back out, and the [cost tracker](#project-cost-trackerhtml) already keeps keys it
+does not recognise. So the same `.json` opens in both, each editing its own half
+and leaving the other untouched &mdash; no changes to the tracker were needed.
+Load a tracker file here and it offers to add that project's people as a team,
+matching their roles.
 
 Someone joining or leaving mid-PI gets **on team from / until** dates and is
 counted only for the part of the PI they are there.

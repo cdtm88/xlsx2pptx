@@ -83,9 +83,10 @@ The seeded dates come in two kinds, and the difference matters:
 
 Estimated dates still reduce capacity — leaving them out would overstate it —
 but the tool never lets them pass quietly. Any that fall inside the PI you are
-looking at raise an alert on the capacity report and are listed by name in
-**Locations and public holidays**, where **Only dates to confirm** gives you the
-worklist. Correct each date and tick **confirmed**; it leaves the list as you go.
+looking at raise an alert on the capacity report and are listed by name under
+**Settings → Locations and public holidays**, where **Only dates to confirm**
+gives you the worklist. Correct each date and tick **confirmed**; it leaves the
+list as you go.
 
 Confirm them against your HR calendar before you commit to the numbers. UAE Eid
 dates in particular are only fixed a few days out.
@@ -93,10 +94,54 @@ dates in particular are only fixed a few days out.
 **Export holidays** / **Import holidays** move the whole calendar as JSON, so one
 person can maintain it and everyone else imports the same file.
 
-## Storage
+## Storage, and sharing one file with the cost tracker
 
 The working copy is autosaved in the browser. **Save JSON** writes a standalone
-file (one file holds the teams, the leave, the holidays and the settings —
-switching PI is a dropdown, not a different file), and **Load data** reads one
-back. **Export CSV** gives one row per person per sprint with every component of
-the calculation, for a spreadsheet or a wider report.
+file and **Load data** reads one back. One file holds every team, all the leave,
+the holidays and the settings, so switching PI is a dropdown rather than a
+different file.
+
+### One file, two tools
+
+A saved file is an **envelope**. This tool owns exactly one key in it —
+`piCapacity` — and copies every other key straight back out when it saves:
+
+```jsonc
+{
+  "v": 10, "name": "Waqti", "estimate": 2100000,   // ← Project Cost Tracker's half
+  "team": [...], "vendors": [...], "actuals": {...},
+  "piCapacity": { "settings": {...}, "teams": [...], "leave": [...] }   // ← ours
+}
+```
+
+The **Project Cost Tracker** writes its state object to a file verbatim and
+loads it with `Object.assign(defaults, file)`, so keys it does not recognise are
+kept and written back out too. The two therefore share one file with no
+coordination and **no changes to the tracker at all**: open the same `.json` in
+either, and each edits its own half while carrying the other's along untouched.
+
+Practically:
+
+- Open a cost tracker project file here and the Data card says so. It offers to
+  **add the tracker's people as a team**, matching each person's free-text role
+  ("Engineering", "Quality") to a role here. Specific titles win over generic
+  ones, so a tech lead on an "Engineering" line lands on Tech Lead rather than
+  Developer — an import should never quietly add capacity.
+- Save, and the file now holds both. The filename becomes `project-<name>.json`
+  rather than `pi-capacity-<PI>.json`, because it is no longer only ours.
+- Open that file in the tracker: the project is exactly as it was, and the
+  tracker's own next save keeps the capacity half intact.
+
+Nothing about this is required. A file with no `piCapacity` opens here as a
+blank PI; a file with no tracker half opens there as an empty project.
+
+## Exports
+
+Two CSVs, each the table as it is on screen — same columns, same order, same
+filters, same figures to one decimal place:
+
+- **Planned leave** — the rows the grid is showing, with the working days each
+  entry actually removes inside this PI.
+- **Per-person breakdown** — every person, the seven sprint columns for this PI,
+  holidays, leave and capacity, plus the counted total, honouring the
+  **Only counting roles** toggle.
