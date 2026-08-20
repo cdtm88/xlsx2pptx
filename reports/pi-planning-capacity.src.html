@@ -1,0 +1,1640 @@
+<!-- @out: pi-planning-capacity.html -->
+<!-- Source for pi-planning-capacity.html. Build with: python3 framework/build.py -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light only">
+<title>PI Planning Capacity Calculator</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMiIgaGVpZ2h0PSIzMiIgdmlld0JveD0iMCAwIDMyIDMyIj48cmVjdCB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHJ4PSI3IiBmaWxsPSIjMDBBOUNFIi8+PHBhdGggZD0iTTkgMTYuNSBsNCA0IEwyMyAxMSIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjMiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPjwvc3ZnPg==">
+<style>
+/*@include framework/report-kit.css@*/
+
+/* ============================================================
+   report-specific: PI planning capacity calculator
+   Prefix: .pic-*  (kit classes are reused wherever they fit)
+   ============================================================ */
+
+/* a capacity matrix is wide — seven sprint columns plus names */
+.app-header .inner,.container,.app-footer{max-width:1320px}
+
+/* number inputs — the kit styles text, search, date, select and textarea */
+input[type=number]{font-family:inherit;font-size:.86rem;color:var(--charcoal);background:#fff;
+  border:1px solid var(--line);border-radius:8px;padding:.55rem .7rem;width:100%}
+input[type=number]:focus{outline:none;border-color:var(--teal);box-shadow:0 0 0 3px rgba(0,169,206,.14)}
+input[type=number]{-moz-appearance:textfield}
+input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.tnum{font-variant-numeric:tabular-nums}
+
+/* header extras */
+.pic-save{font-size:.74rem;font-weight:600;color:var(--mid);white-space:nowrap;margin-right:.8rem}
+.pic-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:.4rem;background:#B4BCC4;vertical-align:1px}
+.pic-dot.live{background:var(--green)}
+.pic-dot.warn{background:#C8891A}
+.pic-header-btn{margin-left:.6rem}
+@media (max-width:860px){
+  .app-header .inner{flex-wrap:wrap;gap:.4rem .8rem}
+  .app-header .spacer{display:none}
+  .pic-header-btn{margin-left:0}
+}
+
+/* set-up field grid — same 12-column idea as the cost tracker, so a quarter
+   picker does not get the same width as a financial-year name */
+.pic-fields{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:.75rem .9rem;align-items:end}
+.pic-field label{display:block;font-size:.72rem;font-weight:600;color:var(--slate);margin:0 0 .25rem;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pic-field.c2{grid-column:span 2}
+.pic-field.c3{grid-column:span 3}
+.pic-field.c4{grid-column:span 4}
+.pic-field.c6{grid-column:span 6}
+.pic-field.wide{grid-column:1/-1}
+@media (max-width:1040px){
+  .pic-field.c2,.pic-field.c3,.pic-field.c4{grid-column:span 4}
+  .pic-field.c6{grid-column:span 12}
+}
+@media (max-width:640px){
+  .pic-field.c2,.pic-field.c3,.pic-field.c4{grid-column:span 12}
+}
+
+/* collapsible cards: the toggle button in each card head */
+.pic-toggle{white-space:nowrap}
+
+/* a long team or leave list sits in its own scroller so it never pushes the
+   report off screen; the header row stays put while the body scrolls */
+.pic-scroll{max-height:420px;overflow:auto;border:1px solid var(--line);border-radius:10px}
+.pic-scroll table.data{border-collapse:separate;border-spacing:0}
+.pic-scroll table.data thead th{position:sticky;top:0;z-index:2}
+.pic-scroll table.data tfoot td{position:sticky;bottom:0;z-index:2}
+
+/* compact grid rows: inputs sit flush in the cell rather than in a padded box */
+table.data td.cell-in{padding:.25rem .4rem}
+table.data td.cell-in input,table.data td.cell-in select{padding:.35rem .5rem;font-size:.82rem}
+table.data td.cell-in input[type=number]{text-align:right}
+.pic-w-name{min-width:190px}
+.pic-w-role{min-width:150px}
+.pic-w-loc{min-width:110px}
+.pic-w-num{width:92px}
+.pic-w-date{width:150px}
+
+/* the capacity matrix: team rows against sprint columns */
+.pic-matrix table.data thead th{white-space:nowrap}
+.pic-matrix table.data th.sprint{text-align:right}
+.pic-matrix table.data th.ip,.pic-matrix table.data td.ip{background:#FAFBFC}
+.pic-matrix table.data thead th.ip{background:#DCEFF5}
+.pic-matrix .team-name{font-weight:700}
+.pic-matrix tr.art-total td{background:var(--teal-tint)!important;font-weight:800;color:var(--teal-dark);
+  border-top:2px solid #BFE8F2}
+.pic-matrix td.zero{color:#A8321F}
+.pic-sprint-sub{display:block;font-weight:500;font-size:.66rem;color:var(--mid);text-transform:none;letter-spacing:0}
+
+/* a person who is on the team for visibility but not counted in capacity */
+tr.pic-nocount td{color:var(--mid)}
+tr.pic-nocount td.pic-person{font-style:italic}
+.pic-tag{display:inline-block;font-size:.62rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
+  border-radius:5px;padding:.06rem .34rem;margin-left:.35rem;vertical-align:1px}
+.pic-tag.count{background:var(--teal-tint);color:var(--teal-dark);border:1px solid #BFE8F2}
+.pic-tag.nocount{background:var(--light-grey);color:var(--mid);border:1px solid var(--line)}
+.pic-tag.prov{background:#FDF3E7;color:#9A6212;border:1px solid #F0D6A6}
+
+/* alerts list */
+.pic-alert{display:flex;gap:.6rem;align-items:flex-start;padding:.55rem .8rem;border-radius:8px;font-size:.82rem;
+  margin-bottom:.4rem;border:1px solid var(--line);background:var(--light-grey);color:var(--slate)}
+.pic-alert.warn{background:#FDF3E7;border-color:#F0D6A6;color:#7A4E0E}
+.pic-alert.issue{background:#FCEDEA;border-color:#F3C0B6;color:#8E2A19}
+.pic-alert .who{font-weight:700}
+
+/* team block header inside the Teams card */
+.pic-team{border:1px solid var(--line);border-radius:10px;margin-bottom:.9rem;overflow:hidden}
+.pic-team-head{display:flex;align-items:end;gap:.7rem;flex-wrap:wrap;background:var(--light-grey);
+  border-bottom:1px solid var(--line);padding:.7rem .9rem}
+.pic-team-head .grow{flex:1 1 220px;min-width:180px}
+.pic-team-head label{display:block;font-size:.7rem;font-weight:600;color:var(--slate);margin:0 0 .2rem}
+.pic-team-body{padding:.7rem .9rem}
+.pic-team-sum{font-size:.76rem;color:var(--mid);font-weight:600}
+
+/* small inline danger button for row deletes */
+.x-btn{border:1px solid var(--line);background:#fff;color:var(--mid);border-radius:6px;cursor:pointer;
+  font-family:inherit;font-weight:700;font-size:.8rem;line-height:1;padding:.3rem .5rem}
+.x-btn:hover{background:#FCEDEA;border-color:#F3C0B6;color:#A8321F}
+
+/* toast */
+.pic-toast{position:fixed;left:50%;bottom:1.4rem;transform:translateX(-50%);background:var(--charcoal);color:#fff;
+  padding:.6rem 1rem;border-radius:9px;font-size:.83rem;font-weight:600;z-index:60;box-shadow:0 4px 14px rgba(0,0,0,.22)}
+
+/* the sprint preview strip */
+.pic-sprints{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.2rem}
+.pic-chip{border:1px solid var(--line);border-radius:9px;padding:.45rem .7rem;background:#fff;min-width:126px}
+.pic-chip .s{font-size:.78rem;font-weight:800;color:var(--teal-dark)}
+.pic-chip .d{font-size:.7rem;color:var(--mid);font-weight:600;white-space:nowrap}
+.pic-chip.ip{background:var(--light-grey)}
+
+@media print{.no-print{display:none!important}}
+</style>
+</head>
+<body>
+<header class="app-header">
+  <div class="inner">
+    <div>
+      <h1>PI Planning Capacity Calculator</h1>
+      <p id="headerSub">&nbsp;</p>
+    </div>
+    <div class="spacer"></div>
+    <span class="pic-save" id="saveState"><span class="pic-dot"></span>Starting up</span>
+    <span class="ver" id="version">v1.0.0</span>
+    <button type="button" class="btn btn-ghost no-print pic-header-btn" id="topLoad">Load data</button>
+    <button type="button" class="btn btn-primary no-print pic-header-btn" id="topSave">Save JSON</button>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- ============ PI AND CADENCE ============ -->
+  <section class="card no-print">
+    <div class="card-head">
+      <div>
+        <span class="title">PI and cadence</span>
+        <span class="sub" id="setupSummary"></span>
+      </div>
+      <button type="button" class="mini-btn pic-toggle" data-panel="setup" aria-expanded="true" aria-controls="panel-setup">Hide</button>
+    </div>
+    <div id="panel-setup">
+      <div class="pic-fields">
+        <div class="pic-field c3">
+          <label for="fySel">Financial year</label>
+          <select id="fySel"></select>
+        </div>
+        <div class="pic-field c3">
+          <label for="qSel">Quarter (the PI)</label>
+          <select id="qSel">
+            <option value="1">Q1</option><option value="2">Q2</option>
+            <option value="3">Q3</option><option value="4">Q4</option>
+          </select>
+        </div>
+        <div class="pic-field c3">
+          <label for="anchor" title="The Wednesday that sprint Q1.1 of the anchor financial year begins">Q1.1 starts (anchor)</label>
+          <input type="date" id="anchor">
+        </div>
+        <div class="pic-field c3">
+          <label for="anchorFy" title="Which financial year the anchor date belongs to">Anchor financial year</label>
+          <input type="text" id="anchorFy" spellcheck="false" placeholder="FY2627">
+        </div>
+        <div class="pic-field c3">
+          <label for="ppd" title="Story points a person delivers per available day — leave blank to report days only">Points per day (optional)</label>
+          <input type="number" id="ppd" min="0" step="any" placeholder="e.g. 1.5">
+        </div>
+        <div class="pic-field c3">
+          <label for="hoursPerDay" title="Used only to show capacity in hours alongside days">Hours per day</label>
+          <input type="number" id="hoursPerDay" min="0" max="24" step="any">
+        </div>
+        <div class="pic-field c6">
+          <div class="note" id="anchorNote" style="margin:0"></div>
+        </div>
+        <div class="pic-field wide">
+          <label>Sprints in this PI</label>
+          <div class="pic-sprints" id="sprintStrip"></div>
+        </div>
+      </div>
+      <div class="err hidden" id="setupErr"></div>
+    </div>
+  </section>
+
+  <!-- ============ CAPACITY (the report) ============ -->
+  <section class="card">
+    <div class="card-head">
+      <div>
+        <span class="title">Capacity</span>
+        <span class="sub" id="capSummary"></span>
+      </div>
+      <div class="controls-row no-print">
+        <button type="button" class="mini-btn" id="copyMatrix">Copy table</button>
+        <button type="button" class="mini-btn" id="exportCsv">Export CSV</button>
+        <button type="button" class="mini-btn pic-toggle" data-panel="cap" aria-expanded="true" aria-controls="panel-cap">Hide</button>
+      </div>
+    </div>
+    <div id="panel-cap">
+      <div class="kpi-row" id="kpis"></div>
+      <div id="alerts"></div>
+      <div class="pic-matrix" id="matrixWrap"></div>
+      <div id="copyMsg"></div>
+      <p class="sub" style="margin-top:.7rem" id="capFootnote"></p>
+    </div>
+  </section>
+
+  <!-- ============ PER-PERSON BREAKDOWN ============ -->
+  <section class="card">
+    <div class="card-head">
+      <div>
+        <span class="title">Per-person breakdown</span>
+        <span class="sub">Every member of every team. Only the roles that count are added into the team totals above.</span>
+      </div>
+      <div class="controls-row no-print">
+        <label class="chk-inline"><input type="checkbox" id="onlyCounting"> Only counting roles</label>
+        <button type="button" class="mini-btn pic-toggle" data-panel="people" aria-expanded="true" aria-controls="panel-people">Hide</button>
+      </div>
+    </div>
+    <div id="panel-people">
+      <div class="pic-scroll" id="peopleWrap"></div>
+    </div>
+  </section>
+
+  <!-- ============ TEAMS ============ -->
+  <section class="card no-print">
+    <div class="card-head">
+      <div>
+        <span class="title">Teams</span>
+        <span class="sub" id="teamsSummary"></span>
+      </div>
+      <div class="controls-row">
+        <button type="button" class="mini-btn" id="addTeam">Add team</button>
+        <button type="button" class="mini-btn pic-toggle" data-panel="teams" aria-expanded="true" aria-controls="panel-teams">Hide</button>
+      </div>
+    </div>
+    <div id="panel-teams">
+      <div id="teamsWrap"></div>
+    </div>
+  </section>
+
+  <!-- ============ PLANNED LEAVE ============ -->
+  <section class="card no-print">
+    <div class="card-head">
+      <div>
+        <span class="title">Planned leave</span>
+        <span class="sub" id="leaveSummary"></span>
+      </div>
+      <div class="controls-row">
+        <button type="button" class="mini-btn" id="addLeave">Add leave</button>
+        <button type="button" class="mini-btn pic-toggle" data-panel="leave" aria-expanded="true" aria-controls="panel-leave">Hide</button>
+      </div>
+    </div>
+    <div id="panel-leave">
+      <div class="ms-toolbar">
+        <div class="search"><input type="search" id="leaveSearch" placeholder="Filter by person, team or note"></div>
+        <label class="chk-inline"><input type="checkbox" id="leaveThisPi" checked> Only leave in this PI</label>
+        <span class="ms-count" id="leaveCount"></span>
+      </div>
+      <div class="pic-scroll" id="leaveWrap"></div>
+      <p class="sub" style="margin-top:.6rem">Leave is stored as real dates, so one entry counts against whichever
+        sprints it actually falls in &mdash; and against the right PI when you switch quarter. Weekends and that
+        person&rsquo;s public holidays are never counted twice.</p>
+    </div>
+  </section>
+
+  <!-- ============ LOCATIONS AND HOLIDAYS ============ -->
+  <section class="card no-print">
+    <div class="card-head">
+      <div>
+        <span class="title">Locations and public holidays</span>
+        <span class="sub" id="holSummary"></span>
+      </div>
+      <div class="controls-row">
+        <button type="button" class="mini-btn" id="addLocation">Add location</button>
+        <button type="button" class="mini-btn" id="addHoliday">Add holiday</button>
+        <button type="button" class="mini-btn" id="exportHols">Export holidays</button>
+        <button type="button" class="mini-btn" id="importHols">Import holidays</button>
+        <button type="button" class="mini-btn pic-toggle" data-panel="hols" aria-expanded="false" aria-controls="panel-hols">Show</button>
+      </div>
+    </div>
+    <div id="panel-hols" class="hidden">
+      <div id="provisionalNote"></div>
+      <label class="field">Locations</label>
+      <div class="pic-scroll" style="max-height:220px" id="locWrap"></div>
+      <label class="field">Public holidays</label>
+      <div class="ms-toolbar">
+        <div class="search"><input type="search" id="holSearch" placeholder="Filter by name or location"></div>
+        <label class="chk-inline"><input type="checkbox" id="holThisPi" checked> Only holidays in this PI</label>
+        <label class="chk-inline"><input type="checkbox" id="holOnlyProv"> Only dates to confirm</label>
+        <span class="ms-count" id="holCount"></span>
+      </div>
+      <div class="pic-scroll" id="holWrap"></div>
+    </div>
+  </section>
+
+  <!-- ============ ROLES ============ -->
+  <section class="card no-print">
+    <div class="card-head">
+      <div>
+        <span class="title">Roles</span>
+        <span class="sub" id="rolesSummary"></span>
+      </div>
+      <div class="controls-row">
+        <button type="button" class="mini-btn" id="addRole">Add role</button>
+        <button type="button" class="mini-btn pic-toggle" data-panel="roles" aria-expanded="false" aria-controls="panel-roles">Show</button>
+      </div>
+    </div>
+    <div id="panel-roles" class="hidden">
+      <p class="sub" style="margin-bottom:.7rem">Everyone on a team is listed for visibility. Only the roles ticked
+        here are added into the capacity a team commits against &mdash; by default, developers and QA.</p>
+      <div class="pic-scroll" style="max-height:340px" id="rolesWrap"></div>
+    </div>
+  </section>
+
+  <!-- ============ DATA ============ -->
+  <section class="card no-print">
+    <div class="card-head">
+      <div>
+        <span class="title">Data</span>
+        <span class="sub">Everything stays on this machine. Nothing is uploaded.</span>
+      </div>
+      <button type="button" class="mini-btn pic-toggle" data-panel="data" aria-expanded="false" aria-controls="panel-data">Show</button>
+    </div>
+    <div id="panel-data" class="hidden">
+      <div class="controls-row">
+        <button type="button" class="btn btn-ghost" id="saveJson">Save JSON</button>
+        <button type="button" class="btn btn-ghost" id="loadJson">Load data</button>
+        <button type="button" class="btn btn-ghost" id="csvBtn">Export CSV</button>
+        <button type="button" class="btn btn-ghost" id="demoBtn">Load demo</button>
+        <button type="button" class="btn btn-ghost" id="clearBtn">Clear everything</button>
+      </div>
+      <div class="note">The working copy is autosaved in this browser. <strong>Save JSON</strong> writes a standalone
+        file you can keep beside the PI&rsquo;s other artefacts or hand to someone else; <strong>Load data</strong>
+        reads one back.</div>
+      <div class="err hidden" id="dataErr"></div>
+    </div>
+  </section>
+
+</div>
+
+<input type="file" id="jsonInput" accept=".json,application/json" class="hidden">
+<input type="file" id="holInput" accept=".json,application/json" class="hidden">
+
+<footer class="app-footer">
+  Single file, fully offline. Capacity = working days &minus; public holidays &minus; planned leave,
+  &times; allocation, &times; focus factor.
+</footer>
+
+<script>
+/*@include framework/report-kit.js@*/
+</script>
+
+<script>
+/* ============================================================
+   PI Planning Capacity Calculator
+   ------------------------------------------------------------
+   Cadence: a PI is one quarter = 7 sprints. Sprints run Wednesday
+   to Tuesday; 1-6 are two weeks (10 working days), 7 is one week
+   (5 working days). 6*14 + 7 = 91 days = 13 weeks a quarter, so
+   four quarters chain exactly into a 364-day financial year and
+   every sprint start stays a Wednesday for ever.
+
+   Capacity for one person in one sprint:
+     working days (Mon-Fri, and only while they are on the team)
+       - their location's public holidays
+       - planned leave (never double-counting a holiday or weekend)
+       x allocation %          (someone half on this team)
+       x the team's focus factor %   (ceremonies, support, overhead)
+
+   Everyone on a team is shown. Only roles flagged "counts" are
+   summed into the number the team commits against.
+   ============================================================ */
+(function () {
+  "use strict";
+  var APP_VERSION = "1.0.0";
+  var SCHEMA_VERSION = 1;
+  var LS_KEY = "pi-capacity:state:v1";
+  var $ = RK.$, esc = RK.esc, show = RK.show, hide = RK.hide, round1 = RK.round1, round2 = RK.round2;
+
+  /* ---------- dates: everything is an ISO yyyy-mm-dd string, UTC internally ---------- */
+  var DAY = 86400000;
+  function toUTC(iso) {                       // "2026-04-01" -> ms, or NaN
+    if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return NaN;
+    var p = iso.split("-");
+    return Date.UTC(+p[0], +p[1] - 1, +p[2]);
+  }
+  function toIso(ms) {
+    var d = new Date(ms);
+    return d.getUTCFullYear() + "-" + pad(d.getUTCMonth() + 1) + "-" + pad(d.getUTCDate());
+  }
+  function pad(n) { return (n < 10 ? "0" : "") + n; }
+  function dow(ms) { return new Date(ms).getUTCDay(); }        // 0 Sun .. 6 Sat
+  function isWeekday(ms) { var d = dow(ms); return d >= 1 && d <= 5; }
+  function addDays(ms, n) { return ms + n * DAY; }
+  var MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  var DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  function fmtDate(iso) {
+    var ms = toUTC(iso); if (isNaN(ms)) return "";
+    var d = new Date(ms);
+    return d.getUTCDate() + " " + MONTHS[d.getUTCMonth()];
+  }
+  function fmtDateFull(iso) {
+    var ms = toUTC(iso); if (isNaN(ms)) return "";
+    var d = new Date(ms);
+    return DAYS[d.getUTCDay()] + " " + d.getUTCDate() + " " + MONTHS[d.getUTCMonth()] + " " + d.getUTCFullYear();
+  }
+  function todayIso() {
+    var n = new Date();
+    return n.getFullYear() + "-" + pad(n.getMonth() + 1) + "-" + pad(n.getDate());
+  }
+
+  /* ---------- cadence ---------- */
+  var QUARTER_DAYS = 91, FY_DAYS = 364;
+  // "FY2627" -> 2627 as an ordinal we can subtract; the label carries both years
+  // but only the first moves, so the leading pair is enough to order them.
+  function fyOrdinal(label) {
+    var m = /^FY(\d{2})(\d{2})$/.exec(String(label || "").trim().toUpperCase());
+    return m ? parseInt(m[1], 10) : null;
+  }
+  function fyLabel(startYY) {
+    var a = ((startYY % 100) + 100) % 100, b = (a + 1) % 100;
+    return "FY" + pad(a) + pad(b);
+  }
+  // Start (ms) of sprint 1 of the given quarter of the given financial year.
+  function quarterStartMs(anchorIso, anchorFy, fy, q) {
+    var base = toUTC(anchorIso);
+    var ao = fyOrdinal(anchorFy), fo = fyOrdinal(fy);
+    if (isNaN(base) || ao === null || fo === null) return NaN;
+    return base + ((fo - ao) * FY_DAYS + (q - 1) * QUARTER_DAYS) * DAY;
+  }
+  // The seven sprints of one PI. Sprint 7 is the short one.
+  function buildSprints(anchorIso, anchorFy, fy, q) {
+    var qs = quarterStartMs(anchorIso, anchorFy, fy, q);
+    if (isNaN(qs)) return [];
+    var out = [];
+    for (var n = 1; n <= 7; n++) {
+      var s = addDays(qs, (n - 1) * 14);
+      var e = addDays(s, n < 7 ? 13 : 6);
+      out.push({
+        key: "Q" + q + "." + n, num: n, short: n === 7,
+        startMs: s, endMs: e, start: toIso(s), end: toIso(e),
+        workingDays: countWeekdays(s, e)
+      });
+    }
+    return out;
+  }
+  function countWeekdays(aMs, bMs) {
+    var n = 0;
+    for (var t = aMs; t <= bMs; t += DAY) if (isWeekday(t)) n++;
+    return n;
+  }
+
+  /* ---------- seed data ---------- */
+  var SEED_ROLES = [
+    { id: "dev", name: "Developer", counts: true },
+    { id: "qa", name: "QA", counts: true },
+    { id: "techlead", name: "Tech Lead", counts: false },
+    { id: "arch", name: "Architect", counts: false },
+    { id: "ba", name: "Business Analyst", counts: false },
+    { id: "po", name: "Product Owner", counts: false },
+    { id: "sm", name: "Scrum Master", counts: false },
+    { id: "design", name: "Designer", counts: false },
+    { id: "dm", name: "Delivery Manager", counts: false },
+    { id: "other", name: "Other", counts: false }
+  ];
+  var SEED_LOCATIONS = [
+    { id: "uk", name: "UK" },
+    { id: "uae", name: "UAE" },
+    { id: "in", name: "India" }
+  ];
+  // provisional: the date moves year to year and is set by announcement or
+  // moon sighting, so it is seeded as a best estimate and flagged for checking.
+  // Confirmed: fixed-date or rule-derived (Easter) holidays.
+  function H(loc, date, name, provisional) { return { loc: loc, date: date, name: name, provisional: !!provisional }; }
+  var SEED_HOLIDAYS = [
+    /* --- UK (England & Wales bank holidays) --- */
+    H("uk", "2026-01-01", "New Year's Day"), H("uk", "2026-04-03", "Good Friday"),
+    H("uk", "2026-04-06", "Easter Monday"), H("uk", "2026-05-04", "Early May bank holiday"),
+    H("uk", "2026-05-25", "Spring bank holiday"), H("uk", "2026-08-31", "Summer bank holiday"),
+    H("uk", "2026-12-25", "Christmas Day"), H("uk", "2026-12-28", "Boxing Day (substitute)"),
+    H("uk", "2027-01-01", "New Year's Day"), H("uk", "2027-03-26", "Good Friday"),
+    H("uk", "2027-03-29", "Easter Monday"), H("uk", "2027-05-03", "Early May bank holiday"),
+    H("uk", "2027-05-31", "Spring bank holiday"), H("uk", "2027-08-30", "Summer bank holiday"),
+    H("uk", "2027-12-27", "Christmas Day (substitute)"), H("uk", "2027-12-28", "Boxing Day (substitute)"),
+    H("uk", "2028-01-03", "New Year's Day (substitute)"), H("uk", "2028-04-14", "Good Friday"),
+    H("uk", "2028-04-17", "Easter Monday"), H("uk", "2028-05-01", "Early May bank holiday"),
+    H("uk", "2028-05-29", "Spring bank holiday"), H("uk", "2028-08-28", "Summer bank holiday"),
+    H("uk", "2028-12-25", "Christmas Day"), H("uk", "2028-12-26", "Boxing Day"),
+
+    /* --- UAE (Islamic dates are moon-sighting dependent: estimates) --- */
+    H("uae", "2026-01-01", "New Year's Day"),
+    H("uae", "2026-03-20", "Eid al-Fitr", 1), H("uae", "2026-03-21", "Eid al-Fitr", 1), H("uae", "2026-03-22", "Eid al-Fitr", 1),
+    H("uae", "2026-05-26", "Arafat Day", 1), H("uae", "2026-05-27", "Eid al-Adha", 1),
+    H("uae", "2026-05-28", "Eid al-Adha", 1), H("uae", "2026-05-29", "Eid al-Adha", 1),
+    H("uae", "2026-06-16", "Islamic New Year", 1), H("uae", "2026-08-25", "Prophet Muhammad's birthday", 1),
+    H("uae", "2026-12-01", "Commemoration Day"), H("uae", "2026-12-02", "National Day"), H("uae", "2026-12-03", "National Day"),
+    H("uae", "2027-01-01", "New Year's Day"),
+    H("uae", "2027-03-09", "Eid al-Fitr", 1), H("uae", "2027-03-10", "Eid al-Fitr", 1), H("uae", "2027-03-11", "Eid al-Fitr", 1),
+    H("uae", "2027-05-15", "Arafat Day", 1), H("uae", "2027-05-16", "Eid al-Adha", 1),
+    H("uae", "2027-05-17", "Eid al-Adha", 1), H("uae", "2027-05-18", "Eid al-Adha", 1),
+    H("uae", "2027-06-06", "Islamic New Year", 1), H("uae", "2027-08-15", "Prophet Muhammad's birthday", 1),
+    H("uae", "2027-12-01", "Commemoration Day"), H("uae", "2027-12-02", "National Day"), H("uae", "2027-12-03", "National Day"),
+    H("uae", "2028-01-01", "New Year's Day"),
+    H("uae", "2028-02-26", "Eid al-Fitr", 1), H("uae", "2028-02-27", "Eid al-Fitr", 1), H("uae", "2028-02-28", "Eid al-Fitr", 1),
+    H("uae", "2028-05-04", "Arafat Day", 1), H("uae", "2028-05-05", "Eid al-Adha", 1),
+    H("uae", "2028-05-06", "Eid al-Adha", 1), H("uae", "2028-05-07", "Eid al-Adha", 1),
+    H("uae", "2028-05-25", "Islamic New Year", 1), H("uae", "2028-08-03", "Prophet Muhammad's birthday", 1),
+    H("uae", "2028-12-01", "Commemoration Day"), H("uae", "2028-12-02", "National Day"), H("uae", "2028-12-03", "National Day"),
+
+    /* --- India (national days are fixed; festivals move and vary by state) --- */
+    H("in", "2026-01-26", "Republic Day"), H("in", "2026-03-04", "Holi", 1),
+    H("in", "2026-03-21", "Eid al-Fitr", 1), H("in", "2026-04-03", "Good Friday"),
+    H("in", "2026-08-15", "Independence Day"), H("in", "2026-09-14", "Ganesh Chaturthi", 1),
+    H("in", "2026-10-02", "Gandhi Jayanti"), H("in", "2026-10-20", "Dussehra", 1),
+    H("in", "2026-11-08", "Diwali", 1), H("in", "2026-12-25", "Christmas Day"),
+    H("in", "2027-01-26", "Republic Day"), H("in", "2027-03-22", "Holi", 1),
+    H("in", "2027-03-10", "Eid al-Fitr", 1), H("in", "2027-03-26", "Good Friday"),
+    H("in", "2027-08-15", "Independence Day"), H("in", "2027-09-04", "Ganesh Chaturthi", 1),
+    H("in", "2027-10-02", "Gandhi Jayanti"), H("in", "2027-10-09", "Dussehra", 1),
+    H("in", "2027-10-29", "Diwali", 1), H("in", "2027-12-25", "Christmas Day"),
+    H("in", "2028-01-26", "Republic Day"), H("in", "2028-03-11", "Holi", 1),
+    H("in", "2028-02-27", "Eid al-Fitr", 1), H("in", "2028-04-14", "Good Friday"),
+    H("in", "2028-08-15", "Independence Day"), H("in", "2028-08-23", "Ganesh Chaturthi", 1),
+    H("in", "2028-10-02", "Gandhi Jayanti"), H("in", "2028-09-27", "Dussehra", 1),
+    H("in", "2028-10-17", "Diwali", 1), H("in", "2028-12-25", "Christmas Day")
+  ];
+  var LEAVE_TYPES = ["Annual leave", "Public holiday (extra)", "Training", "Sabbatical", "Parental", "Other"];
+
+  /* ---------- state ---------- */
+  var uidN = 0;
+  function uid(p) { uidN++; return p + "-" + Date.now().toString(36) + "-" + uidN.toString(36); }
+
+  function blankState() {
+    return {
+      schemaVersion: SCHEMA_VERSION,
+      appVersion: APP_VERSION,
+      generatedAt: RK.nowIso(),
+      settings: {
+        anchorDate: "2026-04-01",   // the Wednesday FY2627 Q1.1 begins
+        anchorFy: "FY2627",
+        fy: "FY2627",
+        quarter: 1,
+        pointsPerDay: null,
+        hoursPerDay: 8
+      },
+      roles: SEED_ROLES.map(function (r) { return { id: r.id, name: r.name, counts: r.counts }; }),
+      locations: SEED_LOCATIONS.map(function (l) { return { id: l.id, name: l.name }; }),
+      holidays: SEED_HOLIDAYS.map(function (h) { return { id: uid("h"), loc: h.loc, date: h.date, name: h.name, provisional: h.provisional }; }),
+      teams: [],
+      leave: []
+    };
+  }
+  var S = blankState();
+
+  function role(id) { for (var i = 0; i < S.roles.length; i++) if (S.roles[i].id === id) return S.roles[i]; return null; }
+  function loc(id) { for (var i = 0; i < S.locations.length; i++) if (S.locations[i].id === id) return S.locations[i]; return null; }
+  function team(id) { for (var i = 0; i < S.teams.length; i++) if (S.teams[i].id === id) return S.teams[i]; return null; }
+  function allMembers() {
+    var out = [];
+    S.teams.forEach(function (t) { (t.members || []).forEach(function (m) { out.push({ team: t, m: m }); }); });
+    return out;
+  }
+  function memberById(id) {
+    var all = allMembers();
+    for (var i = 0; i < all.length; i++) if (all[i].m.id === id) return all[i];
+    return null;
+  }
+  function roleCounts(roleId) { var r = role(roleId); return !!(r && r.counts); }
+
+  /* ---------- holiday lookup ---------- */
+  // { locId: { "2026-04-03": {name, provisional} } } — rebuilt whenever holidays change.
+  var holIndex = null;
+  function reindexHolidays() {
+    holIndex = {};
+    S.holidays.forEach(function (h) {
+      if (!h.date || !h.loc) return;
+      if (!holIndex[h.loc]) holIndex[h.loc] = {};
+      holIndex[h.loc][h.date] = h;      // a duplicate date for one location is one day off, not two
+    });
+  }
+  function holidayOn(locId, iso) {
+    if (!holIndex) reindexHolidays();
+    var byLoc = holIndex[locId];
+    return byLoc ? byLoc[iso] || null : null;
+  }
+
+  /* ---------- the capacity engine ---------- */
+  function leaveByMember() {
+    var idx = {};
+    S.leave.forEach(function (l) {
+      if (!l.memberId) return;
+      (idx[l.memberId] = idx[l.memberId] || []).push(l);
+    });
+    return idx;
+  }
+
+  // One person, one sprint. Returns the whole derivation, not just the answer,
+  // so the breakdown table and the CSV can show where the days went.
+  function memberSprint(m, t, sprint, leaves) {
+    var nominal = sprint.workingDays;
+    var fromMs = m.from ? toUTC(m.from) : -Infinity;
+    var toMs = m.to ? toUTC(m.to) : Infinity;
+    var inTeam = 0, hol = 0, leaveDays = 0;
+    for (var d = sprint.startMs; d <= sprint.endMs; d += DAY) {
+      if (!isWeekday(d)) continue;
+      if (d < fromMs || d > toMs) continue;      // not on the team that day
+      inTeam++;
+      var iso = toIso(d);
+      if (holidayOn(m.locId, iso)) { hol++; continue; }   // a holiday is already off; leave on it is not a second day
+      var frac = 0;
+      for (var i = 0; i < leaves.length; i++) {
+        var l = leaves[i], a = toUTC(l.from), b = toUTC(l.to || l.from);
+        if (isNaN(a) || isNaN(b) || a > b) continue;
+        if (d >= a && d <= b) frac = Math.max(frac, l.halfDay ? 0.5 : 1);  // overlapping leave counts once
+      }
+      leaveDays += frac;
+    }
+    var avail = inTeam - hol;
+    var net = Math.max(0, avail - leaveDays);
+    var alloc = clampPct(m.allocation, 100) / 100;
+    var focus = clampPct(t.focusFactor, 100) / 100;
+    var cap = net * alloc * focus;
+    return {
+      nominal: nominal, inTeam: inTeam, offTeam: nominal - inTeam, hol: hol,
+      leave: leaveDays, avail: avail, net: net, cap: cap
+    };
+  }
+  function clampPct(v, dflt) {
+    var n = (v === null || v === undefined || v === "") ? dflt : Number(v);
+    if (!isFinite(n) || n < 0) return 0;
+    return Math.min(n, 1000);          // a deliberate over-100 is allowed; nonsense is not
+  }
+
+  function compute() {
+    var st = S.settings;
+    var sprints = buildSprints(st.anchorDate, st.anchorFy, st.fy, st.quarter);
+    var ppd = (st.pointsPerDay === null || st.pointsPerDay === undefined || st.pointsPerDay === "") ? null : Number(st.pointsPerDay);
+    if (ppd !== null && (!isFinite(ppd) || ppd <= 0)) ppd = null;
+    var lidx = leaveByMember();
+    var teams = S.teams.map(function (t) {
+      var rows = (t.members || []).map(function (m) {
+        var leaves = lidx[m.id] || [];
+        var cells = sprints.map(function (s) { return memberSprint(m, t, s, leaves); });
+        var counts = roleCounts(m.roleId);
+        return {
+          m: m, counts: counts,
+          roleName: (role(m.roleId) || {}).name || "—",
+          locName: (loc(m.locId) || {}).name || "—",
+          cells: cells,
+          total: cells.reduce(function (a, c) { return a + c.cap; }, 0),
+          totalLeave: cells.reduce(function (a, c) { return a + c.leave; }, 0),
+          totalHol: cells.reduce(function (a, c) { return a + c.hol; }, 0)
+        };
+      });
+      var counting = rows.filter(function (r) { return r.counts; });
+      var perSprint = sprints.map(function (s, i) {
+        return counting.reduce(function (a, r) { return a + r.cells[i].cap; }, 0);
+      });
+      return {
+        t: t, rows: rows, counting: counting,
+        perSprint: perSprint,
+        total: perSprint.reduce(function (a, b) { return a + b; }, 0),
+        leaveLost: counting.reduce(function (a, r) { return a + r.totalLeave; }, 0),
+        holLost: counting.reduce(function (a, r) { return a + r.totalHol; }, 0)
+      };
+    });
+    var artPerSprint = sprints.map(function (s, i) {
+      return teams.reduce(function (a, tt) { return a + tt.perSprint[i]; }, 0);
+    });
+    return {
+      sprints: sprints, teams: teams, ppd: ppd,
+      artPerSprint: artPerSprint,
+      artTotal: artPerSprint.reduce(function (a, b) { return a + b; }, 0),
+      artLeave: teams.reduce(function (a, tt) { return a + tt.leaveLost; }, 0),
+      artHol: teams.reduce(function (a, tt) { return a + tt.holLost; }, 0),
+      headcount: teams.reduce(function (a, tt) { return a + tt.rows.length; }, 0),
+      counting: teams.reduce(function (a, tt) { return a + tt.counting.length; }, 0)
+    };
+  }
+
+  /* ---------- alerts ---------- */
+  function buildAlerts(R) {
+    var out = [], st = S.settings;
+    var anchorMs = toUTC(st.anchorDate);
+    if (isNaN(anchorMs)) out.push({ level: "issue", text: "The anchor date is not set, so no sprint dates can be worked out." });
+    else if (dow(anchorMs) !== 3) out.push({
+      level: "issue",
+      text: "The anchor date " + fmtDateFull(st.anchorDate) + " is not a Wednesday. Sprints run Wednesday to Tuesday, so every sprint in every PI is shifted by " + ((dow(anchorMs) + 4) % 7) + " day(s)."
+    });
+    if (fyOrdinal(st.fy) === null) out.push({ level: "issue", text: 'The financial year "' + st.fy + '" is not in the FYnnnn form (e.g. FY2627), so the PI cannot be placed.' });
+    if (!S.teams.length) out.push({ level: "warn", text: "No teams yet. Add a team and its members to get a capacity figure." });
+
+    R.teams.forEach(function (tt) {
+      if (!tt.rows.length) { out.push({ level: "warn", who: tt.t.name, text: "has no members." }); return; }
+      if (!tt.counting.length) out.push({
+        level: "issue", who: tt.t.name,
+        text: "has " + tt.rows.length + " member(s) but none in a role that counts toward capacity, so it commits to zero. Check the roles on its members, or tick that role in Roles."
+      });
+      var ff = clampPct(tt.t.focusFactor, 100);
+      if (ff === 0) out.push({ level: "issue", who: tt.t.name, text: "has a focus factor of 0%, which zeroes its capacity." });
+      else if (ff > 100) out.push({ level: "warn", who: tt.t.name, text: "has a focus factor above 100% (" + ff + "%), so it is planning more than the working days available." });
+      tt.rows.forEach(function (r) {
+        var a = clampPct(r.m.allocation, 100);
+        if (r.counts && a === 0) out.push({ level: "warn", who: r.m.name || "Unnamed member", text: "is allocated 0% to " + tt.t.name + ", so contributes nothing." });
+        if (a > 100) out.push({ level: "warn", who: r.m.name || "Unnamed member", text: "is allocated " + a + "% — more than one full person." });
+        if (r.counts && r.total === 0 && a > 0) out.push({
+          level: "warn", who: r.m.name || "Unnamed member",
+          text: "has no capacity anywhere in this PI — check their dates on the team, their leave, and their location's holidays."
+        });
+      });
+    });
+
+    // leave that points at nobody, or reads backwards
+    var known = {}; allMembers().forEach(function (x) { known[x.m.id] = 1; });
+    var orphans = 0, backwards = 0;
+    S.leave.forEach(function (l) {
+      if (!known[l.memberId]) orphans++;
+      var a = toUTC(l.from), b = toUTC(l.to || l.from);
+      if (!isNaN(a) && !isNaN(b) && a > b) backwards++;
+    });
+    if (orphans) out.push({ level: "warn", text: orphans + " leave entr" + (orphans === 1 ? "y is" : "ies are") + " against a person who is no longer on any team. They are ignored." });
+    if (backwards) out.push({ level: "issue", text: backwards + " leave entr" + (backwards === 1 ? "y ends" : "ies end") + " before it starts, so it is ignored. Fix the dates in Planned leave." });
+
+    // provisional holidays that actually land in this PI's window
+    if (R.sprints.length) {
+      var w0 = R.sprints[0].startMs, w1 = R.sprints[R.sprints.length - 1].endMs;
+      var usedLocs = {}; allMembers().forEach(function (x) { if (x.m.locId) usedLocs[x.m.locId] = 1; });
+      var prov = S.holidays.filter(function (h) {
+        var ms = toUTC(h.date);
+        return h.provisional && !isNaN(ms) && ms >= w0 && ms <= w1 && usedLocs[h.loc];
+      });
+      if (prov.length) out.push({
+        level: "warn",
+        text: prov.length + " public holiday date" + (prov.length === 1 ? "" : "s") + " in this PI " + (prov.length === 1 ? "is" : "are") +
+          " a seeded estimate, not a confirmed date — Eid and the Indian festivals move each year. Confirm them in Locations and public holidays before you commit to these numbers."
+      });
+    }
+    return out;
+  }
+
+  /* ---------- formatting ---------- */
+  function n1(v) { return (Math.round(v * 10) / 10).toFixed(1); }
+  function n0(v) { return String(Math.round(v)); }
+  function pts(v, ppd) { return ppd === null ? null : Math.round(v * ppd * 10) / 10; }
+  function plural(n, s, p) { return n + " " + (n === 1 ? s : (p || s + "s")); }
+
+  /* ---------- render: PI and cadence ---------- */
+  function renderSetup() {
+    var st = S.settings;
+    // offer a run of financial years around the anchor so the picker is never empty
+    var base = fyOrdinal(st.anchorFy);
+    var sel = $("fySel"), opts = [], seen = {};
+    if (base !== null) for (var i = -2; i <= 6; i++) { var l = fyLabel(base + i); if (!seen[l]) { seen[l] = 1; opts.push(l); } }
+    if (!seen[st.fy]) opts.unshift(st.fy);
+    sel.innerHTML = opts.map(function (l) {
+      return '<option value="' + esc(l) + '"' + (l === st.fy ? " selected" : "") + ">" + esc(l) + "</option>";
+    }).join("");
+    $("qSel").value = String(st.quarter);
+    $("anchor").value = st.anchorDate || "";
+    $("anchorFy").value = st.anchorFy || "";
+    $("ppd").value = (st.pointsPerDay === null || st.pointsPerDay === undefined) ? "" : st.pointsPerDay;
+    $("hoursPerDay").value = (st.hoursPerDay === null || st.hoursPerDay === undefined) ? "" : st.hoursPerDay;
+
+    var sprints = buildSprints(st.anchorDate, st.anchorFy, st.fy, st.quarter);
+    var strip = $("sprintStrip");
+    if (!sprints.length) {
+      strip.innerHTML = '<div class="empty" style="padding:.8rem">Set a valid anchor date and financial year to see the sprints.</div>';
+    } else {
+      strip.innerHTML = sprints.map(function (s) {
+        return '<div class="pic-chip' + (s.short ? " ip" : "") + '"><div class="s">' + esc(s.key) + "</div>" +
+          '<div class="d">' + esc(fmtDate(s.start)) + " &rarr; " + esc(fmtDate(s.end)) + "</div>" +
+          '<div class="d">' + plural(s.workingDays, "working day") + "</div></div>";
+      }).join("");
+    }
+    var anchorMs = toUTC(st.anchorDate);
+    var noteBits = ["Sprints run <strong>Wednesday to Tuesday</strong>: sprints 1&ndash;6 are two weeks (10 working days) and sprint 7 is one week (5), so a quarter is exactly 13 weeks and a financial year 52."];
+    if (!isNaN(anchorMs) && dow(anchorMs) !== 3) noteBits.push('<strong style="color:#A8321F">The anchor is a ' + DAYS[dow(anchorMs)] + ", not a Wednesday.</strong>");
+    if (sprints.length) noteBits.push("This PI runs " + esc(fmtDateFull(sprints[0].start)) + " to " + esc(fmtDateFull(sprints[6].end)) + ".");
+    $("anchorNote").innerHTML = noteBits.join(" ");
+    $("setupSummary").textContent = st.fy + " " + "Q" + st.quarter + (sprints.length ? " · " + fmtDate(sprints[0].start) + " – " + fmtDate(sprints[6].end) : "");
+  }
+
+  /* ---------- render: capacity ---------- */
+  var lastCompute = null;
+  function renderCapacity() {
+    var R = lastCompute = compute();
+    var st = S.settings, ppd = R.ppd;
+    var hpd = Number(st.hoursPerDay);
+    if (!isFinite(hpd) || hpd <= 0) hpd = null;
+
+    // headline
+    var kp = [
+      { n: n1(R.artTotal), l: "Capacity, days" + (S.teams.length > 1 ? " (all teams)" : "") },
+      { n: n1(R.artLeave), l: "Days lost to leave" },
+      { n: n1(R.artHol), l: "Days lost to holidays" },
+      { n: R.counting + " / " + R.headcount, l: "Counted / on the teams" }
+    ];
+    if (ppd !== null) kp.splice(1, 0, { n: n1(R.artTotal * ppd), l: "Capacity, points" });
+    if (hpd) kp.splice(ppd !== null ? 2 : 1, 0, { n: n0(R.artTotal * hpd), l: "Capacity, hours" });
+    $("kpis").innerHTML = kp.map(function (k) {
+      return '<div class="kpi"><div class="n tnum">' + esc(k.n) + '</div><div class="l">' + esc(k.l) + "</div></div>";
+    }).join("");
+
+    // alerts
+    var alerts = buildAlerts(R);
+    $("alerts").innerHTML = alerts.length ? alerts.map(function (a) {
+      return '<div class="pic-alert ' + a.level + '">' + (a.who ? '<span class="who">' + esc(a.who) + "</span> " : "") + a.text + "</div>";
+    }).join("") : "";
+
+    // matrix
+    if (!R.sprints.length || !R.teams.length) {
+      $("matrixWrap").innerHTML = '<div class="empty">' + (!R.sprints.length
+        ? "No sprint dates — check the anchor date and financial year above."
+        : "No teams yet. Add one in <strong>Teams</strong> below and its capacity appears here.") + "</div>";
+      $("capSummary").textContent = "";
+      $("capFootnote").textContent = "";
+      return;
+    }
+    var head = '<tr><th>Team</th>' + R.sprints.map(function (s) {
+      return '<th class="sprint num' + (s.short ? " ip" : "") + '">' + esc(s.key) +
+        '<span class="pic-sprint-sub">' + esc(fmtDate(s.start)) + "&ndash;" + esc(fmtDate(s.end)) + " · " + s.workingDays + "d</span></th>";
+    }).join("") + '<th class="num">PI total</th></tr>';
+
+    function cell(v, isShort) {
+      var sub = ppd === null ? "" : '<span class="pic-sprint-sub tnum">' + n1(v * ppd) + " pts</span>";
+      return '<td class="num tnum' + (isShort ? " ip" : "") + (v === 0 ? " zero" : "") + '">' + n1(v) + sub + "</td>";
+    }
+    var body = R.teams.map(function (tt) {
+      return "<tr><td><span class=\"team-name\">" + esc(tt.t.name || "Unnamed team") + "</span>" +
+        '<span class="sid">' + tt.counting.length + " of " + tt.rows.length + " counted" +
+        " · focus " + n0(clampPct(tt.t.focusFactor, 100)) + "%</span></td>" +
+        tt.perSprint.map(function (v, i) { return cell(v, R.sprints[i].short); }).join("") +
+        '<td class="num tnum">' + n1(tt.total) + (ppd === null ? "" : '<span class="pic-sprint-sub tnum">' + n1(tt.total * ppd) + " pts</span>") + "</td></tr>";
+    }).join("");
+    var foot = R.teams.length > 1
+      ? '<tr class="art-total"><td>All teams</td>' + R.artPerSprint.map(function (v, i) {
+          return '<td class="num tnum' + (R.sprints[i].short ? " ip" : "") + '">' + n1(v) +
+            (ppd === null ? "" : '<span class="pic-sprint-sub tnum">' + n1(v * ppd) + " pts</span>") + "</td>";
+        }).join("") + '<td class="num tnum">' + n1(R.artTotal) + (ppd === null ? "" : '<span class="pic-sprint-sub tnum">' + n1(R.artTotal * ppd) + " pts</span>") + "</td></tr>"
+      : "";
+    $("matrixWrap").innerHTML = '<div class="table-wrap"><table class="data"><thead>' + head + "</thead><tbody>" + body + foot + "</tbody></table></div>";
+
+    $("capSummary").textContent = st.fy + " Q" + st.quarter + " · " + n1(R.artTotal) + " days across " +
+      plural(R.teams.length, "team") + (ppd === null ? "" : " · " + n1(R.artTotal * ppd) + " points");
+    $("capFootnote").innerHTML = "Capacity = working days &minus; that person&rsquo;s public holidays &minus; planned leave, " +
+      "&times; their allocation, &times; the team&rsquo;s focus factor. Sprint " +
+      esc(R.sprints[6].key) + " is the one-week sprint, shaded above." +
+      (ppd === null ? " Set <em>points per day</em> in PI and cadence to see a point figure too." : "");
+  }
+
+  /* ---------- render: per-person breakdown ---------- */
+  function renderPeople() {
+    var R = lastCompute || compute(), ppd = R.ppd;
+    var onlyCounting = $("onlyCounting").checked;
+    if (!R.teams.length || !R.sprints.length) {
+      $("peopleWrap").innerHTML = '<div class="empty">Nothing to break down yet.</div>';
+      return;
+    }
+    var head = "<tr><th>Person</th><th>Team</th><th>Role</th><th>Location</th><th class=\"num\">Alloc</th>" +
+      R.sprints.map(function (s) { return '<th class="num' + (s.short ? " ip" : "") + '">' + esc(s.key) + "</th>"; }).join("") +
+      '<th class="num">Holidays</th><th class="num">Leave</th><th class="num">Capacity</th></tr>';
+    var rows = [];
+    R.teams.forEach(function (tt) {
+      tt.rows.forEach(function (r) {
+        if (onlyCounting && !r.counts) return;
+        rows.push('<tr class="' + (r.counts ? "" : "pic-nocount") + '">' +
+          '<td class="pic-person">' + esc(r.m.name || "Unnamed") +
+          '<span class="pic-tag ' + (r.counts ? "count" : "nocount") + '">' + (r.counts ? "counted" : "visibility") + "</span>" +
+          (r.m.from || r.m.to ? '<span class="sid">' + (r.m.from ? "from " + fmtDate(r.m.from) : "") + (r.m.to ? (r.m.from ? ", " : "") + "to " + fmtDate(r.m.to) : "") + "</span>" : "") +
+          "</td>" +
+          "<td>" + esc(tt.t.name || "Unnamed team") + "</td><td>" + esc(r.roleName) + "</td><td>" + esc(r.locName) + "</td>" +
+          '<td class="num tnum">' + n0(clampPct(r.m.allocation, 100)) + "%</td>" +
+          r.cells.map(function (c, i) {
+            return '<td class="num tnum' + (R.sprints[i].short ? " ip" : "") + '">' + n1(c.cap) + "</td>";
+          }).join("") +
+          '<td class="num tnum">' + n1(r.totalHol) + "</td>" +
+          '<td class="num tnum">' + n1(r.totalLeave) + "</td>" +
+          '<td class="num tnum">' + n1(r.total) + (ppd === null ? "" : '<span class="pic-sprint-sub tnum">' + n1(r.total * ppd) + " pts</span>") + "</td></tr>");
+      });
+    });
+    if (!rows.length) { $("peopleWrap").innerHTML = '<div class="empty">No people match.</div>'; return; }
+    var colspan = 5 + R.sprints.length;
+    var foot = '<tr><td colspan="' + colspan + '">Counted toward capacity</td><td class="num tnum">' + n1(R.artHol) +
+      '</td><td class="num tnum">' + n1(R.artLeave) + '</td><td class="num tnum">' + n1(R.artTotal) + "</td></tr>";
+    $("peopleWrap").innerHTML = '<table class="data"><thead>' + head + "</thead><tbody>" + rows.join("") +
+      "</tbody><tfoot>" + foot + "</tfoot></table>";
+  }
+
+  /* ---------- render: teams ----------
+     The grids are edited in place: an input writes straight to the model and
+     only the derived views are redrawn, so typing never loses focus. */
+  function roleOptions(sel) {
+    return S.roles.map(function (r) {
+      return '<option value="' + esc(r.id) + '"' + (r.id === sel ? " selected" : "") + ">" + esc(r.name) + "</option>";
+    }).join("");
+  }
+  function locOptions(sel) {
+    return S.locations.map(function (l) {
+      return '<option value="' + esc(l.id) + '"' + (l.id === sel ? " selected" : "") + ">" + esc(l.name) + "</option>";
+    }).join("");
+  }
+
+  function renderTeams() {
+    var R = lastCompute || compute();
+    var wrap = $("teamsWrap");
+    if (!S.teams.length) {
+      wrap.innerHTML = '<div class="empty">No teams yet. <strong>Add team</strong> to start, then add its members —' +
+        " everyone, not just the developers and QA. Roles that don't count are listed but left out of the total.</div>";
+    } else {
+      wrap.innerHTML = S.teams.map(function (t, ti) {
+        var tt = R.teams[ti] || { rows: [], counting: [], total: 0 };
+        var members = t.members || [];
+        var body = members.length
+          ? '<div class="pic-scroll"><table class="data"><thead><tr>' +
+            '<th class="pic-w-name">Name</th><th class="pic-w-role">Role</th><th class="pic-w-loc">Location</th>' +
+            '<th class="num">Allocation %</th><th class="pic-w-date">On team from</th><th class="pic-w-date">until</th>' +
+            '<th class="num">PI days</th><th></th></tr></thead><tbody>' +
+            members.map(function (m, mi) {
+              var r = tt.rows[mi] || { counts: false, total: 0 };
+              return '<tr class="' + (r.counts ? "" : "pic-nocount") + '">' +
+                '<td class="cell-in"><input type="text" value="' + esc(m.name || "") + '" placeholder="Name" data-m="' + esc(m.id) + '" data-f="name"></td>' +
+                '<td class="cell-in"><select data-m="' + esc(m.id) + '" data-f="roleId">' + roleOptions(m.roleId) + "</select></td>" +
+                '<td class="cell-in"><select data-m="' + esc(m.id) + '" data-f="locId">' + locOptions(m.locId) + "</select></td>" +
+                '<td class="cell-in"><input type="number" class="pic-w-num" min="0" max="100" step="5" value="' + esc(m.allocation) + '" data-m="' + esc(m.id) + '" data-f="allocation"></td>' +
+                '<td class="cell-in"><input type="date" value="' + esc(m.from || "") + '" data-m="' + esc(m.id) + '" data-f="from" title="Leave blank if they are on the team for the whole PI"></td>' +
+                '<td class="cell-in"><input type="date" value="' + esc(m.to || "") + '" data-m="' + esc(m.id) + '" data-f="to" title="Leave blank if they are on the team for the whole PI"></td>' +
+                '<td class="num tnum">' + n1(r.total) + (r.counts ? "" : '<span class="sid">not counted</span>') + "</td>" +
+                '<td><button type="button" class="x-btn" data-del-m="' + esc(m.id) + '" title="Remove from the team">&times;</button></td></tr>';
+            }).join("") + "</tbody></table></div>"
+          : '<div class="empty">No members yet.</div>';
+        return '<div class="pic-team">' +
+          '<div class="pic-team-head">' +
+            '<div class="grow"><label for="tn-' + esc(t.id) + '">Team name</label>' +
+              '<input type="text" id="tn-' + esc(t.id) + '" value="' + esc(t.name || "") + '" placeholder="Team name" data-t="' + esc(t.id) + '" data-f="name"></div>' +
+            '<div><label for="tf-' + esc(t.id) + '" title="Taken off after leave and holidays, for ceremonies, support and context switching">Focus factor %</label>' +
+              '<input type="number" class="pic-w-num" id="tf-' + esc(t.id) + '" min="0" max="100" step="5" value="' + esc(t.focusFactor) + '" data-t="' + esc(t.id) + '" data-f="focusFactor"></div>' +
+            '<div class="pic-team-sum">' + n1(tt.total) + " days this PI · " + plural(tt.counting.length, "counted member") + " of " + tt.rows.length + "</div>" +
+            '<div style="flex:1"></div>' +
+            '<div class="controls-row"><button type="button" class="mini-btn" data-add-m="' + esc(t.id) + '">Add member</button>' +
+            '<button type="button" class="mini-btn" data-del-t="' + esc(t.id) + '">Delete team</button></div>' +
+          "</div>" +
+          '<div class="pic-team-body">' + body + "</div></div>";
+      }).join("");
+    }
+    $("teamsSummary").textContent = plural(S.teams.length, "team") + " · " + plural(R.headcount, "person", "people") +
+      " · " + R.counting + " counted";
+  }
+
+  /* ---------- render: planned leave ---------- */
+  function renderLeave() {
+    var R = lastCompute || compute();
+    var q = ($("leaveSearch").value || "").trim().toLowerCase();
+    var onlyPi = $("leaveThisPi").checked;
+    var w0 = R.sprints.length ? R.sprints[0].startMs : -Infinity;
+    var w1 = R.sprints.length ? R.sprints[6].endMs : Infinity;
+    var people = allMembers();
+    var peopleOpts = people.map(function (x) {
+      return { id: x.m.id, label: (x.m.name || "Unnamed") + " — " + (x.team.name || "Unnamed team") };
+    });
+    var shown = S.leave.filter(function (l) {
+      var mm = memberById(l.memberId);
+      var hay = ((mm ? (mm.m.name || "") + " " + (mm.team.name || "") : "") + " " + (l.note || "") + " " + (l.type || "")).toLowerCase();
+      if (q && hay.indexOf(q) === -1) return false;
+      if (onlyPi) {
+        var a = toUTC(l.from), b = toUTC(l.to || l.from);
+        if (isNaN(a) || isNaN(b)) return true;                 // an incomplete row must stay visible to be fixed
+        if (b < w0 || a > w1) return false;
+      }
+      return true;
+    });
+    $("leaveCount").textContent = shown.length + " of " + plural(S.leave.length, "entry", "entries");
+    if (!people.length) {
+      $("leaveWrap").innerHTML = '<div class="empty">Add a team and its members first — leave is booked against a person.</div>';
+      $("leaveSummary").textContent = "";
+      return;
+    }
+    if (!shown.length) {
+      $("leaveWrap").innerHTML = '<div class="empty">' + (S.leave.length ? "No leave matches this filter." : "No leave booked. <strong>Add leave</strong> to reduce someone's capacity.") + "</div>";
+    } else {
+      $("leaveWrap").innerHTML = '<table class="data"><thead><tr><th class="pic-w-name">Person</th>' +
+        '<th class="pic-w-date">From</th><th class="pic-w-date">To</th><th>Half days</th><th class="pic-w-role">Type</th>' +
+        '<th class="num">Days in this PI</th><th>Note</th><th></th></tr></thead><tbody>' +
+        shown.map(function (l) {
+          var mm = memberById(l.memberId);
+          var days = leaveDaysInPi(l, R);
+          var bad = (function () { var a = toUTC(l.from), b = toUTC(l.to || l.from); return !isNaN(a) && !isNaN(b) && a > b; })();
+          return '<tr' + (bad ? ' class="missing-row"' : "") + ">" +
+            '<td class="cell-in"><select data-l="' + esc(l.id) + '" data-f="memberId">' +
+              (mm ? "" : '<option value="" selected>(person removed)</option>') +
+              peopleOpts.map(function (p) {
+                return '<option value="' + esc(p.id) + '"' + (p.id === l.memberId ? " selected" : "") + ">" + esc(p.label) + "</option>";
+              }).join("") + "</select></td>" +
+            '<td class="cell-in"><input type="date" value="' + esc(l.from || "") + '" data-l="' + esc(l.id) + '" data-f="from"></td>' +
+            '<td class="cell-in"><input type="date" value="' + esc(l.to || "") + '" data-l="' + esc(l.id) + '" data-f="to"></td>' +
+            '<td class="cell-in"><label class="chk-inline"><input type="checkbox"' + (l.halfDay ? " checked" : "") +
+              ' data-l="' + esc(l.id) + '" data-f="halfDay"> half</label></td>' +
+            '<td class="cell-in"><select data-l="' + esc(l.id) + '" data-f="type">' + LEAVE_TYPES.map(function (t) {
+              return '<option value="' + esc(t) + '"' + (t === l.type ? " selected" : "") + ">" + esc(t) + "</option>";
+            }).join("") + "</select></td>" +
+            '<td class="num tnum">' + n1(days) + "</td>" +
+            '<td class="cell-in"><input type="text" value="' + esc(l.note || "") + '" placeholder="Optional" data-l="' + esc(l.id) + '" data-f="note"></td>' +
+            '<td><button type="button" class="x-btn" data-del-l="' + esc(l.id) + '">&times;</button></td></tr>';
+        }).join("") + "</tbody></table>";
+    }
+    var totalPi = S.leave.reduce(function (a, l) { return a + leaveDaysInPi(l, R); }, 0);
+    $("leaveSummary").textContent = plural(S.leave.length, "entry", "entries") + " · " + n1(totalPi) + " days inside this PI";
+  }
+
+  // Working days one leave entry actually removes inside this PI — after weekends
+  // and that person's public holidays, so it matches what the capacity used.
+  function leaveDaysInPi(l, R) {
+    var mm = memberById(l.memberId);
+    if (!mm || !R.sprints.length) return 0;
+    var a = toUTC(l.from), b = toUTC(l.to || l.from);
+    if (isNaN(a) || isNaN(b) || a > b) return 0;
+    var fromMs = mm.m.from ? toUTC(mm.m.from) : -Infinity, toMs = mm.m.to ? toUTC(mm.m.to) : Infinity;
+    var total = 0;
+    R.sprints.forEach(function (s) {
+      for (var d = Math.max(s.startMs, a); d <= Math.min(s.endMs, b); d += DAY) {
+        if (!isWeekday(d) || d < fromMs || d > toMs) continue;
+        if (holidayOn(mm.m.locId, toIso(d))) continue;
+        total += l.halfDay ? 0.5 : 1;
+      }
+    });
+    return total;
+  }
+
+  /* ---------- render: locations and holidays ---------- */
+  function renderLocations() {
+    var used = {};
+    allMembers().forEach(function (x) { used[x.m.locId] = (used[x.m.locId] || 0) + 1; });
+    $("locWrap").innerHTML = '<table class="data"><thead><tr><th class="pic-w-name">Location</th>' +
+      '<th class="num">People</th><th class="num">Holidays</th><th></th></tr></thead><tbody>' +
+      S.locations.map(function (l) {
+        var hn = S.holidays.filter(function (h) { return h.loc === l.id; }).length;
+        return "<tr>" +
+          '<td class="cell-in"><input type="text" value="' + esc(l.name || "") + '" data-loc="' + esc(l.id) + '" data-f="name"></td>' +
+          '<td class="num tnum">' + (used[l.id] || 0) + "</td>" +
+          '<td class="num tnum">' + hn + "</td>" +
+          '<td><button type="button" class="x-btn" data-del-loc="' + esc(l.id) + '">&times;</button></td></tr>';
+      }).join("") + "</tbody></table>";
+  }
+
+  function renderHolidays() {
+    var R = lastCompute || compute();
+    var q = ($("holSearch").value || "").trim().toLowerCase();
+    var onlyPi = $("holThisPi").checked, onlyProv = $("holOnlyProv").checked;
+    var w0 = R.sprints.length ? R.sprints[0].startMs : -Infinity;
+    var w1 = R.sprints.length ? R.sprints[6].endMs : Infinity;
+    var shown = S.holidays.filter(function (h) {
+      if (onlyProv && !h.provisional) return false;
+      var ms = toUTC(h.date);
+      if (onlyPi && !isNaN(ms) && (ms < w0 || ms > w1)) return false;
+      if (q) {
+        var lc = loc(h.loc);
+        if (((h.name || "") + " " + (lc ? lc.name : "") + " " + h.date).toLowerCase().indexOf(q) === -1) return false;
+      }
+      return true;
+    }).sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
+
+    $("holCount").textContent = shown.length + " of " + plural(S.holidays.length, "date");
+    $("holWrap").innerHTML = shown.length
+      ? '<table class="data"><thead><tr><th class="pic-w-date">Date</th><th>Day</th><th class="pic-w-loc">Location</th>' +
+        '<th class="pic-w-name">Name</th><th>Confirmed?</th><th></th></tr></thead><tbody>' +
+        shown.map(function (h) {
+          var ms = toUTC(h.date), weekend = !isNaN(ms) && !isWeekday(ms);
+          return "<tr>" +
+            '<td class="cell-in"><input type="date" value="' + esc(h.date || "") + '" data-h="' + esc(h.id) + '" data-f="date"></td>' +
+            "<td>" + (isNaN(ms) ? "—" : DAYS[dow(ms)] + (weekend ? ' <span class="sid">weekend, no effect</span>' : "")) + "</td>" +
+            '<td class="cell-in"><select data-h="' + esc(h.id) + '" data-f="loc">' + locOptions(h.loc) + "</select></td>" +
+            '<td class="cell-in"><input type="text" value="' + esc(h.name || "") + '" data-h="' + esc(h.id) + '" data-f="name"></td>' +
+            '<td class="cell-in"><label class="chk-inline"><input type="checkbox"' + (h.provisional ? "" : " checked") +
+              ' data-h="' + esc(h.id) + '" data-f="confirmed"> confirmed</label>' +
+              (h.provisional ? '<span class="pic-tag prov">check</span>' : "") + "</td>" +
+            '<td><button type="button" class="x-btn" data-del-h="' + esc(h.id) + '">&times;</button></td></tr>';
+        }).join("") + "</tbody></table>"
+      : '<div class="empty">No holidays match.</div>';
+
+    // the standing warning about seeded estimates, scoped to this PI
+    var usedLocs = {}; allMembers().forEach(function (x) { if (x.m.locId) usedLocs[x.m.locId] = 1; });
+    var prov = S.holidays.filter(function (h) {
+      var ms = toUTC(h.date);
+      return h.provisional && !isNaN(ms) && ms >= w0 && ms <= w1 && usedLocs[h.loc];
+    }).sort(function (a, b) { return a.date < b.date ? -1 : 1; });
+    $("provisionalNote").innerHTML = prov.length
+      ? '<div class="pic-alert warn" style="margin-bottom:.9rem"><div><strong>' + prov.length + " date" + (prov.length === 1 ? "" : "s") +
+        " in this PI still to confirm.</strong> UK bank holidays are fixed or follow Easter, so they are seeded as fact. " +
+        "Eid dates depend on a moon sighting and the Indian festivals move and vary by state, so those are seeded as an <em>estimate</em>. " +
+        "Correct them here and tick <em>confirmed</em>: " +
+        prov.map(function (h) {
+          var lc = loc(h.loc);
+          return esc(fmtDate(h.date)) + " " + esc(h.name) + " (" + esc(lc ? lc.name : h.loc) + ")";
+        }).join("; ") + ".</div></div>"
+      : '<div class="pic-alert" style="margin-bottom:.9rem">Every public holiday falling in this PI is marked confirmed.</div>';
+    $("holSummary").textContent = plural(S.locations.length, "location") + " · " + plural(S.holidays.length, "date") +
+      (prov.length ? " · " + prov.length + " to confirm this PI" : "");
+  }
+
+  /* ---------- render: roles ---------- */
+  function renderRoles() {
+    var used = {};
+    allMembers().forEach(function (x) { used[x.m.roleId] = (used[x.m.roleId] || 0) + 1; });
+    $("rolesWrap").innerHTML = '<table class="data"><thead><tr><th class="pic-w-name">Role</th>' +
+      '<th>Counts toward capacity</th><th class="num">People</th><th></th></tr></thead><tbody>' +
+      S.roles.map(function (r) {
+        return "<tr>" +
+          '<td class="cell-in"><input type="text" value="' + esc(r.name || "") + '" data-r="' + esc(r.id) + '" data-f="name"></td>' +
+          '<td class="cell-in"><label class="chk-inline"><input type="checkbox"' + (r.counts ? " checked" : "") +
+            ' data-r="' + esc(r.id) + '" data-f="counts"> counts</label></td>' +
+          '<td class="num tnum">' + (used[r.id] || 0) + "</td>" +
+          '<td><button type="button" class="x-btn" data-del-r="' + esc(r.id) + '">&times;</button></td></tr>';
+      }).join("") + "</tbody></table>";
+    var counting = S.roles.filter(function (r) { return r.counts; }).map(function (r) { return r.name; });
+    $("rolesSummary").textContent = counting.length ? "Counted: " + counting.join(", ") : "No role counts — capacity will be zero.";
+  }
+
+  /* ---------- render everything ---------- */
+  function renderAll() {
+    reindexHolidays();
+    renderSetup();
+    renderCapacity();
+    renderPeople();
+    renderTeams();
+    renderLeave();
+    renderLocations();
+    renderHolidays();
+    renderRoles();
+    $("headerSub").textContent = S.settings.fy + " Q" + S.settings.quarter + " · " +
+      plural(S.teams.length, "team") + " · " + n1(lastCompute ? lastCompute.artTotal : 0) + " days";
+  }
+  // After an in-place edit: redraw what the number depends on, leave the grid
+  // being typed into alone so the caret stays where it is.
+  function refreshDerived() {
+    reindexHolidays();
+    renderCapacity();
+    renderPeople();
+    $("headerSub").textContent = S.settings.fy + " Q" + S.settings.quarter + " · " +
+      plural(S.teams.length, "team") + " · " + n1(lastCompute ? lastCompute.artTotal : 0) + " days";
+  }
+
+  /* ---------- persistence ---------- */
+  var saveTimer = null;
+  function status(text, kind) {
+    $("saveState").innerHTML = '<span class="pic-dot ' + (kind || "") + '"></span>' + esc(text);
+  }
+  function persist() {
+    S.generatedAt = RK.nowIso();
+    S.appVersion = APP_VERSION;
+    var ok = true;
+    try { localStorage.setItem(LS_KEY, JSON.stringify(S)); } catch (e) { ok = false; }
+    if (saveTimer) clearTimeout(saveTimer);
+    if (ok) {
+      status("Saved in this browser", "live");
+      saveTimer = setTimeout(function () { status("Saved in this browser", "live"); }, 1200);
+    } else {
+      status("Not autosaved — use Save JSON", "warn");
+    }
+  }
+  function restore() {
+    var raw = null;
+    try { raw = localStorage.getItem(LS_KEY); } catch (e) { }
+    if (!raw) { status("New PI — nothing saved yet"); return false; }
+    try {
+      var parsed = JSON.parse(raw);
+      S = migrate(parsed);
+      status("Saved in this browser", "live");
+      return true;
+    } catch (e) { status("Saved copy could not be read", "warn"); return false; }
+  }
+
+  // Accepts this schema and any older one, and keeps fields it does not know
+  // about so a file written by a newer build is not stripped on a round trip.
+  function migrate(data) {
+    if (!data || typeof data !== "object") throw new Error("not an object");
+    var base = blankState();
+    var out = {};
+    Object.keys(data).forEach(function (k) { out[k] = data[k]; });      // retain unknown top-level fields
+    out.schemaVersion = SCHEMA_VERSION;
+    out.settings = merge(base.settings, data.settings);
+    out.roles = Array.isArray(data.roles) && data.roles.length ? data.roles.map(function (r) {
+      return { id: r.id || uid("r"), name: String(r.name || "Role"), counts: !!r.counts };
+    }) : base.roles;
+    out.locations = Array.isArray(data.locations) && data.locations.length ? data.locations.map(function (l) {
+      return { id: l.id || uid("l"), name: String(l.name || "Location") };
+    }) : base.locations;
+    out.holidays = Array.isArray(data.holidays) ? data.holidays.map(function (h) {
+      return { id: h.id || uid("h"), loc: h.loc || "", date: h.date || "", name: String(h.name || ""), provisional: !!h.provisional };
+    }) : base.holidays;
+    out.teams = Array.isArray(data.teams) ? data.teams.map(function (t) {
+      return {
+        id: t.id || uid("t"), name: String(t.name || "Team"),
+        focusFactor: numOr(t.focusFactor, 80),
+        members: Array.isArray(t.members) ? t.members.map(function (m) {
+          return {
+            id: m.id || uid("m"), name: String(m.name || ""),
+            roleId: m.roleId || "dev", locId: m.locId || "uk",
+            allocation: numOr(m.allocation, 100),
+            from: m.from || "", to: m.to || ""
+          };
+        }) : []
+      };
+    }) : [];
+    out.leave = Array.isArray(data.leave) ? data.leave.map(function (l) {
+      return {
+        id: l.id || uid("v"), memberId: l.memberId || "", from: l.from || "", to: l.to || "",
+        halfDay: !!l.halfDay, type: l.type || LEAVE_TYPES[0], note: String(l.note || "")
+      };
+    }) : [];
+    return out;
+  }
+  function merge(base, over) {
+    var o = {};
+    Object.keys(base).forEach(function (k) { o[k] = base[k]; });
+    if (over && typeof over === "object") Object.keys(over).forEach(function (k) { o[k] = over[k]; });
+    return o;
+  }
+  function numOr(v, dflt) {
+    var n = Number(v);
+    return isFinite(n) ? n : dflt;
+  }
+
+  /* ---------- export ---------- */
+  function csvCell(v) {
+    v = v === null || v === undefined ? "" : String(v);
+    return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+  }
+  function exportCsv() {
+    var R = lastCompute || compute(), st = S.settings;
+    if (!R.sprints.length) { toast("No sprint dates to export"); return; }
+    var lines = [];
+    lines.push(["PI", "Team", "Person", "Role", "Counts toward capacity", "Location", "Allocation %", "Focus factor %",
+      "Sprint", "Sprint start", "Sprint end", "Working days", "Days off team", "Public holidays", "Planned leave",
+      "Net days", "Capacity days"].concat(R.ppd === null ? [] : ["Capacity points"]).map(csvCell).join(","));
+    var pi = st.fy + " Q" + st.quarter;
+    R.teams.forEach(function (tt) {
+      tt.rows.forEach(function (r) {
+        r.cells.forEach(function (c, i) {
+          var s = R.sprints[i];
+          var row = [pi, tt.t.name, r.m.name, r.roleName, r.counts ? "yes" : "no", r.locName,
+            clampPct(r.m.allocation, 100), clampPct(tt.t.focusFactor, 100),
+            s.key, s.start, s.end, c.nominal, c.offTeam, c.hol, round2(c.leave), round2(c.net), round2(c.cap)];
+          if (R.ppd !== null) row.push(round2(c.cap * R.ppd));
+          lines.push(row.map(csvCell).join(","));
+        });
+      });
+    });
+    RK.download("pi-capacity-" + pi.replace(/\s+/g, "") + ".csv", lines.join("\n"), "text/csv");
+    toast("CSV downloaded");
+  }
+
+  function matrixCopyPayload() {
+    var R = lastCompute || compute(), st = S.settings;
+    if (!R.sprints.length || !R.teams.length) return null;
+    var title = st.fy + " Q" + st.quarter + " capacity";
+    var hdr = ["Team"].concat(R.sprints.map(function (s) { return s.key; })).concat(["PI total"]);
+    var rows = R.teams.map(function (tt) {
+      return [tt.t.name || "Unnamed team"].concat(tt.perSprint.map(function (v) { return n1(v); })).concat([n1(tt.total)]);
+    });
+    if (R.teams.length > 1) rows.push(["All teams"].concat(R.artPerSprint.map(function (v) { return n1(v); })).concat([n1(R.artTotal)]));
+    var unit = R.ppd === null ? "days" : "days (points at " + R.ppd + "/day: " + n1(R.artTotal * R.ppd) + " total)";
+    var html = '<p style="font-family:Arial,sans-serif"><strong>' + esc(title) + "</strong><br>" +
+      esc(fmtDateFull(R.sprints[0].start)) + " to " + esc(fmtDateFull(R.sprints[6].end)) + " &mdash; capacity in " + esc(unit) + "</p>" +
+      '<table style="border-collapse:collapse;font-family:Arial,sans-serif;font-size:13px"><thead><tr>' +
+      hdr.map(function (h, i) {
+        return '<th style="border:1px solid #ccc;padding:5px 9px;background:#E6F6FA;text-align:' + (i ? "right" : "left") + '">' + esc(h) + "</th>";
+      }).join("") + "</tr></thead><tbody>" +
+      rows.map(function (r, ri) {
+        var last = R.teams.length > 1 && ri === rows.length - 1;
+        return "<tr>" + r.map(function (c, i) {
+          return "<td style=\"border:1px solid #ccc;padding:5px 9px;text-align:" + (i ? "right" : "left") +
+            (last ? ";font-weight:bold;background:#F4F4F4" : "") + '">' + esc(c) + "</td>";
+        }).join("") + "</tr>";
+      }).join("") + "</tbody></table>";
+    var text = title + "\n" + hdr.join("\t") + "\n" + rows.map(function (r) { return r.join("\t"); }).join("\n");
+    return { html: html, text: text };
+  }
+  function copyMatrix() {
+    var p = matrixCopyPayload();
+    var msg = $("copyMsg");
+    if (!p) { msg.innerHTML = '<span class="copymsg fail">Nothing to copy yet.</span>'; return; }
+    RK.clipboard.write(p).then(function (kind) {
+      msg.innerHTML = '<span class="copymsg ok">Copied' + (kind === "text" ? " as plain text" : "") + ".</span>";
+      setTimeout(function () { msg.innerHTML = ""; }, 2600);
+    }).catch(function () {
+      RK.clipboard.fallbackInto(msg, p.text, "The browser blocked the copy. Select all and copy from here:");
+    });
+  }
+
+  /* ---------- toast ---------- */
+  var toastEl = null, toastTimer = null;
+  function toast(msg) {
+    if (!toastEl) { toastEl = document.createElement("div"); toastEl.className = "pic-toast"; document.body.appendChild(toastEl); }
+    toastEl.textContent = msg;
+    toastEl.style.display = "block";
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toastEl.style.display = "none"; }, 2200);
+  }
+
+  /* ---------- demo ---------- */
+  function demoState() {
+    var d = blankState();
+    d.settings.fy = "FY2627"; d.settings.quarter = 1; d.settings.pointsPerDay = 1.5;
+    function M(name, roleId, locId, alloc, from, to) {
+      return { id: uid("m"), name: name, roleId: roleId, locId: locId, allocation: alloc, from: from || "", to: to || "" };
+    }
+    d.teams = [
+      {
+        id: uid("t"), name: "Falcon", focusFactor: 80, members: [
+          M("Amelia Hart", "po", "uk", 100), M("Ravi Menon", "sm", "in", 100),
+          M("Tom Whitfield", "dev", "uk", 100), M("Priya Nair", "dev", "in", 100),
+          M("Karan Shah", "dev", "in", 100), M("Layla Haddad", "qa", "uae", 100),
+          M("Sofia Rossi", "qa", "uk", 50), M("Dan Okoye", "ba", "uk", 100)
+        ]
+      },
+      {
+        id: uid("t"), name: "Oryx", focusFactor: 75, members: [
+          M("Hana Yusuf", "po", "uae", 100), M("Marcus Bell", "techlead", "uk", 100),
+          M("Ahmed Saleh", "dev", "uae", 100), M("Ishita Roy", "dev", "in", 100),
+          M("Ben Carter", "dev", "uk", 100, "2026-05-01"), M("Neha Kulkarni", "qa", "in", 100),
+          M("Omar Faris", "qa", "uae", 100)
+        ]
+      },
+      {
+        id: uid("t"), name: "Kestrel", focusFactor: 85, members: [
+          M("Grace Lim", "sm", "uk", 50), M("Vikram Desai", "dev", "in", 100),
+          M("Ellie Nash", "dev", "uk", 100), M("Faisal Rahman", "dev", "uae", 80),
+          M("Anita George", "qa", "in", 100), M("Chris Doyle", "design", "uk", 60)
+        ]
+      }
+    ];
+    function id(team, name) {
+      var t = d.teams.filter(function (x) { return x.name === team; })[0];
+      var m = t.members.filter(function (x) { return x.name === name; })[0];
+      return m.id;
+    }
+    d.leave = [
+      { id: uid("v"), memberId: id("Falcon", "Tom Whitfield"), from: "2026-04-20", to: "2026-04-24", halfDay: false, type: "Annual leave", note: "Booked" },
+      { id: uid("v"), memberId: id("Falcon", "Priya Nair"), from: "2026-05-18", to: "2026-05-29", halfDay: false, type: "Annual leave", note: "Wedding" },
+      { id: uid("v"), memberId: id("Falcon", "Layla Haddad"), from: "2026-06-01", to: "2026-06-03", halfDay: false, type: "Training", note: "ISTQB" },
+      { id: uid("v"), memberId: id("Oryx", "Ahmed Saleh"), from: "2026-04-06", to: "2026-04-17", halfDay: false, type: "Annual leave", note: "" },
+      { id: uid("v"), memberId: id("Oryx", "Ishita Roy"), from: "2026-06-15", to: "2026-06-19", halfDay: false, type: "Annual leave", note: "" },
+      { id: uid("v"), memberId: id("Oryx", "Neha Kulkarni"), from: "2026-05-11", to: "2026-05-12", halfDay: true, type: "Other", note: "Half days, appointments" },
+      { id: uid("v"), memberId: id("Kestrel", "Vikram Desai"), from: "2026-04-27", to: "2026-05-08", halfDay: false, type: "Annual leave", note: "" },
+      { id: uid("v"), memberId: id("Kestrel", "Ellie Nash"), from: "2026-06-22", to: "2026-06-26", halfDay: false, type: "Annual leave", note: "" },
+      { id: uid("v"), memberId: id("Kestrel", "Faisal Rahman"), from: "2026-05-20", to: "2026-05-21", halfDay: false, type: "Training", note: "" }
+    ];
+    return d;
+  }
+
+  /* ---------- editing: one delegated handler for every grid ----------
+     `input` keeps the caret where it is and only redraws the derived views;
+     `change` (a committed select, date or checkbox) redraws everything and
+     puts focus back on the field that was being used. */
+  function setField(el) {
+    var f = el.getAttribute("data-f");
+    if (!f) return false;
+    var v = el.type === "checkbox" ? el.checked : el.value;
+    var target = null;
+    if (el.hasAttribute("data-t")) target = team(el.getAttribute("data-t"));
+    else if (el.hasAttribute("data-m")) { var mm = memberById(el.getAttribute("data-m")); target = mm ? mm.m : null; }
+    else if (el.hasAttribute("data-l")) target = S.leave.filter(byId(el.getAttribute("data-l")))[0];
+    else if (el.hasAttribute("data-h")) target = S.holidays.filter(byId(el.getAttribute("data-h")))[0];
+    else if (el.hasAttribute("data-loc")) target = loc(el.getAttribute("data-loc"));
+    else if (el.hasAttribute("data-r")) target = role(el.getAttribute("data-r"));
+    if (!target) return false;
+    if (f === "confirmed") target.provisional = !v;            // the box reads "confirmed", the model stores the doubt
+    else if (f === "allocation" || f === "focusFactor") target[f] = (v === "" ? "" : Number(v));
+    else target[f] = v;
+    return true;
+  }
+  function byId(id) { return function (x) { return x.id === id; }; }
+
+  function focusKey(el) {
+    if (!el || !el.getAttribute) return null;
+    var f = el.getAttribute("data-f");
+    if (!f) return null;
+    var keys = ["data-t", "data-m", "data-l", "data-h", "data-loc", "data-r"];
+    for (var i = 0; i < keys.length; i++) {
+      if (el.hasAttribute(keys[i])) return "[" + keys[i] + '="' + el.getAttribute(keys[i]) + '"][data-f="' + f + '"]';
+    }
+    return null;
+  }
+  function renderAllKeepFocus() {
+    var el = document.activeElement;
+    var key = focusKey(el);
+    var start = null, end = null;
+    try { start = el.selectionStart; end = el.selectionEnd; } catch (e) { }
+    renderAll();
+    if (!key) return;
+    var back = document.querySelector(key);
+    if (!back) return;
+    back.focus();
+    try { if (start !== null && back.setSelectionRange) back.setSelectionRange(start, end); } catch (e) { }
+  }
+
+  document.addEventListener("input", function (e) {
+    if (!setField(e.target)) return;
+    persist();
+    refreshDerived();
+  });
+  document.addEventListener("change", function (e) {
+    var t = e.target;
+    if (t.type !== "checkbox" && t.tagName !== "SELECT" && t.type !== "date") return;   // text/number already handled on input
+    if (!setField(t)) return;
+    persist();
+    renderAllKeepFocus();
+  });
+
+  document.addEventListener("click", function (e) {
+    var b = e.target.closest ? e.target.closest("button") : null;
+    if (!b) return;
+    var a;
+    if ((a = b.getAttribute("data-add-m"))) {
+      var t = team(a); if (!t) return;
+      t.members.push({ id: uid("m"), name: "", roleId: (S.roles[0] || {}).id || "dev", locId: (S.locations[0] || {}).id || "uk", allocation: 100, from: "", to: "" });
+      persist(); renderAll();
+      var inputs = $("teamsWrap").querySelectorAll('[data-m="' + t.members[t.members.length - 1].id + '"][data-f="name"]');
+      if (inputs[0]) inputs[0].focus();
+    } else if ((a = b.getAttribute("data-del-m"))) {
+      var mm = memberById(a); if (!mm) return;
+      if (!confirm("Remove " + (mm.m.name || "this member") + " from " + (mm.team.name || "the team") + "? Their leave is removed too.")) return;
+      mm.team.members = mm.team.members.filter(function (x) { return x.id !== a; });
+      S.leave = S.leave.filter(function (l) { return l.memberId !== a; });
+      persist(); renderAll();
+    } else if ((a = b.getAttribute("data-del-t"))) {
+      var tt = team(a); if (!tt) return;
+      if (!confirm("Delete " + (tt.name || "this team") + " and its " + plural((tt.members || []).length, "member") + "? Their leave is removed too.")) return;
+      var ids = {}; (tt.members || []).forEach(function (m) { ids[m.id] = 1; });
+      S.teams = S.teams.filter(function (x) { return x.id !== a; });
+      S.leave = S.leave.filter(function (l) { return !ids[l.memberId]; });
+      persist(); renderAll();
+    } else if ((a = b.getAttribute("data-del-l"))) {
+      S.leave = S.leave.filter(function (l) { return l.id !== a; });
+      persist(); renderAll();
+    } else if ((a = b.getAttribute("data-del-h"))) {
+      S.holidays = S.holidays.filter(function (h) { return h.id !== a; });
+      persist(); renderAll();
+    } else if ((a = b.getAttribute("data-del-loc"))) {
+      var used = allMembers().filter(function (x) { return x.m.locId === a; }).length;
+      if (used && !confirm(plural(used, "person", "people") + " use this location. Delete it anyway? They will have no public holidays deducted until you set another.")) return;
+      S.locations = S.locations.filter(function (l) { return l.id !== a; });
+      S.holidays = S.holidays.filter(function (h) { return h.loc !== a; });
+      persist(); renderAll();
+    } else if ((a = b.getAttribute("data-del-r"))) {
+      var usedR = allMembers().filter(function (x) { return x.m.roleId === a; }).length;
+      if (usedR && !confirm(plural(usedR, "person", "people") + " have this role. Delete it anyway? They will show no role and will not be counted.")) return;
+      S.roles = S.roles.filter(function (r) { return r.id !== a; });
+      persist(); renderAll();
+    }
+  });
+
+  /* ---------- card collapse ---------- */
+  document.querySelectorAll(".pic-toggle").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var panel = $("panel-" + btn.getAttribute("data-panel"));
+      if (!panel) return;
+      var open = panel.classList.toggle("hidden") === false;
+      btn.textContent = open ? "Hide" : "Show";
+      btn.setAttribute("aria-expanded", open ? "true" : "false");
+    });
+  });
+
+  /* ---------- set-up fields ---------- */
+  function bindSetup(id, apply) {
+    var el = $(id);
+    el.addEventListener("change", function () { apply(el.value); persist(); renderAll(); });
+    if (el.tagName === "INPUT" && (el.type === "number" || el.type === "text")) {
+      el.addEventListener("input", function () { apply(el.value); persist(); refreshDerived(); });
+    }
+  }
+  bindSetup("fySel", function (v) { S.settings.fy = v; });
+  bindSetup("qSel", function (v) { S.settings.quarter = Number(v) || 1; });
+  bindSetup("anchor", function (v) { S.settings.anchorDate = v; });
+  bindSetup("anchorFy", function (v) { S.settings.anchorFy = String(v || "").trim().toUpperCase(); });
+  bindSetup("ppd", function (v) { S.settings.pointsPerDay = v === "" ? null : Number(v); });
+  bindSetup("hoursPerDay", function (v) { S.settings.hoursPerDay = v === "" ? null : Number(v); });
+
+  /* ---------- add buttons ---------- */
+  $("addTeam").addEventListener("click", function () {
+    var t = { id: uid("t"), name: "Team " + (S.teams.length + 1), focusFactor: 80, members: [] };
+    S.teams.push(t);
+    persist(); renderAll();
+    var el = document.querySelector('[data-t="' + t.id + '"][data-f="name"]');
+    if (el) { el.focus(); el.select(); }
+  });
+  $("addLeave").addEventListener("click", function () {
+    var people = allMembers();
+    if (!people.length) { toast("Add a team member first"); return; }
+    var R = lastCompute || compute();
+    var start = R.sprints.length ? R.sprints[0].start : todayIso();
+    S.leave.push({ id: uid("v"), memberId: people[0].m.id, from: start, to: start, halfDay: false, type: LEAVE_TYPES[0], note: "" });
+    persist(); renderAll();
+  });
+  $("addLocation").addEventListener("click", function () {
+    S.locations.push({ id: uid("l"), name: "New location" });
+    persist(); renderAll();
+  });
+  $("addHoliday").addEventListener("click", function () {
+    var R = lastCompute || compute();
+    S.holidays.push({
+      id: uid("h"), loc: (S.locations[0] || {}).id || "", date: R.sprints.length ? R.sprints[0].start : todayIso(),
+      name: "New holiday", provisional: false
+    });
+    persist(); renderAll();
+  });
+  $("addRole").addEventListener("click", function () {
+    S.roles.push({ id: uid("r"), name: "New role", counts: false });
+    persist(); renderAll();
+  });
+
+  /* ---------- filters ---------- */
+  ["leaveSearch", "leaveThisPi"].forEach(function (id) {
+    $(id).addEventListener(id === "leaveSearch" ? "input" : "change", renderLeave);
+  });
+  ["holSearch", "holThisPi", "holOnlyProv"].forEach(function (id) {
+    $(id).addEventListener(id === "holSearch" ? "input" : "change", renderHolidays);
+  });
+  $("onlyCounting").addEventListener("change", renderPeople);
+
+  /* ---------- data buttons ---------- */
+  function saveJson() {
+    S.generatedAt = RK.nowIso(); S.appVersion = APP_VERSION;
+    var name = "pi-capacity-" + S.settings.fy + "Q" + S.settings.quarter + ".json";
+    RK.download(name, JSON.stringify(S, null, 2), "application/json");
+    toast("Saved " + name);
+  }
+  $("saveJson").addEventListener("click", saveJson);
+  $("topSave").addEventListener("click", saveJson);
+  function pickJson() { $("jsonInput").click(); }
+  $("loadJson").addEventListener("click", pickJson);
+  $("topLoad").addEventListener("click", pickJson);
+  $("jsonInput").addEventListener("change", function (ev) {
+    var f = ev.target.files && ev.target.files[0];
+    ev.target.value = "";
+    if (!f) return;
+    var fr = new FileReader();
+    fr.onload = function () {
+      try {
+        S = migrate(JSON.parse(fr.result));
+        hide($("dataErr"));
+        persist(); renderAll();
+        toast("Loaded " + f.name);
+      } catch (e) {
+        $("dataErr").textContent = "Could not read that file: " + e.message + "\nNothing was changed.";
+        show($("dataErr"));
+      }
+    };
+    fr.onerror = function () {
+      $("dataErr").textContent = "Could not read that file. Nothing was changed.";
+      show($("dataErr"));
+    };
+    fr.readAsText(f);
+  });
+  $("csvBtn").addEventListener("click", exportCsv);
+  $("exportCsv").addEventListener("click", exportCsv);
+  $("copyMatrix").addEventListener("click", copyMatrix);
+  $("demoBtn").addEventListener("click", function () {
+    if (S.teams.length && !confirm("Replace what is here with the demo teams?")) return;
+    S = demoState();
+    persist(); renderAll();
+    toast("Demo loaded");
+  });
+  $("clearBtn").addEventListener("click", function () {
+    if (!confirm("Clear every team, member and leave entry? Locations, holidays and roles are kept.")) return;
+    var keep = { locations: S.locations, holidays: S.holidays, roles: S.roles, settings: S.settings };
+    S = blankState();
+    S.locations = keep.locations; S.holidays = keep.holidays; S.roles = keep.roles; S.settings = keep.settings;
+    persist(); renderAll();
+    toast("Cleared");
+  });
+
+  /* ---------- holidays import / export ---------- */
+  $("exportHols").addEventListener("click", function () {
+    var payload = {
+      schemaVersion: SCHEMA_VERSION,
+      generatedAt: RK.nowIso(),
+      label: "PI capacity public holidays",
+      locations: S.locations,
+      holidays: S.holidays.map(function (h) { return { loc: h.loc, date: h.date, name: h.name, provisional: !!h.provisional }; })
+    };
+    RK.download("public-holidays.json", JSON.stringify(payload, null, 2), "application/json");
+    toast("Holidays downloaded");
+  });
+  $("importHols").addEventListener("click", function () { $("holInput").click(); });
+  $("holInput").addEventListener("change", function (ev) {
+    var f = ev.target.files && ev.target.files[0];
+    ev.target.value = "";
+    if (!f) return;
+    var fr = new FileReader();
+    fr.onload = function () {
+      try {
+        var d = JSON.parse(fr.result);
+        if (!Array.isArray(d.holidays)) throw new Error('the file has no "holidays" array');
+        if (Array.isArray(d.locations) && d.locations.length) {
+          d.locations.forEach(function (l) {
+            if (!l || !l.id) return;
+            if (!loc(l.id)) S.locations.push({ id: l.id, name: String(l.name || l.id) });
+          });
+        }
+        S.holidays = d.holidays.map(function (h) {
+          return { id: uid("h"), loc: h.loc || "", date: h.date || "", name: String(h.name || ""), provisional: !!h.provisional };
+        });
+        hide($("dataErr"));
+        persist(); renderAll();
+        toast("Imported " + plural(S.holidays.length, "holiday"));
+      } catch (e) {
+        $("dataErr").textContent = "Could not read that holiday file: " + e.message + "\nThe current holidays are unchanged.";
+        show($("dataErr"));
+        var p = $("panel-data");
+        if (p && p.classList.contains("hidden")) p.classList.remove("hidden");
+      }
+    };
+    fr.readAsText(f);
+  });
+
+  /* ---------- init ---------- */
+  $("version").textContent = "v" + APP_VERSION;
+  restore();
+  renderAll();
+})();
+</script>
+</body>
+</html>
