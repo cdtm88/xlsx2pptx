@@ -15,6 +15,7 @@ machine.
 | [`waqti-exceptions.html`](waqti-exceptions.html) | a Waqti timesheet export + an approved-demand allowlist | a copy-paste correction email |
 | [`waqti-demand-summary.html`](waqti-demand-summary.html) | a Waqti timesheet export | an on-screen per-demand summary of hours by person and feature |
 | [`project-cost-tracker.html`](project-cost-tracker.html) | a team and their day rates, any vendor contracts, and a UK timesheet export | a live cost position, burn-up and monthly ledger against the estimate |
+| [`pi-planning-capacity.html`](pi-planning-capacity.html) | your teams, the PI, and everyone's planned leave | the days (and points) each team can actually commit to, sprint by sprint |
 
 Common to all: a single HTML file, inline-vendored libraries, works over `file://`
 with the network off, and brand-consistent styling.
@@ -159,6 +160,72 @@ See [`docs/storage-design.md`](docs/storage-design.md) for why it works this way
 every `file://` page shares one origin, so browser storage cannot hold more than
 one project without the copies overwriting each other.
 
+## `pi-planning-capacity.html`
+
+Work out what each team can actually commit to in a PI, before anyone writes an
+objective. Pick the financial year and quarter, list the teams and **everyone**
+on them, add the planned leave, and read the capacity per sprint.
+
+The cadence is fixed: a PI is one quarter of **seven sprints**, Wednesday to
+Tuesday — sprints 1&ndash;6 are two weeks (10 working days) and sprint 7 is one
+week (5). That makes a quarter exactly 13 weeks and a financial year 52, so
+sprint dates never drift. Sprints are named `Q2.4`, `Q2.7`, `Q3.1`; PIs are
+`FY2627Q1`. One **anchor** date &mdash; the Wednesday `Q1.1` opens, shipped as
+Wed 1 April 2026 &mdash; derives every sprint of every future year, and the tool
+says so if you set an anchor that is not a Wednesday.
+
+Capacity is **working days &minus; public holidays &minus; planned leave,
+&times; allocation, &times; the team's focus factor**, and it is reported in
+days, in hours, and &mdash; if you give it a points-per-day rate &mdash; in story
+points. Leave is entered as real date ranges, with half days, so one entry counts
+against whichever sprints it actually falls in and follows you when you switch
+quarter. Nothing is deducted twice: a leave range spanning a bank holiday loses
+the other days, not the holiday as well, and weekends never count.
+
+**The whole team is visible; only some of it is counted.** Product owners, scrum
+masters, BAs and designers are listed alongside the developers and QA, with their
+own leave and their own numbers, but only the roles ticked in **Roles** are summed
+into what a team commits to &mdash; developers and QA by default. Add teams
+freely: each gets its own focus factor and its own totals, and where there is
+more than one they roll up into an all-teams row.
+
+Teams span **UK, UAE and India**, so public holidays are per location and come
+off only the people in that location. UK bank holidays are seeded as fact.
+The dates that move &mdash; Eid, Holi, Diwali, Dussehra, Ganesh Chaturthi &mdash;
+are seeded as an **estimate and flagged**: they still reduce capacity, but any
+falling inside the PI you are looking at raise an alert and appear in a
+tick-them-off worklist, so an approximate Eid date can never quietly change the
+number you commit to. Add locations of your own, and move the whole calendar
+between people with **Export / Import holidays**.
+
+The page opens as a report: the PI, the capacity, the per-person breakdown, the
+teams and the leave. The things you set once &mdash; the cadence anchor,
+locations and their holidays, and which roles count &mdash; live behind
+**Settings**. Collapsing the capacity card keeps its headline figures on screen,
+because they are the at-a-glance answer.
+
+Alerts call out the things that silently wreck a plan: a team with nobody in a
+counting role, a focus factor of zero, someone allocated 0% or over 100%, someone
+with no capacity anywhere in the PI, and leave whose dates read backwards.
+**Copy table** puts the capacity matrix on the clipboard for an email or a slide,
+and the **Planned leave** and **Per-person breakdown** cards each export their
+own table as CSV &mdash; the same columns, filters and figures you are looking at.
+
+**One file can hold this and a cost tracker project.** A saved file is an
+envelope: this tool owns the `piCapacity` key and copies every other key straight
+back out, and the [cost tracker](#project-cost-trackerhtml) already keeps keys it
+does not recognise. So the same `.json` opens in both, each editing its own half
+and leaving the other untouched &mdash; no changes to the tracker were needed.
+Load a tracker file here and it offers to add that project's people as a team,
+matching their roles.
+
+Someone joining or leaving mid-PI gets **on team from / until** dates and is
+counted only for the part of the PI they are there.
+
+See [`docs/pi-capacity-cadence.md`](docs/pi-capacity-cadence.md) for the sprint
+maths, the deduction rules, and which seeded holiday dates are confirmed and
+which are estimates.
+
 ---
 
 ## Building (for contributors)
@@ -184,6 +251,7 @@ rules-JSON compatibility/versioning policy.
 - `waqti-exceptions.html` — timesheet exceptions to email tool
 - `waqti-demand-summary.html` — timesheet demand summary (view online)
 - `project-cost-tracker.html` — project cost position, burn-up and monthly ledger
+- `pi-planning-capacity.html` — PI planning capacity per team and sprint
 - `framework/` — the shared Report Kit + the inliner (`build.py`)
 - `reports/` — the `*.src.html` sources the tools are built from
 - `assets/` — logo variants, favicon, and the blank delivery-plan Excel template
