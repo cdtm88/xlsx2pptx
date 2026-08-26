@@ -326,7 +326,7 @@ var SINGLE_FILL = {fill:C.midGrey};
 var MILESTONE_FILL = {fill:S.amber};
 // At-risk rows keep their status colour and gain a bold orange outline, so the
 // flag reads as a warning on top of the state rather than replacing it.
-var RISK_LINE = 'FF6B00', RISK_LINE_W = 2;   // pt
+var RISK_LINE = 'FF6B00', RISK_LINE_W = 1.5;   // pt
 
 var SLIDE_W=13.333, SLIDE_H=7.5, PX=75;
 var TITLE_X=0.59, TITLE_Y=0.35, TITLE_W=12.15, TITLE_H=0.55;
@@ -765,6 +765,9 @@ function computeLayout(data,opts){
 
 // ===== PREVIEW =====
 function p(inches){return Math.round(inches*PX)}
+// A line weight in points as preview pixels — never thinner than the 1px a
+// hairline outline already got.
+function pxLine(pt){return Math.max(1,(pt||0.75)*PX/72)}
 
 function renderPreview(L,data){
   var stack=document.getElementById('slide-stack');
@@ -849,7 +852,7 @@ function drawSlide(el,L,pg,data,pageNo,pageCount){
     var bc=r.barColor;
     dv(r.barX,r.barY,r.barW,r.barH,bc.fill,
       'border-radius:'+p(BAR_RADIUS)+'px;'
-      +(bc.line?'border:'+(bc.lineW?2:1)+'px solid #'+bc.line+';':''));
+      +(bc.line?'border:'+pxLine(bc.lineW)+'px solid #'+bc.line+';':''));
   });
 
   if(pg.nowLine){
@@ -867,7 +870,7 @@ function drawSlide(el,L,pg,data,pageNo,pageCount){
   legendFor(L.colorMode,L.hasRisk).forEach(function(li,li_i){
     var lx=CHART_L+li_i*1.1;
     dv(lx,legendY,0.18,LEGEND_H,li.color,'border-radius:'+p(0.02)+'px;'
-      +(li.border?'border:'+(li.borderW?2:1)+'px solid #'+li.border+';':''));
+      +(li.border?'border:'+pxLine(li.borderW||0.5)+'px solid #'+li.border+';':''));
     tx(lx+0.22,legendY-0.01,0.9,LEGEND_H,li.label,
       'font-size:'+p(0.065)+'px;color:#'+C.midGrey+';');
   });
@@ -1263,7 +1266,7 @@ function buildLegend(){
   var items=legendFor(currentData?currentData.colorMode:'status',
     currentLayout?currentLayout.hasRisk:false);
   el.innerHTML=items.map(function(it){
-    var bdr=it.border?'border:'+(it.borderW?2:1)+'px solid #'+it.border:'';
+    var bdr=it.border?'border:'+(it.borderW||1)+'px solid #'+it.border:'';
     return '<div class="legend-item"><span class="legend-swatch" style="background:#'+it.color+';'+bdr+'"></span>'+it.label+'</div>';
   }).join('');
 }
