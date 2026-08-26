@@ -11,7 +11,7 @@ machine.
 
 | File | Turns | Into |
 |---|---|---|
-| [`delivery-plan.html`](delivery-plan.html) | an Excel delivery plan | a PowerPoint Gantt-chart slide (`.pptx`) |
+| [`delivery-plan.html`](delivery-plan.html) | an Excel delivery plan | a PowerPoint Gantt chart (`.pptx`, split over as many slides as it needs) |
 | [`waqti-exceptions.html`](waqti-exceptions.html) | a Waqti timesheet export + an approved-demand allowlist | a copy-paste correction email |
 | [`waqti-demand-summary.html`](waqti-demand-summary.html) | a Waqti timesheet export | an on-screen per-demand summary of hours by person and feature |
 | [`project-cost-tracker.html`](project-cost-tracker.html) | a team and their day rates, any vendor contracts, and a UK timesheet export | a live cost position, burn-up and monthly ledger against the estimate |
@@ -26,7 +26,7 @@ with the network off, and brand-consistent styling.
 
 Drag in an Excel delivery plan (or start from the built-in blank template),
 adjust the title, the week range and which tasks are shown, then download a
-PowerPoint Gantt-chart slide. Bars are coloured by status or a single colour,
+PowerPoint Gantt chart. Bars are coloured by status or a single colour,
 grouped into category swimlanes, with a proportional "Today" marker and
 PowerPoint-safe margins.
 
@@ -40,14 +40,28 @@ sprint-based template still open: each `Q#.#` label is resolved to the dates
 that sprint covered and drawn on the same week timeline.
 
 Every field in the Tasks table is **editable in the page** — name, category,
-status, start and end dates, and the milestone flag — so a late change goes
-straight in without editing the spreadsheet and re-uploading. Moving a date
-past the end of the timeline extends it rather than dropping the task.
+status, start and end dates, and the milestone and at-risk flags — so a late
+change goes straight in without editing the spreadsheet and re-uploading.
+Moving a date past the end of the timeline extends it rather than dropping the
+task.
+
+Tick **At Risk** (or set the column in the spreadsheet — `TRUE`, `Yes`, `Y`,
+`1` or `x`, or a Status of `At Risk`) and the block keeps its status colour and
+gains a bold orange outline, so the flag reads as a warning on top of the state
+rather than replacing it. The key gains an **At Risk** entry only when
+something is actually flagged.
+
+A plan taller than one slide is **split across several**, breaking on swimlane
+boundaries where it can and repeating the band label where a lane has to run
+over. Every slide carries the title, the timeline, the key and an *n of m*
+marker, so it stands on its own if it gets lifted out of the deck. The preview
+shows each slide in turn and grows with the plan rather than clipping it.
 
 **Copy image** on the slide preview puts the plan and its key on the clipboard
 as a PNG — without the title, so it drops under whatever heading the slide or
-email already has. Where the browser blocks clipboard writes (some `file://`
-setups), the image downloads instead.
+email already has, and on one continuous canvas however long the plan is (an
+image has no page to run off). Where the browser blocks clipboard writes (some
+`file://` setups), the image downloads instead.
 
 ## `waqti-exceptions.html`
 
