@@ -57,6 +57,13 @@ table.grid input[type=checkbox]{accent-color:var(--teal);width:16px;height:16px;
 .settings-nav-item.active .settings-nav-label{font-weight:700;color:var(--charcoal)}
 .settings-nav-count{font-size:.7rem;font-weight:700;color:var(--mid);font-variant-numeric:tabular-nums}
 .settings-content .card{margin-bottom:0}
+table.data th.act,table.data td.act{width:44px;text-align:center}
+table.data td.tax input[type=text]{width:100%;border:1px solid transparent;background:transparent;padding:.3rem .4rem;font-size:.84rem}
+table.data td.tax input[type=text]:hover,table.data td.tax input[type=text]:focus{border-color:var(--line);background:#fff}
+.del-btn{border:1px solid var(--line);background:#fff;color:var(--mid);border-radius:6px;width:26px;height:26px;line-height:1;font-size:1rem;cursor:pointer;font-family:inherit}
+.del-btn:hover{border-color:#D9503A;color:#D9503A;background:#FCEDEA}
+.pill-add{cursor:pointer;font-family:inherit}
+.pill-add:hover{border-color:var(--teal);color:var(--teal-dark)}
 @media (max-width:760px){
   .settings-shell{grid-template-columns:1fr}
   .settings-nav{position:static;flex-direction:row;overflow-x:auto;padding:.35rem}
@@ -150,6 +157,7 @@ table.grid input[type=checkbox]{accent-color:var(--teal);width:16px;height:16px;
     <nav class="settings-nav" aria-label="Settings sections">
       <div class="settings-nav-group">Rules</div>
       <button type="button" class="settings-nav-item active" data-panel="panel-approvals"><span class="settings-nav-label">People</span><span class="settings-nav-count" id="navCountStaff"></span></button>
+      <button type="button" class="settings-nav-item" data-panel="panel-ignore"><span class="settings-nav-label">Ignored taxonomies</span><span class="settings-nav-count" id="navCountIgnore"></span></button>
       <div class="settings-nav-group">Email</div>
       <button type="button" class="settings-nav-item" data-panel="panel-email"><span class="settings-nav-label">Email text</span></button>
       <div class="settings-nav-group">Rules file</div>
@@ -163,6 +171,15 @@ table.grid input[type=checkbox]{accent-color:var(--teal);width:16px;height:16px;
         <p class="sub" id="gridHint" style="margin:0 0 .6rem;">Load an export to see the staff-by-demand grid. Tick a cell to approve that person for that demand.</p>
         <div class="grid-scroll" id="gridWrap"></div>
         <div id="extrasWrap"></div>
+      </section>
+
+      <section class="card settings-panel hidden" id="panel-ignore">
+        <div class="card-head"><span class="title">Ignored taxonomies</span><span class="sub">Rows with these taxonomies (leave and similar) are skipped by every rule.</span></div>
+        <div class="table-wrap"><table class="data"><thead><tr><th>Taxonomy</th><th class="act"></th></tr></thead><tbody id="ignoreBody"></tbody></table></div>
+        <div class="controls-row" style="margin-top:.7rem;">
+          <button type="button" class="btn btn-primary" id="ignoreAddBtn">Add taxonomy</button>
+        </div>
+        <div id="ignoreFromExport"></div>
       </section>
 
       <section class="card settings-panel hidden" id="panel-email">
@@ -190,7 +207,7 @@ table.grid input[type=checkbox]{accent-color:var(--teal);width:16px;height:16px;
           <button type="button" class="btn btn-ghost" id="bakeBtn">Save tool with rules</button>
         </div>
         <p class="sub" id="bakeMsg" style="margin:.2rem 0 0;"></p>
-        <p class="sub" style="margin:.6rem 0 0;">rules.json holds the People rules (who is approved for which demands). <strong>Save tool with rules</strong> also bakes in the email text.</p>
+        <p class="sub" style="margin:.6rem 0 0;">rules.json holds everything under <strong>Rules</strong>: People (who is approved for which demands) and the ignored taxonomies. <strong>Save tool with rules</strong> also bakes in the email text.</p>
       </section>
 
       <section class="card settings-panel hidden" id="panel-json">
@@ -226,6 +243,15 @@ table.grid input[type=checkbox]{accent-color:var(--teal);width:16px;height:16px;
 
   // ---- Exception rules (docs/waqti-exception-rules.md) ----
   var TARGET_ART = "DN4 - dnata Travel Services";                      // only this ART is processed
+  // Rows with these taxonomies (leave and similar) are ignored by every rule.
+  // Default list; rules.json can override it with "ignoredTaxonomies" (edited in Settings).
+  var DEFAULT_IGNORED_TAXONOMIES = ["Annual Leave", "Time Off In Lieu (TOIL)", "Sick Leave", "Waqti-MyTime Admin", "Prayers", "Training, Professional Development, Knowledge Sharing, On-Job Training", "Budgeting & Forecasting", "Cross Team/ART collaboration", "Department Meeting/Townhall/Pulse of IT"];
+  function ignoredTaxonomiesOf(rules) { return (rules && Array.isArray(rules.ignoredTaxonomies)) ? rules.ignoredTaxonomies : DEFAULT_IGNORED_TAXONOMIES; }
+  function cleanTaxonomies(list) {
+    var seen = {}, out = [];
+    list.forEach(function (t) { t = String(t).trim(); var k = t.toLowerCase(); if (t && !seen[k]) { seen[k] = 1; out.push(t); } });
+    return out;
+  }
   function round2(n) { return Math.round((n + Number.EPSILON) * 100) / 100; }
   function round1(n) { return Math.round((n + Number.EPSILON) * 10) / 10; }
   function rep(ch, n) { var s = ""; while (s.length < n) s += ch; return s; }
@@ -327,10 +353,13 @@ table.grid input[type=checkbox]{accent-color:var(--teal);width:16px;height:16px;
     var totalHours = 0, groups = {}, covered = {}, notInRules = {};
     var attn = {};                       // GEN_LINES / no-application rows needing a human check
     var present = {};                    // staff IDs that appear anywhere in the export
+    var ignoreSet = {}, ignoredCount = 0, ignoredHours = 0;
+    ignoredTaxonomiesOf(rules).forEach(function (t) { t = String(t).trim().toLowerCase(); if (t) ignoreSet[t] = 1; });
 
     bookings.forEach(function (b) {
-      present[b.staffId] = 1;
+      present[b.staffId] = 1;            // leave still counts as time logged
       if (b.hours !== null) totalHours += b.hours;
+      if (b.taxonomy && ignoreSet[b.taxonomy.toLowerCase()]) { ignoredCount++; if (b.hours !== null) ignoredHours += b.hours; return; }
 
       // staff in rules use their approved list; staff not in rules are approved for nothing
       var inRules = Object.prototype.hasOwnProperty.call(staff, b.staffId);
@@ -396,7 +425,7 @@ table.grid input[type=checkbox]{accent-color:var(--teal);width:16px;height:16px;
       staffAffected: exceptions.length, exceptionLineCount: lineCount,
       coveredCount: Object.keys(covered).length, notInRulesCount: notInRulesStaff.length,
       attentionCount: attention.length, attentionHours: attentionHours,
-      missingCount: missingStaff.length
+      missingCount: missingStaff.length, ignoredCount: ignoredCount, ignoredHours: round2(ignoredHours)
     };
     return { exceptions: exceptions, attention: attention, notInRulesStaff: notInRulesStaff, missingStaff: missingStaff, stats: stats };
   }
@@ -574,7 +603,7 @@ table.grid input[type=checkbox]{accent-color:var(--teal);width:16px;height:16px;
       demands = demands.filter(function (x) { return typeof x === "string"; }).sort();
       staffOut[id] = { name: name, approvedDemands: demands };
     });
-    var out = { schemaVersion: SCHEMA_VERSION, generatedAt: (state.generatedAt || nowIso()), label: state.label || "", staff: staffOut };
+    var out = { schemaVersion: SCHEMA_VERSION, generatedAt: (state.generatedAt || nowIso()), label: state.label || "", ignoredTaxonomies: cleanTaxonomies(ignoredTaxonomiesOf(state)), staff: staffOut };
     return JSON.stringify(out, null, 2);
   }
 
@@ -603,10 +632,11 @@ table.grid input[type=checkbox]{accent-color:var(--teal);width:16px;height:16px;
       if (!Array.isArray(e.approvedDemands)) problems.push(id + ': "approvedDemands" must be an array.');
       else if (!e.approvedDemands.every(function (x) { return typeof x === "string"; })) problems.push(id + ': "approvedDemands" must contain only strings.');
     });
+    if (data.ignoredTaxonomies !== undefined && (!Array.isArray(data.ignoredTaxonomies) || !data.ignoredTaxonomies.every(function (x) { return typeof x === "string"; }))) problems.push('"ignoredTaxonomies" must be an array of strings.');
     if (problems.length) throw new Error("Rules validation failed:\n- " + problems.join("\n- ") + "\nCurrent rules left unchanged.");
     var staffUpper = {};
     Object.keys(data.staff).forEach(function (id) { staffUpper[String(id).toUpperCase()] = data.staff[id]; });
-    return { schemaVersion: SCHEMA_VERSION, generatedAt: data.generatedAt || null, label: typeof data.label === "string" ? data.label : "", staff: staffUpper };
+    return { schemaVersion: SCHEMA_VERSION, generatedAt: data.generatedAt || null, label: typeof data.label === "string" ? data.label : "", ignoredTaxonomies: Array.isArray(data.ignoredTaxonomies) ? cleanTaxonomies(data.ignoredTaxonomies) : DEFAULT_IGNORED_TAXONOMIES.slice(), staff: staffUpper };
   }
 
   window.parseExport = parseExport;
@@ -614,6 +644,7 @@ table.grid input[type=checkbox]{accent-color:var(--teal);width:16px;height:16px;
   window.buildEmail = buildEmail;
   window.serialiseRules = serialiseRules;
   window.parseRules = parseRules;
+  window.DEFAULT_IGNORED_TAXONOMIES = DEFAULT_IGNORED_TAXONOMIES;
   window._waqt = { round1: round1, round2: round2, splitFirst: splitFirst, toWin1252: toWin1252, reasonsFor: reasonsFor };
 })();
 </script>
@@ -624,7 +655,7 @@ table.grid input[type=checkbox]{accent-color:var(--teal);width:16px;height:16px;
 (function () {
   "use strict";
 
-  var VERSION = "v2.0.0";
+  var VERSION = "v2.1.0";
   var LS_KEY = "waqti-exceptions:v1";
   var $ = function (id) { return document.getElementById(id); };
   $("version").textContent = VERSION;
@@ -638,13 +669,13 @@ table.grid input[type=checkbox]{accent-color:var(--teal);width:16px;height:16px;
 
   var state = {
     buffer: null, fileName: "", mapping: null, parsed: null,
-    rules: { label: "", staff: {}, generatedAt: null },
+    rules: { label: "", staff: {}, generatedAt: null, ignoredTaxonomies: DEFAULT_IGNORED_TAXONOMIES.slice() },
     source: "none", loadedAt: null,
     lastResult: null, lastEmail: null, emailMode: "plain", excluded: {}, lineKeys: [], excludedAttn: {}, attnKeys: [], excludedMissing: {}, missingKeys: []
   };
   function keyOf(staffId, l) { return staffId + "\u0000" + l.demandCode + "\u0000" + l.featureCode; }
   function attnKeyOf(a) { return a.reason + "\u0000" + a.staffId + "\u0000" + a.application; }
-  function rulesFromParsed(p) { return { label: p.label, staff: p.staff, generatedAt: p.generatedAt }; }
+  function rulesFromParsed(p) { return { label: p.label, staff: p.staff, generatedAt: p.generatedAt, ignoredTaxonomies: p.ignoredTaxonomies }; }
 
   /* ---------- view switching ---------- */
   function goSettings() { hide($("view-main")); show($("view-settings")); hide($("navSettings")); show($("navDone")); window.scrollTo(0, 0); }
@@ -664,6 +695,7 @@ table.grid input[type=checkbox]{accent-color:var(--teal);width:16px;height:16px;
   });
   function renderNavCounts() {
     $("navCountStaff").textContent = Object.keys(state.rules.staff).length || "";
+    $("navCountIgnore").textContent = (state.rules.ignoredTaxonomies || []).filter(function (t) { return String(t).trim(); }).length;
   }
 
   /* ---------- persistence ---------- */
@@ -675,7 +707,8 @@ table.grid input[type=checkbox]{accent-color:var(--teal);width:16px;height:16px;
       if (obj && obj.rules && typeof obj.rules === "object") {
         var st = obj.rules.staff || {}, stU = {};
         Object.keys(st).forEach(function (id) { stU[String(id).toUpperCase()] = st[id]; });
-        state.rules = { label: obj.rules.label || "", staff: stU, generatedAt: obj.rules.generatedAt || null };
+        var ign = Array.isArray(obj.rules.ignoredTaxonomies) ? obj.rules.ignoredTaxonomies.filter(function (t) { return typeof t === "string"; }) : DEFAULT_IGNORED_TAXONOMIES.slice();
+        state.rules = { label: obj.rules.label || "", staff: stU, generatedAt: obj.rules.generatedAt || null, ignoredTaxonomies: ign };
         state.source = "autosave"; state.loadedAt = obj.loadedAt || null;
       }
       if (obj && obj.email && typeof obj.email === "object") {
@@ -778,6 +811,7 @@ table.grid input[type=checkbox]{accent-color:var(--teal);width:16px;height:16px;
     $("labelInput").value = state.rules.label || "";
     if (rebuildGrid) buildGrid();
     buildExtras();
+    renderIgnore();
     renderNavCounts();
     repaintJson();
     // main-view no-rules hint
@@ -835,6 +869,43 @@ table.grid input[type=checkbox]{accent-color:var(--teal);width:16px;height:16px;
     wrap.innerHTML = html;
   }
 
+  /* ---------- ignored taxonomies editor ---------- */
+  function ignoreChanged() { state.source = "edited"; autosave(); repaintJson(); renderNavCounts(); renderIgnoreFromExport(); renderPreview(); renderEmail(); }
+  function renderIgnore(focusLast) {
+    var list = state.rules.ignoredTaxonomies || (state.rules.ignoredTaxonomies = []);
+    var body = $("ignoreBody");
+    if (!list.length) body.innerHTML = '<tr><td colspan="2" class="sub">No ignored taxonomies. Every row is checked.</td></tr>';
+    else body.innerHTML = list.map(function (t, i) {
+      return '<tr><td class="tax"><input type="text" data-tax="' + i + '" value="' + esc(t) + '" placeholder="Taxonomy name, exactly as in the export" aria-label="Ignored taxonomy ' + (i + 1) + '"></td>' +
+        '<td class="act"><button type="button" class="del-btn" data-del="' + i + '" title="Delete" aria-label="Delete ' + esc(t || "this taxonomy") + '">&times;</button></td></tr>';
+    }).join("");
+    body.querySelectorAll("input[data-tax]").forEach(function (inp) {
+      inp.addEventListener("input", function () { list[+inp.getAttribute("data-tax")] = inp.value; ignoreChanged(); });
+    });
+    body.querySelectorAll("button[data-del]").forEach(function (btn) {
+      btn.addEventListener("click", function () { list.splice(+btn.getAttribute("data-del"), 1); renderIgnore(); ignoreChanged(); });
+    });
+    if (focusLast) { var ins = body.querySelectorAll("input[data-tax]"); if (ins.length) ins[ins.length - 1].focus(); }
+    renderIgnoreFromExport();
+  }
+  // taxonomies in the loaded export that are still being checked, with one-click add
+  function renderIgnoreFromExport() {
+    var wrap = $("ignoreFromExport");
+    if (!state.parsed) { wrap.innerHTML = ""; return; }
+    var off = {}; (state.rules.ignoredTaxonomies || []).forEach(function (t) { off[String(t).trim().toLowerCase()] = 1; });
+    var counts = {}, hasCol = false;
+    state.parsed.bookings.forEach(function (b) { if (b.taxonomy === null) return; hasCol = true; if (b.taxonomy && !off[b.taxonomy.toLowerCase()]) counts[b.taxonomy] = (counts[b.taxonomy] || 0) + 1; });
+    if (!hasCol) { wrap.innerHTML = '<div class="panel warn">This export has no Taxonomy column, so nothing is ignored and every row is checked.</div>'; return; }
+    var names = Object.keys(counts).sort();
+    if (!names.length) { wrap.innerHTML = ""; return; }
+    wrap.innerHTML = '<div class="panel extras"><strong>Checked in this export</strong> (not ignored). Click one to ignore it.<div style="margin-top:.4rem;">' +
+      names.map(function (n, i) { return '<button type="button" class="pill pill-add" data-add="' + i + '">+ ' + esc(n) + " (" + counts[n] + ")</button>"; }).join(" ") + "</div></div>";
+    wrap.querySelectorAll("button[data-add]").forEach(function (btn) {
+      btn.addEventListener("click", function () { state.rules.ignoredTaxonomies.push(names[+btn.getAttribute("data-add")]); renderIgnore(); ignoreChanged(); });
+    });
+  }
+  $("ignoreAddBtn").addEventListener("click", function () { state.rules.ignoredTaxonomies.push(""); renderIgnore(true); renderNavCounts(); });
+
   function repaintJson() { var el = $("jsonArea"); if (document.activeElement === el) return; el.value = serialiseRules(state.rules); }
 
   function applyJsonFromTextarea() {
@@ -858,7 +929,7 @@ table.grid input[type=checkbox]{accent-color:var(--teal);width:16px;height:16px;
   }
   $("exportBtn").addEventListener("click", function () { download("rules.json", serialiseRules(state.rules), "application/json"); });
   $("templateBtn").addEventListener("click", function () {
-    var tpl = { schemaVersion: 1, generatedAt: (function () { try { return new Date().toISOString(); } catch (e) { return ""; } })(), label: "Give this rules set a name", staff: { "S100404": { name: "Steve D", approvedDemands: ["PVE9001001", "PVE9001003"] } } };
+    var tpl = { schemaVersion: 1, generatedAt: (function () { try { return new Date().toISOString(); } catch (e) { return ""; } })(), label: "Give this rules set a name", ignoredTaxonomies: DEFAULT_IGNORED_TAXONOMIES.slice(), staff: { "S100404": { name: "Steve D", approvedDemands: ["PVE9001001", "PVE9001003"] } } };
     download("rules.json", JSON.stringify(tpl, null, 2), "application/json");
   });
   $("importBtn").addEventListener("click", function () { $("importInput").click(); });
@@ -977,6 +1048,7 @@ table.grid input[type=checkbox]{accent-color:var(--teal);width:16px;height:16px;
     var notes = [];
     if (result.notInRulesStaff.length) notes.push('<div class="panel warn"><strong>Not in rules (' + result.notInRulesStaff.length + ').</strong> These staff are in the export but not in the rules, so they are treated as approved for nothing and every demand booking is an exception above. Add them in Settings &gt; People to refine.<div style="margin-top:.4rem;">' + result.notInRulesStaff.map(function (x) { return '<span class="pill warn">' + esc(x) + "</span>"; }).join(" ") + "</div></div>");
     var ignored = [];
+    if (s.ignoredCount) ignored.push(s.ignoredCount + " row" + (s.ignoredCount === 1 ? "" : "s") + " with an ignored taxonomy such as leave (" + s.ignoredHours.toFixed(1) + " hrs, edit the list in Settings &gt; Ignored taxonomies)");
     if (state.parsed.otherTeam) ignored.push(state.parsed.otherTeam + " row" + (state.parsed.otherTeam === 1 ? "" : "s") + " from other teams (Staff ART not " + esc("DN4 - dnata Travel Services") + ")");
     if (!state.parsed.bookings.some(function (b) { return b.application !== null; }) && state.parsed.bookings.length) notes.push('<div class="panel warn">This export has no Application column, so the "No application" check is skipped.</div>');
     if (ignored.length) notes.push('<div class="note" style="margin:.6rem 0 0;">Ignored: ' + ignored.join("; ") + ".</div>");
@@ -1151,7 +1223,7 @@ table.grid input[type=checkbox]{accent-color:var(--teal);width:16px;height:16px;
     var prevEmail = elE.textContent;
     elE.textContent = JSON.stringify({ intro: $("introInput").value, closing: $("closingInput").value }).replace(/</g, "\\u003c");
     // clear heavy dynamic regions so the saved copy is lean; restored right after
-    var clearIds = ["exceptionsWrap", "richPreview", "gridWrap", "extrasWrap", "unmatchedWrap", "dqWrap", "parseStatus", "banner", "clearWrap", "notesWrap", "attnWrap", "missingWrap", "dqWrap", "fallbackWrap", "mapperFields"];
+    var clearIds = ["exceptionsWrap", "richPreview", "gridWrap", "extrasWrap", "unmatchedWrap", "dqWrap", "parseStatus", "banner", "clearWrap", "notesWrap", "attnWrap", "missingWrap", "dqWrap", "fallbackWrap", "mapperFields", "ignoreFromExport"];
     var saved = {};
     clearIds.forEach(function (id) { var n = $(id); saved[id] = n.innerHTML; n.innerHTML = ""; });
     var html = "<!doctype html>\n" + document.documentElement.outerHTML;

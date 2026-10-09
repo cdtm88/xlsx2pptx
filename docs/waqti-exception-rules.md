@@ -17,7 +17,7 @@ Matched by exact header name on the first sheet (a column mapper appears if any 
 | rechargeCost | Recharge Cost | No |
 | application | Application | No (if missing, the "No application" check is skipped and a warning shows) |
 | createdBy | Created By | No (falls back to the last column) |
-| taxonomy | Taxonomy | No (read but not used by any rule) |
+| taxonomy | Taxonomy | No (used for the ignore list; if missing, nothing is ignored) |
 | staffArt | Staff ART | No |
 
 Demand and Feature values are split on the first `" - "` into a code and a description. Approvals match on the **demand code** only.
@@ -26,13 +26,28 @@ Demand and Feature values are split on the first `" - "` into a code and a descr
 
 1. **Empty Staff ID**: row dropped, counted as "excluded".
 2. **Team filter**: if a Staff ART column exists, any row whose Staff ART is not `DN4 - dnata Travel Services` (case-insensitive) is dropped. With no Staff ART column, nothing is filtered.
-3. **Data quality**: Booked Hours that is blank, non-numeric or negative is flagged with its sheet row. The row is still checked, but its hours count as 0.
+3. **Ignored taxonomies**: rows whose Taxonomy is on the ignore list (exact match, case-insensitive) are skipped by every rule and counted in an "Ignored" note. They still count as time logged for rule 4.
+4. **Data quality**: Booked Hours that is blank, non-numeric or negative is flagged with its sheet row. The row is still checked, but its hours count as 0.
 
-Staff IDs are upper-cased, so matching against the People rules is case-insensitive. Taxonomy is not used: every row is checked.
+Staff IDs are upper-cased, so matching against the People rules is case-insensitive.
+
+### Ignored taxonomies
+
+Stored in rules.json as `ignoredTaxonomies` and edited in **Settings > Rules > Ignored taxonomies** (edit, delete, add; taxonomies in the loaded export that are still being checked are listed with one-click add). A rules.json without the field uses this default list:
+
+- Annual Leave
+- Time Off In Lieu (TOIL)
+- Sick Leave
+- Waqti-MyTime Admin
+- Prayers
+- Training, Professional Development, Knowledge Sharing, On-Job Training
+- Budgeting & Forecasting
+- Cross Team/ART collaboration
+- Department Meeting/Townhall/Pulse of IT
 
 ## 3. The rules
 
-Every remaining row is checked against all of these:
+Every row left after the filters above is checked against all of these:
 
 | # | Rule | Condition | Reason shown |
 |---|---|---|---|
@@ -75,6 +90,6 @@ Empty sections are left out. Hours show to 1 decimal. Text is made Windows-1252 
 
 ## 6. Things worth knowing
 
-- **Leave and admin rows are checked too.** Taxonomy is ignored, so an Annual Leave row with no Application or Demand appears in Needs attention as `No application; No demand`. To keep leave out, approve the leave demand for each person or bring back a taxonomy filter.
+- **Anything not on the ignore list is checked.** A new leave-type taxonomy shows up in the tables (often as `No application; No demand`) until it is added to the list.
 - **The team (ART) name is hard-coded** in `TARGET_ART` and in the on-screen "Ignored" note.
 - **No time-bounded approvals**: approvals apply to the whole export period.
