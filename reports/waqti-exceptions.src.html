@@ -68,6 +68,7 @@ details.fold>summary::-webkit-details-marker{display:none}
 details.fold>summary::before{content:"\25B8";display:inline-block;width:1em;color:var(--mid);transition:transform .15s}
 details.fold[open]>summary::before{transform:rotate(90deg)}
 table.grid th.teamcol,table.grid td.teamcol{background:var(--teal-tint)}
+table.grid thead th.teamcol{white-space:normal;max-width:90px;line-height:1.2}
 table.grid thead th.teamcol{background:var(--teal-dark)}
 .pill-add:hover{border-color:var(--teal);color:var(--teal-dark)}
 @media (max-width:760px){
@@ -173,7 +174,7 @@ table.grid thead th.teamcol{background:var(--teal-dark)}
 
     <div class="settings-content">
       <section class="card settings-panel" id="panel-approvals">
-        <div class="card-head"><span class="title">People</span><span class="sub">Which demands each person is approved for, and who is in our team.</span></div>
+        <div class="card-head"><span class="title">People</span><span class="sub">Which demands each person is approved for, and whose logged time is tracked.</span></div>
         <p class="sub" id="gridHint" style="margin:0 0 .6rem;">Load an export to see the staff-by-demand grid. Tick a cell to approve that person for that demand.</p>
         <div class="grid-scroll" id="gridWrap"></div>
         <div id="extrasWrap"></div>
@@ -354,6 +355,8 @@ table.grid thead th.teamcol{background:var(--teal-dark)}
     return { attention: attention, demand: demand };
   }
 
+  function tracked(e) { return !e || e.trackLoggedTime !== false; }
+
   function applyRules(bookings, rules) {
     var staff = (rules && rules.staff) || {};
     var totalHours = 0, groups = {}, covered = {}, notInRules = {};
@@ -422,7 +425,8 @@ table.grid thead th.teamcol{background:var(--teal-dark)}
 
     var notInRulesStaff = Object.keys(notInRules).sort();
     // No time logged: only people flagged as in our team (other teams also book to our demands)
-    var missingStaff = Object.keys(staff).filter(function (id) { return staff[id].team === true && !present[id]; }).sort().map(function (id) { return { staffId: id, name: staff[id].name || "" }; });
+    // trackLoggedTime defaults to on; untick people from other teams who book to our demands
+    var missingStaff = Object.keys(staff).filter(function (id) { return tracked(staff[id]) && !present[id]; }).sort().map(function (id) { return { staffId: id, name: staff[id].name || "" }; });
     var exceptionHours = round2(exceptions.reduce(function (s, g) { return s + g.totalHours; }, 0));
     var lineCount = exceptions.reduce(function (s, g) { return s + g.lines.length; }, 0);
     var attentionHours = round2(attention.reduce(function (s, a) { return s + a.hours; }, 0));
@@ -605,10 +609,10 @@ table.grid thead th.teamcol{background:var(--teal-dark)}
       var e = staffIn[id] || {};
       var name = typeof e.name === "string" ? e.name : "";
       var demands = Array.isArray(e.approvedDemands) ? e.approvedDemands.slice() : [];
-      var team = e.team === true;
-      if (name === "" && demands.length === 0 && !team) return;
+      var track = e.trackLoggedTime !== false;
+      if (name === "" && demands.length === 0 && track) return;
       demands = demands.filter(function (x) { return typeof x === "string"; }).sort();
-      staffOut[id] = { name: name, team: team, approvedDemands: demands };
+      staffOut[id] = { name: name, trackLoggedTime: track, approvedDemands: demands };
     });
     var out = { schemaVersion: SCHEMA_VERSION, generatedAt: (state.generatedAt || nowIso()), label: state.label || "", ignoredTaxonomies: cleanTaxonomies(ignoredTaxonomiesOf(state)), staff: staffOut };
     return JSON.stringify(out, null, 2);
@@ -638,7 +642,7 @@ table.grid thead th.teamcol{background:var(--teal-dark)}
       if (typeof e.name !== "string") problems.push(id + ': "name" must be a string.');
       if (!Array.isArray(e.approvedDemands)) problems.push(id + ': "approvedDemands" must be an array.');
       else if (!e.approvedDemands.every(function (x) { return typeof x === "string"; })) problems.push(id + ': "approvedDemands" must contain only strings.');
-      if (e.team !== undefined && typeof e.team !== "boolean") problems.push(id + ': "team" must be true or false.');
+      if (e.trackLoggedTime !== undefined && typeof e.trackLoggedTime !== "boolean") problems.push(id + ': "trackLoggedTime" must be true or false.');
     });
     if (data.ignoredTaxonomies !== undefined && (!Array.isArray(data.ignoredTaxonomies) || !data.ignoredTaxonomies.every(function (x) { return typeof x === "string"; }))) problems.push('"ignoredTaxonomies" must be an array of strings.');
     if (problems.length) throw new Error("Rules validation failed:\n- " + problems.join("\n- ") + "\nCurrent rules left unchanged.");
@@ -663,7 +667,7 @@ table.grid thead th.teamcol{background:var(--teal-dark)}
 (function () {
   "use strict";
 
-  var VERSION = "v2.2.0";
+  var VERSION = "v2.2.1";
   var LS_KEY = "waqti-exceptions:v1";
   var $ = function (id) { return document.getElementById(id); };
   $("version").textContent = VERSION;
@@ -733,6 +737,7 @@ table.grid thead th.teamcol{background:var(--teal-dark)}
   function toggleApproval(sid, dcode, on) { var e = ensureEntry(sid); var i = e.approvedDemands.indexOf(dcode); if (on && i === -1) e.approvedDemands.push(dcode); if (!on && i !== -1) e.approvedDemands.splice(i, 1); }
   function exportStaffIds() { var set = {}; if (state.parsed) state.parsed.bookings.forEach(function (b) { set[b.staffId] = 1; }); return Object.keys(set).sort(); }
   function exportDemandCodes() { var m = {}; if (state.parsed) state.parsed.bookings.forEach(function (b) { if (b.demandCode === "") return; if (!m[b.demandCode]) m[b.demandCode] = b.demandDesc || ""; }); return Object.keys(m).sort().map(function (c) { return { code: c, desc: m[c] }; }); }
+  function tracked(e) { return !e || e.trackLoggedTime !== false; }  // same default as the logic
   function rulesEmpty() { return Object.keys(state.rules.staff).length === 0; }
 
   /* ---------- file / parsing ---------- */
@@ -830,14 +835,14 @@ table.grid thead th.teamcol{background:var(--teal-dark)}
     var wrap = $("gridWrap");
     if (!state.parsed) { wrap.innerHTML = ""; $("gridHint").textContent = "Load an export to see the staff-by-demand grid. Tick a cell to approve that person for that demand."; return; }
     var staffIds = exportStaffIds(), demands = exportDemandCodes();
-    $("gridHint").textContent = staffIds.length + " staff x " + demands.length + " demand codes from this export. Tick a cell to approve. Tick Our team for people who should be reported under No time logged. Staff or demands not in this export are listed below.";
-    var html = '<table class="grid"><thead><tr><th class="staffcol">Staff ID / name</th><th class="teamcol" title="Our team: report them under No time logged when they have no bookings">Our team</th>';
+    $("gridHint").textContent = staffIds.length + " staff x " + demands.length + " demand codes from this export. Tick a cell to approve. Untick Track Logged Time for people (e.g. other teams) who should not appear under No time logged. Staff or demands not in this export are listed below.";
+    var html = '<table class="grid"><thead><tr><th class="staffcol">Staff ID / name</th><th class="teamcol" title="Report them under No time logged when they have no bookings">Track Logged Time</th>';
     demands.forEach(function (d) { html += '<th title="' + esc(d.desc) + '">' + esc(d.code) + "</th>"; });
     html += "</tr></thead><tbody>";
     staffIds.forEach(function (sid) {
       var e = state.rules.staff[sid], name = e ? (e.name || "") : "";
       html += '<tr><td class="staffcol">' + esc(sid) + '<br><input type="text" data-name="' + esc(sid) + '" value="' + esc(name) + '" placeholder="display name" aria-label="Display name for ' + esc(sid) + '"></td>' +
-        '<td class="teamcol"><input type="checkbox" data-team="' + esc(sid) + '"' + (e && e.team === true ? " checked" : "") + ' aria-label="' + esc(sid) + ' is in our team"></td>';
+        '<td class="teamcol"><input type="checkbox" data-team="' + esc(sid) + '"' + (tracked(e) ? " checked" : "") + ' aria-label="Track logged time for ' + esc(sid) + '"></td>';
       demands.forEach(function (d) {
         var on = e && e.approvedDemands && e.approvedDemands.indexOf(d.code) !== -1;
         html += '<td><input type="checkbox" data-sid="' + esc(sid) + '" data-demand="' + esc(d.code) + '"' + (on ? " checked" : "") + ' aria-label="' + esc(sid) + " approved for " + esc(d.code) + '"></td>';
@@ -866,7 +871,7 @@ table.grid thead th.teamcol{background:var(--teal-dark)}
     root.querySelectorAll('input[type=checkbox][data-team]').forEach(function (cb) {
       cb.addEventListener("change", function () {
         var e = ensureEntry(cb.getAttribute("data-team"));
-        if (cb.checked) e.team = true; else delete e.team;
+        if (cb.checked) delete e.trackLoggedTime; else e.trackLoggedTime = false;
         state.source = "edited"; autosave(); repaintJson(); renderPreview(); renderEmail();
       });
     });
@@ -888,10 +893,10 @@ table.grid thead th.teamcol{background:var(--teal-dark)}
     if (extraDem.length) counts.push(extraDem.length + " demand code" + (extraDem.length === 1 ? "" : "s"));
     var html = '<details class="panel extras fold"' + (open ? " open" : "") + '><summary><strong>Not present in the current export</strong> (' + counts.join(", ") + ', kept in rules.json)</summary>';
     if (extraStaff.length) {
-      html += '<div class="table-wrap" style="margin-top:.5rem;"><table class="data"><thead><tr><th>Staff ID</th><th>Name</th><th class="num">Approved</th><th class="chk">Our team</th></tr></thead><tbody>' +
+      html += '<div class="table-wrap" style="margin-top:.5rem;"><table class="data"><thead><tr><th>Staff ID</th><th>Name</th><th class="num">Approved</th><th class="chk">Track Logged Time</th></tr></thead><tbody>' +
         extraStaff.map(function (s) {
           var e = state.rules.staff[s];
-          return "<tr><td>" + esc(s) + "</td><td>" + esc(e.name || "") + '</td><td class="num">' + (e.approvedDemands || []).length + '</td><td class="chk"><input type="checkbox" data-team="' + esc(s) + '"' + (e.team === true ? " checked" : "") + ' aria-label="' + esc(s) + ' is in our team"></td></tr>';
+          return "<tr><td>" + esc(s) + "</td><td>" + esc(e.name || "") + '</td><td class="num">' + (e.approvedDemands || []).length + '</td><td class="chk"><input type="checkbox" data-team="' + esc(s) + '"' + (tracked(e) ? " checked" : "") + ' aria-label="Track logged time for ' + esc(s) + '"></td></tr>';
         }).join("") + "</tbody></table></div>";
     }
     if (extraDem.length) html += '<div style="margin-top:.5rem;">Demand codes: ' + extraDem.map(function (d) { return '<span class="pill">' + esc(d) + "</span>"; }).join(" ") + "</div>";
@@ -1054,7 +1059,7 @@ table.grid thead th.teamcol{background:var(--teal-dark)}
 
     // ---- not yet in the timesheet, with exclude checkboxes ----
     if (result.missingStaff && result.missingStaff.length) {
-      var m2 = section("No time logged (" + result.missingStaff.length + ")", "Lower priority. People flagged as Our team in Settings > People with no bookings at all in this export. Untick a row to leave it out of the email.");
+      var m2 = section("No time logged (" + result.missingStaff.length + ")", "Lower priority. People with Track Logged Time ticked in Settings > People and no bookings at all in this export. Untick a row to leave it out of the email.");
       m2 += '<div class="table-wrap scroll"><table class="data grey"><thead><tr><th class="chk">Send</th><th>Name</th><th>Staff ID</th></tr></thead><tbody>';
       state.missingKeys = []; var mi = 0;
       result.missingStaff.forEach(function (m) {

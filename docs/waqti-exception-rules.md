@@ -31,9 +31,9 @@ Demand and Feature values are split on the first `" - "` into a code and a descr
 
 Staff IDs are upper-cased, so matching against the People rules is case-insensitive.
 
-### Our team flag
+### Track Logged Time flag
 
-Each person in rules.json has `"team": true|false` (default false). Tick **Our team** in Settings > People (grid column, or the collapsed "Not present in the current export" list) for people in your team. Only they can appear in No time logged.
+Each person in rules.json has `"trackLoggedTime": true|false`, **on by default**. Untick **Track Logged Time** in Settings > People (grid column, or the collapsed "Not present in the current export" list) for people from other teams who book to our demands. Only tracked people can appear in No time logged.
 
 ### Ignored taxonomies
 
@@ -59,7 +59,7 @@ Every row left after the filters above is checked against all of these:
 | 1 | No demand | The Demand is blank. | `No demand` |
 | 2 | No application | The Application is blank. | `No application` |
 | 3 | System created | Created By is `GEN_LINES` (case-insensitive): a line Waqti created because some data was missing. | `System created (GEN_LINES)` |
-| 4 | No time logged | Someone flagged **Our team** in Settings > People has no rows at all in the export (after the filters above). People from other teams are never listed. | (own table) |
+| 4 | No time logged | Someone with **Track Logged Time** ticked in Settings > People has no rows at all in the export (after the filters above). Untick it for people from other teams so they are never listed. | (own table) |
 
 ### Which table a row goes to
 
