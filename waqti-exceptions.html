@@ -286,7 +286,7 @@ table.data td.tax input[type=text]:hover,table.data td.tax input[type=text]:focu
 <div class="container hidden" id="view-settings">
   <div class="settings-shell">
     <nav class="settings-nav" aria-label="Settings sections">
-      <button type="button" class="settings-nav-item active" data-panel="panel-file"><span class="settings-nav-label">Rules file</span></button>
+      <button type="button" class="settings-nav-item active" data-panel="panel-file"><span class="settings-nav-label">People</span></button>
       <button type="button" class="settings-nav-item" data-panel="panel-approvals"><span class="settings-nav-label">Approved demands</span><span class="settings-nav-count" id="navCountStaff"></span></button>
       <button type="button" class="settings-nav-item" data-panel="panel-attn"><span class="settings-nav-label">ATTN taxonomies</span><span class="settings-nav-count" id="navCountAttn"></span></button>
       <button type="button" class="settings-nav-item" data-panel="panel-email"><span class="settings-nav-label">Email text</span></button>
@@ -295,7 +295,7 @@ table.data td.tax input[type=text]:hover,table.data td.tax input[type=text]:focu
 
     <div class="settings-content">
       <section class="card settings-panel" id="panel-file">
-        <div class="card-head"><span class="title">Rules file</span><span class="sub">The exported rules.json is the source of truth, not this browser.</span></div>
+        <div class="card-head"><span class="title">People</span><span class="sub">The exported rules.json is the source of truth, not this browser.</span></div>
         <div class="note" id="rulesSource">No rules loaded yet.</div>
         <label class="field" for="labelInput">Rules label</label>
         <input type="text" id="labelInput" placeholder="e.g. ART1 Sample Delivery Services FY26/27">
@@ -787,7 +787,7 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
 (function () {
   "use strict";
 
-  var VERSION = "v1.9.0";
+  var VERSION = "v1.9.1";
   var LS_KEY = "waqti-exceptions:v1";
   var $ = function (id) { return document.getElementById(id); };
   $("version").textContent = VERSION;
