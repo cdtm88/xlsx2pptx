@@ -346,6 +346,7 @@ rules-JSON compatibility/versioning policy.
 - `project-cost-tracker.html` — project cost position, burn-up and monthly ledger
 - `pi-planning-capacity.html` — PI planning capacity per team and sprint
 - `vendor-spend-tracker.html` — vendor spend against annual budgets, by line item and stage
+- `BACKLOG.md` — prioritised list of known bugs and refactors, ready to pick up
 - `framework/` — the shared Report Kit + the inliner (`build.py`)
 - `reports/` — the `*.src.html` sources the tools are built from
 - `assets/` — logo variants, favicon, and the blank delivery-plan Excel template
