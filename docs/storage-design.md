@@ -267,9 +267,21 @@ holding a crash buffer.
 - **Shared files keep the other half.** Load demo, Clear all data and Load data
   replace only the tracker's own keys; anything else in the file (the
   `piCapacity` half written by `pi-planning-capacity.html`) is carried through.
-- **Undo stays in its file.** The undo history is emptied whenever the bound file
-  changes, and each step is tagged with its file, so an undo is never written
-  into a different file than it came from.
+- **Undo stays in its file.** The undo history is emptied whenever another file
+  is opened, and each step is tagged with its file, so an undo is never written
+  into a different file than it came from. Saving the project on screen to a new
+  file (the first *New project file…* from browser-only mode, or a save-as) is
+  not a switch: its steps are retagged to the new file and kept.
+- **One write at a time, to the file it was made for.** Saves go through a
+  single queue in the order they were made, so a slow write can never land
+  after a newer one; a queued write already overtaken by a newer one for the
+  same file is skipped. Each save captures the file record, handle, id and bytes
+  when it is made and uses only those once its awaits return, so opening another
+  file mid-write cannot put one project's bytes, or its crash copy, into the
+  other file. Opening or creating another file first writes any edit still
+  waiting on the debounce to the file it was typed into and waits for the queue
+  to drain; the old file's lock is let go only after that. The close-tab warning
+  holds until the queue is empty.
 - **A file that cannot be shown is never kept.** Loaded data is migrated and
   rendered before it replaces anything; if that fails the previous project stays.
   A saved state that fails at boot opens an empty project with a visible message

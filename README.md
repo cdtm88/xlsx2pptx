@@ -173,8 +173,10 @@ a baseline column in the ledger and the CSV, a baseline line on the burn-up, and
 a per-line delta showing exactly what moved — including lines that have since
 been removed. **Undo** steps back one change at a time — a field typed into is
 one step, as is a delete, an import or a currency switch — and its button names
-the change it will undo. Opening a different project file starts a fresh undo
-history, so an undo can never write one project into another's file.
+the change it will undo. Edits to two different rows are always two steps, even
+when the rows share a name. Opening a different project file starts a fresh undo
+history, so an undo can never write one project into another's file; saving the
+project on screen to a new file keeps its history.
 
 A cumulative chart has to treat a month with nothing booked as zero spend, which
 flattens the burn-up and quietly understates the run rate. So a month left empty
@@ -190,9 +192,14 @@ drivers a click away.
 Day rates and vendor costs can be in AED, GBP, USD or EUR and are converted at
 rates you set; everything is reported in one base currency. Switching the base
 currency converts the estimate and the typed ledger actuals with it, so the
-figures keep their meaning. Moving the start month re-phases the plan, but
-actuals, timesheet hours and vendor invoices stay on the calendar month they
-were booked in.
+figures keep their meaning; each is converted from the figure as typed, so
+switching back returns exactly what was typed rather than drifting by a cent.
+Moving the start month re-phases the plan, but actuals, timesheet hours and
+vendor invoices stay on the calendar month they were booked in. The move is
+applied once, when you leave the field or press Enter, never on each keystroke,
+and a toast counts any figures that fall before the new start (dropped) or past
+the end of the project (kept, hidden until you add months). Years before 1900
+are refused.
 
 **Saving.** In **Chrome**, **New project file…** picks where the project
 lives — keep it in the project's own docs folder — and from then on every change
