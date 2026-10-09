@@ -56,10 +56,11 @@ Every row left after the filters above is checked against all of these:
 | # | Rule | Condition | Reason shown |
 |---|---|---|---|
 | 1 | Not approved | The demand code is not in the person's approved list in **Settings > People**. People not in the rules are approved for nothing. | `Not approved` |
-| 1 | No demand | The Demand is blank. | `No demand` |
 | 2 | No application | The Application is blank. | `No application` |
 | 3 | System created | Created By is `GEN_LINES` (case-insensitive): a line Waqti created because some data was missing. | `System created (GEN_LINES)` |
 | 4 | No time logged | Someone with **Track Logged Time** ticked in Settings > People has no rows at all in the export (after the filters above). Untick it for people from other teams so they are never listed. | (own table) |
+
+A **blank Demand** is a Waqti bug, not a rule: on its own it raises nothing. Such rows are counted in the "Ignored" note under the tables (they can still appear in Needs attention if rule 2 or 3 matches).
 
 ### Which table a row goes to
 
@@ -74,8 +75,8 @@ Every row has a Send checkbox. Unticked rows are left out of the email and its t
 
 | Table | Grouped by | Columns | Sorted by |
 |---|---|---|---|
-| Demand exceptions | staff + demand + feature (hours summed) | Staff name, Demand (name; `Missing` when blank), Feature name, Hours | person's total hours (desc), then demand, feature |
-| Needs attention | reason + staff (hours summed) | Staff, Reason, Hours | reason, Staff ID |
+| Demand exceptions | staff + demand + feature (hours summed) | Staff name, Demand (name; code on hover), Feature name, Hours | person's total hours (desc), then demand, feature |
+| Needs attention | reason + staff + taxonomy (hours summed) | Staff, Taxonomy, Reason, Hours | reason, Staff ID, taxonomy |
 | No time logged | person | Name, Staff ID | Staff ID |
 
 ## 5. Email
@@ -85,8 +86,8 @@ Section order:
 1. Title: `Timesheet corrections needed: {period}`
 2. Opening line (editable in Settings > Email text).
 3. `Total to correct: X hours across N people.` (demand exceptions only)
-4. **One table per demand** (heading `{code} - {description}`, or `Missing demand`): Staff, Feature, Hours. Demands sorted by total hours (desc).
-5. **Needs attention** (amber): Staff, Reason, Hours.
+4. **One table per demand** (heading `{code} - {description}`): Staff, Feature, Hours. Demands sorted by total hours (desc).
+5. **Needs attention** (amber): Staff, Taxonomy, Reason, Hours.
 6. **No time logged (lower priority)** (grey): Name, Staff ID.
 7. Closing action (editable). Default: "Please correct these in Waqti by {deadline}."
 
@@ -94,6 +95,6 @@ Empty sections are left out. Hours show to 1 decimal. Text is made Windows-1252 
 
 ## 6. Things worth knowing
 
-- **Anything not on the ignore list is checked.** A new leave-type taxonomy shows up in the tables (often as `No application; No demand`) until it is added to the list.
+- **Anything not on the ignore list is checked.** A new leave-type taxonomy shows up in the tables (often as `No application`) until it is added to the list.
 - **The team (ART) name is hard-coded** in `TARGET_ART` and in the on-screen "Ignored" note.
 - **No time-bounded approvals**: approvals apply to the whole export period.

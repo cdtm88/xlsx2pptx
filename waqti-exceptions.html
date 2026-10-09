@@ -482,19 +482,19 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
   }
 
   var REASON_GEN = "System created (GEN_LINES)", REASON_NOAPP = "No application",
-      REASON_NODEMAND = "No demand", REASON_NOTAPPROVED = "Not approved";
+      REASON_NOTAPPROVED = "Not approved";
 
-  // reasonsFor(booking, approvedList) -> { attention: [..], demand: "" | "No demand" | "Not approved" }
+  // reasonsFor(booking, approvedList) -> { attention: [..], demand: "" | "Not approved" }
   // Rules: GEN_LINES and empty Application need attention; a demand the person is not
-  // approved for (or no demand at all) is a demand exception. A row that needs attention
-  // goes to that table only, with every matching reason listed.
+  // approved for is a demand exception. A blank demand is a Waqti bug, not a rule, so it
+  // raises nothing by itself. A row that needs attention goes to that table only, with
+  // every matching reason listed.
   function reasonsFor(b, approved) {
     var attention = [];
     if (b.createdBy.toUpperCase() === "GEN_LINES") attention.push(REASON_GEN);
     if (b.application === "") attention.push(REASON_NOAPP);  // skipped when the export has no Application column
     var demand = "";
-    if (b.demandCode === "") demand = REASON_NODEMAND;
-    else if (approved.indexOf(b.demandCode) === -1) demand = REASON_NOTAPPROVED;
+    if (b.demandCode !== "" && approved.indexOf(b.demandCode) === -1) demand = REASON_NOTAPPROVED;
     return { attention: attention, demand: demand };
   }
 
@@ -505,7 +505,7 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
     var totalHours = 0, groups = {}, covered = {}, notInRules = {};
     var attn = {};                       // GEN_LINES / no-application rows needing a human check
     var present = {};                    // staff IDs that appear anywhere in the export
-    var ignoreSet = {}, ignoredCount = 0, ignoredHours = 0;
+    var ignoreSet = {}, ignoredCount = 0, ignoredHours = 0, noDemandCount = 0;
     ignoredTaxonomiesOf(rules).forEach(function (t) { t = String(t).trim().toLowerCase(); if (t) ignoreSet[t] = 1; });
 
     bookings.forEach(function (b) {
@@ -521,16 +521,17 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
 
       if (rs.attention.length) {
         var parts = rs.attention.slice();
-        if (rs.demand === REASON_NODEMAND) parts.push(REASON_NODEMAND);
-        else if (rs.demand === REASON_NOTAPPROVED) parts.push(REASON_NOTAPPROVED + " for " + b.demandCode);
+        if (rs.demand === REASON_NOTAPPROVED) parts.push(REASON_NOTAPPROVED + " for " + b.demandCode);
         var reason = parts.join("; ");
-        var akey = reason + "\u0000" + b.staffId;
+        var taxonomy = b.taxonomy || "";
+        var akey = reason + "\u0000" + b.staffId + "\u0000" + taxonomy;
         var a = attn[akey];
-        if (!a) a = attn[akey] = { reason: reason, staffId: b.staffId, name: (inRules && staff[b.staffId].name) || "", application: b.application, hours: 0, count: 0 };
+        if (!a) a = attn[akey] = { reason: reason, staffId: b.staffId, name: (inRules && staff[b.staffId].name) || "", taxonomy: taxonomy, application: b.application, hours: 0, count: 0 };
         if (b.hours !== null) a.hours += b.hours;
         a.count++;
         return;
       }
+      if (b.demandCode === "") { noDemandCount++; return; } // Waqti bug, not a rule: ignored
       if (!rs.demand) return; // approved, not an exception
 
       if (!groups[b.staffId]) groups[b.staffId] = { staffId: b.staffId, name: (inRules ? (staff[b.staffId].name || "") : ""), inRules: inRules, totalHours: 0, lines: {} };
@@ -563,7 +564,7 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
     attention.sort(function (a, b) {
       if (a.reason !== b.reason) return a.reason < b.reason ? -1 : 1;
       if (a.staffId !== b.staffId) return a.staffId < b.staffId ? -1 : 1;
-      return 0;
+      return a.taxonomy < b.taxonomy ? -1 : (a.taxonomy > b.taxonomy ? 1 : 0);
     });
 
     var notInRulesStaff = Object.keys(notInRules).sort();
@@ -579,7 +580,7 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
       staffAffected: exceptions.length, exceptionLineCount: lineCount,
       coveredCount: Object.keys(covered).length, notInRulesCount: notInRulesStaff.length,
       attentionCount: attention.length, attentionHours: attentionHours,
-      missingCount: missingStaff.length, ignoredCount: ignoredCount, ignoredHours: round2(ignoredHours)
+      missingCount: missingStaff.length, ignoredCount: ignoredCount, ignoredHours: round2(ignoredHours), noDemandCount: noDemandCount
     };
     return { exceptions: exceptions, attention: attention, notInRulesStaff: notInRulesStaff, missingStaff: missingStaff, stats: stats };
   }
@@ -637,7 +638,7 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
     });
     var demands = Object.keys(byDemand).map(function (k) { return byDemand[k]; });
     demands.sort(function (a, b) { if (b.hours !== a.hours) return b.hours - a.hours; return a.code < b.code ? -1 : (a.code > b.code ? 1 : 0); });
-    function demandTitle(d) { return d.code ? d.code + (d.desc ? " - " + d.desc : "") : "Missing demand"; }
+    function demandTitle(d) { return d.code + (d.desc ? " - " + d.desc : ""); }
     demands.forEach(function (d) {
       d.rows.sort(function (a, b) { if (a.name !== b.name) return a.name < b.name ? -1 : 1; return a.feature < b.feature ? -1 : (a.feature > b.feature ? 1 : 0); });
     });
@@ -664,15 +665,15 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
       });
     }
     if (attention.length) {
-      var aS = "Staff".length, aR = "Reason".length, aH = "Hours".length;
+      var aS = "Staff".length, aT = "Taxonomy".length, aR = "Reason".length, aH = "Hours".length;
       attention.forEach(function (a) {
-        aS = Math.max(aS, w1(a.name || a.staffId).length); aR = Math.max(aR, a.reason.length);
+        aS = Math.max(aS, w1(a.name || a.staffId).length); aT = Math.max(aT, w1(a.taxonomy || "-").length); aR = Math.max(aR, a.reason.length);
         aH = Math.max(aH, (fmtHrs(a.hours) + " hrs").length);
       });
       L.push("NEEDS ATTENTION - please review and fix these in Waqti");
-      L.push(pad("Staff", aS) + "  " + pad("Reason", aR) + "  " + padStart("Hours", aH));
-      L.push(rep("-", aS) + "  " + rep("-", aR) + "  " + rep("-", aH));
-      attention.forEach(function (a) { L.push(pad(w1(a.name || a.staffId), aS) + "  " + pad(a.reason, aR) + "  " + padStart(fmtHrs(a.hours) + " hrs", aH)); });
+      L.push(pad("Staff", aS) + "  " + pad("Taxonomy", aT) + "  " + pad("Reason", aR) + "  " + padStart("Hours", aH));
+      L.push(rep("-", aS) + "  " + rep("-", aT) + "  " + rep("-", aR) + "  " + rep("-", aH));
+      attention.forEach(function (a) { L.push(pad(w1(a.name || a.staffId), aS) + "  " + pad(w1(a.taxonomy || "-"), aT) + "  " + pad(a.reason, aR) + "  " + padStart(fmtHrs(a.hours) + " hrs", aH)); });
       L.push("");
     }
     if (missing.length) {
@@ -692,7 +693,7 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
     // ---- rich HTML (inline styles; fixed table width so every table lines up) ----
     var tblOpen = '<table role="presentation" cellspacing="0" cellpadding="0" width="900" style="border-collapse:collapse;background:#ffffff;width:900px;table-layout:fixed;">';
     var demCols = '<colgroup><col style="width:200px"><col style="width:610px"><col style="width:90px"></colgroup>';
-    var attCols = '<colgroup><col style="width:200px"><col style="width:610px"><col style="width:90px"></colgroup>';
+    var attCols = '<colgroup><col style="width:180px"><col style="width:330px"><col style="width:300px"><col style="width:90px"></colgroup>';
     var thB = 'background:#E6F6FA;color:#1A1A1A;border:1px solid #BFE8F2;padding:7px 11px;font-family:Arial,Helvetica,sans-serif;font-size:12px;text-align:left;word-wrap:break-word;';
     var thA = 'background:#FBE3B4;color:#7A4E12;border:1px solid #F0D6A6;padding:7px 11px;font-family:Arial,Helvetica,sans-serif;font-size:12px;text-align:left;word-wrap:break-word;';
     var td = 'background:#ffffff;color:#1a1a1a;border:1px solid #d0d7de;padding:7px 11px;font-family:Arial,Helvetica,sans-serif;font-size:13px;word-wrap:break-word;';
@@ -717,10 +718,10 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
     if (attention.length) {
       h.push('<p style="background:#ffffff;color:#7A4E12;margin:20px 0 6px;font-weight:bold;font-size:13.5px;">Needs attention: please review and fix these in Waqti</p>');
       h.push(tblOpen + attCols);
-      h.push('<tr><th width="200" style="' + thA + '">Staff</th><th width="610" style="' + thA + '">Reason</th><th width="90" style="' + thA + 'text-align:right;">Hours</th></tr>');
+      h.push('<tr><th width="180" style="' + thA + '">Staff</th><th width="330" style="' + thA + '">Taxonomy</th><th width="300" style="' + thA + '">Reason</th><th width="90" style="' + thA + 'text-align:right;">Hours</th></tr>');
       attention.forEach(function (a, i) {
         var c = (i % 2 === 1) ? tdA : td;
-        h.push('<tr><td width="200" style="' + c + '">' + escHtml(a.name || a.staffId) + '</td><td width="610" style="' + c + '">' + escHtml(a.reason) + '</td><td width="90" style="' + c + 'text-align:right;font-weight:bold;white-space:nowrap;">' + escHtml(fmtHrs(a.hours)) + ' hrs</td></tr>');
+        h.push('<tr><td width="180" style="' + c + '">' + escHtml(a.name || a.staffId) + '</td><td width="330" style="' + c + '">' + escHtml(a.taxonomy || "-") + '</td><td width="300" style="' + c + '">' + escHtml(a.reason) + '</td><td width="90" style="' + c + 'text-align:right;font-weight:bold;white-space:nowrap;">' + escHtml(fmtHrs(a.hours)) + ' hrs</td></tr>');
       });
       h.push('</table>');
     }
@@ -810,7 +811,7 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
 (function () {
   "use strict";
 
-  var VERSION = "v2.2.1";
+  var VERSION = "v2.3.0";
   var LS_KEY = "waqti-exceptions:v1";
   var $ = function (id) { return document.getElementById(id); };
   $("version").textContent = VERSION;
@@ -829,7 +830,7 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
     lastResult: null, lastEmail: null, emailMode: "plain", excluded: {}, lineKeys: [], excludedAttn: {}, attnKeys: [], excludedMissing: {}, missingKeys: []
   };
   function keyOf(staffId, l) { return staffId + "\u0000" + l.demandCode + "\u0000" + l.featureCode; }
-  function attnKeyOf(a) { return a.reason + "\u0000" + a.staffId; }
+  function attnKeyOf(a) { return a.reason + "\u0000" + a.staffId + "\u0000" + a.taxonomy; }
   function rulesFromParsed(p) { return { label: p.label, staff: p.staff, generatedAt: p.generatedAt, ignoredTaxonomies: p.ignoredTaxonomies }; }
 
   /* ---------- view switching ---------- */
@@ -1149,7 +1150,7 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
     if (s.exceptionLineCount === 0) {
       $("exHead").innerHTML = ""; $("exceptionsWrap").innerHTML = ""; $("exceptionsWrap").className = "";
     } else {
-      $("exHead").innerHTML = section("Demand exceptions", "Time logged to a demand the person is not approved for in the People rules, or with no demand. Untick a row to leave it out of the email.");
+      $("exHead").innerHTML = section("Demand exceptions", "Time logged to a demand the person is not approved for in the People rules. Untick a row to leave it out of the email.");
       $("exceptionsWrap").className = "table-wrap scroll";
       state.lineKeys = [];
       var idx = 0;
@@ -1160,7 +1161,7 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
           state.lineKeys.push(key);
           var nameCell = "<strong>" + esc(g.name || g.staffId) + '</strong> <span class="sid">' + esc(g.staffId) + "</span>" + (g.inRules ? "" : ' <span class="tag-amber">not in rules</span>');
           html += '<tr class="' + (off ? "excluded" : "") + '"><td class="chk"><input type="checkbox" data-idx="' + idx + '"' + (off ? "" : " checked") + ' aria-label="Include this row in the email"></td>' +
-            "<td>" + nameCell + "</td><td>" + (l.demandCode ? '<span title="' + esc(l.demandCode) + '">' + esc(l.demandDesc || l.demandCode) + "</span>" : '<span class="tag-amber">Missing</span>') + "</td><td>" + esc(l.featureDesc || l.featureCode) + '</td><td class="num">' + l.hours.toFixed(1) + "</td></tr>";
+            "<td>" + nameCell + "</td><td>" + '<span title="' + esc(l.demandCode) + '">' + esc(l.demandDesc || l.demandCode) + "</span>" + "</td><td>" + esc(l.featureDesc || l.featureCode) + '</td><td class="num">' + l.hours.toFixed(1) + "</td></tr>";
           idx++;
         });
       });
@@ -1179,13 +1180,13 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
     // ---- needs attention (GEN + no-demand), with exclude checkboxes ----
     if (result.attention.length) {
       var a = section("Needs attention (" + result.attention.length + ")", "Rows to review and fix in Waqti: system-created lines (GEN_LINES, some data was missing) and lines with no Application. Every matching reason is listed. Untick a row to leave it out of the email.");
-      a += '<div class="table-wrap scroll"><table class="data amber"><thead><tr><th class="chk">Send</th><th>Staff</th><th>Reason</th><th class="num">Hours</th></tr></thead><tbody>';
+      a += '<div class="table-wrap scroll"><table class="data amber"><thead><tr><th class="chk">Send</th><th>Staff</th><th>Taxonomy</th><th>Reason</th><th class="num">Hours</th></tr></thead><tbody>';
       state.attnKeys = []; var ai = 0;
       result.attention.forEach(function (r) {
         var k = attnKeyOf(r), off = !!state.excludedAttn[k];
         state.attnKeys.push(k);
         a += '<tr class="' + (off ? "excluded" : "") + '"><td class="chk"><input type="checkbox" data-attn="' + ai + '"' + (off ? "" : " checked") + ' aria-label="Include this row in the email"></td>' +
-          "<td>" + esc(r.name || r.staffId) + "</td><td>" + esc(r.reason) + '</td><td class="num">' + r.hours.toFixed(1) + "</td></tr>";
+          "<td>" + esc(r.name || r.staffId) + "</td><td>" + esc(r.taxonomy || "-") + "</td><td>" + esc(r.reason) + '</td><td class="num">' + r.hours.toFixed(1) + "</td></tr>";
         ai++;
       });
       a += "</tbody></table></div>";
@@ -1229,6 +1230,7 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
     if (result.notInRulesStaff.length) notes.push('<div class="panel warn"><strong>Not in rules (' + result.notInRulesStaff.length + ').</strong> These staff are in the export but not in the rules, so they are treated as approved for nothing and every demand booking is an exception above. Add them in Settings &gt; People to refine.<div style="margin-top:.4rem;">' + result.notInRulesStaff.map(function (x) { return '<span class="pill warn">' + esc(x) + "</span>"; }).join(" ") + "</div></div>");
     var ignored = [];
     if (s.ignoredCount) ignored.push(s.ignoredCount + " row" + (s.ignoredCount === 1 ? "" : "s") + " with an ignored taxonomy such as leave (" + s.ignoredHours.toFixed(1) + " hrs, edit the list in Settings &gt; Ignored taxonomies)");
+    if (s.noDemandCount) ignored.push(s.noDemandCount + " row" + (s.noDemandCount === 1 ? "" : "s") + " with no demand (a Waqti bug, not a rule)");
     if (state.parsed.otherTeam) ignored.push(state.parsed.otherTeam + " row" + (state.parsed.otherTeam === 1 ? "" : "s") + " from other teams (Staff ART not " + esc("DN4 - dnata Travel Services") + ")");
     if (!state.parsed.bookings.some(function (b) { return b.application !== null; }) && state.parsed.bookings.length) notes.push('<div class="panel warn">This export has no Application column, so the "No application" check is skipped.</div>');
     if (ignored.length) notes.push('<div class="note" style="margin:.6rem 0 0;">Ignored: ' + ignored.join("; ") + ".</div>");
