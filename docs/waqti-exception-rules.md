@@ -31,6 +31,10 @@ Demand and Feature values are split on the first `" - "` into a code and a descr
 
 Staff IDs are upper-cased, so matching against the People rules is case-insensitive.
 
+### Our team flag
+
+Each person in rules.json has `"team": true|false` (default false). Tick **Our team** in Settings > People (grid column, or the collapsed "Not present in the current export" list) for people in your team. Only they can appear in No time logged.
+
 ### Ignored taxonomies
 
 Stored in rules.json as `ignoredTaxonomies` and edited in **Settings > Rules > Ignored taxonomies** (edit, delete, add; taxonomies in the loaded export that are still being checked are listed with one-click add). A rules.json without the field uses this default list:
@@ -55,7 +59,7 @@ Every row left after the filters above is checked against all of these:
 | 1 | No demand | The Demand is blank. | `No demand` |
 | 2 | No application | The Application is blank. | `No application` |
 | 3 | System created | Created By is `GEN_LINES` (case-insensitive): a line Waqti created because some data was missing. | `System created (GEN_LINES)` |
-| 4 | No time logged | Someone in the People rules has no rows at all in the export (after the filters above). | `No time logged` |
+| 4 | No time logged | Someone flagged **Our team** in Settings > People has no rows at all in the export (after the filters above). People from other teams are never listed. | (own table) |
 
 ### Which table a row goes to
 
@@ -70,9 +74,9 @@ Every row has a Send checkbox. Unticked rows are left out of the email and its t
 
 | Table | Grouped by | Columns | Sorted by |
 |---|---|---|---|
-| Demand exceptions | staff + demand + feature (hours summed) | Staff name, Demand, Feature name, Reason, Hours | person's total hours (desc), then demand, feature |
-| Needs attention | reason + staff + application (hours summed) | Staff, Reason, Application, Hours | reason, Staff ID, application |
-| No time logged | person | Name, Staff ID, Reason | Staff ID |
+| Demand exceptions | staff + demand + feature (hours summed) | Staff name, Demand (name; `Missing` when blank), Feature name, Hours | person's total hours (desc), then demand, feature |
+| Needs attention | reason + staff (hours summed) | Staff, Reason, Hours | reason, Staff ID |
+| No time logged | person | Name, Staff ID | Staff ID |
 
 ## 5. Email
 
@@ -81,9 +85,9 @@ Section order:
 1. Title: `Timesheet corrections needed: {period}`
 2. Opening line (editable in Settings > Email text).
 3. `Total to correct: X hours across N people.` (demand exceptions only)
-4. **One table per demand** (heading `{code} - {description}`, or `No demand`): Staff, Feature, Reason, Hours. Demands sorted by total hours (desc).
-5. **Needs attention** (amber): Staff, Reason, Application, Hours.
-6. **No time logged (lower priority)** (grey): Name, Staff ID, Reason.
+4. **One table per demand** (heading `{code} - {description}`, or `Missing demand`): Staff, Feature, Hours. Demands sorted by total hours (desc).
+5. **Needs attention** (amber): Staff, Reason, Hours.
+6. **No time logged (lower priority)** (grey): Name, Staff ID.
 7. Closing action (editable). Default: "Please correct these in Waqti by {deadline}."
 
 Empty sections are left out. Hours show to 1 decimal. Text is made Windows-1252 safe for the plain-text copy.

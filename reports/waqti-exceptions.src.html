@@ -63,6 +63,12 @@ table.data td.tax input[type=text]:hover,table.data td.tax input[type=text]:focu
 .del-btn{border:1px solid var(--line);background:#fff;color:var(--mid);border-radius:6px;width:26px;height:26px;line-height:1;font-size:1rem;cursor:pointer;font-family:inherit}
 .del-btn:hover{border-color:#D9503A;color:#D9503A;background:#FCEDEA}
 .pill-add{cursor:pointer;font-family:inherit}
+details.fold>summary{cursor:pointer;list-style:none}
+details.fold>summary::-webkit-details-marker{display:none}
+details.fold>summary::before{content:"\25B8";display:inline-block;width:1em;color:var(--mid);transition:transform .15s}
+details.fold[open]>summary::before{transform:rotate(90deg)}
+table.grid th.teamcol,table.grid td.teamcol{background:var(--teal-tint)}
+table.grid thead th.teamcol{background:var(--teal-dark)}
 .pill-add:hover{border-color:var(--teal);color:var(--teal-dark)}
 @media (max-width:760px){
   .settings-shell{grid-template-columns:1fr}
@@ -167,7 +173,7 @@ table.data td.tax input[type=text]:hover,table.data td.tax input[type=text]:focu
 
     <div class="settings-content">
       <section class="card settings-panel" id="panel-approvals">
-        <div class="card-head"><span class="title">People</span><span class="sub">Which demands each person is approved to book time against.</span></div>
+        <div class="card-head"><span class="title">People</span><span class="sub">Which demands each person is approved for, and who is in our team.</span></div>
         <p class="sub" id="gridHint" style="margin:0 0 .6rem;">Load an export to see the staff-by-demand grid. Tick a cell to approve that person for that demand.</p>
         <div class="grid-scroll" id="gridWrap"></div>
         <div id="extrasWrap"></div>
@@ -372,7 +378,7 @@ table.data td.tax input[type=text]:hover,table.data td.tax input[type=text]:focu
         if (rs.demand === REASON_NODEMAND) parts.push(REASON_NODEMAND);
         else if (rs.demand === REASON_NOTAPPROVED) parts.push(REASON_NOTAPPROVED + " for " + b.demandCode);
         var reason = parts.join("; ");
-        var akey = reason + "\u0000" + b.staffId + "\u0000" + b.application;
+        var akey = reason + "\u0000" + b.staffId;
         var a = attn[akey];
         if (!a) a = attn[akey] = { reason: reason, staffId: b.staffId, name: (inRules && staff[b.staffId].name) || "", application: b.application, hours: 0, count: 0 };
         if (b.hours !== null) a.hours += b.hours;
@@ -411,11 +417,12 @@ table.data td.tax input[type=text]:hover,table.data td.tax input[type=text]:focu
     attention.sort(function (a, b) {
       if (a.reason !== b.reason) return a.reason < b.reason ? -1 : 1;
       if (a.staffId !== b.staffId) return a.staffId < b.staffId ? -1 : 1;
-      return a.application < b.application ? -1 : (a.application > b.application ? 1 : 0);
+      return 0;
     });
 
     var notInRulesStaff = Object.keys(notInRules).sort();
-    var missingStaff = Object.keys(staff).filter(function (id) { return !present[id]; }).sort().map(function (id) { return { staffId: id, name: staff[id].name || "" }; });
+    // No time logged: only people flagged as in our team (other teams also book to our demands)
+    var missingStaff = Object.keys(staff).filter(function (id) { return staff[id].team === true && !present[id]; }).sort().map(function (id) { return { staffId: id, name: staff[id].name || "" }; });
     var exceptionHours = round2(exceptions.reduce(function (s, g) { return s + g.totalHours; }, 0));
     var lineCount = exceptions.reduce(function (s, g) { return s + g.lines.length; }, 0);
     var attentionHours = round2(attention.reduce(function (s, a) { return s + a.hours; }, 0));
@@ -483,15 +490,15 @@ table.data td.tax input[type=text]:hover,table.data td.tax input[type=text]:focu
     });
     var demands = Object.keys(byDemand).map(function (k) { return byDemand[k]; });
     demands.sort(function (a, b) { if (b.hours !== a.hours) return b.hours - a.hours; return a.code < b.code ? -1 : (a.code > b.code ? 1 : 0); });
-    function demandTitle(d) { return d.code ? d.code + (d.desc ? " - " + d.desc : "") : "No demand"; }
+    function demandTitle(d) { return d.code ? d.code + (d.desc ? " - " + d.desc : "") : "Missing demand"; }
     demands.forEach(function (d) {
       d.rows.sort(function (a, b) { if (a.name !== b.name) return a.name < b.name ? -1 : 1; return a.feature < b.feature ? -1 : (a.feature > b.feature ? 1 : 0); });
     });
 
     // ---- plain text ----
-    var wName = "Staff".length, wFeat = "Feature".length, wR = "Reason".length, wH = "Hours".length;
+    var wName = "Staff".length, wFeat = "Feature".length, wH = "Hours".length;
     demands.forEach(function (d) { d.rows.forEach(function (r) {
-      wName = Math.max(wName, w1(r.name).length); wFeat = Math.max(wFeat, w1(r.feature).length); wR = Math.max(wR, r.reason.length); wH = Math.max(wH, (fmtHrs(r.hours) + " hrs").length);
+      wName = Math.max(wName, w1(r.name).length); wFeat = Math.max(wFeat, w1(r.feature).length); wH = Math.max(wH, (fmtHrs(r.hours) + " hrs").length);
     }); });
     var L = [];
     L.push("Timesheet corrections needed: " + period);
@@ -503,32 +510,31 @@ table.data td.tax input[type=text]:hover,table.data td.tax input[type=text]:focu
       L.push("");
       demands.forEach(function (d) {
         L.push(w1(demandTitle(d)));
-        L.push(pad("Staff", wName) + "  " + pad("Feature", wFeat) + "  " + pad("Reason", wR) + "  " + padStart("Hours", wH));
-        L.push(rep("-", wName) + "  " + rep("-", wFeat) + "  " + rep("-", wR) + "  " + rep("-", wH));
-        d.rows.forEach(function (r) { L.push(pad(w1(r.name), wName) + "  " + pad(w1(r.feature), wFeat) + "  " + pad(r.reason, wR) + "  " + padStart(fmtHrs(r.hours) + " hrs", wH)); });
+        L.push(pad("Staff", wName) + "  " + pad("Feature", wFeat) + "  " + padStart("Hours", wH));
+        L.push(rep("-", wName) + "  " + rep("-", wFeat) + "  " + rep("-", wH));
+        d.rows.forEach(function (r) { L.push(pad(w1(r.name), wName) + "  " + pad(w1(r.feature), wFeat) + "  " + padStart(fmtHrs(r.hours) + " hrs", wH)); });
         L.push("");
       });
     }
     if (attention.length) {
-      var aS = "Staff".length, aR = "Reason".length, aA = "Application".length, aH = "Hours".length;
+      var aS = "Staff".length, aR = "Reason".length, aH = "Hours".length;
       attention.forEach(function (a) {
         aS = Math.max(aS, w1(a.name || a.staffId).length); aR = Math.max(aR, a.reason.length);
-        aA = Math.max(aA, w1(a.application || "-").length); aH = Math.max(aH, (fmtHrs(a.hours) + " hrs").length);
+        aH = Math.max(aH, (fmtHrs(a.hours) + " hrs").length);
       });
       L.push("NEEDS ATTENTION - please review and fix these in Waqti");
-      L.push(pad("Staff", aS) + "  " + pad("Reason", aR) + "  " + pad("Application", aA) + "  " + padStart("Hours", aH));
-      L.push(rep("-", aS) + "  " + rep("-", aR) + "  " + rep("-", aA) + "  " + rep("-", aH));
-      attention.forEach(function (a) { L.push(pad(w1(a.name || a.staffId), aS) + "  " + pad(a.reason, aR) + "  " + pad(w1(a.application || "-"), aA) + "  " + padStart(fmtHrs(a.hours) + " hrs", aH)); });
+      L.push(pad("Staff", aS) + "  " + pad("Reason", aR) + "  " + padStart("Hours", aH));
+      L.push(rep("-", aS) + "  " + rep("-", aR) + "  " + rep("-", aH));
+      attention.forEach(function (a) { L.push(pad(w1(a.name || a.staffId), aS) + "  " + pad(a.reason, aR) + "  " + padStart(fmtHrs(a.hours) + " hrs", aH)); });
       L.push("");
     }
     if (missing.length) {
-      var mN = "Name".length, mI = "Staff ID".length, mR = "Reason".length, NOTIME = "No time logged";
-      mR = Math.max(mR, NOTIME.length);
+      var mN = "Name".length, mI = "Staff ID".length;
       missing.forEach(function (m) { mN = Math.max(mN, w1(m.name || "-").length); mI = Math.max(mI, m.staffId.length); });
       L.push("NO TIME LOGGED (lower priority) - these team members have no bookings in Waqti. Please update your timesheets.");
-      L.push(pad("Name", mN) + "  " + pad("Staff ID", mI) + "  " + pad("Reason", mR));
-      L.push(rep("-", mN) + "  " + rep("-", mI) + "  " + rep("-", mR));
-      missing.forEach(function (m) { L.push(pad(w1(m.name || "-"), mN) + "  " + pad(m.staffId, mI) + "  " + pad(NOTIME, mR)); });
+      L.push(pad("Name", mN) + "  " + pad("Staff ID", mI));
+      L.push(rep("-", mN) + "  " + rep("-", mI));
+      missing.forEach(function (m) { L.push(pad(w1(m.name || "-"), mN) + "  " + pad(m.staffId, mI)); });
       L.push("");
     }
     L.push(closing);
@@ -538,8 +544,8 @@ table.data td.tax input[type=text]:hover,table.data td.tax input[type=text]:focu
 
     // ---- rich HTML (inline styles; fixed table width so every table lines up) ----
     var tblOpen = '<table role="presentation" cellspacing="0" cellpadding="0" width="900" style="border-collapse:collapse;background:#ffffff;width:900px;table-layout:fixed;">';
-    var demCols = '<colgroup><col style="width:170px"><col style="width:500px"><col style="width:140px"><col style="width:90px"></colgroup>';
-    var attCols = '<colgroup><col style="width:200px"><col style="width:400px"><col style="width:210px"><col style="width:90px"></colgroup>';
+    var demCols = '<colgroup><col style="width:200px"><col style="width:610px"><col style="width:90px"></colgroup>';
+    var attCols = '<colgroup><col style="width:200px"><col style="width:610px"><col style="width:90px"></colgroup>';
     var thB = 'background:#E6F6FA;color:#1A1A1A;border:1px solid #BFE8F2;padding:7px 11px;font-family:Arial,Helvetica,sans-serif;font-size:12px;text-align:left;word-wrap:break-word;';
     var thA = 'background:#FBE3B4;color:#7A4E12;border:1px solid #F0D6A6;padding:7px 11px;font-family:Arial,Helvetica,sans-serif;font-size:12px;text-align:left;word-wrap:break-word;';
     var td = 'background:#ffffff;color:#1a1a1a;border:1px solid #d0d7de;padding:7px 11px;font-family:Arial,Helvetica,sans-serif;font-size:13px;word-wrap:break-word;';
@@ -553,10 +559,10 @@ table.data td.tax input[type=text]:hover,table.data td.tax input[type=text]:focu
       demands.forEach(function (d) {
         h.push('<p style="background:#ffffff;color:#007A99;margin:16px 0 6px;font-weight:bold;font-size:13.5px;">' + escHtml(demandTitle(d)) + '</p>');
         h.push(tblOpen + demCols);
-        h.push('<tr><th width="170" style="' + thB + '">Staff</th><th width="500" style="' + thB + '">Feature</th><th width="140" style="' + thB + '">Reason</th><th width="90" style="' + thB + 'text-align:right;">Hours</th></tr>');
+        h.push('<tr><th width="200" style="' + thB + '">Staff</th><th width="610" style="' + thB + '">Feature</th><th width="90" style="' + thB + 'text-align:right;">Hours</th></tr>');
         d.rows.forEach(function (r, i) {
           var c = (i % 2 === 1) ? tdA : td;
-          h.push('<tr><td width="170" style="' + c + '">' + escHtml(r.name) + '</td><td width="500" style="' + c + '">' + escHtml(r.feature) + '</td><td width="140" style="' + c + '">' + escHtml(r.reason) + '</td><td width="90" style="' + c + 'text-align:right;font-weight:bold;white-space:nowrap;">' + escHtml(fmtHrs(r.hours)) + ' hrs</td></tr>');
+          h.push('<tr><td width="200" style="' + c + '">' + escHtml(r.name) + '</td><td width="610" style="' + c + '">' + escHtml(r.feature) + '</td><td width="90" style="' + c + 'text-align:right;font-weight:bold;white-space:nowrap;">' + escHtml(fmtHrs(r.hours)) + ' hrs</td></tr>');
         });
         h.push('</table>');
       });
@@ -564,22 +570,22 @@ table.data td.tax input[type=text]:hover,table.data td.tax input[type=text]:focu
     if (attention.length) {
       h.push('<p style="background:#ffffff;color:#7A4E12;margin:20px 0 6px;font-weight:bold;font-size:13.5px;">Needs attention: please review and fix these in Waqti</p>');
       h.push(tblOpen + attCols);
-      h.push('<tr><th width="200" style="' + thA + '">Staff</th><th width="400" style="' + thA + '">Reason</th><th width="210" style="' + thA + '">Application</th><th width="90" style="' + thA + 'text-align:right;">Hours</th></tr>');
+      h.push('<tr><th width="200" style="' + thA + '">Staff</th><th width="610" style="' + thA + '">Reason</th><th width="90" style="' + thA + 'text-align:right;">Hours</th></tr>');
       attention.forEach(function (a, i) {
         var c = (i % 2 === 1) ? tdA : td;
-        h.push('<tr><td width="200" style="' + c + '">' + escHtml(a.name || a.staffId) + '</td><td width="400" style="' + c + '">' + escHtml(a.reason) + '</td><td width="210" style="' + c + '">' + escHtml(a.application || "-") + '</td><td width="90" style="' + c + 'text-align:right;font-weight:bold;white-space:nowrap;">' + escHtml(fmtHrs(a.hours)) + ' hrs</td></tr>');
+        h.push('<tr><td width="200" style="' + c + '">' + escHtml(a.name || a.staffId) + '</td><td width="610" style="' + c + '">' + escHtml(a.reason) + '</td><td width="90" style="' + c + 'text-align:right;font-weight:bold;white-space:nowrap;">' + escHtml(fmtHrs(a.hours)) + ' hrs</td></tr>');
       });
       h.push('</table>');
     }
     if (missing.length) {
-      var misCols = '<colgroup><col style="width:500px"><col style="width:200px"><col style="width:200px"></colgroup>';
+      var misCols = '<colgroup><col style="width:700px"><col style="width:200px"></colgroup>';
       var thG = 'background:#ECEEF0;color:#3D3D3D;border:1px solid #D8DCE0;padding:7px 11px;font-family:Arial,Helvetica,sans-serif;font-size:12px;text-align:left;word-wrap:break-word;';
       h.push('<p style="background:#ffffff;color:#3D3D3D;margin:20px 0 6px;font-weight:bold;font-size:13.5px;">No time logged (lower priority): these team members have no bookings in Waqti. Please update your timesheets.</p>');
       h.push(tblOpen + misCols);
-      h.push('<tr><th width="500" style="' + thG + '">Name</th><th width="200" style="' + thG + '">Staff ID</th><th width="200" style="' + thG + '">Reason</th></tr>');
+      h.push('<tr><th width="700" style="' + thG + '">Name</th><th width="200" style="' + thG + '">Staff ID</th></tr>');
       missing.forEach(function (m, i) {
         var c = (i % 2 === 1) ? tdA : td;
-        h.push('<tr><td width="500" style="' + c + '">' + escHtml(m.name || "-") + '</td><td width="200" style="' + c + '">' + escHtml(m.staffId) + '</td><td width="200" style="' + c + '">No time logged</td></tr>');
+        h.push('<tr><td width="700" style="' + c + '">' + escHtml(m.name || "-") + '</td><td width="200" style="' + c + '">' + escHtml(m.staffId) + '</td></tr>');
       });
       h.push('</table>');
     }
@@ -599,9 +605,10 @@ table.data td.tax input[type=text]:hover,table.data td.tax input[type=text]:focu
       var e = staffIn[id] || {};
       var name = typeof e.name === "string" ? e.name : "";
       var demands = Array.isArray(e.approvedDemands) ? e.approvedDemands.slice() : [];
-      if (name === "" && demands.length === 0) return;
+      var team = e.team === true;
+      if (name === "" && demands.length === 0 && !team) return;
       demands = demands.filter(function (x) { return typeof x === "string"; }).sort();
-      staffOut[id] = { name: name, approvedDemands: demands };
+      staffOut[id] = { name: name, team: team, approvedDemands: demands };
     });
     var out = { schemaVersion: SCHEMA_VERSION, generatedAt: (state.generatedAt || nowIso()), label: state.label || "", ignoredTaxonomies: cleanTaxonomies(ignoredTaxonomiesOf(state)), staff: staffOut };
     return JSON.stringify(out, null, 2);
@@ -631,6 +638,7 @@ table.data td.tax input[type=text]:hover,table.data td.tax input[type=text]:focu
       if (typeof e.name !== "string") problems.push(id + ': "name" must be a string.');
       if (!Array.isArray(e.approvedDemands)) problems.push(id + ': "approvedDemands" must be an array.');
       else if (!e.approvedDemands.every(function (x) { return typeof x === "string"; })) problems.push(id + ': "approvedDemands" must contain only strings.');
+      if (e.team !== undefined && typeof e.team !== "boolean") problems.push(id + ': "team" must be true or false.');
     });
     if (data.ignoredTaxonomies !== undefined && (!Array.isArray(data.ignoredTaxonomies) || !data.ignoredTaxonomies.every(function (x) { return typeof x === "string"; }))) problems.push('"ignoredTaxonomies" must be an array of strings.');
     if (problems.length) throw new Error("Rules validation failed:\n- " + problems.join("\n- ") + "\nCurrent rules left unchanged.");
@@ -655,7 +663,7 @@ table.data td.tax input[type=text]:hover,table.data td.tax input[type=text]:focu
 (function () {
   "use strict";
 
-  var VERSION = "v2.1.0";
+  var VERSION = "v2.2.0";
   var LS_KEY = "waqti-exceptions:v1";
   var $ = function (id) { return document.getElementById(id); };
   $("version").textContent = VERSION;
@@ -674,7 +682,7 @@ table.data td.tax input[type=text]:hover,table.data td.tax input[type=text]:focu
     lastResult: null, lastEmail: null, emailMode: "plain", excluded: {}, lineKeys: [], excludedAttn: {}, attnKeys: [], excludedMissing: {}, missingKeys: []
   };
   function keyOf(staffId, l) { return staffId + "\u0000" + l.demandCode + "\u0000" + l.featureCode; }
-  function attnKeyOf(a) { return a.reason + "\u0000" + a.staffId + "\u0000" + a.application; }
+  function attnKeyOf(a) { return a.reason + "\u0000" + a.staffId; }
   function rulesFromParsed(p) { return { label: p.label, staff: p.staff, generatedAt: p.generatedAt, ignoredTaxonomies: p.ignoredTaxonomies }; }
 
   /* ---------- view switching ---------- */
@@ -822,13 +830,14 @@ table.data td.tax input[type=text]:hover,table.data td.tax input[type=text]:focu
     var wrap = $("gridWrap");
     if (!state.parsed) { wrap.innerHTML = ""; $("gridHint").textContent = "Load an export to see the staff-by-demand grid. Tick a cell to approve that person for that demand."; return; }
     var staffIds = exportStaffIds(), demands = exportDemandCodes();
-    $("gridHint").textContent = staffIds.length + " staff x " + demands.length + " demand codes from this export. Tick a cell to approve. Staff or demands not in this export appear below and are edited in the JSON.";
-    var html = '<table class="grid"><thead><tr><th class="staffcol">Staff ID / name</th>';
+    $("gridHint").textContent = staffIds.length + " staff x " + demands.length + " demand codes from this export. Tick a cell to approve. Tick Our team for people who should be reported under No time logged. Staff or demands not in this export are listed below.";
+    var html = '<table class="grid"><thead><tr><th class="staffcol">Staff ID / name</th><th class="teamcol" title="Our team: report them under No time logged when they have no bookings">Our team</th>';
     demands.forEach(function (d) { html += '<th title="' + esc(d.desc) + '">' + esc(d.code) + "</th>"; });
     html += "</tr></thead><tbody>";
     staffIds.forEach(function (sid) {
       var e = state.rules.staff[sid], name = e ? (e.name || "") : "";
-      html += '<tr><td class="staffcol">' + esc(sid) + '<br><input type="text" data-name="' + esc(sid) + '" value="' + esc(name) + '" placeholder="display name" aria-label="Display name for ' + esc(sid) + '"></td>';
+      html += '<tr><td class="staffcol">' + esc(sid) + '<br><input type="text" data-name="' + esc(sid) + '" value="' + esc(name) + '" placeholder="display name" aria-label="Display name for ' + esc(sid) + '"></td>' +
+        '<td class="teamcol"><input type="checkbox" data-team="' + esc(sid) + '"' + (e && e.team === true ? " checked" : "") + ' aria-label="' + esc(sid) + ' is in our team"></td>';
       demands.forEach(function (d) {
         var on = e && e.approvedDemands && e.approvedDemands.indexOf(d.code) !== -1;
         html += '<td><input type="checkbox" data-sid="' + esc(sid) + '" data-demand="' + esc(d.code) + '"' + (on ? " checked" : "") + ' aria-label="' + esc(sid) + " approved for " + esc(d.code) + '"></td>';
@@ -837,7 +846,8 @@ table.data td.tax input[type=text]:hover,table.data td.tax input[type=text]:focu
     });
     html += "</tbody></table>";
     wrap.innerHTML = html;
-    wrap.querySelectorAll('input[type=checkbox]').forEach(function (cb) {
+    wireTeamBoxes(wrap);
+    wrap.querySelectorAll('input[type=checkbox][data-demand]').forEach(function (cb) {
       cb.addEventListener("change", function () {
         toggleApproval(cb.getAttribute("data-sid"), cb.getAttribute("data-demand"), cb.checked);
         state.source = "edited"; autosave(); repaintJson(); buildExtras(); renderNavCounts(); renderPreview(); renderEmail();
@@ -847,6 +857,16 @@ table.data td.tax input[type=text]:hover,table.data td.tax input[type=text]:focu
     wrap.querySelectorAll('input[data-name]').forEach(function (inp) {
       inp.addEventListener("input", function () {
         ensureEntry(inp.getAttribute("data-name")).name = inp.value;
+        state.source = "edited"; autosave(); repaintJson(); renderPreview(); renderEmail();
+      });
+    });
+  }
+
+  function wireTeamBoxes(root) {
+    root.querySelectorAll('input[type=checkbox][data-team]').forEach(function (cb) {
+      cb.addEventListener("change", function () {
+        var e = ensureEntry(cb.getAttribute("data-team"));
+        if (cb.checked) e.team = true; else delete e.team;
         state.source = "edited"; autosave(); repaintJson(); renderPreview(); renderEmail();
       });
     });
@@ -862,11 +882,22 @@ table.data td.tax input[type=text]:hover,table.data td.tax input[type=text]:focu
     Object.keys(state.rules.staff).forEach(function (s) { (state.rules.staff[s].approvedDemands || []).forEach(function (d) { if (!exDem[d]) extraDemSet[d] = 1; }); });
     var extraDem = Object.keys(extraDemSet).sort();
     if (!extraStaff.length && !extraDem.length) { wrap.innerHTML = ""; return; }
-    var html = '<div class="panel extras"><strong>Not present in the current export</strong> (kept, edited via JSON):';
-    if (extraStaff.length) html += '<div style="margin-top:.4rem;">Staff: ' + extraStaff.map(function (s) { var e = state.rules.staff[s]; return '<span class="pill">' + esc(s) + (e && e.name ? " (" + esc(e.name) + ")" : "") + " [" + (e.approvedDemands || []).length + " approved]</span>"; }).join(" ") + "</div>";
-    if (extraDem.length) html += '<div style="margin-top:.4rem;">Demand codes: ' + extraDem.map(function (d) { return '<span class="pill">' + esc(d) + "</span>"; }).join(" ") + "</div>";
-    html += "</div>";
+    var open = wrap.querySelector("details") && wrap.querySelector("details").open;
+    var counts = [];
+    if (extraStaff.length) counts.push(extraStaff.length + " staff");
+    if (extraDem.length) counts.push(extraDem.length + " demand code" + (extraDem.length === 1 ? "" : "s"));
+    var html = '<details class="panel extras fold"' + (open ? " open" : "") + '><summary><strong>Not present in the current export</strong> (' + counts.join(", ") + ', kept in rules.json)</summary>';
+    if (extraStaff.length) {
+      html += '<div class="table-wrap" style="margin-top:.5rem;"><table class="data"><thead><tr><th>Staff ID</th><th>Name</th><th class="num">Approved</th><th class="chk">Our team</th></tr></thead><tbody>' +
+        extraStaff.map(function (s) {
+          var e = state.rules.staff[s];
+          return "<tr><td>" + esc(s) + "</td><td>" + esc(e.name || "") + '</td><td class="num">' + (e.approvedDemands || []).length + '</td><td class="chk"><input type="checkbox" data-team="' + esc(s) + '"' + (e.team === true ? " checked" : "") + ' aria-label="' + esc(s) + ' is in our team"></td></tr>';
+        }).join("") + "</tbody></table></div>";
+    }
+    if (extraDem.length) html += '<div style="margin-top:.5rem;">Demand codes: ' + extraDem.map(function (d) { return '<span class="pill">' + esc(d) + "</span>"; }).join(" ") + "</div>";
+    html += '<p class="sub" style="margin:.5rem 0 0;">Names and approvals for these are edited in Raw JSON.</p></details>';
     wrap.innerHTML = html;
+    wireTeamBoxes(wrap);
   }
 
   /* ---------- ignored taxonomies editor ---------- */
@@ -898,8 +929,9 @@ table.data td.tax input[type=text]:hover,table.data td.tax input[type=text]:focu
     if (!hasCol) { wrap.innerHTML = '<div class="panel warn">This export has no Taxonomy column, so nothing is ignored and every row is checked.</div>'; return; }
     var names = Object.keys(counts).sort();
     if (!names.length) { wrap.innerHTML = ""; return; }
-    wrap.innerHTML = '<div class="panel extras"><strong>Checked in this export</strong> (not ignored). Click one to ignore it.<div style="margin-top:.4rem;">' +
-      names.map(function (n, i) { return '<button type="button" class="pill pill-add" data-add="' + i + '">+ ' + esc(n) + " (" + counts[n] + ")</button>"; }).join(" ") + "</div></div>";
+    var open = wrap.querySelector("details") && wrap.querySelector("details").open;
+    wrap.innerHTML = '<details class="panel extras fold"' + (open ? " open" : "") + '><summary><strong>Checked in this export</strong> (' + names.length + ' taxonom' + (names.length === 1 ? "y" : "ies") + ' not ignored). Expand and click one to ignore it.</summary><div style="margin-top:.5rem;">' +
+      names.map(function (n, i) { return '<button type="button" class="pill pill-add" data-add="' + i + '">+ ' + esc(n) + " (" + counts[n] + ")</button>"; }).join(" ") + "</div></details>";
     wrap.querySelectorAll("button[data-add]").forEach(function (btn) {
       btn.addEventListener("click", function () { state.rules.ignoredTaxonomies.push(names[+btn.getAttribute("data-add")]); renderIgnore(); ignoreChanged(); });
     });
@@ -973,14 +1005,14 @@ table.data td.tax input[type=text]:hover,table.data td.tax input[type=text]:focu
       $("exceptionsWrap").className = "table-wrap scroll";
       state.lineKeys = [];
       var idx = 0;
-      var html = '<table class="data"><thead><tr><th class="chk">Send</th><th>Staff name</th><th>Demand</th><th>Feature name</th><th>Reason</th><th class="num">Hours booked</th></tr></thead><tbody>';
+      var html = '<table class="data"><thead><tr><th class="chk">Send</th><th>Staff name</th><th>Demand</th><th>Feature name</th><th class="num">Hours booked</th></tr></thead><tbody>';
       result.exceptions.forEach(function (g) {
         g.lines.forEach(function (l) {
           var key = keyOf(g.staffId, l), off = !!state.excluded[key];
           state.lineKeys.push(key);
           var nameCell = "<strong>" + esc(g.name || g.staffId) + '</strong> <span class="sid">' + esc(g.staffId) + "</span>" + (g.inRules ? "" : ' <span class="tag-amber">not in rules</span>');
           html += '<tr class="' + (off ? "excluded" : "") + '"><td class="chk"><input type="checkbox" data-idx="' + idx + '"' + (off ? "" : " checked") + ' aria-label="Include this row in the email"></td>' +
-            "<td>" + nameCell + "</td><td>" + (l.demandCode ? esc(l.demandCode) : '<span class="sub">none</span>') + "</td><td>" + esc(l.featureDesc || l.featureCode) + "</td><td>" + esc(l.reason) + '</td><td class="num">' + l.hours.toFixed(1) + "</td></tr>";
+            "<td>" + nameCell + "</td><td>" + (l.demandCode ? '<span title="' + esc(l.demandCode) + '">' + esc(l.demandDesc || l.demandCode) + "</span>" : '<span class="tag-amber">Missing</span>') + "</td><td>" + esc(l.featureDesc || l.featureCode) + '</td><td class="num">' + l.hours.toFixed(1) + "</td></tr>";
           idx++;
         });
       });
@@ -999,13 +1031,13 @@ table.data td.tax input[type=text]:hover,table.data td.tax input[type=text]:focu
     // ---- needs attention (GEN + no-demand), with exclude checkboxes ----
     if (result.attention.length) {
       var a = section("Needs attention (" + result.attention.length + ")", "Rows to review and fix in Waqti: system-created lines (GEN_LINES, some data was missing) and lines with no Application. Every matching reason is listed. Untick a row to leave it out of the email.");
-      a += '<div class="table-wrap scroll"><table class="data amber"><thead><tr><th class="chk">Send</th><th>Staff</th><th>Reason</th><th>Application</th><th class="num">Hours</th></tr></thead><tbody>';
+      a += '<div class="table-wrap scroll"><table class="data amber"><thead><tr><th class="chk">Send</th><th>Staff</th><th>Reason</th><th class="num">Hours</th></tr></thead><tbody>';
       state.attnKeys = []; var ai = 0;
       result.attention.forEach(function (r) {
         var k = attnKeyOf(r), off = !!state.excludedAttn[k];
         state.attnKeys.push(k);
         a += '<tr class="' + (off ? "excluded" : "") + '"><td class="chk"><input type="checkbox" data-attn="' + ai + '"' + (off ? "" : " checked") + ' aria-label="Include this row in the email"></td>' +
-          "<td>" + esc(r.name || r.staffId) + "</td><td>" + esc(r.reason) + "</td><td>" + esc(r.application || "-") + '</td><td class="num">' + r.hours.toFixed(1) + "</td></tr>";
+          "<td>" + esc(r.name || r.staffId) + "</td><td>" + esc(r.reason) + '</td><td class="num">' + r.hours.toFixed(1) + "</td></tr>";
         ai++;
       });
       a += "</tbody></table></div>";
@@ -1022,14 +1054,14 @@ table.data td.tax input[type=text]:hover,table.data td.tax input[type=text]:focu
 
     // ---- not yet in the timesheet, with exclude checkboxes ----
     if (result.missingStaff && result.missingStaff.length) {
-      var m2 = section("No time logged (" + result.missingStaff.length + ")", "Lower priority. People in the People rules with no bookings at all in this export. Untick a row to leave it out of the email.");
-      m2 += '<div class="table-wrap scroll"><table class="data grey"><thead><tr><th class="chk">Send</th><th>Name</th><th>Staff ID</th><th>Reason</th></tr></thead><tbody>';
+      var m2 = section("No time logged (" + result.missingStaff.length + ")", "Lower priority. People flagged as Our team in Settings > People with no bookings at all in this export. Untick a row to leave it out of the email.");
+      m2 += '<div class="table-wrap scroll"><table class="data grey"><thead><tr><th class="chk">Send</th><th>Name</th><th>Staff ID</th></tr></thead><tbody>';
       state.missingKeys = []; var mi = 0;
       result.missingStaff.forEach(function (m) {
         var k = m.staffId, off = !!state.excludedMissing[k];
         state.missingKeys.push(k);
         m2 += '<tr class="' + (off ? "excluded" : "") + '"><td class="chk"><input type="checkbox" data-miss="' + mi + '"' + (off ? "" : " checked") + ' aria-label="Include this row in the email"></td>' +
-          "<td>" + esc(m.name || "-") + "</td><td>" + esc(m.staffId) + "</td><td>No time logged</td></tr>";
+          "<td>" + esc(m.name || "-") + "</td><td>" + esc(m.staffId) + "</td></tr>";
         mi++;
       });
       m2 += "</tbody></table></div>";
