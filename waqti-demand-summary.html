@@ -250,6 +250,7 @@ table.data input.name-input{width:100%;max-width:340px;padding:.4rem .55rem;font
       <button type="button" class="btn btn-ghost" id="clearRulesBtn">Clear names</button>
     </div>
     <div id="rulesError" class="err hidden"></div>
+    <p class="sub hidden" id="exportRulesMsg" role="status" style="margin:.6rem 0 0;"></p>
     <div class="note rules-status" id="rulesStatus" style="margin-top:.9rem;">No names loaded. Names fall back to the Name column, then the Staff ID.</div>
     <div class="name-pills" id="namePills"></div>
   </section>
@@ -850,7 +851,8 @@ window.RK = (function () {
     { field: "feature", canonical: "Feature", required: true },
     { field: "bookedHours", canonical: "Booked Hours", required: true },
     { field: "name", canonical: "Name", required: false, aliases: ["name", "staff name", "employee", "employee name", "worker", "resource", "resource name", "person", "full name", "staff"] },
-    { field: "rechargeCost", canonical: "Recharge Cost", required: false }
+    { field: "rechargeCost", canonical: "Recharge Cost", required: false },
+    { field: "staffArt", canonical: "Staff ART", required: false }   // only used to spot other-team people when exporting rules.json
   ];
 
   function parseExport(arrayBuffer, mapping) {
@@ -874,8 +876,9 @@ window.RK = (function () {
       var month = txt(row, r.month).trim();
       if (month && !seen[month]) { seen[month] = true; months.push(month); }
       var nm = (r.name !== undefined) ? txt(row, r.name).trim() : "";
+      var art = (r.staffArt !== undefined) ? txt(row, r.staffArt).trim() : null;  // null = no Staff ART column
       bookings.push({
-        row: sheetRow, staffId: sid, name: nm, workDay: txt(row, r.workDay).trim(), month: month,
+        row: sheetRow, staffId: sid, name: nm, staffArt: art, workDay: txt(row, r.workDay).trim(), month: month,
         demandCode: dem[0], demandDesc: dem[1], featureCode: feat[0], featureDesc: feat[1],
         hours: hours, rechargeCost: (r.rechargeCost !== undefined ? rawv(row, r.rechargeCost) : null)
       });
@@ -948,7 +951,7 @@ window.RK = (function () {
 (function () {
   "use strict";
   var $ = RK.$, esc = RK.esc, show = RK.show, hide = RK.hide, fmtHrs = RK.fmtHrs;
-  var VERSION = "v1.3.2";
+  var VERSION = "v1.3.3";
   var LS = RK.store("waqti-demand-summary:v1");
   $("version").textContent = VERSION;
 
@@ -1176,23 +1179,61 @@ window.RK = (function () {
     };
     reader.readAsText(f); ev.target.value = "";
   });
-  // People named here with no approved demands are usually from other teams. waqti-exceptions
-  // treats a missing trackLoggedTime as true and would list them under "No time logged" every
-  // month, so write trackLoggedTime:false for them. An explicit trackLoggedTime is never changed.
+  // waqti-exceptions treats a missing trackLoggedTime as true and lists such people under
+  // "No time logged" whenever they have no rows from its team. Using the loaded export, write
+  // trackLoggedTime:false only for named people who are clearly not in the main team:
+  //  - their Staff ART in this export is never the export's main team (the ART with the most
+  //    people), or
+  //  - they are not in this export at all and have no approved demands.
+  // Own-team members and anyone typed in for this export stay tracked. With no export loaded,
+  // nobody is marked. An explicit trackLoggedTime is never changed.
+  function mainArt(bookings) {
+    var people = {}, counts = {}, best = null, bestN = 0, tie = false;
+    bookings.forEach(function (b) { var a = (b.staffArt || "").trim(); if (!a) return; var k = a.toLowerCase(); (people[k] = people[k] || { name: a, ids: {} }).ids[b.staffId] = 1; });
+    Object.keys(people).forEach(function (k) { counts[k] = Object.keys(people[k].ids).length; });
+    Object.keys(counts).forEach(function (k) { if (counts[k] > bestN) { best = k; bestN = counts[k]; tie = false; } else if (counts[k] === bestN) tie = true; });
+    return (best && !tie) ? { key: best, name: people[best].name } : null;  // a tie means no clear main team
+  }
   function staffForExport() {
-    var out = {};
+    var out = {}, marked = { otherArt: [], absent: [] }, info = { loaded: !!state.parsed, hasArt: false, main: null };
     Object.keys(state.rulesStaff).forEach(function (id) { out[id] = state.rulesStaff[id]; });
-    Object.keys(state.nameMap).forEach(function (id) {
-      var base = out[id], dem = state.demandsById[id];
-      if (!String(state.nameMap[id] || "").trim() || (Array.isArray(dem) && dem.length)) return;
-      if (base && typeof base === "object" && base.trackLoggedTime !== undefined) return;
-      var copy = {}; if (base && typeof base === "object") Object.keys(base).forEach(function (k) { copy[k] = base[k]; });
-      copy.trackLoggedTime = false; out[id] = copy;
+    if (!state.parsed) return { staff: out, marked: marked, info: info };
+    var arts = {}, inExport = {};  // staff ID -> { art: 1 } (lower-cased, non-blank)
+    state.parsed.bookings.forEach(function (b) {
+      inExport[b.staffId] = 1;
+      if (b.staffArt === null || b.staffArt === undefined) return;
+      info.hasArt = true;
+      var a = b.staffArt.trim().toLowerCase(); if (a) (arts[b.staffId] = arts[b.staffId] || {})[a] = 1;
     });
-    return out;
+    info.main = info.hasArt ? mainArt(state.parsed.bookings) : null;
+    Object.keys(state.nameMap).sort().forEach(function (id) {
+      var base = out[id], dem = state.demandsById[id];
+      if (!String(state.nameMap[id] || "").trim()) return;
+      if (base && typeof base === "object" && base.trackLoggedTime !== undefined) return;
+      var why = null;
+      // Only people this export shows in another team. Someone absent from the export is
+      // exactly who "No time logged" exists to catch, so absence never marks anyone.
+      if (inExport[id] && info.main && arts[id] && !arts[id][info.main.key]) why = "otherArt";
+      if (!why) return;
+      var copy = {}; if (base && typeof base === "object") Object.keys(base).forEach(function (k) { copy[k] = base[k]; });
+      copy.trackLoggedTime = false; out[id] = copy; marked[why].push(id);
+    });
+    return { staff: out, marked: marked, info: info };
+  }
+  function exportNote(r) {
+    function ids(list) { return list.slice(0, 8).join(", ") + (list.length > 8 ? " and " + (list.length - 8) + " more" : ""); }
+    var n = r.marked.otherArt.length + r.marked.absent.length, parts = [];
+    if (!r.info.loaded) return "Exported rules.json. Nobody was marked “not tracked”: load the timesheet export first so people from other teams can be spotted.";
+    if (r.marked.otherArt.length) parts.push(r.marked.otherArt.length + " whose Staff ART in this export is not the main team (" + r.info.main.name + "): " + ids(r.marked.otherArt));
+    var txt = "Exported rules.json. " + (n ? "Marked " + n + (n === 1 ? " person" : " people") + " “not tracked” (trackLoggedTime: false), so Waqti Exceptions will not list them under No time logged: " + parts.join("; ") + "." : "Nobody was marked “not tracked”.");
+    if (!r.info.hasArt) txt += " This export has no Staff ART column, so people from other teams in it could not be spotted.";
+    else if (!r.info.main) txt += " No single Staff ART has the most people in this export, so nobody was marked for being in another team.";
+    return txt + " Track Logged Time values already in the rules were kept.";
   }
   $("exportRulesBtn").addEventListener("click", function () {
-    RK.download("rules.json", RK.rules.serialise({ staff: staffForExport(), names: state.nameMap, demands: state.demandsById, label: state.rulesLabel, extraTop: state.extraTop }), "application/json");
+    var r = staffForExport();
+    RK.download("rules.json", RK.rules.serialise({ staff: r.staff, names: state.nameMap, demands: state.demandsById, label: state.rulesLabel, extraTop: state.extraTop }), "application/json");
+    var m = $("exportRulesMsg"); m.textContent = exportNote(r); show(m);
   });
   $("clearRulesBtn").addEventListener("click", function () {
     replaceMap(state.nameMap, {}); state.demandsById = {}; state.rulesStaff = {}; state.extraTop = {}; state.rulesLabel = "";  // clear name map in place

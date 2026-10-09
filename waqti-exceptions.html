@@ -257,9 +257,8 @@ table.grid thead th.teamcol{background:var(--teal-dark)}
     </div>
   </section>
 
-  <div class="callout hidden" id="bakedHint">
-    This file has rules baked in, but this browser's autosave is newer, so the <strong>autosaved rules are in use</strong>. To use the baked set instead, open <strong>Settings &gt; Import &amp; export</strong> and click <strong>Use the rules baked into this file</strong>.
-  </div>
+  <!-- which rules set is in use when this file has rules baked in (filled by renderBakedHint) -->
+  <div class="callout hidden" id="bakedHint" role="region" aria-label="Which rules to use" aria-live="polite"></div>
 
   <div class="callout hidden" id="noRulesHint">
     No people rules loaded yet. Open <strong>Settings &gt; People</strong> to tick approved demands, or <strong>Settings &gt; Import &amp; export</strong> to load a rules.json, then come back here.
@@ -346,7 +345,10 @@ table.grid thead th.teamcol{background:var(--teal-dark)}
       <section class="card settings-panel hidden" id="panel-file">
         <div class="card-head"><span class="title">Import &amp; export</span><span class="sub">The exported rules.json is the source of truth, not this browser.</span></div>
         <div class="note" id="rulesSource">No rules loaded yet.</div>
-        <button type="button" class="mini-btn hidden" id="useBakedBtn" style="margin-top:.4rem;">Use the rules baked into this file</button>
+        <div class="controls-row" style="margin-top:.4rem;">
+          <button type="button" class="mini-btn hidden" id="useBakedBtn">Use the rules baked into this file</button>
+          <button type="button" class="mini-btn hidden" id="restorePrevBtn">Restore my previous rules</button>
+        </div>
         <label class="field" for="labelInput">Rules label</label>
         <input type="text" id="labelInput" placeholder="e.g. ART1 Sample Delivery Services FY26/27">
         <div class="controls-row" style="margin:1rem 0 .3rem;">
@@ -821,8 +823,9 @@ parse_Primary(n.content)}catch(l){}a="/EncryptionInfo";n=Qe.find(e,a);if(!n||!n.
 (function () {
   "use strict";
 
-  var VERSION = "v2.3.1";
+  var VERSION = "v2.3.2";
   var LS_KEY = "waqti-exceptions:v1";
+  var LS_PREV = "waqti-exceptions:v1:previous";  // the rules set (and wording) set aside by the last switch
   var $ = function (id) { return document.getElementById(id); };
   $("version").textContent = VERSION;
 
@@ -837,6 +840,7 @@ parse_Primary(n.content)}catch(l){}a="/EncryptionInfo";n=Qe.find(e,a);if(!n||!n.
     buffer: null, fileName: "", mapping: null, parsed: null,
     rules: { label: "", staff: {}, generatedAt: null, ignoredTaxonomies: DEFAULT_IGNORED_TAXONOMIES.slice() },
     source: "none", loadedAt: null,
+    bakedFrom: null,   // generatedAt of the baked copy these rules were taken from or already reconciled with
     lastResult: null, lastEmail: null, emailMode: "plain", excluded: {}, lineKeys: [], excludedAttn: {}, attnKeys: [], excludedMissing: {}, missingKeys: []
   };
   function keyOf(staffId, l) { return staffId + "\u0000" + l.demandCode + "\u0000" + l.featureCode; }
@@ -865,27 +869,53 @@ parse_Primary(n.content)}catch(l){}a="/EncryptionInfo";n=Qe.find(e,a);if(!n||!n.
   }
 
   /* ---------- persistence ---------- */
-  function saveLocal() { try { localStorage.setItem(LS_KEY, JSON.stringify({ rules: state.rules, source: state.source, loadedAt: state.loadedAt, savedAt: Date.now(), email: { intro: $("introInput").value, closing: $("closingInput").value } })); } catch (e) { } }
+  // bakedFrom: the baked copy (its generatedAt) these rules came from or were already reconciled
+  // with, so reopening that copy keeps this browser's edits without comparing clocks
+  function saveLocal() {
+    if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
+    localSavedAt = Date.now();
+    try { localStorage.setItem(LS_KEY, JSON.stringify({ rules: state.rules, source: state.source, loadedAt: state.loadedAt, savedAt: localSavedAt, bakedFrom: state.bakedFrom, email: currentEmail() })); } catch (e) { }
+  }
+  function currentEmail() { return { intro: $("introInput").value, closing: $("closingInput").value }; }
+  function rulesFromStored(r) {
+    var st = (r && r.staff && typeof r.staff === "object") ? r.staff : {}, stU = {};
+    Object.keys(st).forEach(function (id) { stU[String(id).toUpperCase()] = st[id]; });
+    var ign = Array.isArray(r && r.ignoredTaxonomies) ? r.ignoredTaxonomies.filter(function (t) { return typeof t === "string"; }) : DEFAULT_IGNORED_TAXONOMIES.slice();
+    return { label: (r && typeof r.label === "string") ? r.label : "", staff: stU, generatedAt: (r && r.generatedAt) || null, ignoredTaxonomies: ign };
+  }
+  function setEmail(em) {
+    if (!em || typeof em !== "object") return;
+    if (typeof em.intro === "string") $("introInput").value = em.intro;
+    if (typeof em.closing === "string") $("closingInput").value = em.closing;
+  }
+  // -> the autosave object (or null); its rules and wording become the active set
   function loadLocal() {
     try {
-      var raw = localStorage.getItem(LS_KEY); if (!raw) return;
+      var raw = localStorage.getItem(LS_KEY); if (!raw) return null;
       var obj = JSON.parse(raw);
-      if (obj && obj.rules && typeof obj.rules === "object") {
-        // when the autosave was written; older autosaves fall back to their import time or rules date
-        localSavedAt = typeof obj.savedAt === "number" ? obj.savedAt : (typeof obj.loadedAt === "number" ? obj.loadedAt : (dayMs(obj.rules.generatedAt) || null));
-        var st = obj.rules.staff || {}, stU = {};
-        Object.keys(st).forEach(function (id) { stU[String(id).toUpperCase()] = st[id]; });
-        var ign = Array.isArray(obj.rules.ignoredTaxonomies) ? obj.rules.ignoredTaxonomies.filter(function (t) { return typeof t === "string"; }) : DEFAULT_IGNORED_TAXONOMIES.slice();
-        state.rules = { label: obj.rules.label || "", staff: stU, generatedAt: obj.rules.generatedAt || null, ignoredTaxonomies: ign };
+      if (!obj || typeof obj !== "object") return null;
+      if (obj.rules && typeof obj.rules === "object") {
+        localSavedAt = typeof obj.savedAt === "number" ? obj.savedAt : (typeof obj.loadedAt === "number" ? obj.loadedAt : null);  // shown to the user only, never compared
+        state.rules = rulesFromStored(obj.rules);
         state.source = "autosave"; state.loadedAt = obj.loadedAt || null;
+        state.bakedFrom = typeof obj.bakedFrom === "string" ? obj.bakedFrom : null;
       }
-      if (obj && obj.email && typeof obj.email === "object") {
-        if (typeof obj.email.intro === "string") $("introInput").value = obj.email.intro;
-        if (typeof obj.email.closing === "string") $("closingInput").value = obj.email.closing;
-      }
-    } catch (e) { }
+      setEmail(obj.email);
+      return obj;
+    } catch (e) { return null; }
   }
-  var saveTimer = null, localSavedAt = null, embedded = null;
+  // second key: the set put aside by the last switch, so it can be brought back
+  function readPrev() {
+    try { var o = JSON.parse(localStorage.getItem(LS_PREV) || "null"); return (o && o.rules && typeof o.rules === "object") ? o : null; } catch (e) { return null; }
+  }
+  function writePrev(snap) { try { localStorage.setItem(LS_PREV, JSON.stringify(snap)); } catch (e) { } }
+  function snapshotActive() {
+    return { kind: state.source === "file" ? "baked" : "browser", keptAt: Date.now(), rules: JSON.parse(JSON.stringify(state.rules)), email: currentEmail(), source: state.source, loadedAt: state.loadedAt, savedAt: localSavedAt, bakedFrom: state.bakedFrom };
+  }
+  function snapshotBaked() {
+    return { kind: "baked", keptAt: Date.now(), rules: JSON.parse(JSON.stringify(embedded)), email: embeddedEmail, source: "file", loadedAt: null, savedAt: null, bakedFrom: embedded.generatedAt || null };
+  }
+  var saveTimer = null, localSavedAt = null, embedded = null, embeddedEmail = null, bakedNotice = null;
   function dayMs(s) { var t = typeof s === "string" ? Date.parse(s) : NaN; return isNaN(t) ? 0 : t; }
   function autosave() { if (saveTimer) clearTimeout(saveTimer); saveTimer = setTimeout(saveLocal, 300); }
 
@@ -976,14 +1006,18 @@ parse_Primary(n.content)}catch(l){}a="/EncryptionInfo";n=Qe.find(e,a);if(!n||!n.
     var srcTxt;
     if (state.source === "import") srcTxt = "Active rules: imported file" + (when ? ", loaded " + when : "") + ". The imported file wins over any autosave.";
     else if (state.source === "autosave") srcTxt = "Active rules: restored from this browser's autosave" + (when ? " (" + when + ")" : "") + ". Import a rules.json to override.";
-    else if (state.source === "file") srcTxt = "Active rules: baked into this HTML file" + (embedded && embedded.generatedAt ? " (saved " + new Date(dayMs(embedded.generatedAt)).toLocaleString() + ")" : "") + (embedded && embedded.replacedLocal ? (localSavedAt ? ". They are newer than this browser's autosave, so they replace it" : ". They replace this browser's undated autosave") : "") + ". Edits autosave to this browser and can be re-baked with Save tool with rules.";
+    else if (state.source === "file") srcTxt = "Active rules: baked into this HTML file" + (embedded && embedded.generatedAt ? " (saved " + fmtWhen(dayMs(embedded.generatedAt)) + ")" : "") + ". Edits autosave to this browser and can be re-baked with Save tool with rules.";
+    else if (state.source === "restored") srcTxt = "Active rules: your previous rules, restored in this browser. Edits autosave to this browser.";
     else if (state.source === "edited") srcTxt = "Active rules: edited in this session, autosaved to this browser.";
     else srcTxt = "No rules loaded yet. Import a rules.json, tick approvals under People, or download a template.";
-    var bakedIdle = embedded && state.source !== "file";
-    if (bakedIdle) srcTxt += " This file also has rules baked in" + (embedded.generatedAt ? " (saved " + new Date(dayMs(embedded.generatedAt)).toLocaleString() + ")" : "") + " that are not in use.";
+    var bakedIdle = bakedHasPeople() && state.source !== "file";
+    if (bakedIdle) srcTxt += " This file also has rules baked in" + (embedded.generatedAt ? " (saved " + fmtWhen(dayMs(embedded.generatedAt)) + ")" : "") + " that are not in use.";
+    var prev = readPrev(), prevIsThisBake = prev && prev.kind === "baked" && bakedIdle && prev.bakedFrom === (embedded.generatedAt || null);
+    if (prev && !prevIsThisBake) srcTxt += " Set aside by the last switch: " + describeSet(prev.rules, prev.kind === "baked" ? "baked" : "browser", prev.kind === "baked" ? dayMs(prev.bakedFrom) : prev.savedAt) + ".";
     $("rulesSource").textContent = srcTxt;
     if (bakedIdle) show($("useBakedBtn")); else hide($("useBakedBtn"));
-    if (bakedIdle && state.source === "autosave") show($("bakedHint")); else hide($("bakedHint"));
+    if (prev && !prevIsThisBake) { $("restorePrevBtn").textContent = prevLabel(prev); show($("restorePrevBtn")); } else hide($("restorePrevBtn"));
+    renderBakedHint();
     $("labelInput").value = state.rules.label || "";
     if (rebuildGrid) buildGrid();
     buildExtras();
@@ -1400,35 +1434,115 @@ parse_Primary(n.content)}catch(l){}a="/EncryptionInfo";n=Qe.find(e,a);if(!n||!n.
       return rulesFromParsed(parseRules(txt));
     } catch (e) { return null; }
   }
+  function readEmbeddedEmail() {
+    try {
+      var el = document.getElementById("embeddedEmail");
+      if (!el) return null;
+      var txt = (el.textContent || "").trim();
+      if (!txt || txt === "{}") return null;
+      var e = JSON.parse(txt);
+      if (!e || typeof e !== "object") return null;
+      var out = {};
+      if (typeof e.intro === "string") out.intro = e.intro;
+      if (typeof e.closing === "string") out.closing = e.closing;
+      return out;
+    } catch (x) { return null; }
+  }
   function useEmbedded() {
     state.rules = rulesFromParsed(embedded);
     state.rules.staff = JSON.parse(JSON.stringify(embedded.staff));
     state.rules.ignoredTaxonomies = embedded.ignoredTaxonomies.slice();
-    state.source = "file"; state.loadedAt = null;
+    state.source = "file"; state.loadedAt = null; state.bakedFrom = embedded.generatedAt || null;
   }
+  // force: replace the wording; otherwise only fill a blank field
   function loadEmbeddedEmail(force) {
-    try {
-      var el = document.getElementById("embeddedEmail");
-      if (!el) return;
-      var txt = (el.textContent || "").trim();
-      if (!txt || txt === "{}") return;
-      var e = JSON.parse(txt);
-      if (e && typeof e === "object") {
-        if ((force || !$("introInput").value) && typeof e.intro === "string") $("introInput").value = e.intro;
-        if ((force || !$("closingInput").value) && typeof e.closing === "string") $("closingInput").value = e.closing;
-      }
-    } catch (x) { }
+    var e = embeddedEmail; if (!e) return;
+    if ((force || !$("introInput").value) && typeof e.intro === "string") $("introInput").value = e.intro;
+    if ((force || !$("closingInput").value) && typeof e.closing === "string") $("closingInput").value = e.closing;
   }
+
+  /* ---------- which rules set: baked copy vs this browser ---------- */
+  function peopleCount(rules) { try { return Object.keys(JSON.parse(serialiseRules(rules)).staff).length; } catch (e) { return 0; } }
+  function sameRules(a, b) { return serialiseRules(Object.assign({}, a, { generatedAt: "x" })) === serialiseRules(Object.assign({}, b, { generatedAt: "x" })); }
+  function sameEmail(a, b) {  // a blank or missing field on either side is not a difference
+    a = a || {}; b = b || {};
+    return ["intro", "closing"].every(function (k) { return !a[k] || !b[k] || a[k] === b[k]; });
+  }
+  // a baked copy with no people (email wording only) counts as "no rules baked"
+  function bakedHasPeople() { return !!embedded && peopleCount(embedded) > 0; }
+  function fmtWhen(ms) { return ms ? new Date(ms).toLocaleString() : ""; }
+  function describeSet(rules, kind, ms) {
+    var n = peopleCount(rules), lbl = (rules && rules.label) ? "“" + rules.label + "”" : "no label";
+    var when = fmtWhen(ms);
+    return lbl + ", " + n + (n === 1 ? " person" : " people") + (when ? (kind === "baked" ? ", baked " : ", last saved ") + when : "");
+  }
+  function prevLabel(prev) {
+    if (prev.kind !== "baked") return "Restore my previous rules";
+    if (embedded && prev.bakedFrom && prev.bakedFrom === embedded.generatedAt) return "Use the rules baked into this file";
+    return "Restore the baked rules set aside";
+  }
+  function afterRulesSwitch() { saveLocal(); renderRules(true); renderPreview(); renderEmail(); }
+  // use the baked set; whatever was active is kept under LS_PREV when it differs
+  function chooseBaked() {
+    if (!embedded) return;
+    var snap = snapshotActive();
+    useEmbedded(); loadEmbeddedEmail(true);
+    if (!sameRules(snap.rules, state.rules) || !sameEmail(snap.email, currentEmail())) writePrev(snap);
+    bakedNotice = "baked";
+    afterRulesSwitch();
+  }
+  // keep this browser's set; the baked set is kept under LS_PREV and this copy will not ask again
+  function chooseBrowser() {
+    if (!embedded) return;
+    writePrev(snapshotBaked());
+    state.bakedFrom = embedded.generatedAt || null; bakedNotice = "browser";
+    afterRulesSwitch();
+  }
+  // swap the active set with the one set aside
+  function restorePrev() {
+    var prev = readPrev(); if (!prev) return;
+    var snap = snapshotActive();
+    state.rules = rulesFromStored(prev.rules); setEmail(prev.email);
+    state.source = prev.kind === "baked" ? "file" : "restored"; state.loadedAt = prev.loadedAt || null;
+    state.bakedFrom = prev.kind === "baked" ? (prev.bakedFrom || null) : ((embedded && embedded.generatedAt) || prev.bakedFrom || null);
+    writePrev(snap); bakedNotice = prev.kind === "baked" ? "baked" : "browser";
+    afterRulesSwitch();
+  }
+  // main-view callout: the one-time choice, then what is in use and what was set aside
+  function renderBakedHint() {
+    var el = $("bakedHint");
+    if (!bakedNotice) { el.innerHTML = ""; hide(el); return; }
+    var bakedDesc = embedded ? describeSet(embedded, "baked", dayMs(embedded.generatedAt)) : "";
+    var html;
+    if (bakedNotice === "choice") {
+      html = "<strong>This file has rules baked in that differ from the rules saved in this browser.</strong> Which set should this copy use?" +
+        '<ul style="margin:.4rem 0 .2rem 1.1rem;padding:0;"><li>Baked into this file: ' + esc(bakedDesc) + "</li><li>This browser: " + esc(describeSet(state.rules, "browser", localSavedAt)) + "</li></ul>" +
+        '<div class="controls-row" style="margin-top:.5rem;"><button type="button" class="btn btn-primary" data-choose="baked">Use the rules baked into this file</button><button type="button" class="btn btn-ghost" data-choose="browser">Keep this browser’s rules</button></div>' +
+        '<p class="sub" style="margin:.5rem 0 0;">Until you choose, this browser’s rules are in use. The set you don’t pick is kept, and you can switch back in Settings &gt; Import &amp; export.</p>';
+    } else {
+      var prev = readPrev();
+      var now = state.source === "file" ? "the rules baked into this file (" + esc(bakedDesc) + ")" : "this browser’s rules (" + esc(describeSet(state.rules, "browser", localSavedAt)) + ")";
+      html = "Using " + now + ".";
+      if (prev) html += " Set aside: " + (prev.kind === "baked" ? "the baked rules" : "your previous rules") + " (" + esc(describeSet(prev.rules, prev.kind === "baked" ? "baked" : "browser", prev.kind === "baked" ? dayMs(prev.bakedFrom) : prev.savedAt)) + (prev.kind !== "baked" && prev.email && !sameEmail(prev.email, currentEmail()) ? ", with their email wording" : "") + ")." +
+        ' <button type="button" class="mini-btn" data-choose="restore">' + esc(prevLabel(prev)) + "</button>";
+    }
+    el.innerHTML = html; show(el);
+  }
+  $("bakedHint").addEventListener("click", function (ev) {
+    var b = ev.target.closest ? ev.target.closest("button[data-choose]") : null; if (!b) return;
+    var c = b.getAttribute("data-choose");
+    if (c === "baked") chooseBaked(); else if (c === "browser") chooseBrowser(); else if (c === "restore") restorePrev();
+  });
   function bakeTool() {
     var el = document.getElementById("embeddedRules");
     var prevEmbed = el.textContent;
     var elE = document.getElementById("embeddedEmail");
     var prevEmail = elE.textContent;
     // clear heavy dynamic regions (and the loaded file's name) so the saved copy is lean; restored right after
-    var clearIds = ["exceptionsWrap", "richPreview", "gridWrap", "extrasWrap", "dqWrap", "parseStatus", "banner", "clearWrap", "exHead", "notesWrap", "attnWrap", "missingWrap", "fallbackWrap", "mapperFields", "ignoreFromExport", "fileNameSub"];
+    var clearIds = ["exceptionsWrap", "richPreview", "gridWrap", "extrasWrap", "dqWrap", "parseStatus", "banner", "clearWrap", "exHead", "notesWrap", "attnWrap", "missingWrap", "fallbackWrap", "mapperFields", "ignoreFromExport", "fileNameSub", "bakedHint"];
     var saved = {}, html;
     try {
-      // stamp the bake time: a browser autosave older than this copy gives way to it (see init)
+      // stamp the bake time: it identifies this copy, so a browser can tell whether its rules came from it (see init)
       var stamped = {}; Object.keys(state.rules).forEach(function (k) { stamped[k] = state.rules[k]; }); stamped.generatedAt = new Date().toISOString();
       el.textContent = serialiseRules(stamped).replace(/</g, "\\u003c");
       elE.textContent = JSON.stringify({ intro: $("introInput").value, closing: $("closingInput").value }).replace(/</g, "\\u003c");
@@ -1440,30 +1554,35 @@ parse_Primary(n.content)}catch(l){}a="/EncryptionInfo";n=Qe.find(e,a);if(!n||!n.
       Object.keys(saved).forEach(function (id) { $(id).innerHTML = saved[id]; });
     }
     download("waqti-exceptions.html", html, "text/html");
+    state.bakedFrom = stamped.generatedAt; saveLocal();  // this browser is where that copy came from: reopening it here keeps later edits
     var m = $("bakeMsg"); m.textContent = "Saved a copy of the tool with your current rules and email wording baked in. Open that file to start pre-configured."; setTimeout(function () { if (m.textContent) m.textContent = ""; }, 7000);
   }
   $("bakeBtn").addEventListener("click", bakeTool);
 
-  $("useBakedBtn").addEventListener("click", function () {
-    if (!embedded) return;
-    embedded.replacedLocal = false; useEmbedded(); loadEmbeddedEmail(true); autosave();
-    renderRules(true); renderPreview(); renderEmail();
-  });
+  $("useBakedBtn").addEventListener("click", chooseBaked);
+  $("restorePrevBtn").addEventListener("click", restorePrev);
 
   /* ---------- init ---------- */
   // a baked copy opens on the upload screen, whatever was loaded when it was saved
   show($("drop")); hide($("replaceBtn")); hide($("mapper")); hide($("parseError")); $("fileNameSub").textContent = "";
-  loadLocal();
-  embedded = readEmbedded();
-  if (embedded) {
-    var hadLocal = !rulesEmpty();
-    var same = hadLocal && serialiseRules(Object.assign({}, state.rules, { generatedAt: "x" })) === serialiseRules(Object.assign({}, embedded, { generatedAt: "x" }));
-    // baked rules win unless this browser's autosave was written after the copy was baked
-    if (!hadLocal || same || !localSavedAt || dayMs(embedded.generatedAt) > localSavedAt) {
-      embedded.replacedLocal = hadLocal && !same;
-      useEmbedded(); if (embedded.replacedLocal) loadEmbeddedEmail(true);
-    }
+  var local = loadLocal(), hasLocal = !!(local && local.rules && typeof local.rules === "object");
+  embedded = readEmbedded(); embeddedEmail = readEmbeddedEmail();
+  // Which set opens (docs/waqti-exception-rules.md, "Baked copies"). No clocks are compared.
+  if (embedded && !hasLocal) {
+    useEmbedded();                       // nothing in this browser to replace
+  } else if (bakedHasPeople()) {
+    var bakedGen = embedded.generatedAt || "";
+    // this browser's rules were taken from (or already weighed against) this very copy; autosaves
+    // from before bakedFrom existed carry the baked generatedAt in their rules instead
+    var derived = !!bakedGen && (local.bakedFrom !== undefined ? local.bakedFrom === bakedGen : state.rules.generatedAt === bakedGen);
+    if (derived) { /* keep this browser's rules and edits, silently */ }
+    else if (peopleCount(state.rules) === 0 || sameRules(state.rules, embedded)) {
+      var snap = snapshotActive();
+      useEmbedded(); loadEmbeddedEmail(true);
+      if (!sameRules(snap.rules, state.rules) || !sameEmail(snap.email, currentEmail())) { writePrev(snap); bakedNotice = "baked"; saveLocal(); }
+    } else bakedNotice = "choice";      // different rules on both sides: ask, and keep this browser's set until answered
   }
+  // a copy with no people baked in (wording only) never replaces rules; its wording fills blank fields
   loadEmbeddedEmail();
   goMain();               // always open on the app view, even if the file was baked from Settings
   setMode("rich");

@@ -79,9 +79,12 @@ time logged, each with a reason. Untick any row to
 leave it out, then copy the email as rich HTML or plain text.
 **Settings > Import & export > Save tool with rules** downloads a copy of the
 tool with the rules and email wording built in. That copy opens on the upload
-screen and uses its built-in rules, unless this browser's autosave is newer.
-Settings always shows which set is in use, and you can switch to the built-in
-rules from there.
+screen. It uses its built-in rules when this browser has none, the same ones, or
+rules that came from that copy; if this browser has different rules, it asks
+once which set to use. The set not used is kept, and **Restore my previous
+rules** in Settings switches back. A copy baked with no people only fills in
+blank email wording. Details:
+[`docs/waqti-exception-rules.md`](docs/waqti-exception-rules.md#6-baked-copies-save-tool-with-rules).
 
 ## `waqti-demand-summary.html`
 
@@ -89,9 +92,12 @@ Drop the same Waqti export and read it on-screen: pick one or more demands and
 see who booked how many hours to which feature under each. Copy the selected
 tables to the clipboard (rich HTML plus plain text) for pasting into an email or
 doc. Staff names can be mapped from the same `rules.json` or typed by hand.
-When you export `rules.json`, anyone named here who has no approved demands is
-written with `trackLoggedTime: false`, so `waqti-exceptions.html` does not list
-them under No time logged.
+When you export `rules.json` with an export loaded, a named person is written
+with `trackLoggedTime: false` (so `waqti-exceptions.html` does not list them
+under No time logged) only if their Staff ART in that export is not its main
+team. People missing from the export stay tracked, since they are who No time
+logged is for. Existing values are kept, and a note after the export says who
+was marked and why.
 
 ## `project-cost-tracker.html`
 

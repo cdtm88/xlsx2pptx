@@ -33,7 +33,9 @@ Staff IDs are upper-cased, so matching against the People rules is case-insensit
 
 ### Track Logged Time flag
 
-Each person in rules.json has `"trackLoggedTime": true|false`, **on by default**. Untick **Track Logged Time** in Settings > People (grid column, or the collapsed "Not present in the current export" list) for people from other teams who book to our demands. Only tracked people can appear in No time logged. An entry with no `trackLoggedTime` field counts as tracked. When `waqti-demand-summary.html` exports rules.json, anyone it names who has no approved demands and no `trackLoggedTime` field gets `"trackLoggedTime": false`, because those are usually people from other teams. An existing `trackLoggedTime` value is never changed.
+Each person in rules.json has `"trackLoggedTime": true|false`, **on by default**. Untick **Track Logged Time** in Settings > People (grid column, or the collapsed "Not present in the current export" list) for people from other teams who book to our demands. Only tracked people can appear in No time logged. An entry with no `trackLoggedTime` field counts as tracked. When `waqti-demand-summary.html` exports rules.json, it uses the export loaded in it to write `"trackLoggedTime": false` for a named person with no `trackLoggedTime` field only when their Staff ART in that export is never its main team (the Staff ART with the most people; with a tie, or no Staff ART column, nobody is marked).
+
+Everyone else stays tracked, including own-team members, new joiners and anyone missing from the export: someone with no bookings at all is exactly who No time logged is for. With no export loaded, nobody is marked. An existing `trackLoggedTime` value is never changed. After the export, a note says how many people were marked "not tracked", which ones, and why.
 
 ### Ignored taxonomies
 
@@ -93,7 +95,22 @@ Section order:
 
 Empty sections are left out. Hours show to 1 decimal. Text is made Windows-1252 safe for the plain-text copy.
 
-## 6. Things worth knowing
+## 6. Baked copies (Save tool with rules)
+
+**Save tool with rules** downloads a copy of the tool with the rules and email wording built in, stamped with the time it was baked (`generatedAt`). The browser's autosave records which baked copy its rules came from (`bakedFrom`), so opening a copy never compares clocks between machines. When a baked copy opens:
+
+| This browser's autosave | Rules used | Asked? |
+|---|---|---|
+| None | Baked rules and wording | No |
+| Came from this same baked copy (same `generatedAt`), edited or not | This browser's rules and wording | No |
+| Same rules as the baked copy (ignoring `generatedAt`), or no people | Baked rules and wording; if anything changed, the old set is set aside | No |
+| Different rules | This browser's, until you choose on the main screen: **Use the rules baked into this file** or **Keep this browser's rules**. The prompt names each set's label, number of people and date. | Yes, until you choose |
+
+A baked copy with no people in it (email wording only) counts as having no rules baked: it never replaces this browser's rules, and its wording only fills blank email fields (in a browser with no autosave, its label and ignored taxonomies are used too).
+
+Whichever set is not used is kept in a second browser key (`waqti-exceptions:v1:previous`, one set). **Settings > Import & export** offers **Restore my previous rules** (or **Use the rules baked into this file**), which swaps the two sets, so switching back never loses either. After you choose, that copy opens without asking again. The baker's own browser counts as the source of the copy, so reopening it there keeps any later edits.
+
+## 7. Things worth knowing
 
 - **Anything not on the ignore list is checked.** A new leave-type taxonomy shows up in the tables (often as `No application`) until it is added to the list.
 - **The team (ART) name is hard-coded** in `TARGET_ART` and in the on-screen "Ignored" note.
