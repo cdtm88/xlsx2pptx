@@ -40,13 +40,27 @@ opening from the Monday of that week. Plans written against the older
 sprint-based template still open: each `Q#.#` label is resolved to the dates
 that sprint covered and drawn on the same week timeline.
 
+Columns are found by name, so a sheet of your own works too. Start and End
+can be spelled most ways (`Start Date`, `StartDate`, `Start_Date`, `Est. Start`,
+`Forecast Finish`, `Due Date`, `Start Sprint`, `Start Date - dd/mm/yyyy`), and
+words that merely contain the letters (Vendor, Calendar, Weekend) are never
+taken for them. With several sets of dates, the plain one is plotted first,
+then forecast or planned, then target, then baseline or actual, always as a
+matching pair. Lanes come from a Category, Section or Workstream column,
+and flags from columns such as `Milestone`, `Key Milestone`, `At Risk` or
+`Risk Flag`. A line under the title says which columns were used; if no
+Start or End column is found, the error lists the headers it did find.
+
 Every field in the Tasks table is **editable in the page** — name, category,
 status, start and end dates, and the milestone and at-risk flags — so a late
 change goes straight in without editing the spreadsheet and re-uploading.
 Moving a date past the end of the timeline extends it rather than dropping the
 task. A date with a mistyped year (2016 for 2026) doesn't drag the timeline
 with it: the task is listed under the preview with its dates so the typo can
-be found and fixed.
+be found and fixed. A plan that genuinely runs past five years shows its
+first five and lists the tasks after that. A week range you pick yourself is
+kept when a date edit shortens the timeline: only the end that fell off is
+pulled in.
 
 Tick **At Risk** (or set the column in the spreadsheet — `TRUE`, `Yes`, `Y`,
 `1` or `x`, or a Status of `At Risk`) and the block keeps its status colour and

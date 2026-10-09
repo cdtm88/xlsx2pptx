@@ -171,6 +171,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Roboto,Arial,
 .actions{display:flex;gap:.9rem;flex-wrap:wrap}
 .hidden{display:none!important}
 .error{background:#FFF4F2;color:#B42318;padding:.9rem 1.1rem;border-radius:10px;border:1px solid #FDD;border-left:4px solid #DE350B;margin-bottom:1.25rem;font-size:.85rem}
+.cols-note{margin-top:.75rem;font-size:.76rem;color:var(--mid)}
+.cols-note b{font-weight:600;color:var(--slate)}
 .hint-note{margin-bottom:1rem;font-size:.82rem;color:#42526E;background:#F4F6F7;border-left:3px solid #A5ADBA;padding:.6rem .85rem;border-radius:0 8px 8px 0}
 .note-block{margin-bottom:.55rem}
 .note-block:last-child{margin-bottom:0}
@@ -230,6 +232,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Roboto,Arial,
         <div class="field"><label>Plan span</label><input type="text" id="cfg-span" readonly></div>
         <div class="field"><label>Now / Today Date</label><input type="date" id="cfg-now-date"></div>
       </div>
+      <div id="cols-note" class="cols-note hidden"></div>
     </div>
 
     <div class="card">
@@ -467,6 +470,82 @@ function sprintDates(sprints,startSprint,startDate){
   return dates;
 }
 
+// ===== HEADER MATCHING =====
+// A header is read as words: punctuation (_ - . / : ? * brackets) and camelCase
+// split it, so "StartDate", "Start_Date", "Est. Start", "Start date." and
+// "Start Date - dd/mm/yyyy" all read as plain words. Columns match on whole
+// words, never on letters inside one: "Vendor", "Calendar", "Attendees",
+// "Dependencies", "Weekend" or "Legend" are not End, "Started by" is not Start.
+function wordSet(s){var o=Object.create(null);s.split(' ').forEach(function(w){o[w]=true});return o}
+function wordMap(o){var m=Object.create(null);Object.keys(o).forEach(function(k){m[k]=o[k]});return m}
+function headerWords(h){
+  var out=[];
+  String(h).replace(/([a-z])([A-Z])/g,'$1 $2').toLowerCase().split(/[^a-z0-9]+/).forEach(function(w){
+    if(!w)return;
+    var m=w.match(/^(start|begin|end|finish|due)(date|dt)$/);   // "STARTDATE"
+    if(m)out.push(m[1],m[2]); else out.push(w);
+  });
+  return out;
+}
+var START_WORDS=wordSet('start starts begin begins beginning');
+var END_WORDS=wordSet('end ends finish finishes due');
+// Words that may follow Start or End: "Start Date", "Start Dt", "Due By", "End Sprint"
+// (the old sprint template), a "dd/mm/yyyy" hint.
+var DATE_TAIL=wordSet('date dates dt day on by sprint week wk d dd ddd m mm mmm mmmm y yy yyyy');
+// Which of several Start/End columns to plot: the unqualified one, then the
+// current estimate, then a target, and the baseline or actuals last (an actual
+// start is blank for work not yet begun). Any other qualifier ranks after all.
+var QUAL_RANK=wordMap({forecast:1,forecasted:1,planned:1,plan:1,revised:1,est:1,estimated:1,
+  expected:1,projected:1,proposed:1,scheduled:1,current:1,latest:1,committed:1,
+  target:2,targeted:2,baseline:3,original:3,orig:3,actual:3,actuals:3});
+var QUAL_SAME=wordMap({plan:'planned',forecasted:'forecast',estimated:'est',targeted:'target',
+  orig:'original',actuals:'actual'});
+// {rank,key} when the header names a start (KEYS=START_WORDS) or end date:
+// anything, then the keyword, then only date words or qualifiers. Brackets
+// are an aside ("Start Date (optional)") that can still carry a qualifier
+// ("Start (Forecast)"). `key` is the qualifier, so "Baseline Start" pairs with
+// "Baseline End".
+function dateRole(text,KEYS,OTHER){
+  var words=headerWords(String(text).replace(/\([^)]*\)/g,' '));
+  var k=words.length-1;
+  while(k>=0&&!KEYS[words[k]])k--;
+  if(k<0)return null;
+  var tail=words.slice(k+1);
+  if(!tail.every(function(w){return DATE_TAIL[w]||QUAL_RANK[w]}))return null;
+  var aside=(String(text).match(/\([^)]*\)/g)||[]).join(' ');
+  var qual=words.slice(0,k).concat(tail).filter(function(w){return !DATE_TAIL[w]})
+    .concat(headerWords(aside).filter(function(w){return QUAL_RANK[w]}));
+  if(qual.some(function(w){return KEYS[w]||OTHER[w]}))return null;   // "Start to End"
+  var rank=qual.length?4:0, key=[];
+  qual.forEach(function(w){
+    if(QUAL_RANK[w]&&QUAL_RANK[w]<rank)rank=QUAL_RANK[w];
+    var cw=QUAL_SAME[w]||w;
+    if(key.indexOf(cw)<0)key.push(cw);
+  });
+  return {rank:rank,key:key.sort().join(' ')};
+}
+var ROLE_WORDS={
+  status:wordSet('status'),
+  milestone:wordSet('milestone milestones'),
+  risk:wordSet('risk risks'),
+  section:wordSet('category categories section sections workstream workstreams stream streams swimlane swimlanes lane lanes'),
+  notes:wordSet('note notes comment comments remark remarks')
+};
+// Words that leave a header a plain flag: "At Risk", "Is Milestone", "Risk (Y/N)".
+var ROLE_FILLER=wordSet('at is key flag flagged y n yn yes no');
+// Words that make it some other column: "Risk description", "Milestone date",
+// "Status notes" are never read as the flag, status or lane.
+var ROLE_NOT=wordSet('description desc details detail owner owners note notes comment comments date dates id mitigation impact score rating level log register count reason');
+// 0 for an exact name, 1 for a header holding the word, -1 for no match.
+function roleTier(words,role){
+  var W=ROLE_WORDS[role];
+  if(!words.some(function(w){return W[w]}))return -1;
+  var rest=words.filter(function(w){return !W[w]&&!ROLE_FILLER[w]});
+  if(!rest.length)return 0;
+  if(role!=='notes'&&rest.some(function(w){return ROLE_NOT[w]}))return -1;
+  return 1;
+}
+
 // ===== PARSER =====
 function parseExcel(buf){
   var wb=XLSX.read(buf,{type:'array',cellDates:true});
@@ -513,8 +592,7 @@ function parseExcel(buf){
   if(hRow<0)hRow=looseRow;
   if(hRow<0)throw new Error('Header row not found. Column A must contain "Task".');
 
-  var cols={},sprints=[],sheetWeeks=[];
-  function take(key,re,sl,c){if(cols[key]===undefined&&re.test(sl)){cols[key]=c;return true}return false}
+  var cols={},sprints=[],sheetWeeks=[],heads=[],seen=[],claimed=Object.create(null);
   for(var c2=0;c2<=ref.e.c;c2++){
     var h=cv(hRow,c2);
     if(h===null||h===undefined||h==='')continue;
@@ -524,21 +602,55 @@ function parseExcel(buf){
     // a plausible year. A bare number such as 2026 is a label, not a week.
     var hd=(h instanceof Date||typeof h==='number')?parseDate(h):null;
     if(hd&&(h instanceof Date||plausibleDate(hd))){sheetWeeks.push(hd);continue}
-    // Named columns match the whole header (case, spacing, a trailing colon or
-    // "(dd/mm/yyyy)" aside) and the first match wins, so "Vendor", "Calendar",
-    // "Dependencies" or "Risk description" never take over End Date or At Risk.
-    var sl=hs.toLowerCase().replace(/\s*\([^)]*\)\s*$/,'').replace(/[\s:?*]+$/,'').replace(/\s+/g,' ');
-    if(cols.task===undefined&&sl.indexOf('task')>=0)cols.task=c2;   // column A, found above
-    else take('status',/^status$/,sl,c2)
-      ||take('start',/^((planned|plan|baseline|target|forecast|actual) )?(start|begin|beginning)( date)?$/,sl,c2)
-      ||take('end',/^((planned|plan|baseline|target|forecast|actual) )?(end|finish|due)( date)?$/,sl,c2)
-      ||take('notes',/^notes?$/,sl,c2)
-      ||take('milestone',/^milestone$/,sl,c2)
-      ||take('risk',/^(at[ -]?)?risk$/,sl,c2)
-      ||take('section',/^(category|section)$/,sl,c2);
+    if(hs)seen.push(hs);
+    if(cols.task===undefined&&hs.toLowerCase().indexOf('task')>=0){cols.task=c2;claimed[c2]=true;continue}   // column A, found above
+    heads.push({c:c2,text:hs,words:headerWords(hs)});
   }
-  if(cols.start===undefined||cols.end===undefined)
-    throw new Error('Start Date and End Date columns not found in the header row.');
+
+  // Start and End: see dateRole. Of several (Baseline and Forecast, Actual and
+  // Planned), take a pair sharing a qualifier where one ranks as well as the
+  // best single columns, so an actual start never meets a planned end.
+  var starts=[],ends=[];
+  heads.forEach(function(hd){
+    var s=dateRole(hd.text,START_WORDS,END_WORDS), e=dateRole(hd.text,END_WORDS,START_WORDS);
+    if(s){s.c=hd.c;s.text=hd.text;starts.push(s)}
+    if(e){e.c=hd.c;e.text=hd.text;ends.push(e)}
+  });
+  function better(a,b){return !b||a.rank<b.rank||(a.rank===b.rank&&a.c<b.c)}
+  var bs=null,be=null,bp=null;
+  starts.forEach(function(s){if(better(s,bs))bs=s});
+  ends.forEach(function(e){if(better(e,be))be=e});
+  starts.forEach(function(s){ends.forEach(function(e){
+    if(s.key!==e.key)return;
+    var pr={s:s,e:e,rank:s.rank,c:Math.max(s.c,e.c)};
+    if(better(pr,bp))bp=pr;
+  })});
+  if(bp&&bs&&be&&bp.rank<=Math.max(bs.rank,be.rank)){bs=bp.s;be=bp.e}
+  if(!bs||!be){
+    var list=seen.slice(0,25).map(function(x){return '\u201c'+(x.length>40?x.slice(0,39)+'\u2026':x)+'\u201d'}).join(', ')
+      +(seen.length>25?' and '+(seen.length-25)+' more':'');
+    throw new Error('No '+(!bs&&!be?'Start or End':!bs?'Start':'End')+' date column found in the header row (row '
+      +(hRow+1)+'). Name them like \u201cStart Date\u201d and \u201cEnd Date\u201d. Headers found: '+(list||'none')+'.');
+  }
+  cols.start=bs.c; cols.end=be.c; claimed[bs.c]=claimed[be.c]=true;
+  // The other columns: an exact name ("Milestone", "At Risk") first, then the
+  // first header holding the word ("Key Milestone", "Risk Flag").
+  ['status','milestone','risk','section','notes'].forEach(function(role){
+    var best=null;
+    heads.forEach(function(hd){
+      if(claimed[hd.c])return;
+      var t=roleTier(hd.words,role);
+      if(t>=0&&(!best||t<best.t))best={c:hd.c,t:t,text:hd.text};
+    });
+    if(best){cols[role]=best.c;claimed[best.c]=true;cols[role+'Text']=best.text}
+  });
+  // What was read, shown under the title so a plan drawn from the wrong
+  // columns is noticed (see renderColsNote).
+  var used={dates:[bs.text,be.text],other:[]};
+  ['section','milestone','risk','status'].forEach(function(k){if(cols[k+'Text'])used[k]=cols[k+'Text']});
+  starts.concat(ends).forEach(function(x){
+    if(x!==bs&&x!==be&&used.other.indexOf(x.text)<0)used.other.push(x.text);
+  });
 
   // Legacy sprint labels resolve to the calendar dates the sprint covered.
   var sprMap=sprints.length
@@ -586,7 +698,7 @@ function parseExcel(buf){
   // is edited — the sheet's own window still bounds it, not just the tasks.
   return {title:title,sheetNow:sheetNow,planStart:planStart,sheetWeeks:sheetWeeks,
     weeks:weeks,tasks:tasks,weekFrom:0,weekTo:weeks.length-1,
-    nowDate:null,colorMode:'status'};
+    nowDate:null,colorMode:'status',columns:used};
 }
 
 // ===== WEEK AXIS =====
@@ -601,21 +713,39 @@ function buildWeeks(planStart,tasks,sheetWeeks){
   tasks.forEach(function(t){note(t.start);note(t.end)});
   if(!pts.length)return [];
   pts.sort(function(a,b){return a-b});
-  var first=weekStartOf(pts[0]), last=weekStartOf(pts[pts.length-1]);
-  // Longer than the cap (a mistyped year, usually): keep the MAX_WEEKS stretch
+  var first=weekStartOf(pts[0]), last=weekStartOf(pts[pts.length-1]), cap='';
+  // Longer than the cap. A mistyped year, usually: keep the MAX_WEEKS stretch
   // holding the most of the plan's dates, not the one opening at the earliest
-  // date, so one 2016 typo can't push every 2026 task off the axis. Tasks left
-  // outside it are listed with their dates (see computeLayout).
+  // date, so one 2016 typo can't push every 2026 task off the axis. But a typo
+  // is a task or two far from the rest: when more tasks than that fall off the
+  // stretch, or they carry on from it without a year's break, the plan really
+  // is longer than five years and keeps its first MAX_WEEKS weeks instead.
+  // Either way the tasks left off are listed with their dates (computeLayout,
+  // renderHiddenNote); `cap` says which.
   if(dayDiff(first,last)/7>=MAX_WEEKS){
-    var best=-1,j=0;
+    var best=-1,j=0,df=first,dl=last;
     for(var i=0;i<pts.length;i++){
       var ws=weekStartOf(pts[i]), we=addDays(ws,MAX_WEEKS*7);
       while(j<pts.length&&pts[j]<we)j++;
-      if(j-i>best){best=j-i;first=ws;last=weekStartOf(pts[j-1])}
+      if(j-i>best){best=j-i;df=ws;dl=weekStartOf(pts[j-1])}
     }
+    var dEnd=addDays(dl,7), dated=0, off=0, gap=Infinity;
+    tasks.forEach(function(t){
+      if(!t.start||!t.end||t.end<t.start)return;
+      dated++;
+      if(t.start>=df&&t.end<dEnd)return;
+      off++;
+      [t.start,t.end].forEach(function(d){
+        if(d<df)gap=Math.min(gap,dayDiff(d,df));
+        else if(d>=dEnd)gap=Math.min(gap,dayDiff(dEnd,d));
+      });
+    });
+    if(!off||((off===1||off*10<dated)&&gap>=365)){cap='typo';first=df;last=dl}
+    else{cap='long';last=addDays(first,(MAX_WEEKS-1)*7)}
   }
   var w=first, out=[];
   while(w<=last){out.push(w);w=addDays(w,7)}
+  out.cap=cap;
   return out;
 }
 
@@ -698,8 +828,8 @@ function computeLayout(data,opts){
 
   // Tasks that fall entirely outside the selected window have no bar and are
   // auto-hidden from the plan (kept in `hidden` for a graceful note). Those
-  // running off the axis itself (only a capped one, so most likely a mistyped
-  // year) go in `outside`, listed with their dates so the typo can be found.
+  // running off the axis itself (only a capped one: a mistyped year, or a plan
+  // longer than five years) go in `outside`, listed with their dates.
   var placed=[],hidden=[],undated=[],outside=[];
   tasks.forEach(function(t){
     if(!t.start||!t.end||t.end<t.start){undated.push(t);return}
@@ -1329,8 +1459,10 @@ function populateWeekSelects(){
 
 // Editing a task date can push the plan outside the current axis, so rebuild it
 // and carry the visible window across by date rather than by index. A window
-// still on its automatic setting, or one the new axis no longer holds, is
-// worked out afresh instead: clamping it would leave a sliver of the plan.
+// still on its automatic setting is worked out afresh, so it follows the edit.
+// A window the user chose is kept: an edge the shorter axis no longer reaches
+// is pulled in to the axis end, the other edge stays put. Only a chosen window
+// left wholly off the axis, with nothing of it to keep, goes back to automatic.
 // `wasAuto` is whether the window matched autoWeekRange before the edit.
 function refreshWeekAxis(wasAuto){
   var fromD=currentData.weeks[currentData.weekFrom];
@@ -1338,11 +1470,11 @@ function refreshWeekAxis(wasAuto){
   var weeks=buildWeeks(currentData.planStart,currentData.tasks,currentData.sheetWeeks);
   if(!weeks.length)return;                    // every date cleared — keep the axis
   currentData.weeks=weeks;
-  if(wasAuto||!fromD||!toD||fromD<weeks[0]||toD>weeks[weeks.length-1]){
+  if(wasAuto||!fromD||!toD||toD<weeks[0]||fromD>weeks[weeks.length-1]){
     var auto=autoWeekRange(currentData);
     currentData.weekFrom=auto[0]; currentData.weekTo=auto[1];
   }else{
-    currentData.weekFrom=weekIndex(weeks,fromD);
+    currentData.weekFrom=weekIndex(weeks,fromD);           // weekIndex clamps
     currentData.weekTo=Math.max(currentData.weekFrom,weekIndex(weeks,toD));
   }
   var from=document.getElementById('wk-from'), to=document.getElementById('wk-to');
@@ -1485,6 +1617,7 @@ function updateUI(){
 function renderHiddenNote(hidden,undated,outside){
   hidden=hidden||[]; undated=undated||[]; outside=outside||[];
   var hset={},uset={},oset={};
+  var weeks=currentData.weeks, longPlan=weeks.cap==='long';
   hidden.forEach(function(t){hset[currentData.tasks.indexOf(t)]=true});
   undated.forEach(function(t){uset[currentData.tasks.indexOf(t)]=true});
   outside.forEach(function(t){oset[currentData.tasks.indexOf(t)]=true});
@@ -1495,12 +1628,13 @@ function renderHiddenNote(hidden,undated,outside){
     function tag(cls,txt,on){
       var ex=host.querySelector('.'+cls);
       if(on&&!ex){var s=document.createElement('span');s.className=cls;s.textContent=txt;host.appendChild(s)}
+      else if(on&&ex.textContent!==txt)ex.textContent=txt;
       else if(!on&&ex)ex.remove();
     }
     tr.classList.toggle('offplan',!!hset[i]||!!uset[i]||!!oset[i]);
     tag('tag-offplan','off-plan',!!hset[i]);
     tag('tag-nodate','no dates',!!uset[i]);
-    tag('tag-outside','check dates',!!oset[i]);
+    tag('tag-outside',longPlan?'past 5 years':'check dates',!!oset[i]);
   });
   var note=document.getElementById('hidden-note');
   note.innerHTML='';
@@ -1530,8 +1664,31 @@ function renderHiddenNote(hidden,undated,outside){
   }
   block(hidden,hidden.length+' task'+(hidden.length>1?'s':'')+' outside the selected weeks \u2014 widen the range to include:');
   block(undated,undated.length+' task'+(undated.length>1?'s':'')+' with no valid start/end date \u2014 can\u2019t be placed:');
-  block(outside,outside.length+' task'+(outside.length>1?'s':'')+' dated far outside the rest of the plan. Check for a mistyped year:',true);
+  if(longPlan)
+    block(outside,'This plan runs past five years, more than one slide can show, so the timeline stops at w/c '
+      +fmtFull(weeks[weeks.length-1])+'. '+outside.length+' task'+(outside.length>1?'s run':' runs')
+      +' past that and '+(outside.length>1?'are':'is')+' left off:',true);
+  else
+    block(outside,outside.length+' task'+(outside.length>1?'s':'')+' dated far outside the rest of the plan. Check for a mistyped year:',true);
   note.classList.toggle('hidden', !hidden.length && !undated.length && !outside.length);
+}
+
+// Which spreadsheet columns the plan was read from, so a plan drawn from the
+// baseline rather than the forecast, or without its lanes, is noticed.
+function renderColsNote(used){
+  var el=document.getElementById('cols-note');
+  el.innerHTML='';
+  if(!used){el.classList.add('hidden');return}
+  var parts=[['Dates from',used.dates.join(' / ')],['Lanes',used.section],
+    ['Milestones',used.milestone],['At risk',used.risk],['Status',used.status]];
+  if(used.other.length)parts.push(['Not used',used.other.join(', ')]);
+  parts.forEach(function(p){
+    if(!p[1])return;
+    if(el.childNodes.length)el.appendChild(document.createTextNode(' \u00b7 '));
+    var b=document.createElement('b');b.textContent=p[0]+': ';
+    el.appendChild(b);el.appendChild(document.createTextNode(p[1]));
+  });
+  el.classList.remove('hidden');
 }
 
 function defaultNowDate(data){
@@ -1562,6 +1719,7 @@ function handleFile(file){
       document.getElementById('cfg-title').value=currentData.title;
       document.getElementById('cfg-now-date').value=currentData.nowDate?toInput(currentData.nowDate):'';
 
+      renderColsNote(currentData.columns);
       setColorSeg(currentData.colorMode);
       populateWeekSelects();
       buildTaskTable();

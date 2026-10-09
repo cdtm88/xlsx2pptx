@@ -129,6 +129,81 @@ async function openTool(browser, file, flow) {
   await ctx.close();
 }
 
+
+/* ---------- delivery plan regressions (BACKLOG DP-R1 to DP-R6) ---------- */
+// The header and window rules broke once on real files that the happy-path flow above
+// never loads: the old sprint template, everyday header spellings, baseline vs forecast
+// columns, long roadmaps and a user-chosen week window.
+async function deliveryRegressions(browser) {
+  console.log("delivery-plan.html: regressions");
+  const url = "file://" + path.join(ROOT, "delivery-plan.html");
+  const t = (n, c, w) => check("delivery-plan regression: " + n, c, w);
+  const val = (p, sel) => p.$eval(sel, (e) => e.value).catch(() => "");
+  const txt = (p, sel) => p.$eval(sel, (e) => e.textContent).catch(() => "");
+  const selText = (p, sel) => p.$eval(sel, (e) => e.selectedOptions[0].text).catch(() => "");
+  const checked = (p, sel) => p.$eval(sel, (e) => e.checked).catch(() => false);
+  const visible = (p, sel) => p.$eval(sel, (e) => !e.classList.contains("hidden")).catch(() => false);
+  async function load(fixture, fn) {
+    const ctx = await browser.newContext({ acceptDownloads: true });
+    const p = await ctx.newPage(), errors = [];
+    p.on("pageerror", (e) => errors.push(e.message));
+    await p.goto(url);
+    await p.setInputFiles("#file-input", path.join(FIX, fixture));
+    await p.waitForTimeout(400);
+    try { await fn(p); } catch (e) { t(fixture + ": flow", false, e.message.split("\n")[0]); }
+    t(fixture + ": no page errors", errors.length === 0, errors.slice(0, 2).join(" | "));
+    await ctx.close();
+  }
+  const row = (n, f) => "#task-tbody tr:nth-child(" + n + ") ." + f;
+
+  await load("dp-legacy-sprint.xlsx", async (p) => {
+    t("legacy sprint template opens", !(await visible(p, "#error-msg")), await txt(p, "#error-msg"));
+    t("legacy: first task 1 Apr to 28 Apr", (await val(p, row(1, "f-start"))) === "2026-04-01" && (await val(p, row(1, "f-end"))) === "2026-04-28");
+    t("legacy: milestone read", await checked(p, row(4, "f-ms")));
+    t("legacy: columns line names the sprint columns", /Dates from: Start Sprint \/ End Sprint/.test(await txt(p, "#cols-note")));
+    const dl = p.waitForEvent("download", { timeout: 15000 });
+    dl.catch(() => {}); // a missing download is one failed check, not a crashed run
+    try {
+      await p.click("#btn-download", { timeout: 3000 });
+      t("legacy: downloads a PowerPoint", fs.readFileSync(await (await dl).path()).slice(0, 2).toString() === "PK");
+    } catch (e) { t("legacy: downloads a PowerPoint", false, e.message.split("\n")[0]); }
+  });
+  await load("dp-headers.xlsx", async (p) => {
+    t("forecast plotted over baseline", (await val(p, row(1, "f-start"))) === "2026-03-02" && (await val(p, row(1, "f-end"))) === "2026-03-13");
+    const cn = await txt(p, "#cols-note");
+    t("columns line names forecast and the unused baseline",
+      /Dates from: Forecast Start \/ Forecast End/.test(cn) && /Not used: Baseline Start, Baseline End/.test(cn), cn);
+    t("lane from Category / Workstream", (await val(p, row(1, "f-section"))) === "Build");
+    t("Risk Flag read", await checked(p, row(2, "f-risk")));
+    t("Key Milestone read", await checked(p, row(3, "f-ms")));
+  });
+  await load("dp-header-spellings.xlsx", async (p) => {
+    t("Start_Date / End Date - dd/mm/yyyy read", (await val(p, row(1, "f-start"))) === "2026-03-02" && (await val(p, row(1, "f-end"))) === "2026-03-13");
+  });
+  await load("dp-no-dates.xlsx", async (p) => {
+    const em = await txt(p, "#error-msg");
+    t("no date columns: the error lists the headers found", (await visible(p, "#error-msg")) && /Headers found:/.test(em) && /“Vendor”/.test(em), em);
+  });
+  await load("dp-roadmap-6y.xlsx", async (p) => {
+    const hn = await txt(p, "#hidden-note");
+    t("six-year roadmap: says it runs past five years, not a typo", /runs past five years/.test(hn) && !/mistyped/.test(hn), hn.slice(0, 120));
+    t("six-year roadmap: 5 tasks tagged", (await p.$$("#task-tbody .tag-outside")).length === 5);
+    t("six-year roadmap: 260-week axis", (await txt(p, "#week-count-lbl")) === "248 of 260 weeks", await txt(p, "#week-count-lbl"));
+  });
+  await load("delivery-plan.xlsx", async (p) => {
+    await p.selectOption("#wk-from", "2");
+    await p.fill(row(3, "f-end"), "2026-04-03");
+    await p.waitForTimeout(150);
+    t("a chosen week window is clamped, not reset", (await selText(p, "#wk-from")) === "16 Mar 2026" && (await selText(p, "#wk-to")) === "30 Mar 2026" &&
+      (await txt(p, "#week-count-lbl")) === "3 of 5 weeks", (await selText(p, "#wk-from")) + " to " + (await selText(p, "#wk-to")));
+  });
+  await load("delivery-plan.xlsx", async (p) => {
+    await p.fill(row(3, "f-end"), "2026-04-24");
+    await p.waitForTimeout(150);
+    t("the automatic window follows an edit", (await selText(p, "#wk-to")) === "20 Apr 2026" && (await txt(p, "#week-count-lbl")) === "8 of 8 weeks");
+  });
+}
+
 (async () => {
   kitUnits();
   const browser = await chromium.launch();
@@ -138,6 +213,7 @@ async function openTool(browser, file, flow) {
     await openTool(browser, path.join(ROOT, t), FLOWS[t]);
   }
   check("every tool has a main flow in this test", tools.every((t) => FLOWS[t]), tools.filter((t) => !FLOWS[t]).join(", "));
+  await deliveryRegressions(browser);
   // the starter is never shipped, but new tools are copied from it: it must build and run clean
   console.log("framework/starter.src.html");
   const tmp = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "rk-starter-")), "starter.html");
