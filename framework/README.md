@@ -22,8 +22,11 @@ no build step *for the user*, and no external requests.
 - **Offline by policy.** Every source carries a `Content-Security-Policy` meta tag
   (`default-src 'none'`, inline script and style only, images from `data:`/`blob:`,
   `connect-src 'none'`), placed straight after the charset. Copy it from
-  `starter.src.html`. It turns "no network requests" from a habit into something
-  the browser enforces, and limits what any injected script could do.
+  `starter.src.html`, unchanged (`tests/smoke.cjs` compares it exactly). It turns
+  "no network requests" from a habit into something the browser enforces: fetch,
+  images, scripts and beacons to the network are refused. It does not block
+  navigation (`location.href`, `window.open`), and with inline script allowed it is
+  a backstop, not an XSS defence: escaping with `RK.esc` is the primary control.
 - **Lookups keyed by data use `RK.dict()`** (or a `Map`), never `{}`: a spreadsheet
   cell or JSON key of `__proto__`, `constructor` or `toString` must stay a plain key.
 - **Text into HTML goes through `RK.esc`**, every time, including alert and toast text.

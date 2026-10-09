@@ -282,7 +282,7 @@ tr.pic-nocount td.pic-person{font-style:italic}
     </div>
     <div class="spacer"></div>
     <span class="pic-save" id="saveState"><span class="pic-dot"></span>Starting up</span>
-    <span class="ver" id="version">v1.1.0</span>
+    <span class="ver" id="version">v1.1.1</span>
     <button type="button" class="btn btn-ghost no-print pic-header-btn" id="settingsBtn">Settings</button>
     <button type="button" class="btn btn-ghost no-print pic-header-btn" id="topLoad">Load data</button>
     <button type="button" class="btn btn-primary no-print pic-header-btn" id="topSave">Save JSON</button>
@@ -1116,7 +1116,7 @@ window.RK = (function () {
    ============================================================ */
 (function () {
   "use strict";
-  var APP_VERSION = "1.1.0";
+  var APP_VERSION = "1.1.1";
   var SCHEMA_VERSION = 1;
   var LS_KEY = "pi-capacity:state:v1";
   var $ = RK.$, esc = RK.esc, show = RK.show, hide = RK.hide, round1 = RK.round1, round2 = RK.round2;
@@ -1945,6 +1945,11 @@ window.RK = (function () {
   // Split a parsed file into our half and everyone else's. Nothing is assigned
   // here: the caller decides whether, and how, the result replaces the plan.
   // `state` is null for a file with no capacity section (a cost tracker project).
+  // A cost tracker project, as project-cost-tracker.html saves it: a team list plus
+  // its state version, name or estimate.
+  function looksLikeTracker(d) {
+    return Array.isArray(d.team) && ("v" in d || typeof d.name === "string" || "estimate" in d);
+  }
   function readDoc(data) {
     if (!data || typeof data !== "object" || Array.isArray(data)) throw new Error("not a JSON object");
     var payload, foreign = {};
@@ -1953,10 +1958,14 @@ window.RK = (function () {
       Object.keys(data).forEach(function (k) { if (k !== OWN_KEY) foreign[k] = data[k]; });
     } else if (data.teams || data.settings || data.leave) {
       payload = data;                          // a flat file from before the envelope
-    } else {
-      // a cost tracker project with no capacity section yet — keep all of it
+    } else if (!Object.keys(data).length || looksLikeTracker(data)) {
+      // a cost tracker project with no capacity section yet: keep all of it
       payload = null;
       Object.keys(data).forEach(function (k) { foreign[k] = data[k]; });
+    } else {
+      // e.g. an exported holidays file or a Waqti rules.json: adopting it as the
+      // "other half" would carry its keys into every later save
+      throw new Error("it is neither a PI capacity plan nor a cost tracker project");
     }
     return { state: payload ? migrate(payload) : null, foreign: foreign };
   }

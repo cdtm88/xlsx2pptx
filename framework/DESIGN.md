@@ -42,7 +42,10 @@ keep their look. Do not include both stylesheets in one page: kit 2 styles bare
    focuses search (`RK.searchShortcut`).
 8. **Single file, offline, enforced.** No external URLs, including icons: images
    are inlined as data URIs. The starter's `Content-Security-Policy` meta makes the
-   browser refuse any network access, so keep it in every tool.
+   browser refuse every request and load to the network (fetch, images, scripts,
+   beacons), so keep it in every tool. It cannot stop the page navigating away, and
+   it allows inline script, so escaping text with `RK.esc` stays the real defence
+   against injected markup.
 
 ## Tokens
 

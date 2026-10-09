@@ -331,8 +331,10 @@ offline page.
 - `node tests/smoke.cjs` opens every built tool in a headless browser and checks it
   loads clean, stays offline and its main flow works. A GitHub Action runs it and
   `--check` on every pull request (setup in [`framework/README.md`](framework/README.md)).
-- Every tool carries a Content-Security-Policy that blocks all network access, so
-  "your data never leaves the machine" is enforced by the browser, not just intended.
+- Every tool carries a Content-Security-Policy that refuses every request to the
+  network, so "your data never leaves the machine" is enforced by the browser, not
+  just intended. (It cannot stop a page navigating away, so escaping stays the main
+  guard against injected content.)
 
 End users never build anything — they just open the `.html`. See
 [`framework/README.md`](framework/README.md) for the authoring guide and the

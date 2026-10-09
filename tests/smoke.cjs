@@ -20,6 +20,9 @@ catch (e) { console.error("playwright is not installed: npm i --no-save playwrig
 
 const ROOT = path.resolve(__dirname, "..");
 const FIX = path.join(__dirname, "fixtures");
+// The one policy every tool must carry, exactly as the starter has it.
+const CSP = (/<meta http-equiv="Content-Security-Policy" content="([^"]+)">/.exec(
+  fs.readFileSync(path.join(ROOT, "framework/starter.src.html"), "utf8")) || [])[1];
 const failures = [];
 const ok = (name) => console.log("  ok   " + name);
 const fail = (name, why) => { failures.push(name + ": " + why); console.log("  FAIL " + name + ": " + why); };
@@ -59,7 +62,9 @@ const FLOWS = {
   "waqti-exceptions.html": async (page, t) => {
     await page.setInputFiles("#fileInput", path.join(FIX, "waqti-export.xlsx"));
     await page.waitForFunction(() => /waqti-export/.test(document.getElementById("fileNameSub").textContent), null, { timeout: 5000 });
-    t("reads the export and flags the GEN_LINES row", /GEN_LINES|system created/i.test(await page.textContent("body")));
+    // scoped to the Needs attention table: the page's own script also contains the words
+    const attn = await page.textContent("#attnWrap");
+    t("reads the export and flags the GEN_LINES row", /S2/.test(attn) && /GEN_LINES|system created/i.test(attn), attn.slice(0, 120));
   },
   "waqti-demand-summary.html": async (page, t) => {
     await page.setInputFiles("#fileInput", path.join(FIX, "waqti-export.xlsx"));
@@ -110,8 +115,11 @@ async function openTool(browser, file, flow) {
   await page.goto(url);
   await page.waitForTimeout(300);
   const name = path.basename(file);
+  // exactly the starter's policy, and straight after the charset so it governs every script
+  const head = await page.evaluate(() => [...document.head.children].slice(0, 2).map((e) => e.outerHTML));
   const csp = await page.$eval('meta[http-equiv="Content-Security-Policy"]', (m) => m.content).catch(() => "");
-  check(name + ": offline CSP present", /default-src 'none'/.test(csp) && /connect-src 'none'/.test(csp), "missing or loosened CSP: " + (csp || "none"));
+  check(name + ": offline CSP present, unchanged and first", !!CSP && csp === CSP && /^<meta charset/i.test(head[0] || "") &&
+    /Content-Security-Policy/.test(head[1] || ""), "policy differs from the starter's or is not first: " + (csp || "none"));
   if (flow) {
     try { await flow(page, (n, c, w) => check(name + ": " + n, c, w), { url }); }
     catch (e) { fail(name + ": main flow", e.message.split("\n")[0]); }
