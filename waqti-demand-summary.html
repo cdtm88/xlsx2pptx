@@ -948,7 +948,7 @@ window.RK = (function () {
 (function () {
   "use strict";
   var $ = RK.$, esc = RK.esc, show = RK.show, hide = RK.hide, fmtHrs = RK.fmtHrs;
-  var VERSION = "v1.3.1";
+  var VERSION = "v1.3.2";
   var LS = RK.store("waqti-demand-summary:v1");
   $("version").textContent = VERSION;
 
@@ -1176,8 +1176,23 @@ window.RK = (function () {
     };
     reader.readAsText(f); ev.target.value = "";
   });
+  // People named here with no approved demands are usually from other teams. waqti-exceptions
+  // treats a missing trackLoggedTime as true and would list them under "No time logged" every
+  // month, so write trackLoggedTime:false for them. An explicit trackLoggedTime is never changed.
+  function staffForExport() {
+    var out = {};
+    Object.keys(state.rulesStaff).forEach(function (id) { out[id] = state.rulesStaff[id]; });
+    Object.keys(state.nameMap).forEach(function (id) {
+      var base = out[id], dem = state.demandsById[id];
+      if (!String(state.nameMap[id] || "").trim() || (Array.isArray(dem) && dem.length)) return;
+      if (base && typeof base === "object" && base.trackLoggedTime !== undefined) return;
+      var copy = {}; if (base && typeof base === "object") Object.keys(base).forEach(function (k) { copy[k] = base[k]; });
+      copy.trackLoggedTime = false; out[id] = copy;
+    });
+    return out;
+  }
   $("exportRulesBtn").addEventListener("click", function () {
-    RK.download("rules.json", RK.rules.serialise({ staff: state.rulesStaff, names: state.nameMap, demands: state.demandsById, label: state.rulesLabel, extraTop: state.extraTop }), "application/json");
+    RK.download("rules.json", RK.rules.serialise({ staff: staffForExport(), names: state.nameMap, demands: state.demandsById, label: state.rulesLabel, extraTop: state.extraTop }), "application/json");
   });
   $("clearRulesBtn").addEventListener("click", function () {
     replaceMap(state.nameMap, {}); state.demandsById = {}; state.rulesStaff = {}; state.extraTop = {}; state.rulesLabel = "";  // clear name map in place

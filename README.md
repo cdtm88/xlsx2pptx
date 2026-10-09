@@ -75,6 +75,11 @@ following the classification rules in
 demands, lines with no Application or created by `GEN_LINES`, and people with no
 time logged, each with a reason. Untick any row to
 leave it out, then copy the email as rich HTML or plain text.
+**Settings > Import & export > Save tool with rules** downloads a copy of the
+tool with the rules and email wording built in. That copy opens on the upload
+screen and uses its built-in rules, unless this browser's autosave is newer.
+Settings always shows which set is in use, and you can switch to the built-in
+rules from there.
 
 ## `waqti-demand-summary.html`
 
@@ -82,6 +87,9 @@ Drop the same Waqti export and read it on-screen: pick one or more demands and
 see who booked how many hours to which feature under each. Copy the selected
 tables to the clipboard (rich HTML plus plain text) for pasting into an email or
 doc. Staff names can be mapped from the same `rules.json` or typed by hand.
+When you export `rules.json`, anyone named here who has no approved demands is
+written with `trackLoggedTime: false`, so `waqti-exceptions.html` does not list
+them under No time logged.
 
 ## `project-cost-tracker.html`
 

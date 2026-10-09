@@ -257,6 +257,10 @@ table.grid thead th.teamcol{background:var(--teal-dark)}
     </div>
   </section>
 
+  <div class="callout hidden" id="bakedHint">
+    This file has rules baked in, but this browser's autosave is newer, so the <strong>autosaved rules are in use</strong>. To use the baked set instead, open <strong>Settings &gt; Import &amp; export</strong> and click <strong>Use the rules baked into this file</strong>.
+  </div>
+
   <div class="callout hidden" id="noRulesHint">
     No people rules loaded yet. Open <strong>Settings &gt; People</strong> to tick approved demands, or <strong>Settings &gt; Import &amp; export</strong> to load a rules.json, then come back here.
     <div style="margin-top:.5rem;"><button type="button" class="mini-btn" id="openSettingsBtn">Open Settings</button></div>
@@ -342,6 +346,7 @@ table.grid thead th.teamcol{background:var(--teal-dark)}
       <section class="card settings-panel hidden" id="panel-file">
         <div class="card-head"><span class="title">Import &amp; export</span><span class="sub">The exported rules.json is the source of truth, not this browser.</span></div>
         <div class="note" id="rulesSource">No rules loaded yet.</div>
+        <button type="button" class="mini-btn hidden" id="useBakedBtn" style="margin-top:.4rem;">Use the rules baked into this file</button>
         <label class="field" for="labelInput">Rules label</label>
         <input type="text" id="labelInput" placeholder="e.g. ART1 Sample Delivery Services FY26/27">
         <div class="controls-row" style="margin:1rem 0 .3rem;">
@@ -816,7 +821,7 @@ parse_Primary(n.content)}catch(l){}a="/EncryptionInfo";n=Qe.find(e,a);if(!n||!n.
 (function () {
   "use strict";
 
-  var VERSION = "v2.3.0";
+  var VERSION = "v2.3.1";
   var LS_KEY = "waqti-exceptions:v1";
   var $ = function (id) { return document.getElementById(id); };
   $("version").textContent = VERSION;
@@ -860,12 +865,14 @@ parse_Primary(n.content)}catch(l){}a="/EncryptionInfo";n=Qe.find(e,a);if(!n||!n.
   }
 
   /* ---------- persistence ---------- */
-  function saveLocal() { try { localStorage.setItem(LS_KEY, JSON.stringify({ rules: state.rules, source: state.source, loadedAt: state.loadedAt, email: { intro: $("introInput").value, closing: $("closingInput").value } })); } catch (e) { } }
+  function saveLocal() { try { localStorage.setItem(LS_KEY, JSON.stringify({ rules: state.rules, source: state.source, loadedAt: state.loadedAt, savedAt: Date.now(), email: { intro: $("introInput").value, closing: $("closingInput").value } })); } catch (e) { } }
   function loadLocal() {
     try {
       var raw = localStorage.getItem(LS_KEY); if (!raw) return;
       var obj = JSON.parse(raw);
       if (obj && obj.rules && typeof obj.rules === "object") {
+        // when the autosave was written; older autosaves fall back to their import time or rules date
+        localSavedAt = typeof obj.savedAt === "number" ? obj.savedAt : (typeof obj.loadedAt === "number" ? obj.loadedAt : (dayMs(obj.rules.generatedAt) || null));
         var st = obj.rules.staff || {}, stU = {};
         Object.keys(st).forEach(function (id) { stU[String(id).toUpperCase()] = st[id]; });
         var ign = Array.isArray(obj.rules.ignoredTaxonomies) ? obj.rules.ignoredTaxonomies.filter(function (t) { return typeof t === "string"; }) : DEFAULT_IGNORED_TAXONOMIES.slice();
@@ -878,7 +885,8 @@ parse_Primary(n.content)}catch(l){}a="/EncryptionInfo";n=Qe.find(e,a);if(!n||!n.
       }
     } catch (e) { }
   }
-  var saveTimer = null;
+  var saveTimer = null, localSavedAt = null, embedded = null;
+  function dayMs(s) { var t = typeof s === "string" ? Date.parse(s) : NaN; return isNaN(t) ? 0 : t; }
   function autosave() { if (saveTimer) clearTimeout(saveTimer); saveTimer = setTimeout(saveLocal, 300); }
 
   /* ---------- rules helpers ---------- */
@@ -935,7 +943,9 @@ parse_Primary(n.content)}catch(l){}a="/EncryptionInfo";n=Qe.find(e,a);if(!n||!n.
     { field: "bookedHours", canonical: "Booked Hours", label: "Booked Hours" }
   ];
   function renderMapper(result) {
-    state.parsed = null;
+    state.parsed = null; state.lastEmail = null;
+    $("fileNameSub").textContent = "";
+    renderRules(true); renderPreview(); renderEmail();  // drop the previous file's grid, exceptions and email
     var fields = REQUIRED_FIELDS.concat([{ field: "rechargeCost", canonical: "Recharge Cost", label: "Recharge Cost (optional)" }]);
     var rows = fields.map(function (f) {
       var guess = null;
@@ -966,10 +976,14 @@ parse_Primary(n.content)}catch(l){}a="/EncryptionInfo";n=Qe.find(e,a);if(!n||!n.
     var srcTxt;
     if (state.source === "import") srcTxt = "Active rules: imported file" + (when ? ", loaded " + when : "") + ". The imported file wins over any autosave.";
     else if (state.source === "autosave") srcTxt = "Active rules: restored from this browser's autosave" + (when ? " (" + when + ")" : "") + ". Import a rules.json to override.";
-    else if (state.source === "file") srcTxt = "Active rules: baked into this HTML file. Edits autosave to this browser and can be re-baked with Save tool with rules.";
+    else if (state.source === "file") srcTxt = "Active rules: baked into this HTML file" + (embedded && embedded.generatedAt ? " (saved " + new Date(dayMs(embedded.generatedAt)).toLocaleString() + ")" : "") + (embedded && embedded.replacedLocal ? (localSavedAt ? ". They are newer than this browser's autosave, so they replace it" : ". They replace this browser's undated autosave") : "") + ". Edits autosave to this browser and can be re-baked with Save tool with rules.";
     else if (state.source === "edited") srcTxt = "Active rules: edited in this session, autosaved to this browser.";
     else srcTxt = "No rules loaded yet. Import a rules.json, tick approvals under People, or download a template.";
+    var bakedIdle = embedded && state.source !== "file";
+    if (bakedIdle) srcTxt += " This file also has rules baked in" + (embedded.generatedAt ? " (saved " + new Date(dayMs(embedded.generatedAt)).toLocaleString() + ")" : "") + " that are not in use.";
     $("rulesSource").textContent = srcTxt;
+    if (bakedIdle) show($("useBakedBtn")); else hide($("useBakedBtn"));
+    if (bakedIdle && state.source === "autosave") show($("bakedHint")); else hide($("bakedHint"));
     $("labelInput").value = state.rules.label || "";
     if (rebuildGrid) buildGrid();
     buildExtras();
@@ -1247,7 +1261,7 @@ parse_Primary(n.content)}catch(l){}a="/EncryptionInfo";n=Qe.find(e,a);if(!n||!n.
   }
 
   /* ---------- deadline: date picker defaulting to last working day of the month ---------- */
-  var deadlineUserSet = false;
+  var deadlineUserSet = false, periodUserSet = false;  // once edited, Replace file keeps the user's value
   var MONTHS3 = { jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11 };
   var WD = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
   var MO = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -1285,7 +1299,7 @@ parse_Primary(n.content)}catch(l){}a="/EncryptionInfo";n=Qe.find(e,a);if(!n||!n.
 
   /* ---------- email ---------- */
   function renderEmailControls() {
-    if (state.parsed && state.parsed.period && !$("periodInput").value) $("periodInput").value = state.parsed.period.label;
+    if (state.parsed && state.parsed.period && (!periodUserSet || !$("periodInput").value)) { $("periodInput").value = state.parsed.period.label; periodUserSet = false; }
     if (!deadlineUserSet) $("deadlineInput").value = defaultDeadline();
     var OLD_INTRO = "The following bookings were made against demands the person is not\ncurrently approved for.";
     var NEW_INTRO = "The following bookings were made against demands the person is not currently approved for.";
@@ -1328,7 +1342,7 @@ parse_Primary(n.content)}catch(l){}a="/EncryptionInfo";n=Qe.find(e,a);if(!n||!n.
     $("copyBtn").disabled = false;
     $("nameNote").textContent = email.nameSimplified ? "Note: at least one name or feature label contained a character outside Windows-1252 and was simplified for the plain-text copy." : "";
   }
-  ["periodInput", "introInput", "closingInput"].forEach(function (id) { $(id).addEventListener("input", function () { renderEmail(); if (id !== "periodInput") autosave(); }); });
+  ["periodInput", "introInput", "closingInput"].forEach(function (id) { $(id).addEventListener("input", function () { if (id === "periodInput") periodUserSet = true; renderEmail(); if (id !== "periodInput") autosave(); }); });
   $("deadlineInput").addEventListener("change", function () { deadlineUserSet = true; renderEmail(); });
 
   function setMode(mode) {
@@ -1377,19 +1391,22 @@ parse_Primary(n.content)}catch(l){}a="/EncryptionInfo";n=Qe.find(e,a);if(!n||!n.
   $("fileInput").addEventListener("change", function (ev) { var f = ev.target.files && ev.target.files[0]; if (f) readFile(f); ev.target.value = ""; });
 
   /* ---------- embedded rules (baked into the file) ---------- */
-  function loadEmbedded() {
+  function readEmbedded() {
     try {
       var el = document.getElementById("embeddedRules");
-      if (!el) return false;
+      if (!el) return null;
       var txt = (el.textContent || "").trim();
-      if (!txt || txt === "{}") return false;
-      var parsed = parseRules(txt);
-      state.rules = rulesFromParsed(parsed);
-      state.source = "file"; state.loadedAt = null;
-      return true;
-    } catch (e) { return false; }
+      if (!txt || txt === "{}") return null;
+      return rulesFromParsed(parseRules(txt));
+    } catch (e) { return null; }
   }
-  function loadEmbeddedEmail() {
+  function useEmbedded() {
+    state.rules = rulesFromParsed(embedded);
+    state.rules.staff = JSON.parse(JSON.stringify(embedded.staff));
+    state.rules.ignoredTaxonomies = embedded.ignoredTaxonomies.slice();
+    state.source = "file"; state.loadedAt = null;
+  }
+  function loadEmbeddedEmail(force) {
     try {
       var el = document.getElementById("embeddedEmail");
       if (!el) return;
@@ -1397,34 +1414,56 @@ parse_Primary(n.content)}catch(l){}a="/EncryptionInfo";n=Qe.find(e,a);if(!n||!n.
       if (!txt || txt === "{}") return;
       var e = JSON.parse(txt);
       if (e && typeof e === "object") {
-        if (!$("introInput").value && typeof e.intro === "string") $("introInput").value = e.intro;
-        if (!$("closingInput").value && typeof e.closing === "string") $("closingInput").value = e.closing;
+        if ((force || !$("introInput").value) && typeof e.intro === "string") $("introInput").value = e.intro;
+        if ((force || !$("closingInput").value) && typeof e.closing === "string") $("closingInput").value = e.closing;
       }
     } catch (x) { }
   }
   function bakeTool() {
     var el = document.getElementById("embeddedRules");
     var prevEmbed = el.textContent;
-    el.textContent = serialiseRules(state.rules).replace(/</g, "\\u003c");
     var elE = document.getElementById("embeddedEmail");
     var prevEmail = elE.textContent;
-    elE.textContent = JSON.stringify({ intro: $("introInput").value, closing: $("closingInput").value }).replace(/</g, "\\u003c");
-    // clear heavy dynamic regions so the saved copy is lean; restored right after
-    var clearIds = ["exceptionsWrap", "richPreview", "gridWrap", "extrasWrap", "unmatchedWrap", "dqWrap", "parseStatus", "banner", "clearWrap", "notesWrap", "attnWrap", "missingWrap", "dqWrap", "fallbackWrap", "mapperFields", "ignoreFromExport"];
-    var saved = {};
-    clearIds.forEach(function (id) { var n = $(id); saved[id] = n.innerHTML; n.innerHTML = ""; });
-    var html = "<!doctype html>\n" + document.documentElement.outerHTML;
-    el.textContent = prevEmbed;
-    elE.textContent = prevEmail;
-    clearIds.forEach(function (id) { $(id).innerHTML = saved[id]; });
+    // clear heavy dynamic regions (and the loaded file's name) so the saved copy is lean; restored right after
+    var clearIds = ["exceptionsWrap", "richPreview", "gridWrap", "extrasWrap", "dqWrap", "parseStatus", "banner", "clearWrap", "exHead", "notesWrap", "attnWrap", "missingWrap", "fallbackWrap", "mapperFields", "ignoreFromExport", "fileNameSub"];
+    var saved = {}, html;
+    try {
+      // stamp the bake time: a browser autosave older than this copy gives way to it (see init)
+      var stamped = {}; Object.keys(state.rules).forEach(function (k) { stamped[k] = state.rules[k]; }); stamped.generatedAt = new Date().toISOString();
+      el.textContent = serialiseRules(stamped).replace(/</g, "\\u003c");
+      elE.textContent = JSON.stringify({ intro: $("introInput").value, closing: $("closingInput").value }).replace(/</g, "\\u003c");
+      clearIds.forEach(function (id) { var n = $(id); if (!n) return; saved[id] = n.innerHTML; n.innerHTML = ""; });
+      html = "<!doctype html>\n" + document.documentElement.outerHTML;
+    } finally {
+      el.textContent = prevEmbed;
+      elE.textContent = prevEmail;
+      Object.keys(saved).forEach(function (id) { $(id).innerHTML = saved[id]; });
+    }
     download("waqti-exceptions.html", html, "text/html");
     var m = $("bakeMsg"); m.textContent = "Saved a copy of the tool with your current rules and email wording baked in. Open that file to start pre-configured."; setTimeout(function () { if (m.textContent) m.textContent = ""; }, 7000);
   }
   $("bakeBtn").addEventListener("click", bakeTool);
 
+  $("useBakedBtn").addEventListener("click", function () {
+    if (!embedded) return;
+    embedded.replacedLocal = false; useEmbedded(); loadEmbeddedEmail(true); autosave();
+    renderRules(true); renderPreview(); renderEmail();
+  });
+
   /* ---------- init ---------- */
+  // a baked copy opens on the upload screen, whatever was loaded when it was saved
+  show($("drop")); hide($("replaceBtn")); hide($("mapper")); hide($("parseError")); $("fileNameSub").textContent = "";
   loadLocal();
-  if (rulesEmpty()) loadEmbedded();
+  embedded = readEmbedded();
+  if (embedded) {
+    var hadLocal = !rulesEmpty();
+    var same = hadLocal && serialiseRules(Object.assign({}, state.rules, { generatedAt: "x" })) === serialiseRules(Object.assign({}, embedded, { generatedAt: "x" }));
+    // baked rules win unless this browser's autosave was written after the copy was baked
+    if (!hadLocal || same || !localSavedAt || dayMs(embedded.generatedAt) > localSavedAt) {
+      embedded.replacedLocal = hadLocal && !same;
+      useEmbedded(); if (embedded.replacedLocal) loadEmbeddedEmail(true);
+    }
+  }
   loadEmbeddedEmail();
   goMain();               // always open on the app view, even if the file was baked from Settings
   setMode("rich");

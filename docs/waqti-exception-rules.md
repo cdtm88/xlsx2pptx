@@ -33,7 +33,7 @@ Staff IDs are upper-cased, so matching against the People rules is case-insensit
 
 ### Track Logged Time flag
 
-Each person in rules.json has `"trackLoggedTime": true|false`, **on by default**. Untick **Track Logged Time** in Settings > People (grid column, or the collapsed "Not present in the current export" list) for people from other teams who book to our demands. Only tracked people can appear in No time logged.
+Each person in rules.json has `"trackLoggedTime": true|false`, **on by default**. Untick **Track Logged Time** in Settings > People (grid column, or the collapsed "Not present in the current export" list) for people from other teams who book to our demands. Only tracked people can appear in No time logged. An entry with no `trackLoggedTime` field counts as tracked. When `waqti-demand-summary.html` exports rules.json, anyone it names who has no approved demands and no `trackLoggedTime` field gets `"trackLoggedTime": false`, because those are usually people from other teams. An existing `trackLoggedTime` value is never changed.
 
 ### Ignored taxonomies
 
@@ -83,7 +83,7 @@ Every row has a Send checkbox. Unticked rows are left out of the email and its t
 
 Section order:
 
-1. Title: `Timesheet corrections needed: {period}`
+1. Title: `Timesheet corrections needed: {period}`. The period is filled from the export's Month column and refreshed whenever a new file is loaded. Once you edit it in Settings > Email text, your text is kept.
 2. Opening line (editable in Settings > Email text).
 3. `Total to correct: X hours across N people.` (demand exceptions only)
 4. **One table per demand** (heading `{code} - {description}`): Staff, Feature, Hours. Demands sorted by total hours (desc).
