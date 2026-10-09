@@ -9,8 +9,11 @@ no build step *for the user*, and no external requests.
 
 | File | Role |
 |---|---|
-| `report-kit.css` | The design system: tokens, cards, buttons, pills, tables (light header), upload zone, KPIs, the staff-name editor, callouts. |
-| `report-kit.js` | `window.RK` — DOM/format helpers, file download, namespaced `localStorage`, clipboard (rich HTML + text), upload wiring, xlsx plumbing, the **rules JSON module**, and the reusable **staff-name editor**. |
+| `report-kit-2.css` | **The current design language** (kit 2): header with nav tabs and search, page summary, stat cards and stacked bars, toolbar with segmented tabs and filter chips, sticky dark-header tables, step progress, settings rows, dialogs, the detail drawer, timeline, chips and money inputs. Rules and the full class list are in [`DESIGN.md`](DESIGN.md). |
+| `starter.src.html` | A small working page in the kit 2 language. Copy it to start a new tool. |
+| `DESIGN.md` | The design language: principles, tokens, every component, the runtime helpers, a checklist for new tools. |
+| `report-kit.css` | Kit 1, **frozen**: the original look (cards, light-header tables, upload zone, KPIs, staff-name editor). Kept so the tools built on it do not change; not for new tools. |
+| `report-kit.js` | `window.RK` — DOM/format helpers, file download, namespaced `localStorage`, clipboard (rich HTML + text), upload wiring, xlsx plumbing, the **rules JSON module**, the reusable **staff-name editor**, and (since 1.1.0) the kit 2 runtime: `RK.modal`, `RK.confirm`, `RK.sortable`, `RK.chipsFromSelect`, `RK.stepSegs`, `RK.searchShortcut`, CSV and number/date helpers. Works with either stylesheet. |
 | `vendor/sheetjs.js` | The vendored SheetJS mini build (read-only), inlined where a report reads `.xlsx`. One copy for all reports. |
 | `build.py` | The inliner. Turns a `reports/<name>.src.html` into the shipped single-file `<name>.html`. |
 
@@ -21,7 +24,7 @@ HTML with `@include` directives that the inliner replaces with file contents:
 
 ```html
 <style>
-/*@include framework/report-kit.css@*/
+/*@include framework/report-kit-2.css@*/
 /* ...report-specific styles here... */
 </style>
 ...
@@ -99,10 +102,20 @@ across versions:
 
 ## Adding a new report
 
-1. Copy `reports/waqti-demand-summary.src.html` as a starting point.
-2. Keep the header/card structure and the kit includes; change the title,
-   the columns (`RK.xlsx`), and the rendering.
-3. Reuse `RK.rules` + `RK.NameEditor` for anything staff/name related, and
-   `RK.clipboard` for a copy button.
-4. `python3 framework/build.py reports/<name>.src.html`, then open the built
-   file and (ideally) drive it headless before shipping.
+1. Copy `framework/starter.src.html` to `reports/<name>.src.html` and set its
+   `@out` line. Read [`DESIGN.md`](DESIGN.md) first; the
+   [vendor spend tracker](../reports/vendor-spend-tracker.src.html) is the
+   full-size reference.
+2. Keep the header, the two views, the kit includes and the dialog/drawer
+   wiring; replace the data model and the rendering.
+3. Reuse `RK.modal` / `RK.confirm` for every dialog, `RK.sortable` for tables,
+   `RK.csv` for exports, and `RK.xlsx` / `RK.rules` / `RK.NameEditor` /
+   `RK.clipboard` where the tool reads spreadsheets or staff names.
+4. Anything reusable you find yourself writing goes into the kit, not the report.
+5. `python3 framework/build.py reports/<name>.src.html`, then open the built
+   file and (ideally) drive it headless before shipping. Run the
+   `DESIGN.md` checklist.
+
+The tools built before kit 2 (Waqti, cost tracker, PI capacity, delivery plan)
+still use kit 1 and look as they did. Moving one over means switching its
+stylesheet include and its markup to the kit 2 classes.
