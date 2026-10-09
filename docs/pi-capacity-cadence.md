@@ -62,7 +62,9 @@ Three rules are worth stating explicitly:
   other days in that range, not the holiday as well — the holiday was already
   off. Weekends inside a leave range are never counted.
 - **Allocation and focus factor apply after the deductions**, not before, so a
-  50% person on leave for a week loses half a week, not a full one.
+  50% person on leave for a week loses half a week, not a full one. A blank
+  allocation or focus factor counts as 100%; the field fills in 100 when you
+  leave it, so what is saved is what was on screen.
 - **Everyone is shown; only some are counted.** Every member of a team appears
   in the breakdown for visibility. Only members whose **role** is ticked as
   counting — developers and QA by default — are summed into what the team
@@ -132,13 +134,24 @@ Practically:
 - Open that file in the tracker: the project is exactly as it was, and the
   tracker's own next save keeps the capacity half intact.
 
-Nothing about this is required. A file with no `piCapacity` opens here as a
-blank PI; a file with no tracker half opens there as an empty project.
+Nothing about this is required. A file with no tracker half opens there as an
+empty project. A file with no `piCapacity` (a tracker project on its own) does
+not blank the plan here: the plan you have open is kept and the tracker's half is
+adopted alongside it, so the next **Save JSON** writes both into one file. If you
+already have teams or leave, it asks first.
+
+Loading a file that does have a `piCapacity` asks before it replaces a plan with
+teams or leave in it. The file is checked and drawn before anything is replaced
+or autosaved, so a file that cannot be read or shown leaves the plan, and the copy
+in the browser, exactly as they were.
 
 ## Exports
 
 Two CSVs, each the table as it is on screen — same columns, same order, same
-filters, same figures to one decimal place:
+filters, same figures to one decimal place. Both start with a UTF-8 BOM so Excel
+shows accented and Arabic names correctly, and a text cell starting `=`, `+`, `-`
+or `@` (a name such as `=1+2`) is prefixed with `'` so Excel keeps it as text;
+numbers are written as they are:
 
 - **Planned leave** — the rows the grid is showing, with the working days each
   entry actually removes inside this PI.

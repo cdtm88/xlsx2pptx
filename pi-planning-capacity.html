@@ -282,7 +282,7 @@ tr.pic-nocount td.pic-person{font-style:italic}
     </div>
     <div class="spacer"></div>
     <span class="pic-save" id="saveState"><span class="pic-dot"></span>Starting up</span>
-    <span class="ver" id="version">v1.0.1</span>
+    <span class="ver" id="version">v1.1.0</span>
     <button type="button" class="btn btn-ghost no-print pic-header-btn" id="settingsBtn">Settings</button>
     <button type="button" class="btn btn-ghost no-print pic-header-btn" id="topLoad">Load data</button>
     <button type="button" class="btn btn-primary no-print pic-header-btn" id="topSave">Save JSON</button>
@@ -1116,7 +1116,7 @@ window.RK = (function () {
    ============================================================ */
 (function () {
   "use strict";
-  var APP_VERSION = "1.0.1";
+  var APP_VERSION = "1.1.0";
   var SCHEMA_VERSION = 1;
   var LS_KEY = "pi-capacity:state:v1";
   var $ = RK.$, esc = RK.esc, show = RK.show, hide = RK.hide, round1 = RK.round1, round2 = RK.round2;
@@ -1313,12 +1313,14 @@ window.RK = (function () {
 
   /* ---------- holiday lookup ---------- */
   // { locId: { "2026-04-03": {name, provisional} } } — rebuilt whenever holidays change.
+  // Prototype-free maps, so a location or date read from a file ("__proto__",
+  // "toString") is only ever a key, never a property of Object.prototype.
   var holIndex = null;
   function reindexHolidays() {
-    holIndex = {};
+    holIndex = RK.dict();
     S.holidays.forEach(function (h) {
       if (!h.date || !h.loc) return;
-      if (!holIndex[h.loc]) holIndex[h.loc] = {};
+      if (!holIndex[h.loc]) holIndex[h.loc] = RK.dict();
       holIndex[h.loc][h.date] = h;      // a duplicate date for one location is one day off, not two
     });
   }
@@ -1330,7 +1332,7 @@ window.RK = (function () {
 
   /* ---------- the capacity engine ---------- */
   function leaveByMember() {
-    var idx = {};
+    var idx = RK.dict();
     S.leave.forEach(function (l) {
       if (!l.memberId) return;
       (idx[l.memberId] = idx[l.memberId] || []).push(l);
@@ -1940,8 +1942,10 @@ window.RK = (function () {
     out[OWN_KEY] = S;
     return out;
   }
-  // Split a parsed file into our half and everyone else's.
-  function openDoc(data) {
+  // Split a parsed file into our half and everyone else's. Nothing is assigned
+  // here: the caller decides whether, and how, the result replaces the plan.
+  // `state` is null for a file with no capacity section (a cost tracker project).
+  function readDoc(data) {
     if (!data || typeof data !== "object" || Array.isArray(data)) throw new Error("not a JSON object");
     var payload, foreign = {};
     if (data[OWN_KEY] && typeof data[OWN_KEY] === "object") {
@@ -1954,9 +1958,24 @@ window.RK = (function () {
       payload = null;
       Object.keys(data).forEach(function (k) { foreign[k] = data[k]; });
     }
-    S = migrate(payload || {});
-    FOREIGN = foreign;
+    return { state: payload ? migrate(payload) : null, foreign: foreign };
   }
+  function openDoc(data) {
+    var doc = readDoc(data);
+    S = doc.state || migrate({});
+    FOREIGN = doc.foreign;
+  }
+  // Draw a candidate plan. If anything in it will not render, the previous plan
+  // is put back and drawn, and the error is rethrown; `keep` false is a dry run.
+  // Nothing is persisted here.
+  function renderWith(nextS, nextF, keep) {
+    var prevS = S, prevF = FOREIGN, err = null;
+    S = nextS; FOREIGN = nextF;
+    try { renderAll(); } catch (e) { err = e; }
+    if (err || !keep) { S = prevS; FOREIGN = prevF; renderAll(); }
+    if (err) throw err;
+  }
+  function planIsEmpty() { return !S.teams.length && !S.leave.length; }
   // Does the file we are holding also carry a cost tracker project?
   function foreignProject() {
     var t = FOREIGN.team;
@@ -1994,52 +2013,74 @@ window.RK = (function () {
 
   // Accepts this schema and any older one, and keeps fields it does not know
   // about so a file written by a newer build is not stripped on a round trip.
+  // Every field the engine reads is type-checked: a file is untrusted input.
   function migrate(data) {
-    if (!data || typeof data !== "object") data = {};
+    if (!isObj(data)) data = {};
     var base = blankState();
     var out = {};
-    Object.keys(data).forEach(function (k) { out[k] = data[k]; });      // retain unknown fields
+    Object.keys(data).forEach(function (k) { if (k !== "__proto__") out[k] = data[k]; });      // retain unknown fields
     out.schemaVersion = SCHEMA_VERSION;
-    out.settings = merge(base.settings, data.settings);
-    out.roles = Array.isArray(data.roles) && data.roles.length ? data.roles.map(function (r) {
-      return { id: r.id || uid("r"), name: String(r.name || "Role"), counts: !!r.counts };
+    var st = out.settings = merge(base.settings, isObj(data.settings) ? data.settings : null);
+    if (typeof st.fy !== "string") st.fy = base.settings.fy;
+    if (typeof st.anchorFy !== "string") st.anchorFy = base.settings.anchorFy;
+    st.anchorDate = dateOr(st.anchorDate);
+    var q = Number(st.quarter);
+    st.quarter = (q === 1 || q === 2 || q === 3 || q === 4) ? q : 1;
+    var roles = objs(data.roles), locs = objs(data.locations);
+    out.roles = roles.length ? roles.map(function (r) {
+      return { id: idOr(r.id, "r"), name: String(r.name || "Role"), counts: !!r.counts };
     }) : base.roles;
-    out.locations = Array.isArray(data.locations) && data.locations.length ? data.locations.map(function (l) {
-      return { id: l.id || uid("l"), name: String(l.name || "Location") };
+    out.locations = locs.length ? locs.map(function (l) {
+      return { id: idOr(l.id, "l"), name: String(l.name || "Location") };
     }) : base.locations;
-    out.holidays = Array.isArray(data.holidays) ? data.holidays.map(function (h) {
-      return { id: h.id || uid("h"), loc: h.loc || "", date: h.date || "", name: String(h.name || ""), provisional: !!h.provisional };
+    out.holidays = Array.isArray(data.holidays) ? objs(data.holidays).map(function (h) {
+      return { id: idOr(h.id, "h"), loc: refOr(h.loc, ""), date: dateOr(h.date), name: String(h.name || ""), provisional: !!h.provisional };
     }) : base.holidays;
-    out.teams = Array.isArray(data.teams) ? data.teams.map(function (t) {
+    out.teams = objs(data.teams).map(function (t) {
       return {
-        id: t.id || uid("t"), name: String(t.name || "Team"),
-        focusFactor: numOr(t.focusFactor, 80),
-        members: Array.isArray(t.members) ? t.members.map(function (m) {
+        id: idOr(t.id, "t"), name: String(t.name || "Team"),
+        focusFactor: pctIn(t.focusFactor, 80),
+        members: objs(t.members).map(function (m) {
           return {
-            id: m.id || uid("m"), name: String(m.name || ""),
-            roleId: m.roleId || "dev", locId: m.locId || "uk",
-            allocation: numOr(m.allocation, 100),
-            from: m.from || "", to: m.to || ""
+            id: idOr(m.id, "m"), name: String(m.name || ""),
+            roleId: refOr(m.roleId, "dev"), locId: refOr(m.locId, "uk"),
+            allocation: pctIn(m.allocation, 100),
+            from: dateOr(m.from), to: dateOr(m.to)
           };
-        }) : []
+        })
       };
-    }) : [];
-    out.leave = Array.isArray(data.leave) ? data.leave.map(function (l) {
+    });
+    out.leave = objs(data.leave).map(function (l) {
       return {
-        id: l.id || uid("v"), memberId: l.memberId || "", from: l.from || "", to: l.to || "",
-        halfDay: !!l.halfDay, type: l.type || LEAVE_TYPES[0], note: String(l.note || "")
+        id: idOr(l.id, "v"), memberId: refOr(l.memberId, ""), from: dateOr(l.from), to: dateOr(l.to),
+        halfDay: !!l.halfDay, type: typeof l.type === "string" && l.type ? l.type : LEAVE_TYPES[0], note: String(l.note || "")
       };
-    }) : [];
+    });
     return out;
   }
+  function isObj(v) { return !!v && typeof v === "object" && !Array.isArray(v); }
+  function objs(a) { return Array.isArray(a) ? a.filter(isObj) : []; }
+  // An id is a non-empty string (a number is taken as its string) and never a
+  // name that reaches Object.prototype when used as a key.
+  function okId(v) {
+    if (typeof v === "number" && isFinite(v)) v = String(v);
+    return typeof v === "string" && v !== "" && v !== "__proto__" && v !== "constructor" && v !== "prototype" ? v : null;
+  }
+  function idOr(v, prefix) { return okId(v) || uid(prefix); }
+  function refOr(v, dflt) { return okId(v) || dflt; }
+  function dateOr(v) { return typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : ""; }
   function merge(base, over) {
     var o = {};
     Object.keys(base).forEach(function (k) { o[k] = base[k]; });
-    if (over && typeof over === "object") Object.keys(over).forEach(function (k) { o[k] = over[k]; });
+    if (over && typeof over === "object") Object.keys(over).forEach(function (k) { if (k !== "__proto__") o[k] = over[k]; });
     return o;
   }
-  function numOr(v, dflt) {
-    var n = Number(v);
+  // A percentage read back from storage. Blank means 100%, exactly as the
+  // engine reads a blank field while it is being edited (clampPct); a missing
+  // or non-numeric value takes the default.
+  function pctIn(v, dflt) {
+    if (v === "" || v === null) return 100;
+    var n = typeof v === "number" || typeof v === "string" ? Number(v) : NaN;
     return isFinite(n) ? n : dflt;
   }
 
@@ -2084,12 +2125,12 @@ window.RK = (function () {
 
   /* ---------- export ----------
      Both exports are the table as it is on screen: same columns, same order,
-     and the same filters applied. What you see is what lands in the file. */
-  function csvCell(v) {
-    v = v === null || v === undefined ? "" : String(v);
-    return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
-  }
-  function csvRows(rows) { return rows.map(function (r) { return r.map(csvCell).join(","); }).join("\n"); }
+     and the same filters applied. What you see is what lands in the file.
+     Text cells go through RK.csv.safeText, so a name such as "=1+2" stays text
+     in Excel; numbers are left as they are. The BOM keeps accented and Arabic
+     names readable when Excel opens the file. */
+  var txt = RK.csv.safeText;
+  function csvFile(rows) { return RK.csv.BOM + RK.csv.fromRows(rows); }
   function piName() { return S.settings.fy + "Q" + S.settings.quarter; }
 
   // Planned leave, exactly the rows the grid is showing.
@@ -2101,13 +2142,13 @@ window.RK = (function () {
     rows.forEach(function (l) {
       var mm = memberById(l.memberId);
       out.push([
-        mm ? (mm.m.name || "Unnamed") : "(person removed)",
-        mm ? (mm.team.name || "Unnamed team") : "",
-        l.from || "", l.to || "", l.halfDay ? "yes" : "no", l.type || "",
-        n1(leaveDaysInPi(l, R)), l.note || ""
+        txt(mm ? (mm.m.name || "Unnamed") : "(person removed)"),
+        txt(mm ? (mm.team.name || "Unnamed team") : ""),
+        l.from || "", l.to || "", l.halfDay ? "yes" : "no", txt(l.type || ""),
+        n1(leaveDaysInPi(l, R)), txt(l.note || "")
       ]);
     });
-    RK.download("pi-leave-" + piName() + ".csv", csvRows(out), "text/csv");
+    RK.download("pi-leave-" + piName() + ".csv", csvFile(out), "text/csv");
     toast("Planned leave exported");
   }
 
@@ -2125,8 +2166,8 @@ window.RK = (function () {
     R.teams.forEach(function (tt) {
       tt.rows.forEach(function (r) {
         if (onlyCounting && !r.counts) return;
-        var row = [r.m.name || "Unnamed", r.counts ? "counted" : "visibility",
-          tt.t.name || "Unnamed team", r.roleName, r.locName, clampPct(r.m.allocation, 100)]
+        var row = [txt(r.m.name || "Unnamed"), r.counts ? "counted" : "visibility",
+          txt(tt.t.name || "Unnamed team"), txt(r.roleName), txt(r.locName), clampPct(r.m.allocation, 100)]
           .concat(r.cells.map(function (c) { return n1(c.cap); }))
           .concat([n1(r.totalHol), n1(r.totalLeave), n1(r.total)]);
         if (R.ppd !== null) row.push(n1(r.total * R.ppd));
@@ -2138,7 +2179,7 @@ window.RK = (function () {
       .concat([n1(R.artHol), n1(R.artLeave), n1(R.artTotal)]);
     if (R.ppd !== null) foot.push(n1(R.artTotal * R.ppd));
     out.push(foot);
-    RK.download("pi-per-person-" + piName() + ".csv", csvRows(out), "text/csv");
+    RK.download("pi-per-person-" + piName() + ".csv", csvFile(out), "text/csv");
     toast("Breakdown exported");
   }
 
@@ -2294,6 +2335,14 @@ window.RK = (function () {
   });
   document.addEventListener("change", function (e) {
     var t = e.target;
+    var pf = t.getAttribute ? t.getAttribute("data-f") : null;
+    if ((pf === "allocation" || pf === "focusFactor") && t.value === "") {
+      // A cleared percentage counts as 100% (clampPct); on leaving the field,
+      // show and store that, so what is on screen is what a reload reads back.
+      t.value = "100";
+      if (setField(t)) { persist(); refreshDerived(); }
+      return;
+    }
     if (t.type !== "checkbox" && t.tagName !== "SELECT" && t.type !== "date") return;   // text/number already handled on input
     if (!setField(t)) return;
     persist();
@@ -2431,14 +2480,37 @@ window.RK = (function () {
     var fr = new FileReader();
     fr.onload = function () {
       try {
-        openDoc(JSON.parse(fr.result));
+        // Read, migrate and draw the file before anything is replaced or
+        // autosaved, so a file that cannot be shown leaves the plan as it was.
+        var doc = readDoc(JSON.parse(fr.result));
+        var nextF = doc.foreign;
+        var tracker = !doc.state;
+        if (tracker && !Object.keys(nextF).length) throw new Error("there is nothing in it");
+        var tp = tracker && typeof nextF.name === "string" && nextF.name ? "“" + nextF.name + "”" : "its project";
+        // A file with no capacity section (a cost tracker project) keeps the
+        // plan on screen and adopts the file's other half, so the next Save
+        // JSON writes both into one file.
+        var nextS = tracker ? S : doc.state;
+        renderWith(nextS, nextF, false);
+        if (!planIsEmpty()) {
+          var plan = plural(S.teams.length, "team") + " and " + plural(S.leave.length, "leave entry", "leave entries");
+          var msg = tracker
+            ? f.name + " has no PI capacity plan in it.\n\nOK keeps your current plan (" + plan + ") and combines it with " + tp +
+              ", so Save JSON writes both into one file.\n\nCancel leaves everything as it is."
+            : "Replace the current plan (" + plan + ") with the one in " + f.name + "?\n\n" +
+              "The copy saved in this browser is replaced too. Save JSON first if you want to keep it.";
+          if (!confirm(msg)) { toast("Nothing loaded"); return; }
+        }
+        renderWith(nextS, nextF, true);
         hide($("dataErr"));
-        persist(); renderAll();
+        persist();
         var fp = foreignProject();
-        toast(fp ? "Loaded " + f.name + " — it also holds a cost tracker project" : "Loaded " + f.name);
+        toast(tracker ? "Combined with " + (fp && fp.name ? fp.name : f.name) + " — Save JSON to write both"
+          : fp ? "Loaded " + f.name + " — it also holds a cost tracker project" : "Loaded " + f.name);
       } catch (e) {
         $("dataErr").textContent = "Could not read that file: " + e.message + "\nNothing was changed.";
         show($("dataErr"));
+        toast("Could not read that file — nothing was changed");
       }
     };
     fr.onerror = function () {
@@ -2505,12 +2577,12 @@ window.RK = (function () {
         if (!Array.isArray(d.holidays)) throw new Error('the file has no "holidays" array');
         if (Array.isArray(d.locations) && d.locations.length) {
           d.locations.forEach(function (l) {
-            if (!l || !l.id) return;
-            if (!loc(l.id)) S.locations.push({ id: l.id, name: String(l.name || l.id) });
+            if (!isObj(l) || !okId(l.id)) return;
+            if (!loc(okId(l.id))) S.locations.push({ id: okId(l.id), name: String(l.name || l.id) });
           });
         }
-        S.holidays = d.holidays.map(function (h) {
-          return { id: uid("h"), loc: h.loc || "", date: h.date || "", name: String(h.name || ""), provisional: !!h.provisional };
+        S.holidays = objs(d.holidays).map(function (h) {
+          return { id: uid("h"), loc: refOr(h.loc, ""), date: dateOr(h.date), name: String(h.name || ""), provisional: !!h.provisional };
         });
         hide($("holErr"));
         persist(); renderAll();
@@ -2525,8 +2597,20 @@ window.RK = (function () {
 
   /* ---------- init ---------- */
   $("version").textContent = "v" + APP_VERSION;
-  restore();
-  renderAll();
+  try {
+    restore();
+    renderAll();
+  } catch (e) {
+    // The saved copy loaded but cannot be drawn. Start blank rather than leave
+    // a dead page; the saved copy is not overwritten until something is edited.
+    S = blankState(); FOREIGN = {};
+    renderAll();
+    status("Saved copy could not be shown", "warn");
+    $("dataErr").textContent = "The plan saved in this browser could not be shown (" + e.message + "), so a blank plan is open. " +
+      "The saved copy stays in this browser until you change something here; Load data opens a saved JSON file instead.";
+    show($("dataErr"));
+    toast("The saved plan could not be shown — a blank plan is open");
+  }
 })();
 </script>
 </body>
