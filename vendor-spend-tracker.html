@@ -1,0 +1,4236 @@
+<!-- @out: vendor-spend-tracker.html -->
+<!-- Source for vendor-spend-tracker.html. Build with: python3 framework/build.py -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vendor Spend Tracker</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMiIgaGVpZ2h0PSIzMiIgdmlld0JveD0iMCAwIDMyIDMyIj48cmVjdCB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHJ4PSI3IiBmaWxsPSIjMDBBOUNFIi8+PHBhdGggZD0iTTkgMTYuNSBsNCA0IEwyMyAxMSIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjMiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPjwvc3ZnPg==">
+<meta name="color-scheme" content="light only">
+<style>
+/* ============================================================
+   Report Kit 2: the design language for new browser tools
+   kit-version: 2.0.0
+   Extracted from vendor-spend-tracker.html. Inlined into a report
+   by framework/build.py. See framework/DESIGN.md for the rules and
+   framework/starter.src.html for a page that uses every part.
+
+   Unlike report-kit.css (v1, kept for the tools built on it), this
+   file styles bare elements (button, input, select, table), so a
+   page includes one kit stylesheet or the other, never both.
+   Report-specific styles go in the report's own <style> block,
+   after this include, with report-specific class names.
+   ============================================================ */
+:root {
+  /* brand */
+  --teal: #00A9CE;
+  --teal-dark: #007A99;
+  --teal-tint: #E6F6FA;
+  --teal-tint-border: #BFE6F0;
+  --green: #5BB85D;
+  --charcoal: #1A1A1A;
+  --slate: #3D3D3D;
+  --mid-grey: #6B6B6B;
+  --dim-grey: #8C8C8C;
+  --light-grey: #F6F7F7;
+  --lighter-grey: #FAFBFB;
+
+  /* roles */
+  --bg: #F6F7F7;
+  --panel: #ffffff;
+  --border: #E3E6E8;
+  --border-input: #D5DADD;
+  --divider: #EEF0F1;
+  --track: #E9ECEE;
+  --text: var(--charcoal);
+  --text-dim: var(--mid-grey);
+  --heading: var(--charcoal);
+  --accent: var(--teal);
+  --accent-dark: var(--teal-dark);
+  --row-hover: #F5FBFD;
+
+  /* status: green = fine, yellow = watch, red = act */
+  --green-bg: #eaf7eb;
+  --green-fg: #2b6e2d;
+  --yellow: #E0A526;
+  --yellow-fg: #8a6400;
+  --yellow-bg: #fdf3d9;
+  --red: #b3261e;
+  --red-soft: #E57368;
+  --red-bg: #fbe6e4;
+
+  --font-ui: "Segoe UI", -apple-system, system-ui, Roboto, Arial, Helvetica, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", "Consolas", monospace;
+  color-scheme: light only;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 14px;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+[hidden] { display: none !important; }
+.mono { font-family: var(--font-mono); }
+.tnum { font-variant-numeric: tabular-nums; }
+
+/* ---- Page shell ---- */
+.wrap {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 24px 60px;
+}
+.app-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 56px;
+  margin: 0 -24px 20px;
+  padding: 10px 24px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+  row-gap: 10px;
+}
+.app-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -.01em;
+  color: var(--heading);
+  white-space: nowrap;
+  flex: none;
+}
+.app-logo-mark {
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  flex: none;
+  display: block;
+}
+.app-nav {
+  display: flex;
+  gap: 4px;
+  height: 100%;
+  flex: none;
+}
+.app-nav-item {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  border: none;
+  border-radius: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  padding: 0 12px;
+  font-size: 13px;
+  color: var(--text-dim);
+}
+.app-nav-item:hover { background: transparent; border-color: var(--border); color: var(--text); }
+.app-nav-item.active { font-weight: 600; color: var(--text); border-color: var(--teal); }
+.app-header-spacer { flex: 1; min-width: 8px; }
+.app-search {
+  position: relative;
+  width: 280px;
+  max-width: 40vw;
+  flex: none;
+}
+.app-search input { padding-right: 26px; }
+.search-hint-key {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font: 500 11px var(--font-mono);
+  color: var(--dim-grey);
+  pointer-events: none;
+}
+.app-search:focus-within .search-hint-key { display: none; }
+.app-header button { flex: none; }
+.app-version {
+  font: 500 11px var(--font-mono);
+  color: var(--dim-grey);
+}
+footer {
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 12px;
+  margin-top: 24px;
+}
+.strapline { margin-top: 6px; font-size: 11px; color: var(--text-dim); opacity: .8; }
+
+/* ---- Buttons ---- */
+button {
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  height: 34px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 0 14px;
+  transition: background .1s, border-color .1s;
+}
+button:hover { background: var(--row-hover); border-color: var(--accent); }
+button:focus-visible { outline: none; border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+button:disabled { opacity: .5; cursor: not-allowed; }
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+button.primary:hover { background: var(--accent-dark); border-color: var(--accent-dark); }
+button.danger { color: var(--red); }
+button.primary.danger-fill { background: var(--red); border-color: var(--red); }
+button.primary.danger-fill:hover { background: #8f1e18; border-color: #8f1e18; }
+button.small { height: 28px; padding: 0 10px; font-size: 12px; }
+button.icon-btn { padding: 7px 9px; line-height: 1; font-size: 13px; min-width: 30px; min-height: 30px; }
+/* a quiet text action, e.g. "Delete line item" at the foot of a drawer */
+.link-action {
+  cursor: pointer;
+  color: var(--accent-dark);
+  font-size: 12px;
+  font-weight: 500;
+  background: none;
+  border: none;
+  height: auto;
+  padding: 0;
+}
+.link-action:hover { text-decoration: underline; background: none; }
+.link-action.danger { color: var(--red); }
+
+/* ---- Inputs ---- */
+input, select, textarea {
+  font: inherit;
+  font-size: 13px;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border-input);
+  border-radius: 6px;
+  padding: 7px 10px;
+  width: 100%;
+}
+input[type="checkbox"], input[type="radio"] { width: auto; accent-color: var(--teal); }
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--teal-tint);
+}
+input:disabled { background: var(--light-grey); color: var(--text-dim); }
+textarea { resize: vertical; min-height: 50px; }
+.select-hidden-visually {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* ---- Page summary: one sentence answer above the cards ---- */
+.page-summary {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.page-summary-text { display: flex; flex-direction: column; gap: 4px; }
+.page-summary-sub { font-size: 12px; font-weight: 500; color: var(--text-dim); }
+.page-summary-main { font-size: 22px; font-weight: 600; letter-spacing: -.01em; color: var(--text); }
+
+/* ---- Legend ---- */
+.legend { display: flex; gap: 18px; flex-wrap: wrap; font-size: 12px; color: var(--text-dim); }
+.legend-item { display: flex; align-items: center; gap: 6px; }
+.legend-swatch { width: 10px; height: 10px; border-radius: 2px; background: var(--track); }
+.swatch-solid { background: var(--teal-dark); }
+.swatch-hatched { background-image: repeating-linear-gradient(135deg, var(--teal) 0 2px, var(--teal-tint) 2px 4px); }
+.swatch-tint { background: var(--teal-tint-border); }
+
+/* ---- Stat cards: a clickable grid of things with a headline figure ---- */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.stat-card {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  background: var(--panel);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-align: left;
+}
+.stat-card[role="button"], button.stat-card { cursor: pointer; height: auto; font: inherit; color: inherit; }
+.stat-card[role="button"]:hover, button.stat-card:hover { border-color: var(--accent); background: var(--panel); }
+.stat-card.active { border-color: var(--teal); box-shadow: 0 0 0 3px var(--teal-tint); }
+.stat-card-name {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--heading);
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  align-items: center;
+}
+.stat-card-figure { display: flex; align-items: baseline; gap: 6px; }
+.stat-card-value { font: 500 28px/1 var(--font-mono); letter-spacing: -.02em; color: var(--text); }
+.stat-card-of { font-size: 12px; color: var(--text-dim); }
+.stat-card-nums {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 16px;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+.stat-card-nums > span { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.stat-card-num { display: block; font: 500 12px var(--font-mono); color: var(--text); white-space: nowrap; }
+.stat-card-num.neg { color: var(--red); }
+
+/* ---- Bars: stacked segments on a track, all scaled to one maximum ---- */
+.bar-track {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--track);
+  position: relative;
+  display: flex;
+  overflow: visible;
+}
+.bar-fill { height: 100%; flex: none; }
+.bar-fill:first-child { border-radius: 4px 0 0 4px; }
+.bar-fill.solid { background: var(--teal-dark); }
+.bar-fill.hatched {
+  background-image: repeating-linear-gradient(135deg, var(--teal) 0 3px, var(--teal-tint) 3px 6px);
+}
+.bar-fill.tint { background: var(--teal-tint-border); }
+.bar-fill.status-green { background: var(--green); }
+.bar-fill.status-yellow { background: var(--yellow); }
+.bar-fill.status-red { background: var(--red-soft); }
+/* marks the 100% line once a bar runs past it */
+.bar-limit {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--red);
+  border-radius: 1px;
+}
+.row-bar-cell { display: flex; flex-direction: column; gap: 4px; }
+.row-bar-track { height: 5px; border-radius: 3px; background: var(--track); overflow: hidden; display: block; }
+.row-bar-fill { height: 100%; display: block; }
+
+/* ---- Status pills ---- */
+.status-pill {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 20px;
+  white-space: nowrap;
+  align-self: flex-start;
+}
+.pill-green { background: var(--green-bg); color: var(--green-fg); }
+.pill-yellow { background: var(--yellow-bg); color: var(--yellow-fg); }
+.pill-red { background: var(--red-bg); color: var(--red); }
+.pill-teal { background: var(--teal-tint); color: var(--accent-dark); }
+.pill-grey { background: var(--light-grey); color: var(--slate); }
+
+/* ---- Toolbar above a list: segmented tabs, filter chips, selects, a count ---- */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.toolbar-spacer { flex: 1; }
+.seg-tabs { display: flex; background: #F1F3F4; border-radius: 7px; padding: 3px; gap: 2px; }
+.seg-tab {
+  border: none;
+  background: transparent;
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 5px;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--slate);
+}
+.seg-tab:hover { background: transparent; }
+.seg-tab-count { color: var(--dim-grey); font-weight: 500; margin-left: 4px; }
+.seg-tab.active { background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.08); font-weight: 600; }
+.filter-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--teal);
+  background: var(--teal-tint);
+  color: var(--accent-dark);
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.filter-chip:hover { background: var(--teal-tint); }
+.filter-chip-x { font-weight: 400; }
+.filter-chip.warn { border-color: var(--yellow); background: var(--yellow-bg); color: var(--yellow-fg); }
+.filter-chip.warn.active { border-color: var(--red); background: var(--red-bg); color: var(--red); }
+.toolbar-select { width: auto; height: 28px; padding: 0 8px; font-size: 12px; }
+.list-meta { font-size: 12px; color: var(--text-dim); white-space: nowrap; }
+
+/* ---- Data table: dark header, sticky in its own scroller ---- */
+.table-container {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: auto;
+  max-height: 70vh;
+}
+table { border-collapse: collapse; width: 100%; }
+/* fixed layout keeps every column the same width row to row; give columns
+   widths with a <colgroup> */
+table.fixed { table-layout: fixed; }
+th, td {
+  text-align: left;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--divider);
+  white-space: nowrap;
+  background: #fff;
+  color: var(--charcoal);
+  vertical-align: middle;
+}
+th {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  color: #fff;
+  user-select: none;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--accent-dark);
+  border-bottom: none;
+}
+th.num, td.num { text-align: right; }
+th[data-sort] { cursor: pointer; }
+th[data-sort]:hover { background: var(--teal); }
+th[data-sort]:focus-visible { outline: 2px solid #fff; outline-offset: -2px; }
+.sort-arrow { display: inline-block; width: 1em; font-size: 10px; }
+tbody tr:nth-child(even) td { background: var(--lighter-grey); }
+tbody tr:hover td { background: var(--row-hover); }
+tr.clickable { cursor: pointer; }
+tr.clickable:focus { outline: none; }
+tr.clickable:focus-visible td:first-child { box-shadow: inset 2px 0 0 var(--accent); }
+td.wrap-cell { white-space: normal; }
+.cell-title { display: block; font-size: 13px; font-weight: 600; color: var(--text); }
+.cell-title.link-action { color: var(--accent-dark); font-size: 13px; font-weight: 600; text-align: left; }
+.cell-sub { display: block; font-size: 13px; color: var(--slate); white-space: normal; }
+/* money: mono, right aligned, optional native-currency line beneath */
+td.amt { text-align: right; }
+.amt-wrap { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.amt-value { font: 500 13px var(--font-mono); font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--text); }
+.amt-native { font: 400 11px var(--font-mono); color: var(--dim-grey); }
+td.row-actions { text-align: right; }
+.row-action-btn {
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--teal-tint-border);
+  background: var(--teal-tint);
+  color: var(--accent-dark);
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.row-action-btn:hover { background: var(--teal); color: #fff; border-color: var(--teal); }
+.row-done-label { font-size: 12px; color: var(--green-fg); font-weight: 500; white-space: nowrap; }
+.empty-state { padding: 40px; text-align: center; color: var(--text-dim); }
+
+/* ---- Step progress: a fixed workflow shown as segments ---- */
+.steps { display: flex; flex-direction: column; gap: 6px; }
+.steps-top { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+.steps-label { display: block; font-size: 12px; font-weight: 500; color: var(--text); white-space: normal; }
+.steps-count { font: 500 11px var(--font-mono); color: var(--dim-grey); }
+.step-segs { display: flex; gap: 2px; }
+.step-seg { flex: 1; height: 4px; border-radius: 2px; background: var(--border); min-width: 8px; }
+.step-seg.filled { background: var(--teal-dark); }
+.step-seg.done { background: var(--green); }
+/* the larger labelled track, e.g. in an "advance" dialog */
+.step-track { display: flex; gap: 3px; margin-bottom: 16px; }
+.step-track-seg { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+.step-track-bar { height: 6px; border-radius: 3px; background: var(--border); }
+.step-track-bar.done { background: var(--teal-dark); }
+.step-track-bar.target { background: var(--teal); outline: 1.5px solid var(--teal); outline-offset: 2px; }
+.step-track-label { font-size: 10px; line-height: 1.25; color: var(--text-dim); }
+.step-track-label.target { color: var(--accent-dark); font-weight: 600; }
+
+/* ---- Settings view: underline tabs, setting rows, grid lists ---- */
+.settings-header { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+.settings-header h2 { font-size: 20px; font-weight: 600; letter-spacing: -.01em; color: var(--heading); margin: 0; }
+.settings-nav { display: flex; gap: 22px; border-bottom: 1px solid var(--border); overflow-x: auto; }
+.settings-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  height: auto;
+  padding: 0 0 12px;
+  white-space: nowrap;
+}
+.settings-nav-item:hover { background: transparent; }
+.settings-nav-item:focus-visible { box-shadow: 0 0 0 1px var(--accent); }
+.settings-nav-item.active { border-color: var(--teal); }
+.settings-nav-label { font-size: 13px; color: var(--text-dim); }
+.settings-nav-item.active .settings-nav-label { font-weight: 600; color: var(--text); }
+.settings-nav-count { font: 500 11px var(--font-mono); color: var(--dim-grey); }
+.settings-content { max-width: 760px; padding: 20px 0 0; }
+.settings-content.wide { max-width: 900px; }
+.settings-panel-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+.settings-panel-head h3 { font-size: 16px; font-weight: 700; color: var(--heading); margin: 0; white-space: nowrap; }
+.settings-panel-head .hint { flex: 1 1 240px; margin: 0; }
+.settings-panel-head button { margin-left: auto; }
+/* label on the left, a content-sized control on the right */
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--divider);
+}
+.setting-row:last-of-type { border-bottom: none; }
+.setting-row-label { flex: 1 1 auto; min-width: 0; }
+.label-text { display: block; font-size: 13px; font-weight: 600; color: var(--text); }
+.label-hint { display: block; font-size: 11px; color: var(--text-dim); margin-top: 1px; }
+.setting-row-control { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; }
+.setting-row-control input, .setting-row-control select { width: auto; }
+.setting-row-control input[type="text"], .setting-row-control input[type="number"] { width: 160px; text-align: right; }
+.setting-row-control input[type="number"].narrow { width: 100px; }
+.setting-row-control select { min-width: 150px; }
+.unit-suffix { font-size: 12px; color: var(--text-dim); white-space: nowrap; }
+/* a light list for settings; set grid-template-columns per list. Each cell
+   carries data-label so it can stack on a phone */
+.settings-table { display: grid; width: 100%; font-size: 13px; }
+.settings-table-row { display: grid; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--divider); }
+.settings-table-row:last-child { border-bottom: none; }
+.settings-table-row.header {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  color: var(--text-dim);
+  border-bottom: 2px solid var(--border);
+  padding-bottom: 8px;
+}
+.settings-table-row .col-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.settings-table-row .col-actions { display: flex; justify-content: flex-end; gap: 4px; }
+.settings-empty-state { padding: 24px 10px; }
+.avatar-chip {
+  width: 30px;
+  height: 30px;
+  border-radius: 7px;
+  background: var(--light-grey);
+  color: var(--slate);
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+.entity { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.entity-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.entity-name { font-weight: 600; }
+.entity-sub { font: 400 11px var(--font-mono); color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ---- Modals ---- */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(20,26,28,.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 50;
+}
+.modal {
+  background: var(--panel);
+  border-radius: 14px;
+  box-shadow: 0 24px 60px rgba(0,0,0,.25);
+  padding: 22px 24px;
+  width: 100%;
+  max-width: 560px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+.modal:focus { outline: none; }
+.modal.modal-compact { max-width: 420px; }
+.modal h2 { margin: 0 0 16px; font-size: 18px; font-weight: 600; color: var(--heading); }
+.modal-lead { margin: 0 0 14px; font-size: 14px; color: var(--text); }
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--divider);
+}
+.modal-actions.start { justify-content: flex-start; }
+.field { margin-bottom: 14px; }
+.field > label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px; color: var(--text); }
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.field-row-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.hint { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+.callout {
+  background: var(--teal-tint);
+  border-left: 3px solid var(--teal);
+  color: var(--text);
+  padding: 10px 14px;
+  border-radius: 6px;
+  font-size: 12px;
+  margin-bottom: 14px;
+}
+.callout.danger { background: var(--red-bg); border-left-color: var(--red); }
+.callout.warn { background: var(--yellow-bg); border-left-color: var(--yellow); }
+
+/* ---- Drawer: a full-height detail view from the right ---- */
+.modal-overlay.drawer-overlay { padding: 0; justify-content: flex-end; background: rgba(20,26,28,.42); }
+.modal.drawer {
+  width: 560px;
+  max-width: 100%;
+  height: 100%;
+  max-height: 100%;
+  border-radius: 0;
+  box-shadow: -12px 0 32px rgba(0,0,0,.18);
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+}
+.drawer-head { padding: 20px 24px 18px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 14px; flex: none; }
+.drawer-head-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.drawer-head-actions { display: flex; gap: 6px; }
+.drawer-title-sub { font-size: 12px; color: var(--text-dim); font-weight: 500; margin-bottom: 2px; }
+.modal h2.drawer-title, .drawer-title { margin: 0; font-size: 18px; font-weight: 600; letter-spacing: -.01em; line-height: 1.3; }
+.drawer-close { width: 30px; height: 30px; padding: 0; flex: none; }
+.drawer-body { flex: 1 1 auto; overflow-y: auto; padding: 16px 24px 24px; }
+.drawer-section { padding-bottom: 16px; margin-bottom: 16px; border-bottom: 1px solid var(--border); }
+.drawer-section-label { font-size: 11px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 12px; }
+.drawer-foot { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
+/* a strip of headline figures */
+.figure-strip { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid var(--border); border-radius: 8px; }
+.figure-box { padding: 10px 12px; display: flex; flex-direction: column; gap: 3px; border-right: 1px solid var(--border); min-width: 0; }
+.figure-box:last-child { border-right: none; }
+.figure-box .figure { font: 500 14px var(--font-mono); color: var(--text); }
+.detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; margin-bottom: 14px; }
+.detail-grid .full { grid-column: 1 / -1; }
+.detail-label { font-size: 11px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: .03em; margin-bottom: 2px; }
+.detail-value { font-size: 14px; color: var(--text); }
+/* a short ranked distribution, label | bar | count */
+.dist-row { display: flex; align-items: center; gap: 10px; padding: 5px 0; font-size: 12px; }
+.dist-label { flex: 0 0 150px; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dist-row .row-bar-track { flex: 1; }
+.dist-count { flex: 0 0 28px; text-align: right; font: 500 12px var(--font-mono); color: var(--text); }
+/* a compact clickable list inside a drawer */
+.list-row { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--divider); cursor: pointer; }
+.list-row:last-child { border-bottom: none; }
+.list-row:hover .list-row-title { text-decoration: underline; }
+.list-row-main { min-width: 0; }
+.list-row-title { font-size: 13px; font-weight: 500; display: block; }
+.list-row-sub { font-size: 11px; color: var(--text-dim); }
+.list-row-figure { font: 500 12px var(--font-mono); white-space: nowrap; text-align: right; }
+.muted-empty { padding: 10px; font-size: 12px; color: var(--text-dim); }
+
+/* ---- Activity timeline ---- */
+.tl-row { display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 12px; }
+.tl-rail { display: flex; flex-direction: column; align-items: center; }
+.tl-dot { width: 10px; height: 10px; margin-top: 4px; border-radius: 50%; background: var(--teal-dark); border: 2px solid var(--teal-tint-border); flex: none; }
+.tl-dot.note { background: #fff; border-color: var(--border); }
+.tl-line { flex: 1; width: 1px; background: var(--border); }
+.tl-body { padding-bottom: 16px; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.tl-body-top { display: flex; justify-content: space-between; gap: 8px; }
+.tl-title { font-size: 13px; font-weight: 600; }
+.tl-title.note-title { font-weight: 500; }
+.tl-time { font: 400 11px var(--font-mono); color: var(--dim-grey); white-space: nowrap; }
+.tl-text { font-size: 13px; color: var(--slate); line-height: 1.45; white-space: pre-wrap; }
+.tl-text.note-text { background: var(--light-grey); padding: 8px 10px; border-radius: 6px; }
+
+/* ---- Choice chips (RK.chipsFromSelect), presets, quick-fill ---- */
+.chip-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+.chip {
+  height: auto;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--slate);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 6px 10px;
+  border-radius: 6px;
+}
+.chip:hover { border-color: var(--accent); background: var(--panel); }
+.chip.active { border-color: var(--accent); background: var(--teal-tint); color: var(--accent-dark); font-weight: 600; }
+.preset-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.preset-chip {
+  height: auto;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 6px 11px;
+  border-radius: 20px;
+}
+.preset-chip:hover { border-color: var(--accent); background: var(--panel); }
+.preset-chip.active { background: var(--charcoal); border-color: var(--charcoal); color: #fff; font-weight: 600; }
+.quick-chip-row { display: flex; gap: 6px; margin: 8px 0 2px; }
+.quick-chip {
+  height: auto;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--slate);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 20px;
+}
+.quick-chip:hover { border-color: var(--accent); background: var(--panel); }
+
+/* ---- Amount input: currency tag (or in-box currency chips) + mono figure ---- */
+.amt-input-box {
+  display: flex;
+  height: 38px;
+  border: 1px solid var(--border-input);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--panel);
+}
+.amt-input-box:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--teal-tint); }
+.amt-input-tag {
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  background: var(--light-grey);
+  border-right: 1px solid var(--border);
+  font: 600 12px var(--font-mono);
+  color: var(--text-dim);
+}
+.amt-input-box .chip-row { gap: 2px; margin: 0; padding: 4px; background: var(--light-grey); border-right: 1px solid var(--border); flex: none; flex-wrap: nowrap; }
+.amt-input-box .chip { padding: 0 7px; font: 500 11px var(--font-mono); border: none; border-radius: 5px; background: transparent; color: var(--text-dim); }
+.amt-input-box .chip.active { background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.1); color: var(--text); font-weight: 600; }
+.amt-input-box input { flex: 1; min-width: 0; border: none; border-radius: 0; text-align: right; font: 500 15px var(--font-mono); }
+.amt-input-box input:focus { box-shadow: none; }
+
+/* ---- Impact preview: what a change does to a total, before saving ---- */
+.impact-box { background: var(--light-grey); border-radius: 10px; padding: 14px; }
+.impact-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 10px; }
+.impact-title { font-size: 12px; font-weight: 600; color: var(--text); }
+.impact-pct { font: 500 12px var(--font-mono); }
+.impact-box .bar-track { margin-bottom: 8px; }
+
+/* ---- Radio cards (e.g. export format) ---- */
+.option-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; width: 100%; }
+.option-card { position: relative; display: flex; flex-direction: column; gap: 3px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; }
+.option-card:hover { border-color: var(--accent); }
+.option-card input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.option-card-title { font: 600 13px var(--font-mono); color: var(--text); }
+.option-card-desc { font-size: 11px; color: var(--text-dim); }
+.option-card:has(input:checked) { border-color: var(--teal); background: var(--teal-tint); }
+.option-card:has(input:checked) .option-card-title { color: var(--accent-dark); }
+.option-card:has(input:checked)::after { content: "\2713"; position: absolute; top: 8px; right: 10px; font-size: 12px; font-weight: 700; color: var(--accent-dark); }
+.option-card:has(input:focus-visible) { box-shadow: 0 0 0 1px var(--accent); }
+.date-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; }
+
+/* ---- Responsive ----
+   Rather than let header items wrap wherever flex-wrap breaks them, each
+   breakpoint moves a whole group onto its own row in a fixed order:
+   logo + nav, then search, then actions. */
+@media (max-width: 900px) {
+  .app-header { padding: 10px 16px; }
+  .app-header-spacer { display: none; }
+  .app-search { order: 3; width: 100%; max-width: none; margin-top: 2px; }
+  .app-header > button { order: 4; }
+}
+@media (max-width: 700px) {
+  .field-row, .field-row-3 { grid-template-columns: 1fr; }
+  .settings-table-row { grid-template-columns: 1fr !important; gap: 3px; padding: 10px 0; }
+  .settings-table-row.header { display: none; }
+  .settings-table-row > [data-label] { text-align: left; }
+  .settings-table-row > [data-label]::before {
+    content: attr(data-label) ": ";
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .02em;
+    color: var(--text-dim);
+  }
+  .settings-table-row .col-actions { justify-content: flex-start; margin-top: 4px; }
+  .modal.drawer { width: 100%; }
+  .option-cards, .date-pair { grid-template-columns: 1fr; }
+}
+@media (max-width: 560px) {
+  .wrap { padding: 0 16px 60px; }
+  .app-header { margin: 0 -16px 16px; }
+  .app-nav { order: 2; width: 100%; margin-top: 2px; }
+  .page-summary-main { font-size: 18px; }
+  .stat-grid { grid-template-columns: 1fr; }
+  .toolbar { gap: 8px; }
+  .toolbar-select { flex: 1 1 auto; }
+  .list-meta { flex: 1 1 100%; text-align: left; order: 10; }
+}
+@media (max-width: 480px) {
+  .setting-row { flex-wrap: wrap; }
+  .setting-row-control { flex: 1 1 100%; justify-content: flex-end; }
+}
+@media print {
+  .app-header, .no-print { display: none !important; }
+  .table-container { max-height: none; overflow: visible; }
+  th { position: static; }
+}
+
+/* ============================================================
+   report-specific: vendor spend tracker
+   Everything generic comes from the kit; only this tool's own
+   layout lives here.
+   ============================================================ */
+#itemsTable { min-width: 1180px; }
+#itemsTable col.col-vendor { width: auto; }
+#itemsTable col.col-budget { width: 150px; }
+#itemsTable col.col-stage { width: 210px; }
+#itemsTable col.col-amount { width: 150px; }
+#itemsTable col.col-invoiced { width: 150px; }
+#itemsTable col.col-updated { width: 110px; }
+#itemsTable col.col-actions { width: 120px; }
+.vst-autofill-hint { display: block; color: var(--accent-dark); margin: -8px 0 12px; }
+.vst-stage-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="app-header">
+    <div class="app-logo"><img class="app-logo-mark" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMiIgaGVpZ2h0PSIzMiIgdmlld0JveD0iMCAwIDMyIDMyIj48cmVjdCB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHJ4PSI3IiBmaWxsPSIjMDBBOUNFIi8+PHBhdGggZD0iTTkgMTYuNSBsNCA0IEwyMyAxMSIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjMiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPjwvc3ZnPg==" alt="">Vendor Spend</div>
+    <nav class="app-nav">
+      <button type="button" class="app-nav-item active" data-view="items">Line items</button>
+      <button type="button" class="app-nav-item" data-view="settings">Settings</button>
+    </nav>
+    <div class="app-header-spacer"></div>
+    <div class="app-search">
+      <input type="text" id="searchBox" placeholder="Search vendor, PO, note…">
+      <span class="search-hint-key">/</span>
+    </div>
+    <button id="btnFullBackup" title="Download everything as one .json file">Full backup</button>
+    <button id="btnImport">Import</button>
+    <button id="btnExport">Export</button>
+    <button class="primary" id="btnNewItem">+ New line item</button>
+    <input type="file" id="fileImport" accept="application/json" hidden>
+  </header>
+
+  <div class="callout danger" id="corruptDataBanner" role="status" hidden></div>
+
+  <div id="mainView">
+
+  <div class="page-summary">
+    <div class="page-summary-text">
+      <span class="page-summary-sub" id="budgetSummarySub"></span>
+      <span class="page-summary-main" id="budgetSummaryMain"></span>
+    </div>
+    <div class="legend">
+      <span class="legend-item"><span class="legend-swatch swatch-solid"></span>Invoiced</span>
+      <span class="legend-item"><span class="legend-swatch swatch-hatched"></span>Committed</span>
+      <span class="legend-item"><span class="legend-swatch swatch-tint"></span>Pipeline</span>
+      <span class="legend-item"><span class="legend-swatch"></span>Remaining</span>
+    </div>
+  </div>
+  <div class="stat-grid" id="budgetGrid"></div>
+
+  <div class="toolbar">
+    <div class="seg-tabs" id="phaseTabs"></div>
+    <button type="button" class="filter-chip warn" id="stuckChip" hidden></button>
+    <button type="button" class="filter-chip" id="budgetChip" title="Clear the budget filter" hidden></button>
+    <select id="filterBudget" class="toolbar-select"><option value="">All budgets</option></select>
+    <select id="filterStage" class="toolbar-select">
+      <option value="">All stages</option>
+      <option value="Estimate received">Estimate received</option>
+      <option value="Approved with business">Approved with business</option>
+      <option value="CR raised">CR raised</option>
+      <option value="MRE raised">MRE raised</option>
+      <option value="PO issued">PO issued</option>
+      <option value="Initial invoice received">Initial invoice received</option>
+      <option value="Final invoice received">Final invoice received</option>
+      <option value="Closed">Closed</option>
+    </select>
+    <div class="toolbar-spacer"></div>
+    <span class="list-meta" id="listMeta"></span>
+  </div>
+
+  <div class="table-container">
+    <table id="itemsTable" class="fixed">
+      <colgroup>
+        <col class="col-vendor"><col class="col-budget"><col class="col-stage">
+        <col class="col-amount"><col class="col-invoiced"><col class="col-updated"><col class="col-actions">
+      </colgroup>
+      <thead>
+        <tr>
+          <th data-sort="vendorName" tabindex="0" aria-sort="none">Vendor · Description<span class="sort-arrow"></span></th>
+          <th data-sort="budgetName" tabindex="0" aria-sort="none">Budget<span class="sort-arrow"></span></th>
+          <th data-sort="stage" tabindex="0" aria-sort="none">Stage<span class="sort-arrow"></span></th>
+          <th data-sort="currentAmountAed" tabindex="0" aria-sort="none">Amount (AED)<span class="sort-arrow"></span></th>
+          <th data-sort="invoicedAmountAed" tabindex="0" aria-sort="none">Invoiced (AED)<span class="sort-arrow"></span></th>
+          <th data-sort="dateUpdated" tabindex="0" aria-sort="none">Updated<span class="sort-arrow"></span></th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="itemsBody"></tbody>
+    </table>
+    <div class="empty-state" id="emptyState" hidden></div>
+  </div>
+
+  <footer>
+    <div class="strapline">Dreamt up by Christian, built with Claude — a human + AI double act 🤝</div>
+  </footer>
+
+  </div>
+
+  <div id="settingsView" hidden>
+    <div class="settings-header">
+      <h2>Settings</h2>
+      <span class="app-version" id="appVersion"></span>
+    </div>
+
+    <nav class="settings-nav">
+      <button type="button" class="settings-nav-item active" data-settings-panel="panel-rates">
+        <span class="settings-nav-label">Currency &amp; rates</span>
+      </button>
+      <button type="button" class="settings-nav-item" data-settings-panel="panel-budgets">
+        <span class="settings-nav-label">Budgets</span><span class="settings-nav-count" id="settingsBudgetsCount"></span>
+      </button>
+      <button type="button" class="settings-nav-item" data-settings-panel="panel-vendors">
+        <span class="settings-nav-label">Vendors</span><span class="settings-nav-count" id="settingsVendorsCount"></span>
+      </button>
+    </nav>
+
+    <div class="settings-shell">
+      <div class="settings-content">
+        <div class="settings-panel" id="panel-rates">
+          <div class="settings-panel-head">
+            <h3>Currency &amp; Exchange Rates</h3>
+            <span class="hint">Base currency is AED. Rates below are AED per 1 unit of currency.</span>
+          </div>
+          <div class="setting-row">
+            <div class="setting-row-label">
+              <span class="label-text">AED</span>
+              <span class="label-hint">Base currency — fixed at 1.00</span>
+            </div>
+            <div class="setting-row-control">
+              <input type="number" step="0.0001" id="rate_AED" value="1" disabled>
+            </div>
+          </div>
+          <div class="setting-row">
+            <div class="setting-row-label">
+              <span class="label-text">USD</span>
+              <span class="label-hint">US Dollar</span>
+            </div>
+            <div class="setting-row-control">
+              <input type="number" class="narrow" step="0.0001" id="rate_USD">
+              <span class="unit-suffix">AED</span>
+            </div>
+          </div>
+          <div class="setting-row">
+            <div class="setting-row-label">
+              <span class="label-text">GBP</span>
+              <span class="label-hint">British Pound</span>
+            </div>
+            <div class="setting-row-control">
+              <input type="number" class="narrow" step="0.0001" id="rate_GBP">
+              <span class="unit-suffix">AED</span>
+            </div>
+          </div>
+          <div class="setting-row">
+            <div class="setting-row-label">
+              <span class="label-text">EUR</span>
+              <span class="label-hint">Euro</span>
+            </div>
+            <div class="setting-row-control">
+              <input type="number" class="narrow" step="0.0001" id="rate_EUR">
+              <span class="unit-suffix">AED</span>
+            </div>
+          </div>
+          <div class="modal-actions start">
+            <button class="primary" id="btnSaveRates">Save Rates</button>
+            <button id="btnResetRates">Reset to Defaults</button>
+          </div>
+        </div>
+
+        <div class="settings-panel" id="panel-budgets" hidden>
+          <div class="settings-panel-head">
+            <h3>Budgets</h3>
+            <span class="hint">Set annually; shown on the main page.</span>
+            <button class="primary small" id="btnNewBudget">+ New</button>
+          </div>
+          <div id="settingsBudgetList" class="settings-table"></div>
+        </div>
+
+        <div class="settings-panel" id="panel-vendors" hidden>
+          <div class="settings-panel-head">
+            <h3>Vendors</h3>
+            <span class="hint">Picking a vendor on a line item auto-fills currency &amp; budget.</span>
+            <button class="primary small" id="btnNewVendor">+ New</button>
+          </div>
+          <div id="vendorList" class="settings-table"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="itemModalOverlay" hidden>
+  <div class="modal">
+    <h2 id="itemModalTitle">New line item</h2>
+    <form id="itemForm">
+      <input type="hidden" id="itemId">
+      <div class="field-row">
+        <div class="field">
+          <label for="f_vendor">Vendor</label>
+          <select id="f_vendor" required></select>
+        </div>
+        <div class="field">
+          <label for="f_budgetId">Budget</label>
+          <select id="f_budgetId" required></select>
+        </div>
+      </div>
+      <span class="hint vst-autofill-hint" id="f_autofillHint" hidden></span>
+      <div class="field">
+        <label for="f_description">Description</label>
+        <input type="text" id="f_description" required placeholder="e.g. Q4 paid social retainer">
+      </div>
+      <select id="f_currency" required class="select-hidden-visually">
+        <option value="AED">AED</option>
+        <option value="USD">USD</option>
+        <option value="GBP">GBP</option>
+        <option value="EUR">EUR</option>
+      </select>
+      <div class="field-row">
+        <div class="field">
+          <label for="f_currentAmount">Amount</label>
+          <div class="amt-input-box">
+            <div class="chip-row chip-row-inbox" id="f_currencyChips"></div>
+            <input type="number" step="0.01" min="0" id="f_currentAmount" required>
+          </div>
+          <div class="hint" id="aedPreview"></div>
+        </div>
+        <div class="field">
+          <label for="f_invoicedAmount">Invoiced <span style="font-weight:400;color:var(--text-dim);">so far</span></label>
+          <div class="amt-input-box">
+            <span class="amt-input-tag" id="f_invoicedAmountTag">AED</span>
+            <input type="number" step="0.01" min="0" id="f_invoicedAmount">
+          </div>
+        </div>
+      </div>
+      <div class="field impact-box" id="f_impactBox" hidden>
+        <div class="impact-head">
+          <span class="impact-title">Impact on <span id="f_impactBudgetName"></span></span>
+          <span class="impact-pct" id="f_impactPct"></span>
+        </div>
+        <div class="bar-track" id="f_impactBar">
+          <div class="bar-fill solid" id="f_impactFillInvoiced"></div>
+          <div class="bar-fill hatched" id="f_impactFillCommitted"></div>
+          <div class="bar-fill" id="f_impactFillNew"></div>
+        </div>
+        <div class="hint" id="f_impactMsg"></div>
+      </div>
+      <div class="field">
+        <label for="f_stage" id="f_stageLabel">Starting stage</label>
+        <div class="chip-row" id="f_stageChips"></div>
+        <select id="f_stage" required class="select-hidden-visually">
+          <option value="Estimate received">Estimate received</option>
+          <option value="Approved with business">Approved with business</option>
+          <option value="CR raised">CR raised</option>
+          <option value="MRE raised">MRE raised</option>
+          <option value="PO issued">PO issued</option>
+          <option value="Initial invoice received">Initial invoice received</option>
+          <option value="Final invoice received">Final invoice received</option>
+          <option value="Closed">Closed</option>
+        </select>
+      </div>
+      <div class="field-row-3">
+        <div class="field">
+          <label for="f_owner">Owner</label>
+          <input type="text" id="f_owner" placeholder="Requester">
+        </div>
+        <div class="field">
+          <label for="f_poNumber">PO / ref #</label>
+          <input type="text" id="f_poNumber">
+        </div>
+        <div class="field">
+          <label for="f_dateEntered">Date entered</label>
+          <input type="date" id="f_dateEntered">
+        </div>
+      </div>
+      <div class="hint">Notes are logged as timestamped entries — add them from the item's detail view (click its description) or when advancing a stage.</div>
+      <div class="modal-actions">
+        <button type="button" id="btnCancelItem">Cancel</button>
+        <button type="submit" class="primary">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-overlay" id="vendorModalOverlay" hidden>
+  <div class="modal modal-compact">
+    <h2 id="vendorModalTitle">New Vendor</h2>
+    <form id="vendorForm">
+      <input type="hidden" id="v_id">
+      <div class="setting-row">
+        <div class="setting-row-label">
+          <span class="label-text">Vendor Name *</span>
+        </div>
+        <div class="setting-row-control">
+          <input type="text" id="v_name" required>
+        </div>
+      </div>
+      <div class="setting-row">
+        <div class="setting-row-label">
+          <span class="label-text">System Name</span>
+          <span class="label-hint">Name used in finance/ERP system</span>
+        </div>
+        <div class="setting-row-control">
+          <input type="text" id="v_systemName">
+        </div>
+      </div>
+      <div class="setting-row">
+        <div class="setting-row-label">
+          <span class="label-text">Default Currency *</span>
+        </div>
+        <div class="setting-row-control">
+          <select id="v_defaultCurrency" required>
+            <option value="AED">AED</option>
+            <option value="USD">USD</option>
+            <option value="GBP">GBP</option>
+            <option value="EUR">EUR</option>
+          </select>
+        </div>
+      </div>
+      <div class="setting-row">
+        <div class="setting-row-label">
+          <span class="label-text">Default Budget</span>
+        </div>
+        <div class="setting-row-control">
+          <select id="v_defaultBudgetId">
+            <option value="">(none)</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" id="btnCancelVendor">Cancel</button>
+        <button type="submit" class="primary">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-overlay" id="advanceModalOverlay" hidden>
+  <div class="modal">
+    <h2 id="advanceModalTitle">Advance Stage</h2>
+    <p id="advanceModalDesc" class="modal-lead"></p>
+    <div class="step-track" id="adv_track"></div>
+    <form id="advanceForm">
+      <input type="hidden" id="adv_itemId">
+      <div class="field" id="adv_invoicedAmountField" hidden>
+        <label for="adv_invoicedAmount">Invoiced Amount *</label>
+        <div class="amt-input-box">
+          <span class="amt-input-tag" id="adv_invoicedAmountTag">AED</span>
+          <input type="number" step="0.01" min="0.01" id="adv_invoicedAmount">
+        </div>
+        <div class="quick-chip-row">
+          <button type="button" class="quick-chip" data-adv-pct="25">25%</button>
+          <button type="button" class="quick-chip" data-adv-pct="50">50%</button>
+          <button type="button" class="quick-chip" data-adv-pct="80">80%</button>
+          <button type="button" class="quick-chip" data-adv-pct="100">100%</button>
+        </div>
+        <div class="hint">Required for this stage.</div>
+      </div>
+      <div class="field">
+        <label for="adv_note">Note (optional)</label>
+        <textarea id="adv_note" placeholder="Add context for this stage change..."></textarea>
+      </div>
+      <div class="modal-actions">
+        <button type="button" id="btnCancelAdvance">Cancel</button>
+        <button type="submit" class="primary" id="btnConfirmAdvance">Confirm Advance</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-overlay drawer-overlay" id="detailModalOverlay" hidden>
+  <div class="modal drawer">
+    <div class="drawer-head">
+      <div class="drawer-head-top">
+        <div>
+          <div class="drawer-title-sub" id="detailModalTitle"></div>
+          <h2 class="drawer-title" id="d_description"></h2>
+        </div>
+        <div class="drawer-head-actions">
+          <button type="button" class="small" id="btnDetailEdit">Edit</button>
+          <button type="button" class="drawer-close" id="btnCloseDetail" aria-label="Close">×</button>
+        </div>
+      </div>
+      <div class="figure-strip">
+        <div class="figure-box">
+          <span class="detail-label">Amount</span>
+          <span class="figure" id="d_amtMain"></span>
+          <span class="hint" id="d_amtSub"></span>
+        </div>
+        <div class="figure-box">
+          <span class="detail-label">Invoiced</span>
+          <span class="figure" id="d_invMain"></span>
+          <span class="hint" id="d_invSub"></span>
+        </div>
+        <div class="figure-box">
+          <span class="detail-label">Still committed</span>
+          <span class="figure" id="d_remMain"></span>
+          <span class="hint" id="d_remSub"></span>
+        </div>
+      </div>
+      <div class="vst-stage-row">
+        <span class="detail-value" id="d_stage"></span>
+        <button type="button" class="small primary" id="btnDetailAdvance">Advance stage →</button>
+      </div>
+      <div class="step-segs" id="d_stageSegs"></div>
+    </div>
+    <div class="drawer-body">
+      <div class="detail-grid drawer-section">
+        <div>
+          <div class="detail-label">Vendor</div>
+          <div class="detail-value" id="d_vendor"></div>
+        </div>
+        <div>
+          <div class="detail-label">Budget</div>
+          <div class="detail-value" id="d_budget"></div>
+        </div>
+        <div>
+          <div class="detail-label">Owner / Requester</div>
+          <div class="detail-value" id="d_owner"></div>
+        </div>
+        <div>
+          <div class="detail-label">PO / Reference #</div>
+          <div class="detail-value" id="d_poNumber"></div>
+        </div>
+        <div class="full">
+          <div class="detail-label">Dates</div>
+          <div class="detail-value" id="d_dates"></div>
+        </div>
+      </div>
+      <form id="detailNotesForm" class="drawer-section">
+        <input type="hidden" id="d_itemId">
+        <div class="field">
+          <label for="d_newNote">Add a note</label>
+          <textarea id="d_newNote" rows="3" placeholder="Type a new note and submit — each entry is logged with its own timestamp, existing entries are never edited."></textarea>
+        </div>
+        <div class="modal-actions start">
+          <button type="submit" class="primary">Add note</button>
+        </div>
+      </form>
+      <div class="drawer-section-label">Activity</div>
+      <div id="d_notesLog"></div>
+      <div class="drawer-foot">
+        <button type="button" class="link-action danger" id="btnDetailDelete">Delete line item</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay drawer-overlay" id="vendorDetailModalOverlay" hidden>
+  <div class="modal drawer">
+    <div class="drawer-head">
+      <div class="drawer-head-top">
+        <div>
+          <div class="drawer-title-sub" id="vd_sub"></div>
+          <h2 class="drawer-title" id="vd_name"></h2>
+        </div>
+        <div class="drawer-head-actions">
+          <button type="button" class="small" id="btnVendorDetailEdit">Edit</button>
+          <button type="button" class="drawer-close" id="btnCloseVendorDetail" aria-label="Close">×</button>
+        </div>
+      </div>
+      <div class="figure-strip">
+        <div class="figure-box">
+          <span class="detail-label">Pipeline</span>
+          <span class="figure" id="vd_pipeline"></span>
+        </div>
+        <div class="figure-box">
+          <span class="detail-label">Committed</span>
+          <span class="figure" id="vd_committed"></span>
+        </div>
+        <div class="figure-box">
+          <span class="detail-label">Invoiced</span>
+          <span class="figure" id="vd_invoiced"></span>
+        </div>
+      </div>
+    </div>
+    <div class="drawer-body">
+      <div class="detail-grid">
+        <div>
+          <div class="detail-label">Default currency</div>
+          <div class="detail-value" id="vd_defaultCurrency"></div>
+        </div>
+        <div>
+          <div class="detail-label">Default budget</div>
+          <div class="detail-value" id="vd_defaultBudget"></div>
+        </div>
+        <div>
+          <div class="detail-label">Line items</div>
+          <div class="detail-value" id="vd_itemCount"></div>
+        </div>
+        <div>
+          <div class="detail-label">Avg. time to invoice</div>
+          <div class="detail-value" id="vd_avgTimeToInvoice"></div>
+        </div>
+      </div>
+      <div class="drawer-section-label">By stage</div>
+      <div id="vd_stageBreakdown" class="drawer-section"></div>
+      <div class="drawer-section-label">Line items</div>
+      <div id="vd_itemsList"></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="exportModalOverlay" hidden>
+  <div class="modal modal-compact">
+    <h2>Filtered Export</h2>
+    <div class="callout">This export applies the filters below, it is not a full backup. Use "Full backup" in the header to export everything.</div>
+    <form id="exportForm">
+      <div class="field">
+        <label>Date entered</label>
+        <div class="preset-row" id="exp_presetRow">
+          <button type="button" class="preset-chip" data-exp-preset="month">This month</button>
+          <button type="button" class="preset-chip" data-exp-preset="fy">This fiscal year</button>
+          <button type="button" class="preset-chip" data-exp-preset="all">All time</button>
+          <button type="button" class="preset-chip" data-exp-preset="custom">Custom…</button>
+        </div>
+        <div class="date-pair" id="exp_customDates" hidden>
+          <div>
+            <span class="label-hint">From</span>
+            <input type="date" id="exp_dateFrom">
+          </div>
+          <div>
+            <span class="label-hint">To</span>
+            <input type="date" id="exp_dateTo">
+          </div>
+        </div>
+        <div class="hint" id="exp_rangeHint"></div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="exp_vendor">Vendor</label>
+          <select id="exp_vendor">
+            <option value="">All vendors</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="exp_budget">Budget</label>
+          <select id="exp_budget">
+            <option value="">All budgets</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label>Format</label>
+        <div class="option-cards">
+          <label class="option-card">
+            <input type="radio" name="exp_format" value="json" checked>
+            <span class="option-card-title">.json</span>
+            <span class="option-card-desc">Full backup, can be re-imported</span>
+          </label>
+          <label class="option-card">
+            <input type="radio" name="exp_format" value="csv">
+            <span class="option-card-title">.csv</span>
+            <span class="option-card-desc">For Excel and finance reports</span>
+          </label>
+        </div>
+      </div>
+      <button type="button" class="link-action" id="btnExportRestoreLink">Restore from a .json backup…</button>
+      <div class="modal-actions">
+        <button type="button" id="btnCancelExport">Cancel</button>
+        <button type="submit" class="primary">Export</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-overlay" id="budgetModalOverlay" hidden>
+  <div class="modal modal-compact">
+    <h2 id="budgetModalTitle">New Budget</h2>
+    <form id="budgetForm">
+      <input type="hidden" id="b_id">
+      <div class="setting-row">
+        <div class="setting-row-label">
+          <span class="label-text">Budget Name *</span>
+          <span class="label-hint">Vendor or category</span>
+        </div>
+        <div class="setting-row-control">
+          <input type="text" id="b_name" required>
+        </div>
+      </div>
+      <div class="setting-row">
+        <div class="setting-row-label">
+          <span class="label-text">Total Budget *</span>
+        </div>
+        <div class="setting-row-control">
+          <input type="number" step="0.01" min="0" id="b_total" required>
+          <span class="unit-suffix">AED</span>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" id="btnCancelBudget">Cancel</button>
+        <button type="submit" class="primary">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-overlay" id="reassignModalOverlay" hidden>
+  <div class="modal modal-compact">
+    <h2 id="reassignModalTitle">Reassign Line Items</h2>
+    <p class="modal-lead" id="reassignModalDesc"></p>
+    <form id="reassignForm">
+      <div class="field">
+        <label for="reassignTarget" id="reassignTargetLabel">New budget</label>
+        <select id="reassignTarget" required></select>
+      </div>
+      <div class="modal-actions">
+        <button type="button" id="btnCancelReassign">Cancel</button>
+        <button type="submit" class="primary">Reassign &amp; Delete</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-overlay" id="importChoiceModalOverlay" hidden>
+  <div class="modal modal-compact">
+    <h2>Import Data</h2>
+    <p class="modal-lead" id="importChoiceSummary"></p>
+    <div class="callout">Replace will overwrite all current data (a backup of your current data is kept automatically). Merge will add new budgets, vendors and items without duplicating ones that already match by name or ID.</div>
+    <div class="modal-actions start">
+      <button type="button" class="primary" id="btnImportReplace">Replace</button>
+      <button type="button" id="btnImportMerge">Merge</button>
+      <button type="button" id="btnImportCancel">Cancel</button>
+    </div>
+  </div>
+</div>
+
+
+<script>
+/* ============================================================
+   Report Kit — shared runtime for the browser report tools
+   kit-version: 1.1.0
+   Exposes window.RK. Depends on window.XLSX (SheetJS) only for the
+   xlsx.* helpers; everything else is standalone. Inlined into each
+   report by framework/build.py so reports stay single-file/offline.
+
+   Compatibility policy (see framework/README.md):
+   - Staff IDs are matched case-insensitively (normalised to UPPERCASE).
+   - rules.parse retains unknown top-level and per-staff fields and
+     round-trips them through rules.serialise (forward compatibility).
+   - A newer schemaVersion loads with a warning instead of being
+     rejected (forward compatibility); v1 always loads (backward).
+   ============================================================ */
+window.RK = (function () {
+  "use strict";
+  var KIT_VERSION = "1.1.0";
+
+  /* ---------- dom / format helpers ---------- */
+  function $(id) { return document.getElementById(id); }
+  function esc(s) {
+    return String(s === null || s === undefined ? "" : s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  }
+  function show(el) { if (el) el.classList.remove("hidden"); }
+  function hide(el) { if (el) el.classList.add("hidden"); }
+  function round1(n) { return Math.round((n + Number.EPSILON) * 10) / 10; }
+  function round2(n) { return Math.round((n + Number.EPSILON) * 100) / 100; }
+  function fmtHrs(n) { return (Math.round(n * 10) / 10).toFixed(1); }
+  function nowIso() { try { return new Date().toISOString(); } catch (e) { return ""; } }
+
+  /* ---------- file download ---------- */
+  function download(filename, text, type) {
+    var blob = new Blob([text], { type: type || "application/octet-stream" });
+    var url = URL.createObjectURL(blob), a = document.createElement("a");
+    a.href = url; a.download = filename; document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  }
+
+  /* ---------- namespaced localStorage ---------- */
+  function store(key) {
+    return {
+      get: function () { try { var raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : null; } catch (e) { return null; } },
+      set: function (obj) { try { localStorage.setItem(key, JSON.stringify(obj)); } catch (e) { } }
+    };
+  }
+
+  /* ---------- clipboard (rich HTML + plain-text fallback) ---------- */
+  var clipboard = {
+    // write({html, text}) -> Promise resolving to "html" | "text", rejecting if blocked
+    write: function (payload) {
+      var html = payload.html || "", text = payload.text || "";
+      if (window.ClipboardItem && navigator.clipboard && navigator.clipboard.write) {
+        var item = new ClipboardItem({
+          "text/html": new Blob([html], { type: "text/html" }),
+          "text/plain": new Blob([text], { type: "text/plain" })
+        });
+        return navigator.clipboard.write([item]).then(function () { return "html"; });
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        return navigator.clipboard.writeText(text).then(function () { return "text"; });
+      }
+      return Promise.reject(new Error("no-clipboard"));
+    },
+    // render a manual copy textarea into a container element
+    fallbackInto: function (el, text, label) {
+      el.innerHTML = '<div class="copy-fallback"><p class="sub" style="margin-bottom:.3rem;">' +
+        esc(label || "Copy blocked by the browser. Select all and copy from here:") +
+        '</p><textarea readonly aria-label="Content to copy"></textarea></div>';
+      var a = el.querySelector("textarea"); a.value = text; a.focus(); a.select();
+    },
+    clearFallback: function (el) { if (el) el.innerHTML = ""; }
+  };
+
+  /* ---------- upload wiring (drag/drop + browse + replace) ---------- */
+  // opts: { drop, fileInput, browseBtn, replaceBtn, onFile(arrayBuffer, filename), onError(msg) }
+  // The report controls the drop/loaded-bar visibility after a successful parse.
+  function upload(opts) {
+    var drop = opts.drop, input = opts.fileInput;
+    function read(file) {
+      var reader = new FileReader();
+      reader.onload = function () { opts.onFile(reader.result, file.name); };
+      reader.onerror = function () { if (opts.onError) opts.onError("Could not read the file. Previously loaded data is unchanged."); };
+      reader.readAsArrayBuffer(file);
+    }
+    if (drop) {
+      drop.addEventListener("dragover", function (e) { e.preventDefault(); drop.classList.add("dragover"); });
+      drop.addEventListener("dragleave", function () { drop.classList.remove("dragover"); });
+      drop.addEventListener("drop", function (e) { e.preventDefault(); drop.classList.remove("dragover"); var f = e.dataTransfer.files && e.dataTransfer.files[0]; if (f) read(f); });
+      drop.addEventListener("click", function () { input.click(); });
+      drop.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); input.click(); } });
+    }
+    if (opts.browseBtn) opts.browseBtn.addEventListener("click", function (e) { e.stopPropagation(); input.click(); });
+    if (opts.replaceBtn) opts.replaceBtn.addEventListener("click", function () { input.click(); });
+    input.addEventListener("change", function (ev) { var f = ev.target.files && ev.target.files[0]; if (f) read(f); ev.target.value = ""; });
+    return { read: read };
+  }
+
+  /* ---------- xlsx plumbing ---------- */
+  var xlsx = {
+    read: function (arrayBuffer) { return XLSX.read(arrayBuffer, { type: "array" }); },
+    // "Code - Description" -> [code, desc], split on the first " - "
+    splitCodeDesc: function (v) {
+      v = (v === null || v === undefined) ? "" : String(v);
+      var i = v.indexOf(" - ");
+      if (i < 0) return [v.trim(), ""];
+      return [v.slice(0, i).trim(), v.slice(i + 3).trim()];
+    },
+    // Wrap the first (or named) worksheet with header + cell accessors.
+    sheet: function (wb, name) {
+      if (!wb.SheetNames.length) throw new Error("The workbook contains no sheets.");
+      var sheetName = name || wb.SheetNames[0];
+      var ws = wb.Sheets[sheetName];
+      if (!ws || !ws["!ref"]) throw new Error('The worksheet "' + sheetName + '" is empty.');
+      var range = XLSX.utils.decode_range(ws["!ref"]);
+      function cell(r, c) { return ws[XLSX.utils.encode_cell({ r: r, c: c })]; }
+      function txt(r, c) { if (c === null || c === undefined) return ""; var cl = cell(r, c); if (!cl) return ""; return String(cl.w !== undefined && cl.w !== null ? cl.w : cl.v); }
+      function rawv(r, c) { if (c === null || c === undefined) return null; var cl = cell(r, c); return cl ? cl.v : null; }
+      var headers = [];
+      for (var c = range.s.c; c <= range.e.c; c++) headers.push({ index: c, name: txt(range.s.r, c).trim() });
+      return {
+        sheetName: sheetName, ws: ws, range: range, headers: headers, txt: txt, rawv: rawv,
+        findByName: function (nm) { for (var i = 0; i < headers.length; i++) if (headers[i].name === nm) return headers[i].index; return null; },
+        findByAliases: function (aliases) { for (var i = 0; i < headers.length; i++) if (aliases.indexOf(headers[i].name.toLowerCase()) !== -1) return headers[i].index; return null; }
+      };
+    },
+    // Resolve column indices for fieldSpecs against a sheet + optional explicit mapping.
+    // fieldSpecs: [{ field, canonical, required, aliases:[lowercase...] }]
+    // -> { resolved:{field:index}, missing:[{field,label}] }
+    resolve: function (sheet, fieldSpecs, mapping) {
+      mapping = mapping || {};
+      var resolved = {}, missing = [];
+      fieldSpecs.forEach(function (f) {
+        var idx = (mapping[f.field] !== undefined && mapping[f.field] !== null) ? mapping[f.field] : sheet.findByName(f.canonical);
+        if ((idx === null || idx === undefined) && f.aliases && f.aliases.length) idx = sheet.findByAliases(f.aliases);
+        if (idx !== null && idx !== undefined) resolved[f.field] = idx;
+        else if (f.required) missing.push({ field: f.field, label: f.canonical });
+      });
+      return { resolved: resolved, missing: missing };
+    },
+    // Render a "map the columns" fallback UI into a container.
+    // container: el for the selects; fieldSpecs as above; onConfirm(mapping).
+    renderMapper: function (opts) {
+      var headers = opts.headers, fieldSpecs = opts.fieldSpecs;
+      var rows = fieldSpecs.map(function (f) {
+        var guess = null;
+        for (var i = 0; i < headers.length; i++) if (headers[i].name === f.canonical) { guess = headers[i].index; break; }
+        var optsHtml = '<option value="">(not mapped)</option>' + headers.map(function (h) {
+          return '<option value="' + h.index + '"' + (guess === h.index ? " selected" : "") + ">" + esc(h.name || ("(column " + (h.index + 1) + ")")) + " [col " + (h.index + 1) + "]</option>";
+        }).join("");
+        var label = f.label || (f.canonical + (f.required ? "" : " (optional)"));
+        return '<div style="margin:.5rem 0;"><label class="field" style="margin:0 0 .2rem;">' + esc(label) + '</label><select data-field="' + f.field + '">' + optsHtml + "</select></div>";
+      }).join("");
+      opts.fieldsEl.innerHTML = rows;
+      var errEl = opts.errorEl;
+      if (errEl) hide(errEl);
+      opts.confirmBtn.onclick = function () {
+        var selects = opts.fieldsEl.querySelectorAll("select"), mapping = {}, missing = [];
+        Array.prototype.forEach.call(selects, function (s) {
+          var field = s.getAttribute("data-field"), v = s.value, spec = null;
+          for (var i = 0; i < fieldSpecs.length; i++) if (fieldSpecs[i].field === field) { spec = fieldSpecs[i]; break; }
+          if (v === "") { if (spec && spec.required) missing.push(field); return; }
+          mapping[field] = parseInt(v, 10);
+        });
+        if (missing.length) { if (errEl) { errEl.textContent = "Still unmapped: " + missing.join(", ") + "."; show(errEl); } return; }
+        opts.onConfirm(mapping);
+      };
+    }
+  };
+
+  /* ---------- rules JSON module (versioned, case-insensitive, forward-compatible) ---------- */
+  var SCHEMA_VERSION = 1;
+  function lineCol(str, pos) {
+    if (pos === null || pos === undefined || isNaN(pos)) return null;
+    var upto = str.slice(0, pos);
+    return { line: upto.split("\n").length, col: pos - upto.lastIndexOf("\n") };
+  }
+  function normId(id) { return String(id === null || id === undefined ? "" : id).trim().toUpperCase(); }
+  var KNOWN_TOP = { schemaVersion: 1, generatedAt: 1, label: 1, staff: 1 };
+  var KNOWN_STAFF = { name: 1, approvedDemands: 1 };
+
+  var rules = {
+    SCHEMA_VERSION: SCHEMA_VERSION,
+    normId: normId,
+    // parse(jsonString) -> { schemaVersion, generatedAt, label, staff, names, demands, extraTop, warning }
+    // staff keyed by normId, each { name, approvedDemands, ...retained unknown fields }.
+    parse: function (jsonString) {
+      var data;
+      try { data = JSON.parse(jsonString); }
+      catch (e) {
+        var m = /position (\d+)/.exec(e.message);
+        var lc = m ? lineCol(jsonString, parseInt(m[1], 10)) : null;
+        throw new Error("Rules JSON did not parse: " + e.message + (lc ? " (line " + lc.line + ", column " + lc.col + ")" : "") + "\nCurrent rules left unchanged.");
+      }
+      if (typeof data !== "object" || data === null || Array.isArray(data)) throw new Error("Rules must be a JSON object. Current rules left unchanged.");
+      var warning = null, sv = data.schemaVersion;
+      if (typeof sv !== "number") throw new Error("Rules are missing a numeric schemaVersion. Current rules left unchanged.");
+      if (sv > SCHEMA_VERSION) warning = "This file uses schemaVersion " + sv + ", newer than this tool (v" + SCHEMA_VERSION + "). It was loaded, but fields this version doesn't understand are kept untouched.";
+      if (typeof data.staff !== "object" || data.staff === null || Array.isArray(data.staff)) throw new Error('"staff" must be an object. Current rules left unchanged.');
+      var problems = [], staff = {}, names = {}, demands = {};
+      Object.keys(data.staff).forEach(function (id) {
+        var e = data.staff[id];
+        if (typeof e !== "object" || e === null || Array.isArray(e)) { problems.push(id + ": entry must be an object."); return; }
+        if (e.name !== undefined && typeof e.name !== "string") problems.push(id + ': "name" must be a string.');
+        if (e.approvedDemands !== undefined) {
+          if (!Array.isArray(e.approvedDemands)) problems.push(id + ': "approvedDemands" must be an array.');
+          else if (!e.approvedDemands.every(function (x) { return typeof x === "string"; })) problems.push(id + ': "approvedDemands" must contain only strings.');
+        }
+        var key = normId(id);
+        var merged = {};
+        Object.keys(e).forEach(function (k) { merged[k] = e[k]; }); // retain unknown fields (forward compat)
+        merged.name = typeof e.name === "string" ? e.name : "";
+        merged.approvedDemands = Array.isArray(e.approvedDemands) ? e.approvedDemands.filter(function (x) { return typeof x === "string"; }) : [];
+        staff[key] = merged;
+        if (merged.name.trim() !== "") names[key] = merged.name.trim();
+        demands[key] = merged.approvedDemands;
+      });
+      if (problems.length) throw new Error("Rules validation failed:\n- " + problems.join("\n- ") + "\nCurrent rules left unchanged.");
+      var extraTop = {};
+      Object.keys(data).forEach(function (k) { if (!KNOWN_TOP[k]) extraTop[k] = data[k]; }); // retain unknown top-level (forward compat)
+      return {
+        schemaVersion: sv, generatedAt: typeof data.generatedAt === "string" ? data.generatedAt : null,
+        label: typeof data.label === "string" ? data.label : "",
+        staff: staff, names: names, demands: demands, extraTop: extraTop, warning: warning
+      };
+    },
+    // serialise(opts) -> JSON string in the shared schema.
+    // opts: { names:{id:name}, demands:{id:[...]}, staff:{id:{...}}, label, generatedAt, extraTop }
+    serialise: function (opts) {
+      opts = opts || {};
+      var names = opts.names || {}, demands = opts.demands || {}, staffIn = opts.staff || {};
+      var ids = {};
+      Object.keys(names).forEach(function (id) { ids[normId(id)] = 1; });
+      Object.keys(demands).forEach(function (id) { ids[normId(id)] = 1; });
+      Object.keys(staffIn).forEach(function (id) { ids[normId(id)] = 1; });
+      var staffOut = {};
+      Object.keys(ids).sort().forEach(function (id) {
+        var base = staffIn[id] || {};
+        var out = {};
+        Object.keys(base).forEach(function (k) { if (!KNOWN_STAFF[k]) out[k] = base[k]; }); // keep retained unknown fields
+        var name = (names[id] !== undefined) ? names[id] : (typeof base.name === "string" ? base.name : "");
+        var dem = (demands[id] !== undefined) ? demands[id] : (Array.isArray(base.approvedDemands) ? base.approvedDemands : []);
+        name = typeof name === "string" ? name : "";
+        dem = Array.isArray(dem) ? dem.filter(function (x) { return typeof x === "string"; }).slice().sort() : [];
+        if (name === "" && dem.length === 0 && !Object.keys(out).length) return;
+        out.name = name; out.approvedDemands = dem;
+        staffOut[id] = out;
+      });
+      var envelope = { schemaVersion: SCHEMA_VERSION, generatedAt: opts.generatedAt || nowIso(), label: opts.label || "" };
+      var extraTop = opts.extraTop || {};
+      Object.keys(extraTop).forEach(function (k) { if (!KNOWN_TOP[k]) envelope[k] = extraTop[k]; });
+      envelope.staff = staffOut;
+      return JSON.stringify(envelope, null, 2);
+    }
+  };
+
+  /* ---------- staff-name editor component ----------
+     Renders a filterable Staff ID -> Name table into a container.
+     opts: {
+       wrap, hint, search, onlyMissing,   // elements
+       getStaff: () => ({ ID: exportName }),   // ids normId'd by the caller
+       nameMap,                                // mutable {ID: name}, written in place
+       onChange: () => {}                      // after any edit (persist + re-render summary)
+     }
+     Returns { render() }.  onlyMissing.checked is honoured as-is (set it in markup for the default). */
+  function NameEditor(opts) {
+    var wrap = opts.wrap, hint = opts.hint;
+    function render() {
+      var map = opts.getStaff() || {}, ids = Object.keys(map).sort();
+      if (!ids.length) { wrap.innerHTML = ""; if (hint) hint.textContent = "Load an export to edit names for its staff."; return; }
+      var missingCount = ids.filter(function (id) { return !(opts.nameMap[id] || map[id]); }).length;
+      if (hint) hint.innerHTML = ids.length + " staff in this export &middot; <strong>" + missingCount + "</strong> with no name (falling back to the Staff ID)." +
+        (missingCount ? " Tick &ldquo;Only missing names&rdquo; to focus on them." : "");
+      var onlyMissing = opts.onlyMissing && opts.onlyMissing.checked;
+      var f = (opts.search && opts.search.value ? opts.search.value : "").trim().toLowerCase();
+      var shown = ids.filter(function (id) {
+        var override = opts.nameMap[id] || "", exp = map[id] || "", missing = !(override || exp);
+        if (onlyMissing && !missing) return false;
+        if (f && (id + " " + override + " " + exp).toLowerCase().indexOf(f) === -1) return false;
+        return true;
+      });
+      if (!shown.length) { wrap.innerHTML = '<div class="empty">' + (onlyMissing ? "No staff are missing a name." : "No staff match your filter.") + "</div>"; return; }
+      wrap.innerHTML = '<table class="data"><thead><tr><th>Staff ID</th><th>Name</th></tr></thead><tbody>' +
+        shown.map(function (id) {
+          var override = opts.nameMap[id] || "", exp = map[id] || "", missing = !(override || exp);
+          var sub = exp ? '<span class="sid">export: ' + esc(exp) + "</span>" : "";
+          var ph = exp ? esc(exp) : "Add a name";
+          return '<tr' + (missing ? ' class="missing-row"' : "") + '><td class="staff-id">' + esc(id) + sub + "</td>" +
+            '<td><input type="text" class="name-input" data-sid="' + esc(id) + '" data-exp="' + esc(exp) + '" value="' + esc(override) + '" placeholder="' + ph + '" aria-label="Name for ' + esc(id) + '"></td></tr>';
+        }).join("") + "</tbody></table>";
+      wrap.querySelectorAll("input.name-input").forEach(function (inp) {
+        inp.addEventListener("input", function () {
+          var sid = inp.getAttribute("data-sid"), exp = inp.getAttribute("data-exp") || "", v = inp.value.trim();
+          if (v) opts.nameMap[sid] = v; else delete opts.nameMap[sid];
+          opts.onChange();
+          var tr = inp.closest("tr"); if (tr) tr.classList.toggle("missing-row", !(v || exp)); // keep focus: no full re-render
+        });
+      });
+    }
+    if (opts.search) opts.search.addEventListener("input", render);
+    if (opts.onlyMissing) opts.onlyMissing.addEventListener("change", render);
+    return { render: render };
+  }
+
+
+  /* ============================================================
+     Kit 2 runtime (added in 1.1.0). Pairs with report-kit-2.css;
+     the markup each helper expects is in framework/DESIGN.md.
+     Nothing above this line depends on it.
+     ============================================================ */
+
+  /* ---------- ids, dates, numbers ---------- */
+  function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+  // YYYY-MM-DD from the Date's LOCAL calendar fields (toISOString would give the UTC day)
+  function localDate(d) {
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  }
+  function today() { return localDate(new Date()); }
+  function fmtNum2(n) { return (Number(n) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+  function fmtWhole(n) { return Math.round(Number(n) || 0).toLocaleString(); }
+  // "AED 1,234.50"; whole=true drops the pence for headline figures
+  function fmtMoney(n, ccy, whole) { return (ccy ? ccy + " " : "") + (whole ? fmtWhole(n) : fmtNum2(n)); }
+
+  /* ---------- CSV ---------- */
+  var csv = {
+    // Excel needs a UTF-8 BOM to show non-ASCII characters (arrows, accents) correctly
+    BOM: "﻿",
+    escape: function (v) {
+      var s = v === null || v === undefined ? "" : String(v);
+      return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+    },
+    // stops a text cell starting with = + - @ being run as a formula; never use on numbers
+    safeText: function (v) {
+      var s = v === null || v === undefined ? "" : String(v);
+      return /^[=+\-@]/.test(s) ? "'" + s : s;
+    },
+    // rows: array of arrays (first row = headers), already safeText'd where needed
+    fromRows: function (rows) { return rows.map(function (r) { return r.map(csv.escape).join(","); }).join("\r\n"); }
+  };
+
+  /* ---------- modal / drawer ----------
+     modal(overlay, { onClose }) for a .modal-overlay holding a .modal (or .modal.drawer).
+     Adds role=dialog + aria-modal, moves focus into the dialog on open, Escape to close,
+     a Tab focus trap, focus back to the opener on close, and a dirty-form guard: a click
+     on the backdrop (including a text-selection drag that ends there) closes the dialog
+     only when nothing has been typed into it. onClose runs once per close.
+     Returns { open(opener?), close(), markClean(), isOpen() }. */
+  var FOCUSABLE = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+  function focusables(root) {
+    return Array.prototype.filter.call(root.querySelectorAll(FOCUSABLE), function (el) { return !el.disabled && el.offsetParent !== null; });
+  }
+  function modal(overlay, opts) {
+    opts = opts || {};
+    var box = overlay.querySelector(".modal");
+    box.setAttribute("role", "dialog");
+    box.setAttribute("aria-modal", "true");
+    if (!box.hasAttribute("tabindex")) box.setAttribute("tabindex", "-1");
+    var title = box.querySelector("h2");
+    if (title && !box.hasAttribute("aria-labelledby")) {
+      if (!title.id) title.id = "rk-dlg-" + uid();
+      box.setAttribute("aria-labelledby", title.id);
+    }
+    var dirty = false, opener = null, downOnBackdrop = false;
+    box.addEventListener("input", function () { dirty = true; });
+    box.addEventListener("change", function () { dirty = true; });
+    overlay.addEventListener("mousedown", function (e) { downOnBackdrop = e.target === overlay; });
+    overlay.addEventListener("mouseup", function (e) {
+      if (downOnBackdrop && e.target === overlay && !dirty) close();
+      downOnBackdrop = false;
+    });
+    overlay.addEventListener("keydown", function (e) {
+      if (overlay.hidden || (e.key !== "Escape" && e.key !== "Tab")) return;
+      if (e.key === "Escape") { e.stopPropagation(); close(); return; }
+      var f = focusables(box);
+      if (!f.length) { e.preventDefault(); return; }
+      var first = f[0], last = f[f.length - 1];
+      if (e.shiftKey && (document.activeElement === first || document.activeElement === box)) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    });
+    function close() {
+      if (overlay.hidden) return;
+      overlay.hidden = true;
+      dirty = false;
+      if (opts.onClose) opts.onClose();
+      if (opener && typeof opener.focus === "function" && document.contains(opener)) opener.focus();
+      opener = null;
+    }
+    return {
+      open: function (from) {
+        opener = from || document.activeElement;
+        dirty = false;
+        overlay.hidden = false;
+        // keyboard handling lives on the overlay, so focus must be inside it; callers
+        // that want a specific field focused can still .focus() it after open()
+        if (!box.contains(document.activeElement)) box.focus();
+      },
+      close: close,
+      markClean: function () { dirty = false; },
+      isOpen: function () { return !overlay.hidden; }
+    };
+  }
+
+  /* ---------- confirm dialog (in-page replacement for window.confirm) ----------
+     confirm(message, onConfirm, { okLabel, title, danger }). Builds its own markup on
+     first use. onConfirm runs only if the primary button is pressed. */
+  var confirmUi = null;
+  function confirmDialog(message, onConfirm, o) {
+    o = o || {};
+    if (!confirmUi) {
+      var ov = document.createElement("div");
+      ov.className = "modal-overlay"; ov.hidden = true;
+      ov.innerHTML = '<div class="modal modal-compact"><h2></h2><p class="modal-lead"></p>' +
+        '<div class="modal-actions"><button type="button" data-rk-cancel>Cancel</button><button type="button" class="primary" data-rk-ok>Continue</button></div></div>';
+      document.body.appendChild(ov);
+      var pending = null;
+      var ctl = modal(ov, { onClose: function () { pending = null; } });
+      ov.querySelector("[data-rk-cancel]").addEventListener("click", function () { ctl.close(); });
+      ov.querySelector("[data-rk-ok]").addEventListener("click", function () { var fn = pending; pending = null; ctl.close(); if (fn) fn(); });
+      confirmUi = { ov: ov, ctl: ctl, set: function (fn) { pending = fn; } };
+    }
+    var ok = confirmUi.ov.querySelector("[data-rk-ok]");
+    confirmUi.ov.querySelector("h2").textContent = o.title || "Are you sure?";
+    confirmUi.ov.querySelector(".modal-lead").textContent = message;
+    ok.textContent = o.okLabel || "Continue";
+    ok.className = "primary" + (o.danger ? " danger-fill" : "");
+    confirmUi.set(onConfirm);
+    confirmUi.ctl.open();
+    ok.focus();
+  }
+
+  /* ---------- choice chips that drive a hidden <select> ----------
+     One .chip button per <option>. Clicking sets the select and fires "change", so
+     listeners on the select keep working. Returns refresh(); call it after setting
+     the select's value in code. */
+  function chipsFromSelect(select, row, labelFor) {
+    var chips = [];
+    Array.prototype.forEach.call(select.options, function (opt) {
+      var b = document.createElement("button");
+      b.type = "button"; b.className = "chip";
+      b.setAttribute("data-chip-value", opt.value);
+      b.textContent = labelFor ? labelFor(opt.value, opt.textContent) : opt.textContent;
+      b.addEventListener("click", function () {
+        if (select.value === opt.value) return;
+        select.value = opt.value;
+        select.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+      row.appendChild(b);
+      chips.push({ value: opt.value, el: b });
+    });
+    function refresh() {
+      chips.forEach(function (c) {
+        var on = c.value === select.value;
+        c.el.classList.toggle("active", on);
+        c.el.setAttribute("aria-pressed", on ? "true" : "false");
+      });
+    }
+    select.addEventListener("change", refresh);
+    refresh();
+    return refresh;
+  }
+
+  /* ---------- sortable table headers ----------
+     sortable(table, state, onSort): every th[data-sort] toggles state.key / state.dir
+     (1 asc, -1 desc), keeps aria-sort and a .sort-arrow span in step, then onSort().
+     Returns update() to redraw the arrows after changing state in code. */
+  function sortable(table, state, onSort) {
+    var ths = table.querySelectorAll("th[data-sort]");
+    function update() {
+      Array.prototype.forEach.call(ths, function (th) {
+        var on = th.getAttribute("data-sort") === state.key, arrow = th.querySelector(".sort-arrow");
+        th.setAttribute("aria-sort", on ? (state.dir === 1 ? "ascending" : "descending") : "none");
+        if (arrow) arrow.textContent = on ? (state.dir === 1 ? " ▲" : " ▼") : "";
+      });
+    }
+    function activate(th) {
+      var key = th.getAttribute("data-sort");
+      if (state.key === key) state.dir *= -1; else { state.key = key; state.dir = 1; }
+      update(); onSort();
+    }
+    Array.prototype.forEach.call(ths, function (th) {
+      if (!th.hasAttribute("tabindex")) th.setAttribute("tabindex", "0");
+      if (!th.querySelector(".sort-arrow")) th.insertAdjacentHTML("beforeend", '<span class="sort-arrow"></span>');
+      th.addEventListener("click", function () { activate(th); });
+      th.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); activate(th); } });
+    });
+    update();
+    return update;
+  }
+
+  /* ---------- step segments (.step-segs) ----------
+     stepSegs(total, index): segments filled up to index; all green once the last
+     step is reached. */
+  function stepSegs(total, index) {
+    var html = "", done = index === total - 1;
+    for (var i = 0; i < total; i++) html += '<span class="step-seg' + (done ? " done" : (i <= index ? " filled" : "")) + '"></span>';
+    return html;
+  }
+
+  /* ---------- "/" focuses the search box ----------
+     Only when nothing else is taking keystrokes (a field focused or a dialog open)
+     and isActive() (optional) says the view with the search box is showing. */
+  function searchShortcut(input, isActive) {
+    window.addEventListener("keydown", function (e) {
+      if (e.key !== "/" || e.ctrlKey || e.metaKey || e.altKey) return;
+      var tag = (document.activeElement && document.activeElement.tagName || "").toLowerCase();
+      if (tag === "input" || tag === "select" || tag === "textarea") return;
+      if (isActive && !isActive()) return;
+      if (document.querySelector(".modal-overlay:not([hidden])")) return;
+      e.preventDefault();
+      input.focus();
+    });
+  }
+
+  return {
+    version: KIT_VERSION,
+    $: $, esc: esc, show: show, hide: hide,
+    round1: round1, round2: round2, fmtHrs: fmtHrs, nowIso: nowIso,
+    download: download, store: store, clipboard: clipboard,
+    upload: upload, xlsx: xlsx, rules: rules, NameEditor: NameEditor,
+    // kit 2 (1.1.0)
+    uid: uid, localDate: localDate, today: today,
+    fmtNum2: fmtNum2, fmtWhole: fmtWhole, fmtMoney: fmtMoney, csv: csv,
+    modal: modal, confirm: confirmDialog, chipsFromSelect: chipsFromSelect,
+    sortable: sortable, stepSegs: stepSegs, searchShortcut: searchShortcut
+  };
+})();
+</script>
+<script>
+(function () {
+  "use strict";
+
+  // ---------- Shared modal behaviour ----------
+  // Dialogs and drawers come from the Report Kit (RK.modal: role/aria, focus moved in
+  // on open, Escape, focus trap, focus returned to the opener, dirty-form guard on the
+  // backdrop). RK.confirm is the in-page replacement for window.confirm().
+  function bindModal(overlay, onClose) { return RK.modal(overlay, { onClose: onClose }); }
+  function showConfirm(message, onConfirm, okLabel) { RK.confirm(message, onConfirm, { okLabel: okLabel }); }
+
+  var STAGES = [
+    "Estimate received",
+    "Approved with business",
+    "CR raised",
+    "MRE raised",
+    "PO issued",
+    "Initial invoice received",
+    "Final invoice received",
+    "Closed"
+  ];
+  var INVOICE_STAGES = ["Initial invoice received", "Final invoice received"];
+  var STORE_KEY = "vendorSpendTracker.v1";
+  var BASE_CURRENCY = "AED";
+
+  // App version, shown in Settings. Follows semantic versioning (semver.org):
+  // MAJOR.MINOR.PATCH — increment MAJOR for breaking changes (e.g. a stored-data shape
+  // change that isn't handled by normaliseState's migration), MINOR for new
+  // user-facing features that stay backward compatible, PATCH for fixes with no
+  // behavior/schema change. Bump this by hand on each release; it is not read or
+  // written anywhere else, so changing it never affects stored data.
+  var APP_VERSION = "1.1.0";
+
+  // The 8-segment stage-progress bar used in the items table and the detail drawer:
+  // filled up to the current stage, all green once Closed.
+  function stageBarHtml(stage) {
+    return RK.stepSegs(STAGES.length, STAGES.indexOf(stage));
+  }
+  var DEFAULT_RATES = { AED: 1, USD: 3.673, GBP: 4.5, EUR: 4.1 };
+
+  var state = { budgets: [], items: [], vendors: [], settings: { rates: Object.assign({}, DEFAULT_RATES) } };
+
+  var uid = RK.uid;
+
+  var DERIVED_ITEM_FIELDS = ["budgetName", "vendorName", "currentAmountAed", "invoicedAmountAed"];
+
+  // Builds a clean state object from parsed JSON (storage, import, legacy). Never mutates
+  // the input. Returns null if the shape is not even minimally usable.
+  function normaliseState(parsed) {
+    if (!parsed || !Array.isArray(parsed.budgets) || !Array.isArray(parsed.items)) return null;
+
+    var out = {
+      budgets: parsed.budgets.map(function (b) {
+        return {
+          id: b.id,
+          name: b.name,
+          total: Number(b.total) || 0
+        };
+      }),
+      vendors: Array.isArray(parsed.vendors) ? parsed.vendors.map(function (v) {
+        return {
+          id: v.id,
+          name: v.name,
+          systemName: v.systemName || "",
+          defaultCurrency: v.defaultCurrency || BASE_CURRENCY,
+          defaultBudgetId: v.defaultBudgetId || ""
+        };
+      }) : [],
+      items: [],
+      settings: { rates: Object.assign({}, DEFAULT_RATES) }
+    };
+
+    if (parsed.settings && parsed.settings.rates) {
+      Object.assign(out.settings.rates, parsed.settings.rates);
+    }
+    out.settings.rates.AED = 1;
+    ["USD", "GBP", "EUR"].forEach(function (c) {
+      if (out.settings.rates[c] == null) out.settings.rates[c] = DEFAULT_RATES[c];
+    });
+
+    var validBudgetIds = {};
+    out.budgets.forEach(function (b) { validBudgetIds[b.id] = true; });
+    out.vendors.forEach(function (v) {
+      if (v.defaultBudgetId && !validBudgetIds[v.defaultBudgetId]) v.defaultBudgetId = "";
+    });
+
+    out.items = parsed.items.map(function (raw) {
+      var it = Object.assign({}, raw);
+      DERIVED_ITEM_FIELDS.forEach(function (f) { delete it[f]; });
+
+      // Validated against the known currency set, not just checked for presence —
+      // an unrecognised currency string (hand-edited or malformed import data) would
+      // otherwise flow into rateForItem/toAed, which silently fall back to rate 1 for
+      // any unknown code, quietly mis-converting the item's AED-equivalent figures.
+      if (DEFAULT_RATES[it.currency] == null) it.currency = BASE_CURRENCY;
+      if (STAGES.indexOf(it.stage) === -1) {
+        it.stage = STAGES[0];
+      }
+      if (!it.createdAt) {
+        it.createdAt = (it.dateEntered ? it.dateEntered + "T00:00:00.000Z" : nowIso());
+      }
+      if (!Array.isArray(it.notes)) {
+        var legacyText = (typeof it.notes === "string") ? it.notes.trim() : "";
+        it.notes = legacyText
+          ? legacyText.split("\n").filter(Boolean).map(function (line) {
+              return { timestamp: it.createdAt, text: line };
+            })
+          : [];
+      }
+      var isInvoiceStage = it.stage === "Final invoice received" || it.stage === "Closed" ||
+        INVOICE_STAGES.indexOf(it.stage) !== -1;
+      if (it.fxRate == null && isInvoiceStage) {
+        var r = out.settings.rates[it.currency];
+        it.fxRate = r == null ? 1 : r;
+      }
+      return it;
+    });
+
+    return out;
+  }
+
+  function saveCorruptCopy(raw) {
+    try {
+      localStorage.setItem(STORE_KEY + ".corrupt." + Date.now(), raw);
+    } catch (e) {
+      console.warn("Failed to preserve corrupt data", e);
+    }
+  }
+
+  var corruptDataWarning = null;
+
+  function load() {
+    try {
+      var raw = localStorage.getItem(STORE_KEY);
+      if (!raw) return;
+      var parsed;
+      try {
+        parsed = JSON.parse(raw);
+      } catch (parseErr) {
+        saveCorruptCopy(raw);
+        corruptDataWarning = "Stored data could not be read (invalid JSON) and has been preserved as a backup key in storage. Starting with an empty workspace.";
+        return;
+      }
+      var normalised = normaliseState(parsed);
+      if (!normalised) {
+        saveCorruptCopy(raw);
+        corruptDataWarning = "Stored data was in an unexpected format and has been preserved as a backup key in storage. Starting with an empty workspace.";
+        return;
+      }
+      state = normalised;
+    } catch (e) {
+      console.warn("Failed to load stored data", e);
+    }
+  }
+
+  function save() {
+    try {
+      localStorage.setItem(STORE_KEY, JSON.stringify(state));
+    } catch (e) {
+      alert("Could not save to browser storage. Your changes may not persist.");
+    }
+  }
+
+  function hasKnownRate(currency) {
+    return state.settings.rates[currency] != null;
+  }
+
+  // Rate used for an item's AED conversion: the item's locked fxRate once it has one
+  // (set when it reaches an invoice stage or Closed — see lockFxRateIfNeeded), otherwise
+  // the live current rate for its currency.
+  function rateForItem(it) {
+    if (it && it.fxRate != null) return it.fxRate;
+    var rate = state.settings.rates[it ? it.currency : null];
+    return rate == null ? 1 : rate;
+  }
+
+  function toAed(amount, currency) {
+    var rate = state.settings.rates[currency];
+    if (rate == null) rate = 1;
+    return (Number(amount) || 0) * rate;
+  }
+
+  function itemAed(it, field) {
+    return (Number(it[field]) || 0) * rateForItem(it);
+  }
+
+  var LOCKED_STAGES = ["Final invoice received", "Closed"];
+
+  function isLockedStage(stage) {
+    return LOCKED_STAGES.indexOf(stage) !== -1 || INVOICE_STAGES.indexOf(stage) !== -1;
+  }
+
+  // ---------- Stuck-item detection ----------
+  // An item is "stuck" if it has sat in a non-starting, non-closed stage without any
+  // update (edit, note, or stage advance all touch dateUpdated) for STALE_DAYS_THRESHOLD
+  // days or more. "Estimate received" is excluded: a fresh estimate sitting unapproved
+  // isn't actionable in the same way a raised CR/MRE or an issued PO silently going
+  // nowhere is, so flagging it would just add noise.
+  var STALE_DAYS_THRESHOLD = 30;
+
+  function daysSinceUpdated(it) {
+    if (!it.dateUpdated) return 0;
+    var updated = new Date(it.dateUpdated + "T00:00:00");
+    if (isNaN(updated.getTime())) return 0;
+    var diffMs = new Date(todayStr() + "T00:00:00") - updated;
+    return Math.max(0, Math.round(diffMs / 86400000));
+  }
+
+  function isStuckItem(it) {
+    if (it.stage === "Closed" || it.stage === "Estimate received") return false;
+    return daysSinceUpdated(it) >= STALE_DAYS_THRESHOLD;
+  }
+
+  // Snapshots the item's fxRate the first time it reaches an invoice/closed stage, so
+  // later rate changes do not revalue history. No-op once already locked.
+  function lockFxRateIfNeeded(it) {
+    if (it.fxRate == null && isLockedStage(it.stage)) {
+      var r = state.settings.rates[it.currency];
+      it.fxRate = r == null ? 1 : r;
+    }
+  }
+
+  // The fxRate to carry forward when editing an existing item into `nextData` (which
+  // already has its new currency/stage set): the old locked rate stays valid only if
+  // both the currency is unchanged AND the item is still at a locked stage — otherwise
+  // it must be cleared so lockFxRateIfNeeded() re-locks fresh (or leaves it unlocked for
+  // an open stage) instead of silently reusing a rate that no longer applies.
+  function fxRateToCarryForward(existingItem, nextData) {
+    return (existingItem && existingItem.currency === nextData.currency && isLockedStage(nextData.stage))
+      ? existingItem.fxRate : null;
+  }
+
+  var fmtNum = RK.fmtNum2;
+
+  function fmt(n, currency) {
+    var code = currency || BASE_CURRENCY;
+    return code + " " + fmtNum(n);
+  }
+
+  function fmtAed(n) {
+    return fmt(n, "AED");
+  }
+
+  // Whole-AED display for the budget cards only — visual rounding, no change to any
+  // stored or computed value (fmtAed/itemAed/budgetSpend are untouched).
+  function fmtAedWhole(n) {
+    return RK.fmtMoney(n, "AED", true);
+  }
+
+  var localDateStr = RK.localDate;
+  var todayStr = RK.today;
+  var nowIso = RK.nowIso;
+
+  var ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
+
+  function isValidId(id) {
+    return typeof id === "string" && ID_RE.test(id);
+  }
+
+  // ---------- Budget computations ----------
+
+  // Pipeline: estimates not yet approved. Committed: approved through initial invoice,
+  // net of anything already invoiced, zeroed once the item reaches a locked stage (final
+  // invoice / closed) so underspend does not stay committed forever. Invoiced: always counted.
+  function budgetSpend(budgetId, excludeItemId) {
+    var pipeline = 0, committed = 0, invoiced = 0;
+    state.items.forEach(function (it) {
+      if (it.budgetId !== budgetId) return;
+      if (excludeItemId && it.id === excludeItemId) return;
+      var cur = itemAed(it, "currentAmount");
+      var inv = itemAed(it, "invoicedAmount");
+      invoiced += inv;
+
+      if (it.stage === "Estimate received") {
+        pipeline += Math.max(cur - inv, 0);
+      } else if (LOCKED_STAGES.indexOf(it.stage) === -1) {
+        committed += Math.max(cur - inv, 0);
+      }
+    });
+    return {
+      pipeline: pipeline,
+      committed: committed,
+      invoiced: invoiced,
+      total: committed + invoiced,
+      totalWithPipeline: pipeline + committed + invoiced
+    };
+  }
+
+  // The timestamp an item first reached an invoice stage, taken from its own activity
+  // log — matches both the "Advanced X → Initial invoice received[: note]" entry
+  // finishAdvance writes and the "Stage changed (via Edit) X → Y" entry the item-edit
+  // handler writes. Not derived from current state, so it stays correct even if the
+  // item has since moved on to Final invoice received or Closed.
+  var FIRST_INVOICE_NOTE_RE = /→ (Initial invoice received|Final invoice received)(:|$)/;
+
+  function firstInvoiceTimestamp(it) {
+    if (!Array.isArray(it.notes)) return null;
+    for (var i = 0; i < it.notes.length; i++) {
+      if (FIRST_INVOICE_NOTE_RE.test(it.notes[i].text || "")) return it.notes[i].timestamp;
+    }
+    return null;
+  }
+
+  // Rollup for the vendor scorecard drawer: spend split (mirrors budgetSpend, keyed by
+  // vendor instead of budget), item count per stage, and average days from an item's
+  // creation to its first invoice-stage note (only over items that have reached one —
+  // open pipeline/approval items have no invoice date yet to measure).
+  function vendorStats(vendorId) {
+    var pipeline = 0, committed = 0, invoiced = 0;
+    var stageCounts = {};
+    STAGES.forEach(function (s) { stageCounts[s] = 0; });
+    var items = [];
+    var timeToInvoiceDaysSum = 0, timeToInvoiceCount = 0;
+
+    state.items.forEach(function (it) {
+      if (it.vendorId !== vendorId) return;
+      items.push(it);
+      stageCounts[it.stage] = (stageCounts[it.stage] || 0) + 1;
+
+      var cur = itemAed(it, "currentAmount");
+      var inv = itemAed(it, "invoicedAmount");
+      invoiced += inv;
+      if (it.stage === "Estimate received") {
+        pipeline += Math.max(cur - inv, 0);
+      } else if (LOCKED_STAGES.indexOf(it.stage) === -1) {
+        committed += Math.max(cur - inv, 0);
+      }
+
+      var invoicedAt = firstInvoiceTimestamp(it);
+      if (invoicedAt && it.createdAt) {
+        var days = (new Date(invoicedAt) - new Date(it.createdAt)) / 86400000;
+        if (!isNaN(days) && days >= 0) {
+          timeToInvoiceDaysSum += days;
+          timeToInvoiceCount++;
+        }
+      }
+    });
+
+    return {
+      pipeline: pipeline,
+      committed: committed,
+      invoiced: invoiced,
+      items: items,
+      stageCounts: stageCounts,
+      avgDaysToInvoice: timeToInvoiceCount > 0 ? timeToInvoiceDaysSum / timeToInvoiceCount : null
+    };
+  }
+
+  function budgetStatus(pctUsed, total, spendTotal) {
+    if (total <= 0 && spendTotal > 0) return "red";
+    if (pctUsed >= 100) return "red";
+    if (pctUsed >= 80) return "yellow";
+    return "green";
+  }
+
+  // Single source of truth for how a budgetStatus() value ("red"/"yellow"/"green") maps
+  // to presentation — pill class/label, bar color, settings-list % color, and the
+  // impact-preview's status class. Every renderer that needs a status->visual mapping
+  // should read from here rather than re-deriving its own ternary chain, so adding a
+  // tier or changing a color only needs one edit.
+  function statusVisuals(status) {
+    return {
+      pillClass: status === "red" ? "pill-red" : status === "yellow" ? "pill-yellow" : "pill-green",
+      pillLabel: status === "red" ? "Over" : status === "yellow" ? "Watch" : "On track",
+      barColor: status === "red" ? "var(--red)" : status === "yellow" ? "var(--yellow)" : "var(--green)",
+      pctColor: status === "red" ? "var(--red)" : status === "yellow" ? "var(--yellow-fg)" : "var(--green-fg)",
+      statusClass: status === "red" ? "status-red" : status === "yellow" ? "status-yellow" : "status-green"
+    };
+  }
+
+  // ---------- Rendering: Budgets ----------
+
+  // Which budget the dashboard cards are filtering the list to, if any. Kept in sync
+  // both ways with the #filterBudget <select> (clicking a card updates the select;
+  // changing the select clears/sets the active card) so the two controls never disagree.
+  var budgetFilterCard = null;
+
+  // The calendar year the current fiscal year started in (fiscal year runs Apr 1 - Mar
+  // 31). Shared by fiscalYearLabel() and fiscalYearStartStr() so the "fiscal year starts
+  // in April" rule lives in exactly one place.
+  function currentFiscalYearStartYear() {
+    var now = new Date();
+    var year = now.getFullYear();
+    var aprilFirstThisYear = new Date(year, 3, 1);
+    if (now < aprilFirstThisYear) year -= 1;
+    return year;
+  }
+
+  function fiscalYearLabel() {
+    return "FY" + (currentFiscalYearStartYear() + 1);
+  }
+
+  function renderBudgets() {
+    var grid = document.getElementById("budgetGrid");
+    grid.innerHTML = "";
+
+    var grandTotal = 0, grandSpend = 0;
+
+    if (state.budgets.length === 0) {
+      grid.innerHTML = '<div class="hint">No budgets yet. Add one in Settings, under Budgets (e.g. per vendor or category).</div>';
+    }
+
+    state.budgets.forEach(function (b) {
+      var spend = budgetSpend(b.id);
+      var total = Number(b.total) || 0;
+      grandTotal += total;
+      grandSpend += spend.total;
+      var pct = total > 0 ? (spend.total / total) * 100 : 0;
+      var status = budgetStatus(pct, total, spend.total);
+      var remaining = total - spend.total;
+
+      var card = document.createElement("div");
+      card.className = "stat-card" + (budgetFilterCard === b.id ? " active" : "");
+      card.setAttribute("data-budget-filter", b.id);
+      card.setAttribute("role", "button");
+      card.setAttribute("tabindex", "0");
+      card.setAttribute("aria-pressed", budgetFilterCard === b.id ? "true" : "false");
+      card.setAttribute("aria-label", "Show only " + b.name + " line items");
+
+      var visuals = statusVisuals(status);
+      var pillClass = visuals.pillClass, pillLabel = visuals.pillLabel;
+      // One scale for every segment (the budget, or the spend once it runs past it), so
+      // the bar reads the same as the legend and the limit tick sits at the real 100%.
+      var scale = Math.max(total, spend.totalWithPipeline, 1);
+      function seg(v, cls) { return v > 0 ? "<div class='bar-fill " + cls + "' style='width:" + (v / scale * 100) + "%'></div>" : ""; }
+      var limitTick = spend.totalWithPipeline > total && total > 0
+        ? "<div class='bar-limit' style='left:" + (total / scale * 100) + "%' title='Budget limit'></div>" : "";
+
+      card.innerHTML =
+        '<div class="stat-card-name">' +
+          '<span>' + escapeHtml(b.name) + '</span>' +
+          '<span class="status-pill ' + pillClass + '">' + pillLabel + '</span>' +
+        '</div>' +
+        '<div class="stat-card-figure">' +
+          '<span class="stat-card-value">' + pct.toFixed(0) + '%</span>' +
+          '<span class="stat-card-of">of ' + fmtAedWhole(total) + '</span>' +
+        '</div>' +
+        '<div class="bar-track">' + seg(spend.invoiced, "solid") + seg(spend.committed, "hatched") + seg(spend.pipeline, "tint") + limitTick + '</div>' +
+        '<div class="stat-card-nums">' +
+          '<span>Pipeline<span class="stat-card-num">' + fmtAedWhole(spend.pipeline) + '</span></span>' +
+          '<span>Committed<span class="stat-card-num">' + fmtAedWhole(spend.committed) + '</span></span>' +
+          '<span>Invoiced<span class="stat-card-num">' + fmtAedWhole(spend.invoiced) + '</span></span>' +
+          '<span>Remaining<span class="stat-card-num' + (remaining < 0 ? ' neg' : '') + '">' + fmtAedWhole(remaining) + '</span></span>' +
+        '</div>';
+
+      grid.appendChild(card);
+    });
+
+    var grandPct = grandTotal > 0 ? Math.round((grandSpend / grandTotal) * 100) : 0;
+    document.getElementById("budgetSummarySub").textContent = fiscalYearLabel() + " budgets · " + grandPct + "% used";
+    document.getElementById("budgetSummaryMain").textContent =
+      fmtAed(grandSpend) + " of " + fmtAed(grandTotal) + " committed or invoiced";
+
+    // keep budget filter + form select in sync
+    var filterSel = document.getElementById("filterBudget");
+    var currentFilterVal = budgetFilterCard || filterSel.value;
+    fillOptions(filterSel, state.budgets, '<option value="">All budgets</option>');
+    filterSel.value = currentFilterVal;
+    if (!state.budgets.some(function (b) { return b.id === budgetFilterCard; })) budgetFilterCard = null;
+
+    var chip = document.getElementById("budgetChip");
+    if (budgetFilterCard) {
+      chip.hidden = false;
+      chip.innerHTML = escapeHtml(budgetNameFor(budgetFilterCard)) + " <span class='filter-chip-x' aria-hidden='true'>×</span>";
+    } else {
+      chip.hidden = true;
+    }
+
+    var formSel = document.getElementById("f_budgetId");
+    var currentFormVal = formSel.value;
+    fillOptions(formSel, state.budgets);
+    formSel.value = currentFormVal;
+  }
+
+  function clearBudgetFilter() {
+    budgetFilterCard = null;
+    document.getElementById("filterBudget").value = "";
+    renderAll();
+  }
+
+  function toggleBudgetCard(card) {
+    var id = card.getAttribute("data-budget-filter");
+    budgetFilterCard = budgetFilterCard === id ? null : id;
+    document.getElementById("filterBudget").value = budgetFilterCard || "";
+    renderAll();
+    var again = document.querySelector('[data-budget-filter="' + id + '"]');
+    if (again) again.focus();
+  }
+  document.getElementById("budgetGrid").addEventListener("click", function (e) {
+    var card = e.target.closest("[data-budget-filter]");
+    if (card) toggleBudgetCard(card);
+  });
+  document.getElementById("budgetGrid").addEventListener("keydown", function (e) {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    var card = e.target.closest("[data-budget-filter]");
+    if (!card) return;
+    e.preventDefault();
+    toggleBudgetCard(card);
+  });
+
+  document.getElementById("budgetChip").addEventListener("click", clearBudgetFilter);
+
+  document.getElementById("filterBudget").addEventListener("change", function () {
+    budgetFilterCard = this.value || null;
+    renderAll();
+  });
+
+  // ---------- Rendering: Items table ----------
+
+  var sortState = { key: "createdAt", dir: -1 };
+
+  var escapeHtml = RK.esc;
+
+  function budgetNameFor(id) {
+    var b = state.budgets.find(function (x) { return x.id === id; });
+    return b ? b.name : "(deleted budget)";
+  }
+
+  function vendorNameFor(id) {
+    var v = state.vendors.find(function (x) { return x.id === id; });
+    return v ? v.name : "(deleted vendor)";
+  }
+
+  var AMOUNT_SORT_KEYS = ["currentAmount", "invoicedAmount", "currentAmountAed", "invoicedAmountAed"];
+
+  // Groups the 8 STAGES into the 4 phases shown as tabs above the table. Purely a
+  // display/filter grouping — it.stage itself always stays one of the 8 real stages.
+  var PHASES = [
+    { key: "all", label: "All" },
+    { key: "approval", label: "Approval" },
+    { key: "ordered", label: "Ordered" },
+    { key: "invoicing", label: "Invoicing" },
+    { key: "closed", label: "Closed" }
+  ];
+  function phaseOfStage(stage) {
+    var i = STAGES.indexOf(stage);
+    if (i <= 3) return "approval";
+    if (i === 4) return "ordered";
+    if (i <= 6) return "invoicing";
+    return "closed";
+  }
+
+  var phaseFilter = "all";
+
+  // Toggled by the "⚠ Stuck" chip; when true the table shows only isStuckItem() rows,
+  // on top of whatever other filters are active (same relationship as budgetFilterCard).
+  var stuckFilter = false;
+
+  // Returns rows of {item, sortKeys} where sortKeys carries the derived values used only
+  // for sorting/display, so nothing is ever written back onto the stored item object.
+  // `opts.ignorePhase` computes counts for the phase tabs themselves (each tab's count
+  // reflects the other active filters but not the phase filter, so switching tabs never
+  // changes another tab's displayed count).
+  function getFilteredSortedItems(opts) {
+    opts = opts || {};
+    var search = document.getElementById("searchBox").value.trim().toLowerCase();
+    var budgetFilter = budgetFilterCard || document.getElementById("filterBudget").value;
+    var stageFilter = document.getElementById("filterStage").value;
+
+    var filtered = state.items.filter(function (it) {
+      if (budgetFilter && it.budgetId !== budgetFilter) return false;
+      if (stageFilter && it.stage !== stageFilter) return false;
+      if (!opts.ignorePhase && phaseFilter !== "all" && phaseOfStage(it.stage) !== phaseFilter) return false;
+      if (!opts.ignoreStuck && stuckFilter && !isStuckItem(it)) return false;
+      if (search) {
+        var notesText = (it.notes || []).map(function (n) { return n.text; }).join(" ");
+        var hay = [vendorNameFor(it.vendorId), it.description, it.poNumber, it.owner, notesText].join(" ").toLowerCase();
+        if (hay.indexOf(search) === -1) return false;
+      }
+      return true;
+    });
+
+    var rows = filtered.map(function (it) {
+      return {
+        item: it,
+        budgetName: budgetNameFor(it.budgetId),
+        vendorName: vendorNameFor(it.vendorId),
+        currentAmountAed: itemAed(it, "currentAmount"),
+        invoicedAmountAed: itemAed(it, "invoicedAmount")
+      };
+    });
+
+    rows.sort(function (a, b) {
+      var key = sortState.key;
+      var ka, kb;
+      if (key === "stage") {
+        ka = STAGES.indexOf(a.item.stage);
+        kb = STAGES.indexOf(b.item.stage);
+      } else if (AMOUNT_SORT_KEYS.indexOf(key) !== -1) {
+        ka = Number(key in a ? a[key] : a.item[key]) || 0;
+        kb = Number(key in b ? b[key] : b.item[key]) || 0;
+      } else {
+        var va = key in a ? a[key] : a.item[key];
+        var vb = key in b ? b[key] : b.item[key];
+        ka = (va || "").toString().toLowerCase();
+        kb = (vb || "").toString().toLowerCase();
+      }
+      if (ka < kb) return -1 * sortState.dir;
+      if (ka > kb) return 1 * sortState.dir;
+      return 0;
+    });
+
+    return rows;
+  }
+
+  // AED-primary / native-currency-secondary stacked amount cell. If the item's native
+  // currency is AED there's nothing to demote, so only the one figure is shown.
+  function amtCellAedPrimary(aedAmount, nativeAmount, nativeCcy) {
+    var secondary = nativeCcy && nativeCcy !== "AED"
+      ? "<span class='amt-native'>" + escapeHtml(nativeCcy) + " " + fmtNum(nativeAmount) + "</span>" : "";
+    return "<span class='amt-wrap'><span class='amt-value'>" + fmtNum(aedAmount) + "</span>" + secondary + "</span>";
+  }
+
+  function renderPhaseTabs() {
+    var wrap = document.getElementById("phaseTabs");
+    var counts = {};
+    PHASES.forEach(function (p) { counts[p.key] = 0; });
+    var baseRows = getFilteredSortedItems({ ignorePhase: true });
+    counts.all = baseRows.length;
+    baseRows.forEach(function (row) { counts[phaseOfStage(row.item.stage)]++; });
+
+    wrap.innerHTML = PHASES.map(function (p) {
+      return "<button type='button' class='seg-tab" + (phaseFilter === p.key ? " active" : "") + "' data-phase='" + p.key + "'>" +
+        escapeHtml(p.label) + " <span class='seg-tab-count'>" + counts[p.key] + "</span></button>";
+    }).join("");
+  }
+
+  document.getElementById("phaseTabs").addEventListener("click", function (e) {
+    var btn = e.target.closest("[data-phase]");
+    if (!btn) return;
+    phaseFilter = btn.getAttribute("data-phase");
+    renderItems();
+  });
+
+  // Count ignores the phase/stuck filters themselves (same reasoning as the phase tab
+  // counts) so the chip's number reflects all stuck items under the current
+  // budget/stage/search filters, regardless of whether the chip itself is toggled on.
+  function renderStuckChip() {
+    var chip = document.getElementById("stuckChip");
+    var count = getFilteredSortedItems({ ignorePhase: true, ignoreStuck: true })
+      .filter(function (row) { return isStuckItem(row.item); }).length;
+    if (count === 0 && !stuckFilter) {
+      chip.hidden = true;
+      return;
+    }
+    chip.hidden = false;
+    chip.classList.toggle("active", stuckFilter);
+    chip.textContent = "⚠ " + count + " stuck";
+    chip.setAttribute("aria-pressed", stuckFilter ? "true" : "false");
+    chip.title = "Not updated in " + STALE_DAYS_THRESHOLD + "+ days (excludes Estimate received and Closed)";
+  }
+
+  document.getElementById("stuckChip").addEventListener("click", function () {
+    stuckFilter = !stuckFilter;
+    renderItems();
+  });
+
+  function renderItems() {
+    var body = document.getElementById("itemsBody");
+    renderPhaseTabs();
+    renderStuckChip();
+    var rows = getFilteredSortedItems();
+    body.innerHTML = "";
+
+    var empty = document.getElementById("emptyState");
+    empty.hidden = rows.length !== 0;
+    empty.textContent = state.items.length === 0
+      ? 'No line items yet. Click "+ New line item" to add one.'
+      : "No line items match these filters.";
+
+    var listTotal = rows.reduce(function (t, row) { return t + row.currentAmountAed; }, 0);
+    document.getElementById("listMeta").textContent =
+      rows.length + " item" + (rows.length === 1 ? "" : "s") + " · " + fmtAed(listTotal);
+
+    rows.forEach(function (row) {
+      var it = row.item;
+      var unknownCcy = !hasKnownRate(it.currency);
+      var isClosed = it.stage === "Closed";
+      var stuck = isStuckItem(it);
+      var tr = document.createElement("tr");
+      tr.className = "clickable";
+      tr.setAttribute("data-detail-item", it.id);
+      tr.setAttribute("tabindex", "0");
+      tr.setAttribute("role", "button");
+      tr.setAttribute("aria-label", "View details for " + (it.description || "line item"));
+      tr.innerHTML =
+        "<td class='wrap-cell'>" +
+          "<button type='button' class='cell-title link-action' data-vendor-open='" + escapeHtml(it.vendorId) + "'>" + escapeHtml(row.vendorName) + "</button>" +
+          "<span class='cell-sub'>" + escapeHtml(it.description || "(no description)") + "</span>" +
+        "</td>" +
+        "<td>" + escapeHtml(row.budgetName) + "</td>" +
+        "<td class='wrap-cell'><div class='steps'>" +
+          "<div class='steps-top'><span class='steps-label'>" + escapeHtml(it.stage) + "</span><span class='steps-count'>" + (STAGES.indexOf(it.stage) + 1) + "/" + STAGES.length + "</span></div>" +
+          "<div class='step-segs'>" + stageBarHtml(it.stage) + "</div>" +
+          (stuck ? "<span class='status-pill pill-yellow' title='No update in " + daysSinceUpdated(it) + " days'>⚠ " + daysSinceUpdated(it) + "d idle</span>" : "") +
+        "</div></td>" +
+        "<td class='amt'>" + amtCellAedPrimary(row.currentAmountAed, it.currentAmount, it.currency) + (unknownCcy ? " <span class='status-pill pill-red' title='Unknown currency, rate 1 used'>?</span>" : "") + "</td>" +
+        "<td class='amt'>" + amtCellAedPrimary(row.invoicedAmountAed, it.invoicedAmount, it.currency) + "</td>" +
+        "<td>" + escapeHtml(it.dateUpdated) + "</td>" +
+        "<td class='row-actions'>" +
+          (isClosed
+            ? "<span class='row-done-label'>✓ Closed</span>"
+            : "<button type='button' class='row-action-btn' aria-label='Advance stage of " + escapeHtml(it.description || "line item") + "' data-advance-item='" + escapeHtml(it.id) + "'>Advance →</button>") +
+        "</td>";
+      body.appendChild(tr);
+    });
+  }
+
+  function renderAll() {
+    renderBudgets();
+    renderItems();
+  }
+
+  // ---------- Item modal ----------
+
+  var itemModal = document.getElementById("itemModalOverlay");
+  var itemForm = document.getElementById("itemForm");
+  var itemModalCtl = bindModal(itemModal, function () { itemForm.reset(); });
+
+  // A chip per <option> of a hidden <select>, kept in sync both ways (RK.chipsFromSelect).
+  // Call the returned refresh() after setting the select's value in code.
+  var enhanceSelectAsChips = RK.chipsFromSelect;
+
+  // Short chip labels for the stage picker, taken from the design mockup's own short
+  // forms (e.g. "Approved with business" -> "Approved"). The underlying <select> still
+  // uses the full stage name as its value, so STAGES/stage comparisons elsewhere are
+  // unaffected — this only changes what the chip button displays.
+  var STAGE_SHORT = {
+    "Estimate received": "Estimate",
+    "Approved with business": "Approved",
+    "CR raised": "CR raised",
+    "MRE raised": "MRE raised",
+    "PO issued": "PO issued",
+    "Initial invoice received": "Initial invoice",
+    "Final invoice received": "Final invoice",
+    "Closed": "Closed"
+  };
+
+  var refreshStageChips = enhanceSelectAsChips(document.getElementById("f_stage"), document.getElementById("f_stageChips"), function (value) {
+    return STAGE_SHORT[value] || value;
+  });
+  var refreshCurrencyChips = enhanceSelectAsChips(document.getElementById("f_currency"), document.getElementById("f_currencyChips"));
+
+  // Clears selectEl and appends one <option> per item ({id, name} — a budget, vendor,
+  // or the generic {id,name} shape openReassignModal builds from either). placeholderHtml,
+  // if given, is set as the select's starting innerHTML (e.g. an "All budgets" or
+  // "(none)" option) before the real options are appended.
+  function fillOptions(selectEl, items, placeholderHtml) {
+    selectEl.innerHTML = placeholderHtml || "";
+    items.forEach(function (item) {
+      var opt = document.createElement("option");
+      opt.value = item.id;
+      opt.textContent = item.name;
+      selectEl.appendChild(opt);
+    });
+  }
+
+  function populateVendorSelect(selectEl, selectedId) {
+    var current = selectedId !== undefined ? selectedId : selectEl.value;
+    fillOptions(selectEl, state.vendors);
+    selectEl.value = current;
+  }
+
+  // Shows/hides the "✓ Currency X and budget Y filled from vendor defaults" line under
+  // the Vendor/Budget row. Only ever shown for new items right after a vendor's
+  // defaults were just applied; cleared as soon as the user edits currency or budget
+  // by hand, so it never claims a default that no longer reflects the form.
+  function showAutofillHint(v) {
+    var hint = document.getElementById("f_autofillHint");
+    if (!v) { hint.hidden = true; return; }
+    var budgetId = document.getElementById("f_budgetId").value;
+    hint.textContent = "✓ Currency " + v.defaultCurrency + " and budget " + budgetNameFor(budgetId) + " filled from vendor defaults";
+    hint.hidden = false;
+  }
+  function hideAutofillHint() {
+    document.getElementById("f_autofillHint").hidden = true;
+  }
+
+  function setClosedChipVisible(visible) {
+    var chip = document.querySelector("#f_stageChips [data-chip-value='Closed']");
+    if (chip) chip.hidden = !visible;
+  }
+
+  function openItemModal(item) {
+    if (state.vendors.length === 0) {
+      alert("Create a vendor first in Settings before adding line items.");
+      return;
+    }
+    if (state.budgets.length === 0) {
+      alert("Create a budget first before adding line items.");
+      return;
+    }
+
+    document.getElementById("itemModalTitle").textContent = item ? "Edit line item" : "New line item";
+    document.getElementById("f_stageLabel").textContent = item ? "Stage" : "Starting stage";
+    document.getElementById("itemId").value = item ? item.id : "";
+    populateVendorSelect(document.getElementById("f_vendor"), item ? item.vendorId : state.vendors[0].id);
+    document.getElementById("f_description").value = item ? item.description : "";
+    document.getElementById("f_stage").value = item ? item.stage : STAGES[0];
+    document.getElementById("f_owner").value = item ? item.owner : "";
+    var autofilledVendor = null;
+    if (!item) {
+      var v = state.vendors.find(function (x) { return x.id === document.getElementById("f_vendor").value; });
+      document.getElementById("f_currency").value = v ? v.defaultCurrency : "AED";
+      document.getElementById("f_budgetId").value = (v && v.defaultBudgetId) ? v.defaultBudgetId : (state.budgets[0] ? state.budgets[0].id : "");
+      autofilledVendor = v;
+    } else {
+      document.getElementById("f_currency").value = item.currency || "AED";
+      document.getElementById("f_budgetId").value = item.budgetId;
+    }
+    document.getElementById("f_currentAmount").value = item ? item.currentAmount : "";
+    document.getElementById("f_invoicedAmount").value = item ? item.invoicedAmount : "";
+    document.getElementById("f_poNumber").value = item ? item.poNumber : "";
+    document.getElementById("f_dateEntered").value = item ? item.dateEntered : todayStr();
+    refreshStageChips();
+    refreshCurrencyChips();
+    setClosedChipVisible(!!item);
+    showAutofillHint(autofilledVendor);
+    updateAedPreview();
+    updateImpactPreview();
+
+    itemModalCtl.open();
+    document.getElementById("f_vendor").focus();
+  }
+
+  document.getElementById("f_vendor").addEventListener("change", function () {
+    if (document.getElementById("itemId").value) return;
+    var v = state.vendors.find(function (x) { return x.id === document.getElementById("f_vendor").value; });
+    if (v) {
+      document.getElementById("f_currency").value = v.defaultCurrency;
+      refreshCurrencyChips();
+      if (v.defaultBudgetId) document.getElementById("f_budgetId").value = v.defaultBudgetId;
+      showAutofillHint(v);
+      updateAedPreview();
+      updateImpactPreview();
+    }
+  });
+
+  ["f_currency", "f_budgetId"].forEach(function (id) {
+    document.getElementById(id).addEventListener("change", function () {
+      if (!document.getElementById("itemId").value) hideAutofillHint();
+    });
+  });
+
+  function closeItemModal() {
+    itemModalCtl.close();
+  }
+
+  function updateAedPreview() {
+    var currency = document.getElementById("f_currency").value;
+    var cur = parseFloat(document.getElementById("f_currentAmount").value) || 0;
+    var inv = parseFloat(document.getElementById("f_invoicedAmount").value) || 0;
+    document.getElementById("f_invoicedAmountTag").textContent = currency;
+    if (currency === "AED") {
+      document.getElementById("aedPreview").textContent = "";
+      return;
+    }
+    document.getElementById("aedPreview").textContent =
+      "AED equivalent — Current: " + fmtAed(toAed(cur, currency)) + ", Invoiced: " + fmtAed(toAed(inv, currency)) +
+      " (rate: 1 " + currency + " = " + (state.settings.rates[currency] || 1) + " AED)";
+  }
+  document.getElementById("f_currency").addEventListener("change", updateAedPreview);
+  document.getElementById("f_currentAmount").addEventListener("input", updateAedPreview);
+  document.getElementById("f_invoicedAmount").addEventListener("input", updateAedPreview);
+
+  // Live "Impact on <budget>" preview: shows what this item's amount would do to its
+  // budget's committed/invoiced % if saved as-is. Excludes the item's own prior
+  // contribution (via budgetSpend's excludeItemId) when editing, so the "before" figure
+  // reflects the budget without this item rather than double-counting it.
+  function updateImpactPreview() {
+    var box = document.getElementById("f_impactBox");
+    var budgetId = document.getElementById("f_budgetId").value;
+    var currency = document.getElementById("f_currency").value;
+    var cur = parseFloat(document.getElementById("f_currentAmount").value) || 0;
+    var addAed = toAed(cur, currency);
+    var budget = state.budgets.find(function (b) { return b.id === budgetId; });
+
+    if (!budget || addAed <= 0) {
+      box.hidden = true;
+      return;
+    }
+
+    var editingId = document.getElementById("itemId").value || null;
+    var spend = budgetSpend(budgetId, editingId);
+    var total = Number(budget.total) || 0;
+    var before = spend.total;
+    var after = before + addAed;
+    var scale = Math.max(total, after, 1);
+    var afterPct = total > 0 ? (after / total) * 100 : 0;
+    var beforePct = total > 0 ? (before / total) * 100 : 0;
+    var left = total - after;
+    var status = budgetStatus(afterPct, total, after);
+    var statusClass = statusVisuals(status).statusClass;
+
+    box.hidden = false;
+    document.getElementById("f_impactBudgetName").textContent = budget.name;
+    document.getElementById("f_impactPct").innerHTML =
+      beforePct.toFixed(0) + "% → <b>" + afterPct.toFixed(0) + "%</b>";
+    document.getElementById("f_impactFillInvoiced").style.width = (spend.invoiced / scale * 100) + "%";
+    document.getElementById("f_impactFillCommitted").style.width = (spend.committed / scale * 100) + "%";
+    var newFill = document.getElementById("f_impactFillNew");
+    newFill.style.width = (addAed / scale * 100) + "%";
+    newFill.className = "bar-fill " + statusClass;
+    document.getElementById("f_impactMsg").textContent =
+      status === "red" ? "This takes the budget over by " + fmtAed(-left) + "."
+      : status === "yellow" ? "This pushes the budget past 80% (Watch). " + fmtAed(left) + " left afterwards."
+      : fmtAed(left) + " left afterwards.";
+  }
+  document.getElementById("f_currency").addEventListener("change", updateImpactPreview);
+  document.getElementById("f_currentAmount").addEventListener("input", updateImpactPreview);
+  document.getElementById("f_budgetId").addEventListener("change", updateImpactPreview);
+
+  document.getElementById("btnNewItem").addEventListener("click", function () { openItemModal(null); });
+  document.getElementById("btnCancelItem").addEventListener("click", closeItemModal);
+
+  itemForm.addEventListener("submit", function (e) {
+    e.preventDefault();
+    var id = document.getElementById("itemId").value;
+    var isNew = !id;
+    var existing = isNew ? null : state.items.find(function (it) { return it.id === id; });
+
+    var currentAmount = parseFloat(document.getElementById("f_currentAmount").value);
+    var invoicedAmount = parseFloat(document.getElementById("f_invoicedAmount").value);
+    var stage = document.getElementById("f_stage").value;
+
+    if (INVOICE_STAGES.indexOf(stage) !== -1 && !(invoicedAmount > 0)) {
+      alert("Invoiced Amount must be greater than 0 for stage \"" + stage + "\".");
+      return;
+    }
+    if (!isNaN(invoicedAmount) && !isNaN(currentAmount) && invoicedAmount > currentAmount) {
+      if (!confirm("Invoiced Amount (" + invoicedAmount + ") is greater than Current Amount (" + currentAmount + "). Save anyway?")) {
+        return;
+      }
+    }
+
+    var data = {
+      id: id || uid(),
+      vendorId: document.getElementById("f_vendor").value,
+      description: document.getElementById("f_description").value.trim(),
+      budgetId: document.getElementById("f_budgetId").value,
+      stage: stage,
+      owner: document.getElementById("f_owner").value.trim(),
+      currency: document.getElementById("f_currency").value,
+      currentAmount: isNaN(currentAmount) ? 0 : currentAmount,
+      invoicedAmount: isNaN(invoicedAmount) ? 0 : invoicedAmount,
+      poNumber: document.getElementById("f_poNumber").value.trim(),
+      dateEntered: document.getElementById("f_dateEntered").value || todayStr(),
+      dateUpdated: todayStr()
+    };
+
+    if (isNew) {
+      data.createdAt = nowIso();
+      data.notes = [];
+      lockFxRateIfNeeded(data);
+      state.items.push(data);
+    } else {
+      var idx = state.items.findIndex(function (it) { return it.id === id; });
+      if (idx !== -1) {
+        data.createdAt = state.items[idx].createdAt;
+        data.notes = state.items[idx].notes.slice();
+        data.fxRate = fxRateToCarryForward(existing, data);
+        if (existing && existing.stage !== data.stage) {
+          data.notes.push({ timestamp: nowIso(), text: "Stage changed (via Edit) " + existing.stage + " → " + data.stage });
+        }
+        lockFxRateIfNeeded(data);
+        state.items[idx] = data;
+      }
+    }
+
+    save();
+    renderAll();
+    closeItemModal();
+  });
+
+  // ---------- Budget modal ----------
+
+  var budgetModal = document.getElementById("budgetModalOverlay");
+  var budgetForm = document.getElementById("budgetForm");
+  var budgetModalCtl = bindModal(budgetModal, function () { budgetForm.reset(); });
+
+  function openBudgetModal(budget) {
+    document.getElementById("budgetModalTitle").textContent = budget ? "Edit Budget" : "New Budget";
+    document.getElementById("b_id").value = budget ? budget.id : "";
+    document.getElementById("b_name").value = budget ? budget.name : "";
+    document.getElementById("b_total").value = budget ? budget.total : "";
+    budgetModalCtl.open();
+    document.getElementById("b_name").focus();
+  }
+
+  function closeBudgetModal() {
+    budgetModalCtl.close();
+  }
+
+  document.getElementById("btnNewBudget").addEventListener("click", function () { openBudgetModal(null); });
+  document.getElementById("btnCancelBudget").addEventListener("click", closeBudgetModal);
+
+  budgetForm.addEventListener("submit", function (e) {
+    e.preventDefault();
+    var id = document.getElementById("b_id").value;
+    var isNew = !id;
+    var data = {
+      id: id || uid(),
+      name: document.getElementById("b_name").value.trim(),
+      total: parseFloat(document.getElementById("b_total").value) || 0
+    };
+    if (isNew) {
+      state.budgets.push(data);
+    } else {
+      var idx = state.budgets.findIndex(function (b) { return b.id === id; });
+      if (idx !== -1) state.budgets[idx] = data;
+    }
+    save();
+    renderAll();
+    renderSettingsBudgetList();
+    closeBudgetModal();
+  });
+
+  var BUDGET_COLS = "1fr 130px 180px 60px 72px";
+
+  function renderSettingsBudgetList() {
+    var list = document.getElementById("settingsBudgetList");
+    list.innerHTML = "";
+
+    if (state.budgets.length === 0) {
+      list.innerHTML = '<div class="empty-state settings-empty-state">No budgets yet. Click &ldquo;+ New&rdquo; to create one.</div>';
+      return;
+    }
+
+    var header = document.createElement("div");
+    header.className = "settings-table-row header";
+    header.style.gridTemplateColumns = BUDGET_COLS;
+    header.innerHTML = "<span>Budget Name</span><span class='col-num'>Total (AED)</span><span>Spent</span><span class='col-num'>%</span><span></span>";
+    list.appendChild(header);
+
+    state.budgets.forEach(function (b) {
+      var spend = budgetSpend(b.id);
+      var total = Number(b.total) || 0;
+      var pct = total > 0 ? (spend.total / total) * 100 : 0;
+      var status = budgetStatus(pct, total, spend.total);
+      var visuals = statusVisuals(status);
+      var barColor = visuals.barColor, pctColor = visuals.pctColor;
+      var row = document.createElement("div");
+      row.className = "settings-table-row";
+      row.style.gridTemplateColumns = BUDGET_COLS;
+      row.innerHTML =
+        "<span data-label='Budget Name'>" + escapeHtml(b.name) + "</span>" +
+        "<span class='col-num' data-label='Total (AED)'>" + fmtAed(b.total) + "</span>" +
+        "<span class='row-bar-cell' data-label='Spent'>" +
+          "<span class='row-bar-track'><span class='row-bar-fill' style='width:" + Math.min(pct, 100) + "%;background:" + barColor + "'></span></span>" +
+          "<span class='hint' style='margin:0;'>" + fmtAed(spend.total) + "</span>" +
+        "</span>" +
+        "<span class='col-num' data-label='%' style='color:" + pctColor + ";font-weight:600;'>" + pct.toFixed(0) + "%</span>" +
+        "<span class='col-actions'>" +
+          "<button type='button' class='small icon-btn' title='Edit' aria-label='Edit " + escapeHtml(b.name) + "' data-edit-budget-settings='" + escapeHtml(b.id) + "'>&#9998;</button>" +
+          "<button type='button' class='small icon-btn danger' title='Delete' aria-label='Delete " + escapeHtml(b.name) + "' data-del-budget-settings='" + escapeHtml(b.id) + "'>&#128465;</button>" +
+        "</span>";
+      list.appendChild(row);
+    });
+  }
+
+  function deleteBudget(delId) {
+    state.budgets = state.budgets.filter(function (x) { return x.id !== delId; });
+    state.vendors.forEach(function (v) {
+      if (v.defaultBudgetId === delId) v.defaultBudgetId = "";
+    });
+    save();
+    renderAll();
+    renderSettingsBudgetList();
+  }
+
+  document.getElementById("settingsBudgetList").addEventListener("click", function (e) {
+    var editId = e.target.getAttribute("data-edit-budget-settings");
+    var delId = e.target.getAttribute("data-del-budget-settings");
+    if (editId) {
+      var b = state.budgets.find(function (x) { return x.id === editId; });
+      if (b) openBudgetModal(b);
+    } else if (delId) {
+      var inUse = state.items.some(function (it) { return it.budgetId === delId; });
+      if (inUse) {
+        var others = state.budgets.filter(function (x) { return x.id !== delId; });
+        if (others.length === 0) {
+          alert("This budget has line items assigned to it, and there is no other budget to reassign them to. Create another budget first, or delete the line items.");
+          return;
+        }
+        openReassignModal({
+          kind: "budget",
+          deleteId: delId,
+          options: others,
+          onConfirm: function (newId) {
+            state.items.forEach(function (it) {
+              if (it.budgetId === delId) it.budgetId = newId;
+            });
+            deleteBudget(delId);
+          }
+        });
+      } else if (confirm("Delete this budget?")) {
+        deleteBudget(delId);
+      }
+    }
+  });
+
+  // ---------- Vendor modal ----------
+
+  var vendorModal = document.getElementById("vendorModalOverlay");
+  var vendorForm = document.getElementById("vendorForm");
+  var vendorModalCtl = bindModal(vendorModal, function () { vendorForm.reset(); });
+
+  function populateVendorBudgetSelect(selectedId) {
+    var sel = document.getElementById("v_defaultBudgetId");
+    fillOptions(sel, state.budgets, '<option value="">(none)</option>');
+    sel.value = selectedId || "";
+  }
+
+  function openVendorModal(vendor) {
+    document.getElementById("vendorModalTitle").textContent = vendor ? "Edit Vendor" : "New Vendor";
+    document.getElementById("v_id").value = vendor ? vendor.id : "";
+    document.getElementById("v_name").value = vendor ? vendor.name : "";
+    document.getElementById("v_systemName").value = vendor ? vendor.systemName : "";
+    document.getElementById("v_defaultCurrency").value = vendor ? (vendor.defaultCurrency || "AED") : "AED";
+    populateVendorBudgetSelect(vendor ? vendor.defaultBudgetId : "");
+    vendorModalCtl.open();
+    document.getElementById("v_name").focus();
+  }
+
+  function closeVendorModal() {
+    vendorModalCtl.close();
+  }
+
+  document.getElementById("btnNewVendor").addEventListener("click", function () { openVendorModal(null); });
+  document.getElementById("btnCancelVendor").addEventListener("click", closeVendorModal);
+
+  vendorForm.addEventListener("submit", function (e) {
+    e.preventDefault();
+    var id = document.getElementById("v_id").value;
+    var isNew = !id;
+    var data = {
+      id: id || uid(),
+      name: document.getElementById("v_name").value.trim(),
+      systemName: document.getElementById("v_systemName").value.trim(),
+      defaultCurrency: document.getElementById("v_defaultCurrency").value,
+      defaultBudgetId: document.getElementById("v_defaultBudgetId").value
+    };
+    if (isNew) {
+      state.vendors.push(data);
+    } else {
+      var idx = state.vendors.findIndex(function (v) { return v.id === id; });
+      if (idx !== -1) state.vendors[idx] = data;
+    }
+    save();
+    renderVendorList();
+    closeVendorModal();
+  });
+
+  // ---------- Reassign modal (used by budget/vendor delete when items reference them) ----------
+
+  var reassignModal = document.getElementById("reassignModalOverlay");
+  var reassignForm = document.getElementById("reassignForm");
+  var reassignCtx = null;
+  var reassignModalCtl = bindModal(reassignModal, function () { reassignCtx = null; });
+
+  function openReassignModal(ctx) {
+    reassignCtx = ctx;
+    var isbudget = ctx.kind === "budget";
+    document.getElementById("reassignModalTitle").textContent =
+      "Reassign Line Items" + (isbudget ? " to Another Budget" : " to Another Vendor");
+    document.getElementById("reassignModalDesc").textContent =
+      "This " + ctx.kind + " has line items assigned to it. Choose a " + ctx.kind + " to move them to before deleting.";
+    document.getElementById("reassignTargetLabel").textContent = isbudget ? "New budget" : "New vendor";
+    var sel = document.getElementById("reassignTarget");
+    fillOptions(sel, ctx.options);
+    reassignModalCtl.open();
+    sel.focus();
+  }
+
+  function closeReassignModal() {
+    reassignModalCtl.close();
+  }
+
+  document.getElementById("btnCancelReassign").addEventListener("click", closeReassignModal);
+
+  reassignForm.addEventListener("submit", function (e) {
+    e.preventDefault();
+    if (!reassignCtx) return;
+    var newId = document.getElementById("reassignTarget").value;
+    var ctx = reassignCtx;
+    closeReassignModal();
+    ctx.onConfirm(newId);
+  });
+
+  var VENDOR_COLS = "1.6fr 80px 1fr 72px";
+
+  function initialsFor(name) {
+    return (name || "").trim().split(/\s+/).map(function (w) { return w[0]; }).join("").slice(0, 2).toUpperCase();
+  }
+
+  function renderVendorList() {
+    var list = document.getElementById("vendorList");
+    list.innerHTML = "";
+
+    if (state.vendors.length === 0) {
+      list.innerHTML = '<div class="empty-state settings-empty-state">No vendors yet. Click &ldquo;+ New&rdquo; to add one.</div>';
+      return;
+    }
+
+    var header = document.createElement("div");
+    header.className = "settings-table-row header";
+    header.style.gridTemplateColumns = VENDOR_COLS;
+    header.innerHTML = "<span>Vendor</span><span>Default Ccy</span><span>Default Budget</span><span></span>";
+    list.appendChild(header);
+
+    state.vendors.forEach(function (v) {
+      var row = document.createElement("div");
+      row.className = "settings-table-row";
+      row.style.gridTemplateColumns = VENDOR_COLS;
+      row.innerHTML =
+        "<span data-label='Vendor'><span class='entity' role='button' tabindex='0' style='cursor:pointer' data-vendor-open='" + escapeHtml(v.id) + "'>" +
+          "<span class='avatar-chip'>" + escapeHtml(initialsFor(v.name)) + "</span>" +
+          "<span class='entity-text'><span class='entity-name'>" + escapeHtml(v.name) + "</span>" +
+          "<span class='entity-sub'>" + escapeHtml(v.systemName || "—") + "</span></span>" +
+        "</span></span>" +
+        "<span data-label='Default Ccy'>" + escapeHtml(v.defaultCurrency) + "</span>" +
+        "<span data-label='Default Budget'>" + escapeHtml(v.defaultBudgetId ? budgetNameFor(v.defaultBudgetId) : "—") + "</span>" +
+        "<span class='col-actions'>" +
+          "<button type='button' class='small icon-btn' title='Edit' aria-label='Edit " + escapeHtml(v.name) + "' data-edit-vendor='" + escapeHtml(v.id) + "'>&#9998;</button>" +
+          "<button type='button' class='small icon-btn danger' title='Delete' aria-label='Delete " + escapeHtml(v.name) + "' data-del-vendor='" + escapeHtml(v.id) + "'>&#128465;</button>" +
+        "</span>";
+      list.appendChild(row);
+    });
+  }
+
+  function deleteVendor(delId) {
+    state.vendors = state.vendors.filter(function (x) { return x.id !== delId; });
+    save();
+    renderVendorList();
+    renderAll();
+  }
+
+  document.getElementById("vendorList").addEventListener("keydown", function (e) {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    var open = e.target.closest("[data-vendor-open]");
+    if (!open || e.target !== open) return;
+    e.preventDefault();
+    openVendorDetailModal(open.getAttribute("data-vendor-open"));
+  });
+  document.getElementById("vendorList").addEventListener("click", function (e) {
+    var editId = e.target.getAttribute("data-edit-vendor");
+    var delId = e.target.getAttribute("data-del-vendor");
+    var openId = e.target.closest("[data-vendor-open]");
+    if (openId) {
+      openVendorDetailModal(openId.getAttribute("data-vendor-open"));
+    } else if (editId) {
+      var v = state.vendors.find(function (x) { return x.id === editId; });
+      if (v) openVendorModal(v);
+    } else if (delId) {
+      var inUse = state.items.some(function (it) { return it.vendorId === delId; });
+      if (inUse) {
+        var others = state.vendors.filter(function (x) { return x.id !== delId; });
+        if (others.length === 0) {
+          alert("This vendor has line items assigned to it, and there is no other vendor to reassign them to. Create another vendor first, or delete the line items.");
+          return;
+        }
+        openReassignModal({
+          kind: "vendor",
+          deleteId: delId,
+          options: others,
+          onConfirm: function (newId) {
+            state.items.forEach(function (it) {
+              if (it.vendorId === delId) it.vendorId = newId;
+            });
+            deleteVendor(delId);
+          }
+        });
+      } else if (confirm("Delete this vendor?")) {
+        deleteVendor(delId);
+      }
+    }
+  });
+
+  // ---------- Advance modal ----------
+
+  var advanceModal = document.getElementById("advanceModalOverlay");
+  var advanceForm = document.getElementById("advanceForm");
+  var advanceModalCtl = bindModal(advanceModal, function () { advanceForm.reset(); });
+
+  // Renders the full 8-stage track: completed stages solid teal-dark, the target stage
+  // outlined/highlighted, everything after it a flat grey segment.
+  function renderAdvanceTrack(fromIdx, targetIdx) {
+    var html = "";
+    for (var i = 0; i < STAGES.length; i++) {
+      var barCls = "step-track-bar", labelCls = "step-track-label";
+      if (i < targetIdx) { barCls += " done"; labelCls += " done"; }
+      else if (i === targetIdx) { barCls += " target"; labelCls += " target"; }
+      html += "<div class='step-track-seg'><span class='" + barCls + "'></span><span class='" + labelCls + "'>" + escapeHtml(STAGES[i]) + "</span></div>";
+    }
+    document.getElementById("adv_track").innerHTML = html;
+  }
+
+  function openAdvanceModal(itemId) {
+    var it = state.items.find(function (x) { return x.id === itemId; });
+    if (!it) return;
+    var idx = STAGES.indexOf(it.stage);
+    if (idx === -1 || idx >= STAGES.length - 1) return;
+    var nextStage = STAGES[idx + 1];
+
+    document.getElementById("adv_itemId").value = it.id;
+    document.getElementById("advanceModalTitle").textContent = "Advance: " + it.stage + " → " + nextStage;
+    document.getElementById("advanceModalDesc").textContent =
+      vendorNameFor(it.vendorId) + (it.description ? " — " + it.description : "");
+    document.getElementById("adv_note").value = "";
+    renderAdvanceTrack(idx, idx + 1);
+
+    var needsInvoiceAmount = INVOICE_STAGES.indexOf(nextStage) !== -1;
+    document.getElementById("adv_invoicedAmountField").hidden = !needsInvoiceAmount;
+    var invField = document.getElementById("adv_invoicedAmount");
+    invField.required = needsInvoiceAmount;
+    invField.value = it.invoicedAmount || "";
+    document.getElementById("adv_invoicedAmountTag").textContent = it.currency || "AED";
+
+    advanceModalCtl.open();
+    (needsInvoiceAmount ? invField : document.getElementById("adv_note")).focus();
+  }
+
+  document.querySelectorAll("#adv_invoicedAmountField [data-adv-pct]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var it = state.items.find(function (x) { return x.id === document.getElementById("adv_itemId").value; });
+      if (!it) return;
+      var pct = Number(btn.getAttribute("data-adv-pct")) / 100;
+      document.getElementById("adv_invoicedAmount").value = ((Number(it.currentAmount) || 0) * pct).toFixed(2);
+    });
+  });
+
+  function closeAdvanceModal() {
+    advanceModalCtl.close();
+  }
+
+  document.getElementById("btnCancelAdvance").addEventListener("click", closeAdvanceModal);
+
+  function finishAdvance(it, nextStage, note, invoicedAmount) {
+    if (invoicedAmount != null) it.invoicedAmount = invoicedAmount;
+    var logText = "Advanced " + it.stage + " → " + nextStage + (note ? ": " + note : "");
+    if (!Array.isArray(it.notes)) it.notes = [];
+    it.notes.push({ timestamp: nowIso(), text: logText });
+    it.stage = nextStage;
+    it.dateUpdated = todayStr();
+    lockFxRateIfNeeded(it);
+
+    save();
+    renderAll();
+    closeAdvanceModal();
+  }
+
+  advanceForm.addEventListener("submit", function (e) {
+    e.preventDefault();
+    var itemId = document.getElementById("adv_itemId").value;
+    var it = state.items.find(function (x) { return x.id === itemId; });
+    if (!it) { closeAdvanceModal(); return; }
+
+    var idx = STAGES.indexOf(it.stage);
+    if (idx === -1 || idx >= STAGES.length - 1) { closeAdvanceModal(); return; }
+    var nextStage = STAGES[idx + 1];
+    var note = document.getElementById("adv_note").value.trim();
+
+    if (INVOICE_STAGES.indexOf(nextStage) !== -1) {
+      var invoicedAmount = parseFloat(document.getElementById("adv_invoicedAmount").value);
+      if (isNaN(invoicedAmount) || !(invoicedAmount > 0)) {
+        alert("Invoiced Amount must be greater than 0 to advance to " + nextStage + ".");
+        return;
+      }
+      if (invoicedAmount > (Number(it.currentAmount) || 0)) {
+        showConfirm(
+          "Invoiced Amount (" + fmtNum(invoicedAmount) + ") is greater than Current Amount (" + fmtNum(it.currentAmount) + "). Advance anyway?",
+          function () { finishAdvance(it, nextStage, note, invoicedAmount); },
+          "Advance anyway"
+        );
+        return;
+      }
+      finishAdvance(it, nextStage, note, invoicedAmount);
+      return;
+    }
+
+    finishAdvance(it, nextStage, note, null);
+  });
+
+  // ---------- Detail modal ----------
+
+  var detailModal = document.getElementById("detailModalOverlay");
+  var detailNotesForm = document.getElementById("detailNotesForm");
+  var detailModalCtl = bindModal(detailModal, null);
+
+  function openDetailModal(itemId) {
+    var it = state.items.find(function (x) { return x.id === itemId; });
+    if (!it) return;
+
+    document.getElementById("detailModalTitle").textContent =
+      vendorNameFor(it.vendorId) + " · " + budgetNameFor(it.budgetId);
+    document.getElementById("d_vendor").textContent = vendorNameFor(it.vendorId);
+    document.getElementById("d_budget").textContent = budgetNameFor(it.budgetId);
+    document.getElementById("d_description").textContent = it.description || "(no description)";
+    document.getElementById("d_stage").innerHTML =
+      "<b>" + escapeHtml(it.stage) + "</b> <span class='steps-count'>" + (STAGES.indexOf(it.stage) + 1) + "/" + STAGES.length + "</span>";
+    document.getElementById("d_stageSegs").innerHTML = stageBarHtml(it.stage);
+    document.getElementById("d_owner").textContent = it.owner || "—";
+
+    var isAed = it.currency === "AED";
+    var curAed = itemAed(it, "currentAmount");
+    var invAed = itemAed(it, "invoicedAmount");
+    var remaining = Math.max((Number(it.currentAmount) || 0) - (Number(it.invoicedAmount) || 0), 0);
+    var remAed = Math.max(curAed - invAed, 0);
+    var invPct = it.currentAmount ? Math.round((Number(it.invoicedAmount) || 0) / it.currentAmount * 100) : 0;
+
+    document.getElementById("d_amtMain").textContent = fmt(it.currentAmount, it.currency);
+    document.getElementById("d_amtSub").textContent = isAed ? "Base currency" : fmtAed(curAed) + (!hasKnownRate(it.currency) ? " · unknown currency, rate 1 used" : "");
+    document.getElementById("d_invMain").textContent = fmt(it.invoicedAmount, it.currency);
+    document.getElementById("d_invSub").textContent = (isAed ? "" : fmtAed(invAed) + " · ") + invPct + "%";
+    document.getElementById("d_remMain").textContent = fmt(remaining, it.currency);
+    document.getElementById("d_remSub").textContent = isAed ? "" : fmtAed(remAed);
+
+    document.getElementById("d_poNumber").textContent = it.poNumber || "—";
+    document.getElementById("d_dates").textContent =
+      "Entered: " + (it.dateEntered || "—") + "  |  Last updated: " + (it.dateUpdated || "—") +
+      (it.fxRate != null ? "  |  FX rate locked at: " + it.fxRate : "");
+    document.getElementById("d_itemId").value = it.id;
+    document.getElementById("d_newNote").value = "";
+    renderNotesLog(it);
+
+    var advBtn = document.getElementById("btnDetailAdvance");
+    advBtn.hidden = it.stage === "Closed";
+    advBtn.onclick = function () { closeDetailModal(); openAdvanceModal(it.id); };
+
+    document.getElementById("btnDetailEdit").onclick = function () { closeDetailModal(); openItemModal(it); };
+    document.getElementById("btnDetailDelete").onclick = function () { deleteItemWithConfirm(it.id); };
+
+    detailModalCtl.open();
+  }
+
+  function formatTimestamp(iso) {
+    try {
+      var d = new Date(iso);
+      return d.toLocaleString(undefined, { year: "numeric", month: "short", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    } catch (e) {
+      return iso;
+    }
+  }
+
+  var STAGE_CHANGE_NOTE_RE = /^(Advanced |Stage changed)/;
+
+  // Renders the activity log as a connected timeline: a dot+line rail on the left,
+  // title/timestamp/text on the right. Stage-change entries (identified by their
+  // auto-generated title prefix) get a solid dot; freeform notes get a hollow one.
+  function renderNotesLog(it) {
+    var log = document.getElementById("d_notesLog");
+    var notes = Array.isArray(it.notes) ? it.notes.slice() : [];
+    if (notes.length === 0) {
+      log.innerHTML = '<div class="muted-empty">No activity yet.</div>';
+      return;
+    }
+    notes.sort(function (a, b) { return (b.timestamp || "").localeCompare(a.timestamp || ""); });
+    log.innerHTML = notes.map(function (n, i) {
+      var isNote = !STAGE_CHANGE_NOTE_RE.test(n.text || "");
+      var isLast = i === notes.length - 1;
+      return "<div class='tl-row'>" +
+        "<div class='tl-rail'><span class='tl-dot" + (isNote ? " note" : "") + "'></span>" + (isLast ? "" : "<span class='tl-line'></span>") + "</div>" +
+        "<div class='tl-body'>" +
+          "<div class='tl-body-top'><span class='tl-title" + (isNote ? " note-title" : "") + "'>" + (isNote ? "Note" : escapeHtml(n.text)) + "</span>" +
+          "<span class='tl-time'>" + escapeHtml(formatTimestamp(n.timestamp)) + "</span></div>" +
+          (isNote ? "<span class='tl-text note-text'>" + escapeHtml(n.text) + "</span>" : "") +
+        "</div>" +
+      "</div>";
+    }).join("");
+  }
+
+  function closeDetailModal() {
+    detailModalCtl.close();
+  }
+
+  document.getElementById("btnCloseDetail").addEventListener("click", closeDetailModal);
+
+  detailNotesForm.addEventListener("submit", function (e) {
+    e.preventDefault();
+    var itemId = document.getElementById("d_itemId").value;
+    var it = state.items.find(function (x) { return x.id === itemId; });
+    if (!it) { closeDetailModal(); return; }
+    var text = document.getElementById("d_newNote").value.trim();
+    if (!text) return;
+    if (!Array.isArray(it.notes)) it.notes = [];
+    it.notes.push({ timestamp: nowIso(), text: text });
+    it.dateUpdated = todayStr();
+    save();
+    renderAll();
+    document.getElementById("d_newNote").value = "";
+    detailModalCtl.markClean();
+    renderNotesLog(it);
+  });
+
+  // ---------- Vendor detail (scorecard) modal ----------
+
+  var vendorDetailModal = document.getElementById("vendorDetailModalOverlay");
+  var vendorDetailModalCtl = bindModal(vendorDetailModal, null);
+
+  function fmtDays(n) {
+    return n.toLocaleString(undefined, { maximumFractionDigits: 1 });
+  }
+
+  function openVendorDetailModal(vendorId) {
+    var v = state.vendors.find(function (x) { return x.id === vendorId; });
+    if (!v) return;
+    var stats = vendorStats(vendorId);
+
+    document.getElementById("vd_sub").textContent = "Vendor";
+    document.getElementById("vd_name").textContent = v.name;
+    document.getElementById("vd_pipeline").textContent = fmtAed(stats.pipeline);
+    document.getElementById("vd_committed").textContent = fmtAed(stats.committed);
+    document.getElementById("vd_invoiced").textContent = fmtAed(stats.invoiced);
+
+    document.getElementById("vd_defaultCurrency").textContent = v.defaultCurrency || "AED";
+    document.getElementById("vd_defaultBudget").textContent = v.defaultBudgetId ? budgetNameFor(v.defaultBudgetId) : "—";
+    document.getElementById("vd_itemCount").textContent = stats.items.length;
+    document.getElementById("vd_avgTimeToInvoice").textContent =
+      stats.avgDaysToInvoice == null ? "No invoiced items yet" : fmtDays(stats.avgDaysToInvoice) + " days";
+
+    var maxStageCount = Math.max.apply(null, STAGES.map(function (s) { return stats.stageCounts[s]; }).concat([1]));
+    document.getElementById("vd_stageBreakdown").innerHTML = STAGES.map(function (s) {
+      var count = stats.stageCounts[s];
+      if (count === 0) return "";
+      var pct = (count / maxStageCount) * 100;
+      return "<div class='dist-row'>" +
+        "<span class='dist-label'>" + escapeHtml(s) + "</span>" +
+        "<span class='row-bar-track'><span class='row-bar-fill' style='width:" + pct + "%;background:var(--teal-dark)'></span></span>" +
+        "<span class='dist-count'>" + count + "</span>" +
+      "</div>";
+    }).join("") || "<div class='hint'>No line items yet.</div>";
+
+    var sortedItems = stats.items.slice().sort(function (a, b) {
+      return (b.createdAt || "").localeCompare(a.createdAt || "");
+    });
+    document.getElementById("vd_itemsList").innerHTML = sortedItems.length === 0
+      ? "<div class='muted-empty'>No line items for this vendor yet.</div>"
+      : sortedItems.map(function (it) {
+          return "<div class='list-row' role='button' tabindex='0' data-vd-open-item='" + escapeHtml(it.id) + "'>" +
+            "<span class='list-row-main'>" +
+              "<span class='list-row-title'>" + escapeHtml(it.description || "(no description)") + "</span>" +
+              "<span class='list-row-sub'>" + escapeHtml(it.stage) + " · " + escapeHtml(budgetNameFor(it.budgetId)) + "</span>" +
+            "</span>" +
+            "<span class='list-row-figure'>" + fmtAed(itemAed(it, "currentAmount")) + "</span>" +
+          "</div>";
+        }).join("");
+
+    document.getElementById("btnVendorDetailEdit").onclick = function () { closeVendorDetailModal(); openVendorModal(v); };
+
+    vendorDetailModalCtl.open();
+  }
+
+  function closeVendorDetailModal() {
+    vendorDetailModalCtl.close();
+  }
+
+  document.getElementById("btnCloseVendorDetail").addEventListener("click", closeVendorDetailModal);
+
+  function openItemFromVendorDrawer(row) {
+    closeVendorDetailModal();
+    openDetailModal(row.getAttribute("data-vd-open-item"));
+  }
+  document.getElementById("vd_itemsList").addEventListener("click", function (e) {
+    var row = e.target.closest("[data-vd-open-item]");
+    if (row) openItemFromVendorDrawer(row);
+  });
+  document.getElementById("vd_itemsList").addEventListener("keydown", function (e) {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    var row = e.target.closest("[data-vd-open-item]");
+    if (!row) return;
+    e.preventDefault();
+    openItemFromVendorDrawer(row);
+  });
+
+  // ---------- Table interactions (advance/detail) ----------
+  // Edit and Delete live in the detail drawer now (openDetailModal); the row itself
+  // only exposes Advance (or a "✓ Closed" label) and opening the detail view.
+
+  // Shared by the detail drawer's "Delete line item" link. Closes the drawer first if
+  // it's the one open for this item, so the overlay doesn't linger pointing at nothing.
+  function deleteItemWithConfirm(id) {
+    if (!confirm("Delete this line item? This cannot be undone.")) return;
+    state.items = state.items.filter(function (it) { return it.id !== id; });
+    save();
+    renderAll();
+    if (!detailModal.hidden && document.getElementById("d_itemId").value === id) closeDetailModal();
+  }
+
+  document.getElementById("itemsBody").addEventListener("click", function (e) {
+    var advBtn = e.target.closest("[data-advance-item]");
+    if (advBtn) {
+      openAdvanceModal(advBtn.getAttribute("data-advance-item"));
+      return;
+    }
+    var vendorLink = e.target.closest("[data-vendor-open]");
+    if (vendorLink) {
+      openVendorDetailModal(vendorLink.getAttribute("data-vendor-open"));
+      return;
+    }
+    var row = e.target.closest("[data-detail-item]");
+    if (row) openDetailModal(row.getAttribute("data-detail-item"));
+  });
+
+  document.getElementById("itemsBody").addEventListener("keydown", function (e) {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    var row = e.target.closest("tr[data-detail-item]");
+    if (!row || e.target !== row) return;
+    e.preventDefault();
+    openDetailModal(row.getAttribute("data-detail-item"));
+  });
+
+  // ---------- Filters / search ----------
+  // (filterBudget's own change listener lives next to renderBudgets(), since it also
+  // has to stay in sync with budgetFilterCard / the dashboard card clicks)
+
+  document.getElementById("searchBox").addEventListener("input", renderItems);
+  document.getElementById("filterStage").addEventListener("change", renderItems);
+
+  // ---------- Sorting ----------
+
+  // Header clicks / Enter / Space flip sortState and redraw (RK.sortable keeps aria-sort
+  // and the arrows in step).
+  var updateSortHeaders = RK.sortable(document.getElementById("itemsTable"), sortState, renderItems);
+
+  // ---------- Export / Import ----------
+
+  function downloadBlob(content, mimeType, filename) {
+    RK.download(filename, content, mimeType);
+  }
+
+  var csvEscape = RK.csv.escape;
+
+  // Prevents formula injection in text cells; never applied to numeric columns.
+  var csvSafeText = RK.csv.safeText;
+
+  function notesToText(notes) {
+    if (Array.isArray(notes)) {
+      return notes.map(function (n) { return "[" + n.timestamp + "] " + n.text; }).join(" | ");
+    }
+    return notes || "";
+  }
+
+  function buildCsv(items) {
+    var headers = [
+      "Vendor", "System Name", "Description", "Budget", "Stage", "Currency",
+      "Current Amount", "Invoiced Amount", "Current Amount (AED)", "Invoiced Amount (AED)",
+      "PO/Ref #", "Owner", "Date Entered", "Created At", "Last Updated", "Notes"
+    ];
+    var rows = [headers.map(csvEscape).join(",")];
+
+    items.forEach(function (it) {
+      var vendor = state.vendors.find(function (v) { return v.id === it.vendorId; });
+      rows.push([
+        csvSafeText(vendorNameFor(it.vendorId)),
+        csvSafeText(vendor ? vendor.systemName : ""),
+        csvSafeText(it.description),
+        csvSafeText(budgetNameFor(it.budgetId)),
+        csvSafeText(it.stage),
+        csvSafeText(it.currency),
+        it.currentAmount,
+        it.invoicedAmount,
+        itemAed(it, "currentAmount").toFixed(2),
+        itemAed(it, "invoicedAmount").toFixed(2),
+        csvSafeText(it.poNumber),
+        csvSafeText(it.owner),
+        csvSafeText(it.dateEntered),
+        csvSafeText(it.createdAt),
+        csvSafeText(it.dateUpdated),
+        csvSafeText(notesToText(it.notes))
+      ].map(csvEscape).join(","));
+    });
+
+    return rows.join("\r\n");
+  }
+
+  var UTF8_BOM = RK.csv.BOM;
+
+  // ---------- Full backup (always everything, no filters) ----------
+
+  function fullBackupPayload() {
+    return {
+      schemaVersion: 1,
+      budgets: state.budgets,
+      vendors: state.vendors,
+      items: state.items,
+      settings: state.settings
+    };
+  }
+
+  document.getElementById("btnFullBackup").addEventListener("click", function () {
+    downloadBlob(JSON.stringify(fullBackupPayload(), null, 2), "application/json", "vendor-spend-full-backup-" + todayStr() + ".json");
+  });
+
+  // ---------- Export modal (filtered, not a substitute for Full Backup) ----------
+
+  var exportModal = document.getElementById("exportModalOverlay");
+  var exportForm = document.getElementById("exportForm");
+  var exportModalCtl = bindModal(exportModal, function () { exportForm.reset(); });
+
+  function openExportModal() {
+    var vendorSel = document.getElementById("exp_vendor");
+    fillOptions(vendorSel, state.vendors, '<option value="">All vendors</option>');
+
+    var budgetSel = document.getElementById("exp_budget");
+    fillOptions(budgetSel, state.budgets, '<option value="">All budgets</option>');
+
+    applyExportPreset("fy");
+    exportModalCtl.open();
+  }
+
+  function fiscalYearStartStr() {
+    return currentFiscalYearStartYear() + "-04-01";
+  }
+
+  // Sets exp_dateFrom/exp_dateTo (the fields the existing export submit handler reads)
+  // from a named preset, toggles the custom date inputs' visibility, and marks the
+  // active chip. "custom" leaves whatever is already in the two date fields untouched.
+  function applyExportPreset(key) {
+    var from = "", to = todayStr();
+    if (key === "month") {
+      var d = new Date();
+      from = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-01";
+    } else if (key === "fy") {
+      from = fiscalYearStartStr();
+    } else if (key === "all") {
+      from = "";
+    } else {
+      key = "custom";
+    }
+    if (key !== "custom") {
+      document.getElementById("exp_dateFrom").value = from;
+      document.getElementById("exp_dateTo").value = to;
+    }
+    document.getElementById("exp_customDates").hidden = key !== "custom";
+    document.querySelectorAll("#exp_presetRow .preset-chip").forEach(function (chip) {
+      chip.classList.toggle("active", chip.getAttribute("data-exp-preset") === key);
+    });
+    var fromV = document.getElementById("exp_dateFrom").value, toV = document.getElementById("exp_dateTo").value;
+    document.getElementById("exp_rangeHint").textContent =
+      (fromV ? fromV : "the beginning") + " through " + (toV ? toV : "today");
+  }
+
+  document.querySelectorAll("#exp_presetRow .preset-chip").forEach(function (chip) {
+    chip.addEventListener("click", function () { applyExportPreset(chip.getAttribute("data-exp-preset")); });
+  });
+  document.getElementById("exp_dateFrom").addEventListener("change", function () { applyExportPreset("custom"); });
+  document.getElementById("exp_dateTo").addEventListener("change", function () { applyExportPreset("custom"); });
+
+  function closeExportModal() {
+    exportModalCtl.close();
+  }
+
+  document.getElementById("btnExport").addEventListener("click", openExportModal);
+  document.getElementById("btnCancelExport").addEventListener("click", closeExportModal);
+  document.getElementById("btnExportRestoreLink").addEventListener("click", function () {
+    closeExportModal();
+    document.getElementById("fileImport").click();
+  });
+
+  exportForm.addEventListener("submit", function (e) {
+    e.preventDefault();
+    var dateFrom = document.getElementById("exp_dateFrom").value;
+    var dateTo = document.getElementById("exp_dateTo").value;
+    var vendorFilter = document.getElementById("exp_vendor").value;
+    var budgetFilter = document.getElementById("exp_budget").value;
+    var format = exportForm.querySelector('input[name="exp_format"]:checked').value;
+
+    var items = state.items.filter(function (it) {
+      if (vendorFilter && it.vendorId !== vendorFilter) return false;
+      if (budgetFilter && it.budgetId !== budgetFilter) return false;
+      if (dateFrom && (!it.dateEntered || it.dateEntered < dateFrom)) return false;
+      if (dateTo && (!it.dateEntered || it.dateEntered > dateTo)) return false;
+      return true;
+    }).sort(function (a, b) {
+      return (a.createdAt || "").localeCompare(b.createdAt || "");
+    });
+
+    if (items.length === 0) {
+      alert("No line items match these filters.");
+      return;
+    }
+
+    if (format === "json") {
+      var payload = {
+        schemaVersion: 1,
+        budgets: state.budgets.filter(function (b) { return !budgetFilter || b.id === budgetFilter; }),
+        vendors: state.vendors.filter(function (v) { return !vendorFilter || v.id === vendorFilter; }),
+        items: items,
+        settings: state.settings
+      };
+      downloadBlob(JSON.stringify(payload, null, 2), "application/json", "vendor-spend-filtered-" + todayStr() + ".json");
+    } else {
+      downloadBlob(UTF8_BOM + buildCsv(items), "text/csv", "vendor-spend-filtered-" + todayStr() + ".csv");
+    }
+
+    closeExportModal();
+  });
+
+  function nameKey(s) {
+    return (s || "").trim().toLowerCase();
+  }
+
+  // Merge: match incoming budgets/vendors to existing ones by case-insensitive trimmed
+  // name and reuse the existing id; only genuinely new ones are created. defaultBudgetId
+  // is remapped through the same id map. Items whose id already exists are skipped so
+  // re-importing the same file twice does not duplicate anything.
+  function mergeState(incoming) {
+    var budgetIdMap = {};
+    var existingBudgetByName = {};
+    state.budgets.forEach(function (b) { existingBudgetByName[nameKey(b.name)] = b.id; });
+
+    incoming.budgets.forEach(function (b) {
+      var key = nameKey(b.name);
+      if (existingBudgetByName[key]) {
+        budgetIdMap[b.id] = existingBudgetByName[key];
+      } else {
+        var newId = isValidId(b.id) && !state.budgets.some(function (x) { return x.id === b.id; }) ? b.id : uid();
+        budgetIdMap[b.id] = newId;
+        existingBudgetByName[key] = newId;
+        state.budgets.push({ id: newId, name: b.name, total: b.total });
+      }
+    });
+
+    var vendorIdMap = {};
+    var existingVendorByName = {};
+    state.vendors.forEach(function (v) { existingVendorByName[nameKey(v.name)] = v.id; });
+
+    incoming.vendors.forEach(function (v) {
+      var key = nameKey(v.name);
+      if (existingVendorByName[key]) {
+        vendorIdMap[v.id] = existingVendorByName[key];
+      } else {
+        var newId = isValidId(v.id) && !state.vendors.some(function (x) { return x.id === v.id; }) ? v.id : uid();
+        vendorIdMap[v.id] = newId;
+        existingVendorByName[key] = newId;
+        state.vendors.push({
+          id: newId,
+          name: v.name,
+          systemName: v.systemName,
+          defaultCurrency: v.defaultCurrency,
+          defaultBudgetId: budgetIdMap[v.defaultBudgetId] || ""
+        });
+      }
+    });
+
+    // Two different things can make an incoming item's id "already seen", and they
+    // must be handled differently: an id that was already in state.items BEFORE this
+    // merge started means the same item was merged before (re-importing the same file
+    // should not duplicate it) — skip it. An id that only collides with something
+    // pushed earlier in THIS SAME incoming.items loop (or is missing/malformed) is not
+    // a real duplicate — items have no name-based identity like budgets/vendors do, so
+    // it must get a fresh uid() rather than being silently dropped or allowed to
+    // collide, or two different items would end up sharing one id and every by-id
+    // lookup (edit/delete/advance) would then address both of them at once.
+    var preMergeItemIds = {};
+    state.items.forEach(function (it) { preMergeItemIds[it.id] = true; });
+    var usedItemIds = Object.assign({}, preMergeItemIds);
+
+    incoming.items.forEach(function (it) {
+      if (isValidId(it.id) && preMergeItemIds[it.id]) return;
+      var newId = isValidId(it.id) && !usedItemIds[it.id] ? it.id : uid();
+      var copy = Object.assign({}, it, {
+        id: newId,
+        budgetId: budgetIdMap[it.budgetId] || it.budgetId,
+        vendorId: vendorIdMap[it.vendorId] || it.vendorId
+      });
+      state.items.push(copy);
+      usedItemIds[newId] = true;
+    });
+  }
+
+  function backupCurrentState() {
+    try {
+      localStorage.setItem(STORE_KEY + ".backup", JSON.stringify(state));
+    } catch (e) {
+      console.warn("Failed to write pre-replace backup", e);
+    }
+  }
+
+  var importChoiceModal = document.getElementById("importChoiceModalOverlay");
+  var pendingImport = null;
+  var importChoiceModalCtl = bindModal(importChoiceModal, function () { pendingImport = null; });
+
+  function openImportChoiceModal(parsed) {
+    pendingImport = parsed;
+    document.getElementById("importChoiceSummary").textContent =
+      "File contains " + parsed.budgets.length + " budget(s), " + (parsed.vendors ? parsed.vendors.length : 0) +
+      " vendor(s) and " + parsed.items.length + " line item(s).";
+    importChoiceModalCtl.open();
+    document.getElementById("btnImportReplace").focus();
+  }
+
+  function closeImportChoiceModal() {
+    importChoiceModalCtl.close();
+  }
+
+  document.getElementById("btnImportCancel").addEventListener("click", closeImportChoiceModal);
+
+  document.getElementById("btnImportReplace").addEventListener("click", function () {
+    var parsed = pendingImport;
+    if (!parsed) return;
+    var normalised = normaliseState(parsed);
+    if (!normalised) {
+      alert("Could not import file: unrecognised format.");
+      closeImportChoiceModal();
+      return;
+    }
+    backupCurrentState();
+    state = normalised;
+    save();
+    renderAll();
+    closeImportChoiceModal();
+    alert("Replace complete. Your previous data was saved to the \"" + STORE_KEY + ".backup\" storage key.");
+  });
+
+  document.getElementById("btnImportMerge").addEventListener("click", function () {
+    var parsed = pendingImport;
+    if (!parsed) return;
+    var normalised = normaliseState(parsed);
+    if (!normalised) {
+      alert("Could not import file: unrecognised format.");
+      closeImportChoiceModal();
+      return;
+    }
+    mergeState(normalised);
+    save();
+    renderAll();
+    closeImportChoiceModal();
+    alert("Merge complete.");
+  });
+
+  document.getElementById("btnImport").addEventListener("click", function () {
+    document.getElementById("fileImport").click();
+  });
+
+  document.getElementById("fileImport").addEventListener("change", function (e) {
+    var file = e.target.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function () {
+      try {
+        var parsed = JSON.parse(reader.result);
+        if (!parsed || !Array.isArray(parsed.budgets) || !Array.isArray(parsed.items)) {
+          throw new Error("Invalid file format");
+        }
+        openImportChoiceModal(parsed);
+      } catch (err) {
+        alert("Could not import file: " + err.message);
+      }
+      e.target.value = "";
+    };
+    reader.readAsText(file);
+  });
+
+  // ---------- Settings page ----------
+
+  var mainView = document.getElementById("mainView");
+  var settingsView = document.getElementById("settingsView");
+
+  function populateRateInputs() {
+    document.getElementById("rate_USD").value = state.settings.rates.USD;
+    document.getElementById("rate_GBP").value = state.settings.rates.GBP;
+    document.getElementById("rate_EUR").value = state.settings.rates.EUR;
+  }
+
+  var WIDE_SETTINGS_PANELS = ["panel-vendors"];
+
+  function showSettingsPanel(panelId) {
+    document.querySelectorAll(".settings-panel").forEach(function (p) {
+      p.hidden = (p.id !== panelId);
+    });
+    document.querySelectorAll(".settings-nav-item").forEach(function (btn) {
+      btn.classList.toggle("active", btn.getAttribute("data-settings-panel") === panelId);
+    });
+    document.querySelector(".settings-content").classList.toggle(
+      "wide", WIDE_SETTINGS_PANELS.indexOf(panelId) !== -1
+    );
+  }
+
+  document.querySelectorAll(".settings-nav-item[data-settings-panel]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      showSettingsPanel(btn.getAttribute("data-settings-panel"));
+    });
+  });
+
+  function setAppNavActive(view) {
+    document.querySelectorAll(".app-nav-item[data-view]").forEach(function (btn) {
+      btn.classList.toggle("active", btn.getAttribute("data-view") === view);
+    });
+  }
+
+  function showSettings() {
+    document.getElementById("settingsBudgetsCount").textContent = state.budgets.length;
+    document.getElementById("settingsVendorsCount").textContent = state.vendors.length;
+    document.getElementById("appVersion").textContent = "v" + APP_VERSION;
+    populateRateInputs();
+    renderVendorList();
+    renderSettingsBudgetList();
+    showSettingsPanel("panel-rates");
+    mainView.hidden = true;
+    settingsView.hidden = false;
+    setAppNavActive("settings");
+  }
+
+  function showMain() {
+    settingsView.hidden = true;
+    mainView.hidden = false;
+    renderAll();
+    setAppNavActive("items");
+  }
+
+  document.querySelectorAll(".app-nav-item[data-view]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var view = btn.getAttribute("data-view");
+      if (view === "settings") showSettings();
+      else showMain();
+    });
+  });
+
+  document.getElementById("btnSaveRates").addEventListener("click", function () {
+    var usd = parseFloat(document.getElementById("rate_USD").value);
+    var gbp = parseFloat(document.getElementById("rate_GBP").value);
+    var eur = parseFloat(document.getElementById("rate_EUR").value);
+    if (!usd || !gbp || !eur || usd <= 0 || gbp <= 0 || eur <= 0) {
+      alert("Please enter valid positive rates for USD, GBP, and EUR.");
+      return;
+    }
+    state.settings.rates.USD = usd;
+    state.settings.rates.GBP = gbp;
+    state.settings.rates.EUR = eur;
+    state.settings.rates.AED = 1;
+    save();
+    alert("Rates saved.");
+  });
+
+  document.getElementById("btnResetRates").addEventListener("click", function () {
+    if (!confirm("Reset exchange rates to defaults (USD 3.673, GBP 4.5, EUR 4.1)?")) return;
+    state.settings.rates = Object.assign({}, DEFAULT_RATES);
+    populateRateInputs();
+    save();
+  });
+
+  // ---------- Keyboard shortcuts ----------
+  // "/" focuses the search box, but only on the main Line Items view with nothing else
+  // already capturing keyboard input (a modal open, or an input/select/textarea focused).
+
+  RK.searchShortcut(document.getElementById("searchBox"), function () { return !mainView.hidden; });
+
+  // ---------- Cross-tab sync ----------
+
+  window.addEventListener("storage", function (e) {
+    if (e.key !== STORE_KEY) return;
+    var parsed = null;
+    try {
+      parsed = e.newValue ? JSON.parse(e.newValue) : null;
+    } catch (err) {
+      return;
+    }
+    var normalised = parsed ? normaliseState(parsed) : null;
+    if (!normalised) return;
+    state = normalised;
+    renderAll();
+    if (!settingsView.hidden) {
+      populateRateInputs();
+      renderVendorList();
+      renderSettingsBudgetList();
+    }
+    showStorageBanner("Data was changed in another tab and has been reloaded here.");
+  });
+
+  function showStorageBanner(text) {
+    var banner = document.getElementById("corruptDataBanner");
+    banner.textContent = text;
+    banner.hidden = false;
+  }
+
+  // ---------- Self tests (?selftest=1) ----------
+  // Fixture-based console assertions for the invariants with clear pre/post behaviour.
+  // Runs against the pure calculation/normalisation functions; does not touch localStorage
+  // or require any DOM beyond what has already loaded.
+
+  function runSelfTests() {
+    var results = [];
+    function assert(name, cond) {
+      results.push({ name: name, pass: !!cond });
+    }
+    function withState(fn) {
+      var saved = state;
+      try {
+        return fn();
+      } finally {
+        state = saved;
+      }
+    }
+
+    // Migration strips derived fields written by the old getFilteredSortedItems bug.
+    withState(function () {
+      var raw = {
+        budgets: [{ id: "b1", name: "B1", total: 100 }],
+        items: [{
+          id: "i1", budgetId: "b1", vendorId: "v1", currency: "AED", stage: "Estimate received",
+          currentAmount: 10, invoicedAmount: 0,
+          budgetName: "stale", vendorName: "stale", currentAmountAed: 999, invoicedAmountAed: 999
+        }]
+      };
+      var out = normaliseState(raw);
+      assert("migration strips derived fields", out && !("budgetName" in out.items[0]) &&
+        !("vendorName" in out.items[0]) && !("currentAmountAed" in out.items[0]) && !("invoicedAmountAed" in out.items[0]));
+    });
+
+    // Legacy string notes are converted to the timestamped array form.
+    withState(function () {
+      var raw = {
+        budgets: [], items: [{ id: "i1", budgetId: "", vendorId: "", currency: "AED", stage: "Estimate received", currentAmount: 1, invoicedAmount: 0, notes: "line one\nline two", createdAt: "2024-01-01T00:00:00.000Z" }]
+      };
+      var out = normaliseState(raw);
+      assert("legacy string notes become array", out && Array.isArray(out.items[0].notes) && out.items[0].notes.length === 2);
+    });
+
+    // Unknown stage falls back to the first stage rather than crashing.
+    withState(function () {
+      var raw = { budgets: [], items: [{ id: "i1", budgetId: "", vendorId: "", currency: "AED", stage: "Not A Real Stage", currentAmount: 1, invoicedAmount: 0 }] };
+      var out = normaliseState(raw);
+      assert("unknown stage falls back to first stage", out && out.items[0].stage === STAGES[0]);
+    });
+
+    // Orphaned vendor defaultBudgetId is cleared rather than left dangling.
+    withState(function () {
+      var raw = { budgets: [{ id: "b1", name: "B1", total: 10 }], vendors: [{ id: "v1", name: "V1", defaultBudgetId: "ghost" }], items: [] };
+      var out = normaliseState(raw);
+      assert("orphaned vendor defaultBudgetId cleared", out && out.vendors[0].defaultBudgetId === "");
+    });
+
+    // Commitment release rule: a Closed item with current > invoiced contributes 0 committed.
+    withState(function () {
+      state = { budgets: [{ id: "b1", name: "B1", total: 100000 }], vendors: [], items: [
+        { id: "i1", budgetId: "b1", vendorId: "", currency: "AED", stage: "Closed", currentAmount: 10000, invoicedAmount: 8000, fxRate: 1 }
+      ], settings: { rates: Object.assign({}, DEFAULT_RATES) } };
+      var spend = budgetSpend("b1");
+      assert("closed item: committed is 0, invoiced is current", spend.committed === 0 && spend.invoiced === 8000);
+    });
+
+    // Pipeline split: Estimate received counts as pipeline, not committed.
+    withState(function () {
+      state = { budgets: [{ id: "b1", name: "B1", total: 100000 }], vendors: [], items: [
+        { id: "i1", budgetId: "b1", vendorId: "", currency: "AED", stage: "Estimate received", currentAmount: 500, invoicedAmount: 0 },
+        { id: "i2", budgetId: "b1", vendorId: "", currency: "AED", stage: "PO issued", currentAmount: 300, invoicedAmount: 0 }
+      ], settings: { rates: Object.assign({}, DEFAULT_RATES) } };
+      var spend = budgetSpend("b1");
+      assert("pipeline split: estimate -> pipeline, PO issued -> committed", spend.pipeline === 500 && spend.committed === 300);
+    });
+
+    // FX locking: a locked item's AED value does not move when the live rate changes.
+    withState(function () {
+      state = { budgets: [], vendors: [], items: [], settings: { rates: { AED: 1, USD: 3.673, GBP: 4.5, EUR: 4.1 } } };
+      var closedItem = { id: "i1", currency: "USD", currentAmount: 100, invoicedAmount: 100, stage: "Closed", fxRate: 3.673 };
+      var before = itemAed(closedItem, "currentAmount");
+      state.settings.rates.USD = 4.0;
+      var after = itemAed(closedItem, "currentAmount");
+      assert("FX lock: closed item AED value unchanged after rate edit", before === after);
+
+      var openItem = { id: "i2", currency: "USD", currentAmount: 100, invoicedAmount: 0, stage: "Estimate received" };
+      var openBefore = itemAed(openItem, "currentAmount");
+      state.settings.rates.USD = 5.0;
+      var openAfter = itemAed(openItem, "currentAmount");
+      assert("FX lock: open item AED value does change with rate", openBefore !== openAfter);
+    });
+
+    // Local-date handling: localDateStr should reflect the Date object's local fields, not UTC.
+    (function () {
+      var d = new Date(2024, 0, 15, 1, 0, 0); // Jan 15, 01:00 local time
+      assert("local date uses local calendar day", localDateStr(d) === "2024-01-15");
+    })();
+
+    // Merge de-duplication: merging the same budgets/vendors/items twice does not duplicate.
+    withState(function () {
+      state = { budgets: [], vendors: [], items: [], settings: { rates: Object.assign({}, DEFAULT_RATES) } };
+      var incoming = normaliseState({
+        budgets: [{ id: "fb1", name: "Marketing", total: 1000 }],
+        vendors: [{ id: "fv1", name: "Acme", defaultCurrency: "AED", defaultBudgetId: "fb1" }],
+        items: [{ id: "fi1", budgetId: "fb1", vendorId: "fv1", currency: "AED", stage: "Estimate received", currentAmount: 50, invoicedAmount: 0 }]
+      });
+      mergeState(incoming);
+      mergeState(incoming);
+      assert("merge de-dup: budgets not duplicated", state.budgets.length === 1);
+      assert("merge de-dup: vendors not duplicated", state.vendors.length === 1);
+      assert("merge de-dup: items not duplicated", state.items.length === 1);
+    });
+
+    // mergeState: items with a missing/colliding id are assigned a fresh id rather than
+    // overwriting or colliding with each other (unlike budgets/vendors, items have no
+    // name-based identity, so an invalid incoming id must always fall back to uid()).
+    withState(function () {
+      state = { budgets: [{ id: "b1", name: "B1", total: 100 }], vendors: [], items: [], settings: { rates: Object.assign({}, DEFAULT_RATES) } };
+      var incoming = {
+        budgets: [], vendors: [],
+        items: [
+          { id: "dup", budgetId: "b1", vendorId: "", currency: "AED", stage: "Estimate received", currentAmount: 10, invoicedAmount: 0 },
+          { id: "dup", budgetId: "b1", vendorId: "", currency: "AED", stage: "Estimate received", currentAmount: 20, invoicedAmount: 0 }
+        ]
+      };
+      mergeState(incoming);
+      var ids = state.items.map(function (it) { return it.id; });
+      assert("merge: colliding item ids are not both kept as 'dup'", state.items.length === 2 && ids[0] !== ids[1]);
+    });
+
+    // budgetSpend's excludeItemId: the item-edit impact preview relies on this to show
+    // the budget's state excluding the item currently being edited, not double-counted.
+    withState(function () {
+      state = { budgets: [{ id: "b1", name: "B1", total: 1000 }], vendors: [], items: [
+        { id: "i1", budgetId: "b1", vendorId: "", currency: "AED", stage: "PO issued", currentAmount: 300, invoicedAmount: 0 },
+        { id: "i2", budgetId: "b1", vendorId: "", currency: "AED", stage: "PO issued", currentAmount: 200, invoicedAmount: 0 }
+      ], settings: { rates: Object.assign({}, DEFAULT_RATES) } };
+      var withBoth = budgetSpend("b1");
+      var excludingI1 = budgetSpend("b1", "i1");
+      assert("budgetSpend excludeItemId: excludes only the named item's contribution",
+        withBoth.total === 500 && excludingI1.total === 200);
+      var excludingNonMatch = budgetSpend("b1", "does-not-exist");
+      assert("budgetSpend excludeItemId: a non-matching id changes nothing",
+        excludingNonMatch.total === withBoth.total);
+    });
+
+    // FX re-lock on edit: fxRateToCarryForward is what the item-edit submit handler
+    // calls to decide whether to keep an item's locked rate. It must clear the rate
+    // (returning null, so lockFxRateIfNeeded re-derives it fresh) both when the
+    // currency changes AND when the item is edited back out of a locked stage —
+    // otherwise a stale rate would keep being used forever after either change.
+    (function () {
+      var closedUsd = { currency: "USD", fxRate: 3.673 };
+      assert("FX carry-forward: same currency, still locked -> keeps the old rate",
+        fxRateToCarryForward(closedUsd, { currency: "USD", stage: "Closed" }) === 3.673);
+      assert("FX carry-forward: currency changed -> clears the rate",
+        fxRateToCarryForward(closedUsd, { currency: "AED", stage: "Closed" }) === null);
+      assert("FX carry-forward: moved back to an open stage -> clears the rate",
+        fxRateToCarryForward(closedUsd, { currency: "USD", stage: "PO issued" }) === null);
+    })();
+
+    // Stuck chip wording: "2 stuck", never "2 stucks".
+    (function () {
+      var saved = state, savedFilter = stuckFilter;
+      try {
+        var old = RK.localDate(new Date(Date.now() - 40 * 864e5));
+        state = { budgets: [], vendors: [], items: [
+          { id: "s1", budgetId: "", vendorId: "", currency: "AED", stage: "PO issued", currentAmount: 1, invoicedAmount: 0, dateUpdated: old, notes: [] },
+          { id: "s2", budgetId: "", vendorId: "", currency: "AED", stage: "CR raised", currentAmount: 1, invoicedAmount: 0, dateUpdated: old, notes: [] }
+        ], settings: { rates: Object.assign({}, DEFAULT_RATES) } };
+        stuckFilter = false;
+        renderStuckChip();
+        assert("stuck chip reads '2 stuck'", document.getElementById("stuckChip").textContent === "⚠ 2 stuck");
+      } finally {
+        state = saved; stuckFilter = savedFilter; renderAll();
+      }
+    })();
+
+    var passed = results.filter(function (r) { return r.pass; }).length;
+    console.log("Self tests: " + passed + "/" + results.length + " passed");
+    results.forEach(function (r) {
+      console[r.pass ? "log" : "error"]((r.pass ? "PASS" : "FAIL") + " - " + r.name);
+    });
+    return results;
+  }
+
+  // ---------- Init ----------
+
+  load();
+  if (corruptDataWarning) showStorageBanner(corruptDataWarning);
+  renderAll();
+
+  if (new URLSearchParams(location.search).get("selftest") === "1") {
+    runSelfTests();
+  }
+})();
+</script>
+</body>
+</html>

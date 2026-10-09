@@ -1,6 +1,8 @@
 /* ============================================================
    Report Kit — shared design system for the browser report tools
-   kit-version: 1.0.0
+   kit-version: 1.0.0 (frozen)
+   The first design language, kept so the tools built on it look the
+   same. New tools use report-kit-2.css instead (framework/DESIGN.md).
    Inlined into each report by framework/build.py. Report-specific
    visual styles (e.g. demand lists, Gantt bars) live in each
    report's own <style> block, after this file.

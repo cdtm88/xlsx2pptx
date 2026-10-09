@@ -1,0 +1,268 @@
+<!-- @out: my-new-tool.html -->
+<!-- Starter for a new tool in the Report Kit 2 design language (framework/DESIGN.md).
+     Copy to reports/<name>.src.html, change the @out line above, the title, the
+     logo text and the data, then: python3 framework/build.py reports/<name>.src.html
+     It is not built from framework/ itself; build.py only builds reports/*.src.html. -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light only">
+<title>New Tool</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMiIgaGVpZ2h0PSIzMiIgdmlld0JveD0iMCAwIDMyIDMyIj48cmVjdCB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHJ4PSI3IiBmaWxsPSIjMDBBOUNFIi8+PHBhdGggZD0iTTkgMTYuNSBsNCA0IEwyMyAxMSIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjMiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPjwvc3ZnPg==">
+<style>
+/*@include framework/report-kit-2.css@*/
+
+/* ---- report-specific (prefix your own classes, e.g. .xyz-*) ---- */
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="app-header">
+    <div class="app-logo"><img class="app-logo-mark" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMiIgaGVpZ2h0PSIzMiIgdmlld0JveD0iMCAwIDMyIDMyIj48cmVjdCB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHJ4PSI3IiBmaWxsPSIjMDBBOUNFIi8+PHBhdGggZD0iTTkgMTYuNSBsNCA0IEwyMyAxMSIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjMiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPjwvc3ZnPg==" alt="">New Tool</div>
+    <nav class="app-nav">
+      <button type="button" class="app-nav-item active" data-view="main">Overview</button>
+      <button type="button" class="app-nav-item" data-view="settings">Settings</button>
+    </nav>
+    <div class="app-header-spacer"></div>
+    <div class="app-search">
+      <input type="text" id="searchBox" placeholder="Search…" aria-label="Search">
+      <span class="search-hint-key">/</span>
+    </div>
+    <button type="button" id="btnExport">Export</button>
+    <button type="button" class="primary" id="btnNew">+ New item</button>
+  </header>
+
+  <div id="mainView">
+    <!-- the answer first, as one sentence -->
+    <div class="page-summary">
+      <div class="page-summary-text">
+        <span class="page-summary-sub" id="summarySub"></span>
+        <span class="page-summary-main" id="summaryMain"></span>
+      </div>
+      <div class="legend">
+        <span class="legend-item"><span class="legend-swatch swatch-solid"></span>Done</span>
+        <span class="legend-item"><span class="legend-swatch swatch-hatched"></span>In flight</span>
+        <span class="legend-item"><span class="legend-swatch"></span>Left</span>
+      </div>
+    </div>
+    <div class="stat-grid" id="statGrid"></div>
+
+    <div class="toolbar">
+      <div class="seg-tabs" id="tabs"></div>
+      <select class="toolbar-select" id="filterGroup" aria-label="Filter by group"><option value="">All groups</option></select>
+      <div class="toolbar-spacer"></div>
+      <span class="list-meta" id="listMeta"></span>
+    </div>
+
+    <div class="table-container">
+      <table id="itemsTable">
+        <thead>
+          <tr>
+            <th data-sort="name">Item</th>
+            <th data-sort="group">Group</th>
+            <th>Progress</th>
+            <th data-sort="amount" class="num">Amount</th>
+          </tr>
+        </thead>
+        <tbody id="itemsBody"></tbody>
+      </table>
+      <div class="empty-state" id="emptyState" hidden>Nothing matches these filters.</div>
+    </div>
+
+    <footer><div class="strapline">Single file, works offline. Your data never leaves this machine.</div></footer>
+  </div>
+
+  <div id="settingsView" hidden>
+    <div class="settings-header"><h2>Settings</h2><span class="app-version" id="appVersion"></span></div>
+    <nav class="settings-nav">
+      <button type="button" class="settings-nav-item active"><span class="settings-nav-label">General</span></button>
+    </nav>
+    <div class="settings-content">
+      <div class="settings-panel-head"><h3>General</h3><span class="hint">Set once; used everywhere.</span></div>
+      <div class="setting-row">
+        <div class="setting-row-label"><span class="label-text">Target</span><span class="label-hint">What "100%" means on the cards</span></div>
+        <div class="setting-row-control"><input type="number" id="setTarget" min="0"><span class="unit-suffix">AED</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- dialog -->
+<div class="modal-overlay" id="newOverlay" hidden>
+  <div class="modal">
+    <h2>New item</h2>
+    <form id="newForm">
+      <div class="field-row">
+        <div class="field"><label for="n_name">Name</label><input type="text" id="n_name" required></div>
+        <div class="field"><label for="n_group">Group</label><select id="n_group"></select></div>
+      </div>
+      <div class="field">
+        <label for="n_amount">Amount</label>
+        <div class="amt-input-box"><span class="amt-input-tag">AED</span><input type="number" id="n_amount" min="0" step="0.01" required></div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" data-cancel>Cancel</button>
+        <button type="submit" class="primary">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- drawer -->
+<div class="modal-overlay drawer-overlay" id="drawerOverlay" hidden>
+  <div class="modal drawer">
+    <div class="drawer-head">
+      <div class="drawer-head-top">
+        <div><div class="drawer-title-sub" id="d_sub"></div><h2 class="drawer-title" id="d_title"></h2></div>
+        <div class="drawer-head-actions"><button type="button" class="drawer-close" data-cancel aria-label="Close">×</button></div>
+      </div>
+      <div class="figure-strip">
+        <div class="figure-box"><span class="detail-label">Amount</span><span class="figure" id="d_amount"></span></div>
+        <div class="figure-box"><span class="detail-label">Step</span><span class="figure" id="d_step"></span></div>
+        <div class="figure-box"><span class="detail-label">Group</span><span class="figure" id="d_group"></span></div>
+      </div>
+    </div>
+    <div class="drawer-body">
+      <div class="drawer-section-label">Activity</div>
+      <div class="muted-empty">No activity yet.</div>
+      <div class="drawer-foot"><button type="button" class="link-action danger" id="d_delete">Delete item</button></div>
+    </div>
+  </div>
+</div>
+
+<script>
+/*@include framework/report-kit.js@*/
+</script>
+<script>
+(function () {
+  "use strict";
+  var APP_VERSION = "0.1.0";
+  var STEPS = ["Draft", "Agreed", "In progress", "Done"];
+  var GROUPS = ["Alpha", "Beta"];
+  var store = RK.store("newTool.v1");
+  var state = store.get() || { target: 100000, items: [
+    { id: RK.uid(), name: "First thing", group: "Alpha", step: 1, amount: 40000 },
+    { id: RK.uid(), name: "Second thing", group: "Beta", step: 3, amount: 25000 }
+  ] };
+  function save() { store.set(state); }
+
+  var tab = "all", sortState = { key: "name", dir: 1 };
+  var $ = RK.$, esc = RK.esc;
+
+  function filtered() {
+    var q = $("searchBox").value.trim().toLowerCase(), g = $("filterGroup").value;
+    return state.items.filter(function (it) {
+      if (g && it.group !== g) return false;
+      if (tab === "done" && it.step !== STEPS.length - 1) return false;
+      if (tab === "open" && it.step === STEPS.length - 1) return false;
+      return !q || it.name.toLowerCase().indexOf(q) !== -1;
+    }).sort(function (a, b) {
+      var x = a[sortState.key], y = b[sortState.key];
+      return (x < y ? -1 : x > y ? 1 : 0) * sortState.dir;
+    });
+  }
+
+  function render() {
+    var total = state.items.reduce(function (t, it) { return t + it.amount; }, 0);
+    var done = state.items.filter(function (it) { return it.step === STEPS.length - 1; }).reduce(function (t, it) { return t + it.amount; }, 0);
+    var scale = Math.max(state.target, total, 1);
+    $("summarySub").textContent = state.items.length + " items";
+    $("summaryMain").textContent = RK.fmtMoney(total, "AED") + " of " + RK.fmtMoney(state.target, "AED");
+    var pct = state.target > 0 ? total / state.target * 100 : 0;
+    var pill = pct >= 100 ? ["pill-red", "Over"] : pct >= 80 ? ["pill-yellow", "Watch"] : ["pill-green", "On track"];
+    $("statGrid").innerHTML =
+      '<div class="stat-card"><div class="stat-card-name"><span>All items</span><span class="status-pill ' + pill[0] + '">' + pill[1] + '</span></div>' +
+      '<div class="stat-card-figure"><span class="stat-card-value">' + pct.toFixed(0) + '%</span><span class="stat-card-of">of ' + RK.fmtMoney(state.target, "AED", true) + '</span></div>' +
+      '<div class="bar-track"><div class="bar-fill solid" style="width:' + (done / scale * 100) + '%"></div><div class="bar-fill hatched" style="width:' + ((total - done) / scale * 100) + '%"></div>' +
+      (total > state.target ? '<div class="bar-limit" style="left:' + (state.target / scale * 100) + '%"></div>' : '') + '</div>' +
+      '<div class="stat-card-nums"><span>Done<span class="stat-card-num">' + RK.fmtMoney(done, "AED", true) + '</span></span>' +
+      '<span>Left<span class="stat-card-num' + (state.target - total < 0 ? ' neg' : '') + '">' + RK.fmtMoney(state.target - total, "AED", true) + '</span></span></div></div>';
+
+    var tabs = [["all", "All"], ["open", "Open"], ["done", "Done"]];
+    $("tabs").innerHTML = tabs.map(function (t) {
+      return '<button type="button" class="seg-tab' + (tab === t[0] ? ' active' : '') + '" data-tab="' + t[0] + '">' + t[1] + '</button>';
+    }).join("");
+
+    var rows = filtered();
+    $("emptyState").hidden = rows.length > 0;
+    $("listMeta").textContent = rows.length + " item" + (rows.length === 1 ? "" : "s");
+    $("itemsBody").innerHTML = rows.map(function (it) {
+      return '<tr class="clickable" tabindex="0" data-open="' + esc(it.id) + '">' +
+        '<td class="wrap-cell"><span class="cell-title">' + esc(it.name) + '</span></td>' +
+        '<td>' + esc(it.group) + '</td>' +
+        '<td><div class="steps"><div class="steps-top"><span class="steps-label">' + esc(STEPS[it.step]) + '</span><span class="steps-count">' + (it.step + 1) + '/' + STEPS.length + '</span></div>' +
+          '<div class="step-segs">' + RK.stepSegs(STEPS.length, it.step) + '</div></div></td>' +
+        '<td class="amt"><span class="amt-wrap"><span class="amt-value">' + RK.fmtNum2(it.amount) + '</span></span></td></tr>';
+    }).join("");
+  }
+
+  // views
+  function show(view) {
+    $("mainView").hidden = view !== "main";
+    $("settingsView").hidden = view !== "settings";
+    document.querySelectorAll(".app-nav-item").forEach(function (b) { b.classList.toggle("active", b.getAttribute("data-view") === view); });
+    $("setTarget").value = state.target;
+  }
+  document.querySelectorAll(".app-nav-item").forEach(function (b) { b.addEventListener("click", function () { show(b.getAttribute("data-view")); render(); }); });
+  $("setTarget").addEventListener("change", function () { state.target = Number(this.value) || 0; save(); });
+
+  // toolbar, search, sort
+  $("filterGroup").innerHTML += GROUPS.map(function (g) { return '<option>' + esc(g) + '</option>'; }).join("");
+  $("filterGroup").addEventListener("change", render);
+  $("tabs").addEventListener("click", function (e) { var b = e.target.closest("[data-tab]"); if (b) { tab = b.getAttribute("data-tab"); render(); } });
+  $("searchBox").addEventListener("input", render);
+  RK.searchShortcut($("searchBox"), function () { return !$("mainView").hidden; });
+  RK.sortable($("itemsTable"), sortState, render);
+
+  // new-item dialog
+  var newDlg = RK.modal($("newOverlay"), { onClose: function () { $("newForm").reset(); } });
+  $("n_group").innerHTML = GROUPS.map(function (g) { return '<option>' + esc(g) + '</option>'; }).join("");
+  $("btnNew").addEventListener("click", function () { newDlg.open(); $("n_name").focus(); });
+  $("newOverlay").querySelector("[data-cancel]").addEventListener("click", newDlg.close);
+  $("newForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+    state.items.push({ id: RK.uid(), name: $("n_name").value.trim(), group: $("n_group").value, step: 0, amount: Number($("n_amount").value) || 0 });
+    save(); render(); newDlg.close();
+  });
+
+  // detail drawer: rows open on click, Enter or Space
+  var drawer = RK.modal($("drawerOverlay"));
+  var openId = null;
+  function openItem(id) {
+    var it = state.items.find(function (x) { return x.id === id; }); if (!it) return;
+    openId = id;
+    $("d_sub").textContent = it.group; $("d_title").textContent = it.name;
+    $("d_amount").textContent = RK.fmtMoney(it.amount, "AED");
+    $("d_step").textContent = STEPS[it.step]; $("d_group").textContent = it.group;
+    drawer.open();
+  }
+  $("itemsBody").addEventListener("click", function (e) { var r = e.target.closest("[data-open]"); if (r) openItem(r.getAttribute("data-open")); });
+  $("itemsBody").addEventListener("keydown", function (e) {
+    var r = e.target.closest("[data-open]");
+    if (r && e.target === r && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); openItem(r.getAttribute("data-open")); }
+  });
+  $("drawerOverlay").querySelector("[data-cancel]").addEventListener("click", drawer.close);
+  $("d_delete").addEventListener("click", function () {
+    RK.confirm("Delete this item? This cannot be undone.", function () {
+      state.items = state.items.filter(function (x) { return x.id !== openId; });
+      save(); render(); drawer.close();
+    }, { okLabel: "Delete", danger: true });
+  });
+
+  // export
+  $("btnExport").addEventListener("click", function () {
+    var rows = [["Item", "Group", "Step", "Amount"]].concat(filtered().map(function (it) {
+      return [RK.csv.safeText(it.name), RK.csv.safeText(it.group), STEPS[it.step], it.amount];
+    }));
+    RK.download("items-" + RK.today() + ".csv", RK.csv.BOM + RK.csv.fromRows(rows), "text/csv");
+  });
+
+  $("appVersion").textContent = "v" + APP_VERSION;
+  render();
+})();
+</script>
+</body>
+</html>

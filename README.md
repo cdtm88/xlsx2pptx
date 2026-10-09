@@ -16,6 +16,7 @@ machine.
 | [`waqti-demand-summary.html`](waqti-demand-summary.html) | a Waqti timesheet export | an on-screen per-demand summary of hours by person and feature |
 | [`project-cost-tracker.html`](project-cost-tracker.html) | a team and their day rates, any vendor contracts, and a UK timesheet export | a live cost position, burn-up and monthly ledger against the estimate |
 | [`pi-planning-capacity.html`](pi-planning-capacity.html) | your teams, the PI, and everyone's planned leave | the days (and points) each team can actually commit to, sprint by sprint |
+| [`vendor-spend-tracker.html`](vendor-spend-tracker.html) | your annual budgets, vendors, and every estimate, PO and invoice against them | where each budget stands (invoiced, committed, pipeline, remaining) and which items are stuck |
 
 Common to all: a single HTML file, inline-vendored libraries, works over `file://`
 with the network off, and brand-consistent styling.
@@ -243,6 +244,47 @@ See [`docs/pi-capacity-cadence.md`](docs/pi-capacity-cadence.md) for the sprint
 maths, the deduction rules, and which seeded holiday dates are confirmed and
 which are estimates.
 
+## `vendor-spend-tracker.html`
+
+Track third-party spend against annual budgets, line item by line item. Set the
+budgets and vendors once in **Settings** (a vendor can carry a default currency
+and budget, which a new line item picks up), then log each piece of work as it
+moves through eight stages: Estimate received, Approved with business, CR
+raised, MRE raised, PO issued, Initial invoice received, Final invoice received,
+Closed.
+
+The page opens on the answer: how much of the year's budgets is committed or
+invoiced, then a card per budget with its percentage used, a status (On track,
+Watch from 80%, Over), and a bar split into **invoiced**, **committed**
+(approved but not yet invoiced) and **pipeline** (estimates not yet approved).
+Pipeline is shown but not counted as used. A bar that runs over its budget
+keeps going, with a red tick at the budget line. Click a card to filter the list
+to that budget.
+
+The list groups the stages into Approval, Ordered, Invoicing and Closed tabs,
+with search (press `/`), budget and stage filters, and sortable columns. Amounts
+are converted to AED at rates set in Settings, with the native figure beneath.
+Once an item reaches an invoice stage its rate is **locked**, so changing the
+rates later never revalues history. Items with no update for 30 days (other than
+fresh estimates and closed items) are flagged as **stuck**, with a one-click
+filter.
+
+Click a row for its drawer: amounts, stage, details and a timestamped activity
+log. Notes are only ever added, never edited. **Advance** moves an item to the
+next stage, asks for the invoiced amount when the next stage needs one (with
+25/50/80/100% shortcuts) and logs the change. Click a vendor for its scorecard:
+spend split, items by stage, and the average time from entry to first invoice.
+The new-item form previews what the amount does to its budget before you save.
+
+**Saving.** Data autosaves in the browser (`localStorage`), and two open tabs
+stay in step. As with the cost tracker, every `file://` page shares that storage,
+so it holds one workspace per browser: use **Full backup** to keep a copy, and
+**Import** to restore it (Replace keeps the overwritten data under a backup key;
+Merge adds budgets, vendors and items without duplicating ones that match).
+**Export** downloads a filtered `.json` or `.csv` (safe to open in Excel) by date,
+vendor and budget. Add `?selftest=1` to the URL to run the built-in checks in
+the console.
+
 ---
 
 ## Building (for contributors)
@@ -252,7 +294,9 @@ a shared **Report Kit** (design system + rules-JSON module + vendored libraries)
 so every tool looks and reads the same, while each shipped file stays a single
 offline page.
 
-- Shared code lives in [`framework/`](framework/README.md).
+- Shared code lives in [`framework/`](framework/README.md). New tools follow
+  the **kit 2 design language** in [`framework/DESIGN.md`](framework/DESIGN.md)
+  and start from `framework/starter.src.html`.
 - Each report's source lives in `reports/<name>.src.html` and pulls the shared
   code in with `@include` directives.
 - Build with `python3 framework/build.py` (or `--check` to verify the committed
@@ -269,6 +313,7 @@ rules-JSON compatibility/versioning policy.
 - `waqti-demand-summary.html` — timesheet demand summary (view online)
 - `project-cost-tracker.html` — project cost position, burn-up and monthly ledger
 - `pi-planning-capacity.html` — PI planning capacity per team and sprint
+- `vendor-spend-tracker.html` — vendor spend against annual budgets, by line item and stage
 - `framework/` — the shared Report Kit + the inliner (`build.py`)
 - `reports/` — the `*.src.html` sources the tools are built from
 - `assets/` — logo variants, favicon, and the blank delivery-plan Excel template
