@@ -49,7 +49,7 @@ If the export has no Taxonomy column at all, Rule 1 is skipped and every row is 
 
 ### ATTN taxonomies (the only taxonomies processed)
 
-Stored in rules.json as `attnTaxonomies` and edited in **Settings > ATTN taxonomies** (add, rename, delete; taxonomies in the loaded export that are being ignored are listed with one-click add). A rules.json without the field uses this default list:
+Stored in rules.json as `attnTaxonomies` and edited in **Settings > Rules > ATTN taxonomies** (add, rename, delete; taxonomies in the loaded export that are being ignored are listed with one-click add). A rules.json without the field uses this default list:
 
 - Programs & Project Execution
 - Delivery Execution - Team Level
