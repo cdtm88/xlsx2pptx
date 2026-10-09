@@ -70,8 +70,9 @@ Drop a Waqti timesheet export, apply a per-person approved-demand allowlist
 Rows are sorted into a few tables — bookings against a demand the person isn't
 approved for, rows that need attention in Waqti, and staff with no time logged —
 following the classification rules in
-[`docs/waqti-exception-rules.md`](docs/waqti-exception-rules.md). Only rows whose
-taxonomy is on the ATTN list (editable in **Settings**) are checked. Untick any row to
+[`docs/waqti-exception-rules.md`](docs/waqti-exception-rules.md): unapproved
+demands, lines with no Application or created by `GEN_LINES`, and people with no
+time logged, each with a reason. Untick any row to
 leave it out, then copy the email as rich HTML or plain text.
 
 ## `waqti-demand-summary.html`

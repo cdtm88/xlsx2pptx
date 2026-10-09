@@ -1,6 +1,6 @@
 # Waqti Exceptions: current rules
 
-Extracted from `reports/waqti-exceptions.src.html` (the source for `waqti-exceptions.html`). Line numbers refer to that file.
+How `waqti-exceptions.html` (source: `reports/waqti-exceptions.src.html`) turns a Waqti export into tables and an email. The logic lives in `reasonsFor` and `applyRules`.
 
 ## 1. Input columns
 
@@ -15,116 +15,66 @@ Matched by exact header name on the first sheet (a column mapper appears if any 
 | feature | Feature | Yes |
 | bookedHours | Booked Hours | Yes |
 | rechargeCost | Recharge Cost | No |
-| application | Application | No |
+| application | Application | No (if missing, the "No application" check is skipped and a warning shows) |
 | createdBy | Created By | No (falls back to the last column) |
-| taxonomy | Taxonomy | No |
+| taxonomy | Taxonomy | No (read but not used by any rule) |
 | staffArt | Staff ART | No |
 
 Demand and Feature values are split on the first `" - "` into a code and a description. Approvals match on the **demand code** only.
 
 ## 2. Row filtering (before any rule)
 
-Applied in this order (`parseExport`, ~line 246):
+1. **Empty Staff ID**: row dropped, counted as "excluded".
+2. **Team filter**: if a Staff ART column exists, any row whose Staff ART is not `DN4 - dnata Travel Services` (case-insensitive) is dropped. With no Staff ART column, nothing is filtered.
+3. **Data quality**: Booked Hours that is blank, non-numeric or negative is flagged with its sheet row. The row is still checked, but its hours count as 0.
 
-1. **Empty Staff ID** → row dropped, counted as "excluded".
-2. **Rule 5, team filter** → if a Staff ART column exists, any row whose Staff ART is not `DN4 - dnata Travel Services` (case-insensitive) is dropped and counted as "other team". If there is no Staff ART column, nothing is filtered.
-3. **Data quality** → Booked Hours that is blank, non-numeric or negative is flagged with its sheet row. The row is still kept and classified, but its hours are treated as null (excluded from all totals).
+Staff IDs are upper-cased, so matching against the People rules is case-insensitive. Taxonomy is not used: every row is checked.
 
-Staff IDs are upper-cased, so matching against the rules is case-insensitive.
+## 3. The rules
 
-## 3. Row classification (precedence order)
+Every remaining row is checked against all of these:
 
-First match wins (`classify`, called from `applyRules`). Classification runs against the current rules, so editing the ATTN list in Settings re-sorts rows straight away.
+| # | Rule | Condition | Reason shown |
+|---|---|---|---|
+| 1 | Not approved | The demand code is not in the person's approved list in **Settings > People**. People not in the rules are approved for nothing. | `Not approved` |
+| 1 | No demand | The Demand is blank. | `No demand` |
+| 2 | No application | The Application is blank. | `No application` |
+| 3 | System created | Created By is `GEN_LINES` (case-insensitive): a line Waqti created because some data was missing. | `System created (GEN_LINES)` |
+| 4 | No time logged | Someone in the People rules has no rows at all in the export (after the filters above). | `No time logged` |
 
-| Order | Rule | Condition | Category | Outcome |
-|---|---|---|---|---|
-| 1 | Rule 1, ATTN-only | Taxonomy is NOT on the ATTN list (exact match, case-insensitive). Blank taxonomy counts as not on the list. | `ignored` | Ignored. Counted in a note only. |
-| 2 | Rule 3, Auto-created | Created By = `GEN_LINES` (case-insensitive) | `attention` | Needs attention, reason "Auto-created (GEN_LINES)" |
-| 3 | Rule 2, System bug | Feature present AND Application present AND Demand blank | `systembug` | Ignored. Counted in a note only. |
-| 4 | Rule 4, Missing feature | Feature blank | `attention` | Needs attention, reason "Missing feature" |
-| 5 | (uncovered) No demand | Demand blank | `attention` | Needs attention, reason "No demand" |
-| 6 | Normal | Anything else | `normal` | Checked against the approved-demand allowlist |
+### Which table a row goes to
 
-If the export has no Taxonomy column at all, Rule 1 is skipped and every row is checked (Settings shows a warning).
+- **Rule 2 or 3 matches** → **Needs attention** only. The reason lists every rule the row matches, joined with `; `, including rule 1 (for example `System created (GEN_LINES); No application; Not approved for D200`). It is not repeated in Demand exceptions.
+- **Only rule 1 matches** → **Demand exceptions**.
+- **Nothing matches** → fine, not shown.
+- **Rule 4** → **No time logged** (lower priority, its own table).
 
-### ATTN taxonomies (the only taxonomies processed)
+## 4. Tables (on screen)
 
-Stored in rules.json as `attnTaxonomies` and edited in **Settings > Rules > ATTN taxonomies** (add, rename, delete; taxonomies in the loaded export that are being ignored are listed with one-click add). A rules.json without the field uses this default list:
+Every row has a Send checkbox. Unticked rows are left out of the email and its totals.
 
-- Programs & Project Execution
-- Delivery Execution - Team Level
-- Delivery Execution - ART Level
-- Daily Stand-Up (DSU)
-- ART connects (Syncs, Driver Connects, Cross ART-connects)
-- Backlog Management & Refinement
-- Miscellaneous Meetings
-- PI Quarterly Planning, Show & Shares, and Retros
-- Sprint Planning, Show & Shares and Retros
-- Portfolio Execution
+| Table | Grouped by | Columns | Sorted by |
+|---|---|---|---|
+| Demand exceptions | staff + demand + feature (hours summed) | Staff name, Demand, Feature name, Reason, Hours | person's total hours (desc), then demand, feature |
+| Needs attention | reason + staff + application (hours summed) | Staff, Reason, Application, Hours | reason, Staff ID, application |
+| No time logged | person | Name, Staff ID, Reason | Staff ID |
 
-The old LEAVE list is gone: anything not on the ATTN list is ignored.
-
-## 4. Demand exception rule (normal rows)
-
-(`applyRules`, ~line 325)
-
-- Staff **in rules.json**: a booking is an exception if its demand code is not in their `approvedDemands` list (exact, case-sensitive match).
-- Staff **not in rules.json**: treated as approved for nothing, so every normal booking is an exception. They are also listed in a "Not in rules" warning panel.
-
-## 5. "No time logged" rule
-
-A staff ID in rules.json that does not appear anywhere in the export (after the empty-ID and Rule 5 filters) is listed as "No time logged". Any row counts as presence, including ignored and system-bug rows.
-
-## 6. How the tables are built
-
-### Demand exceptions (on screen, grouped by person)
-
-- One line per **staff + demand code + feature code**; hours summed, row count kept, earliest/latest work day tracked. The description shown is the one from the latest work day.
-- People sorted by total exception hours (desc), then Staff ID.
-- Lines within a person sorted by demand code, then feature code.
-
-### Needs attention
-
-- One line per **reason + staff + application**; hours summed.
-- Sorted by reason, then Staff ID, then application.
-- Columns: Staff, Reason, Application, Hours.
-
-### No time logged
-
-- Columns: Name, Staff ID. Sorted by Staff ID.
-
-### Every table on screen has an include checkbox per row. Unticked rows are left out of the email (and its totals).
-
-## 7. How the email is built
-
-(`buildEmail`, ~line 425)
+## 5. Email
 
 Section order:
 
 1. Title: `Timesheet corrections needed: {period}`
-2. Opening line (editable in Settings). Default: "The following bookings were made against demands the person is not currently approved for."
-3. `Total to correct: X hours across N people.` (demand exceptions only; attention and missing are not in the total)
-4. **One table per demand**, regrouped from the per-person data:
-   - Heading `{demand code} - {demand description}`
-   - Columns: Staff (name, or Staff ID if no name), Feature, Hours
-   - Demands sorted by total hours (desc), then demand code
-   - Rows sorted by name, then feature
-5. **Needs attention** table (amber): Staff, Reason, Application, Hours
-6. **No time logged** table (grey): Name, Staff ID, with the line "these team members have no bookings in Waqti. Please update your timesheets."
+2. Opening line (editable in Settings > Email text).
+3. `Total to correct: X hours across N people.` (demand exceptions only)
+4. **One table per demand** (heading `{code} - {description}`, or `No demand`): Staff, Feature, Reason, Hours. Demands sorted by total hours (desc).
+5. **Needs attention** (amber): Staff, Reason, Application, Hours.
+6. **No time logged (lower priority)** (grey): Name, Staff ID, Reason.
 7. Closing action (editable). Default: "Please correct these in Waqti by {deadline}."
 
-Formatting notes:
+Empty sections are left out. Hours show to 1 decimal. Text is made Windows-1252 safe for the plain-text copy.
 
-- Hours shown to 1 decimal with "hrs".
-- Rich HTML uses fixed 900px tables so all tables line up. Plain text uses padded columns.
-- Text is forced to Windows-1252 safe characters (accents transliterated, unknown characters become `?`); a note appears if any name was simplified.
-- A section is omitted entirely when it has no rows.
+## 6. Things worth knowing
 
-## 8. Things worth knowing before you change the rules
-
-- **Total hours includes everything** (ignored, system-bug, attention rows), so the "exception %" denominator includes ignored rows.
-- **Data-quality rows still classify.** A bad-hours row on an unapproved demand appears as an exception line with 0.0 hrs.
-- **The Rule 5 ART name is hard-coded twice**: in `TARGET_ART` and in the UI "ignored" note.
-- **The code used to refer to `Exception_Rules.md`**, which is not in the repo. This file is now the reference.
-- **Rule numbering vs precedence**: the evaluation order is 1, 3, 2, 4, then "no demand", not numeric order.
+- **Leave and admin rows are checked too.** Taxonomy is ignored, so an Annual Leave row with no Application or Demand appears in Needs attention as `No application; No demand`. To keep leave out, approve the leave demand for each person or bring back a taxonomy filter.
+- **The team (ART) name is hard-coded** in `TARGET_ART` and in the on-screen "Ignored" note.
 - **No time-bounded approvals**: approvals apply to the whole export period.
