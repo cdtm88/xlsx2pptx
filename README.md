@@ -69,7 +69,9 @@ Drop a Waqti timesheet export, apply a per-person approved-demand allowlist
 (`rules.json`, built or imported in **Settings**), and get a copy-paste email.
 Rows are sorted into a few tables — bookings against a demand the person isn't
 approved for, rows that need attention in Waqti, and staff with no time logged —
-following the classification rules in `Exception_Rules.md`. Untick any row to
+following the classification rules in
+[`docs/waqti-exception-rules.md`](docs/waqti-exception-rules.md). Only rows whose
+taxonomy is on the ATTN list (editable in **Settings**) are checked. Untick any row to
 leave it out, then copy the email as rich HTML or plain text.
 
 ## `waqti-demand-summary.html`

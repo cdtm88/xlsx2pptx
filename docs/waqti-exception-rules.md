@@ -34,30 +34,22 @@ Staff IDs are upper-cased, so matching against the rules is case-insensitive.
 
 ## 3. Row classification (precedence order)
 
-First match wins (`parseExport`, ~line 268):
+First match wins (`classify`, called from `applyRules`). Classification runs against the current rules, so editing the ATTN list in Settings re-sorts rows straight away.
 
 | Order | Rule | Condition | Category | Outcome |
 |---|---|---|---|---|
-| 1 | Rule 1, Leave / non-delivery | Taxonomy is in the LEAVE list (exact match, case-insensitive) | `leave` | Ignored. Counted in a note only. |
+| 1 | Rule 1, ATTN-only | Taxonomy is NOT on the ATTN list (exact match, case-insensitive). Blank taxonomy counts as not on the list. | `ignored` | Ignored. Counted in a note only. |
 | 2 | Rule 3, Auto-created | Created By = `GEN_LINES` (case-insensitive) | `attention` | Needs attention, reason "Auto-created (GEN_LINES)" |
 | 3 | Rule 2, System bug | Feature present AND Application present AND Demand blank | `systembug` | Ignored. Counted in a note only. |
-| 4 | Rule 4, Missing feature | Taxonomy is in the ATTN list AND Feature blank | `attention` | Needs attention, reason "Missing feature" |
+| 4 | Rule 4, Missing feature | Feature blank | `attention` | Needs attention, reason "Missing feature" |
 | 5 | (uncovered) No demand | Demand blank | `attention` | Needs attention, reason "No demand" |
 | 6 | Normal | Anything else | `normal` | Checked against the approved-demand allowlist |
 
-### LEAVE taxonomies (Rule 1)
+If the export has no Taxonomy column at all, Rule 1 is skipped and every row is checked (Settings shows a warning).
 
-- Annual Leave
-- Time Off In Lieu (TOIL)
-- Waqti-MyTime Admin
-- Sick Leave
-- Prayers
-- Training, Professional Development, Knowledge Sharing, On-Job Training
-- Budgeting & Forecasting
-- Cross Team/ART collaboration
-- Department Meeting/Townhall/Pulse of IT
+### ATTN taxonomies (the only taxonomies processed)
 
-### ATTN taxonomies (Rule 4, only flagged when Feature is blank)
+Stored in rules.json as `attnTaxonomies` and edited in **Settings > ATTN taxonomies** (add, rename, delete; taxonomies in the loaded export that are being ignored are listed with one-click add). A rules.json without the field uses this default list:
 
 - Programs & Project Execution
 - Delivery Execution - Team Level
@@ -70,6 +62,8 @@ First match wins (`parseExport`, ~line 268):
 - Sprint Planning, Show & Shares and Retros
 - Portfolio Execution
 
+The old LEAVE list is gone: anything not on the ATTN list is ignored.
+
 ## 4. Demand exception rule (normal rows)
 
 (`applyRules`, ~line 325)
@@ -79,7 +73,7 @@ First match wins (`parseExport`, ~line 268):
 
 ## 5. "No time logged" rule
 
-A staff ID in rules.json that does not appear anywhere in the export (after the empty-ID and Rule 5 filters) is listed as "No time logged". Any row counts as presence, including leave and system-bug rows.
+A staff ID in rules.json that does not appear anywhere in the export (after the empty-ID and Rule 5 filters) is listed as "No time logged". Any row counts as presence, including ignored and system-bug rows.
 
 ## 6. How the tables are built
 
@@ -91,9 +85,9 @@ A staff ID in rules.json that does not appear anywhere in the export (after the 
 
 ### Needs attention
 
-- One line per **reason + staff + feature code + application**; hours summed.
-- Sorted by reason, then Staff ID, then feature.
-- Columns: Staff, Reason, Feature, Application, Hours.
+- One line per **reason + staff + application**; hours summed.
+- Sorted by reason, then Staff ID, then application.
+- Columns: Staff, Reason, Application, Hours.
 
 ### No time logged
 
@@ -115,7 +109,7 @@ Section order:
    - Columns: Staff (name, or Staff ID if no name), Feature, Hours
    - Demands sorted by total hours (desc), then demand code
    - Rows sorted by name, then feature
-5. **Needs attention** table (amber): Staff, Reason, Feature, Application, Hours
+5. **Needs attention** table (amber): Staff, Reason, Application, Hours
 6. **No time logged** table (grey): Name, Staff ID, with the line "these team members have no bookings in Waqti. Please update your timesheets."
 7. Closing action (editable). Default: "Please correct these in Waqti by {deadline}."
 
@@ -128,10 +122,9 @@ Formatting notes:
 
 ## 8. Things worth knowing before you change the rules
 
-- **Total hours includes everything** (leave, system-bug, attention rows), so the "exception %" denominator includes leave.
+- **Total hours includes everything** (ignored, system-bug, attention rows), so the "exception %" denominator includes ignored rows.
 - **Data-quality rows still classify.** A bad-hours row on an unapproved demand appears as an exception line with 0.0 hrs.
-- **The on-screen "ignored" note is out of date.** It describes leave as "Annual Leave, TOIL, Sick Leave, Prayers, Waqti admin, Training" (~line 924), but the LEAVE list now also includes Budgeting & Forecasting, Cross Team/ART collaboration and Department Meeting/Townhall.
-- **The Rule 5 ART name is hard-coded twice**: in `TARGET_ART` (~line 187) and in the UI note (~line 926).
-- **The code refers to `Exception_Rules.md`**, but that file is not in the repo.
+- **The Rule 5 ART name is hard-coded twice**: in `TARGET_ART` and in the UI "ignored" note.
+- **The code used to refer to `Exception_Rules.md`**, which is not in the repo. This file is now the reference.
 - **Rule numbering vs precedence**: the evaluation order is 1, 3, 2, 4, then "no demand", not numeric order.
 - **No time-bounded approvals**: approvals apply to the whole export period.
