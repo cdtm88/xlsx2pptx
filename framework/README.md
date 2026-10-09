@@ -13,9 +13,35 @@ no build step *for the user*, and no external requests.
 | `starter.src.html` | A small working page in the kit 2 language. Copy it to start a new tool. |
 | `DESIGN.md` | The design language: principles, tokens, every component, the runtime helpers, a checklist for new tools. |
 | `report-kit.css` | Kit 1, **frozen**: the original look (cards, light-header tables, upload zone, KPIs, staff-name editor). Kept so the tools built on it do not change; not for new tools. |
-| `report-kit.js` | `window.RK` — DOM/format helpers, file download, namespaced `localStorage`, clipboard (rich HTML + text), upload wiring, xlsx plumbing, the **rules JSON module**, the reusable **staff-name editor**, and (since 1.1.0) the kit 2 runtime: `RK.modal`, `RK.confirm`, `RK.sortable`, `RK.chipsFromSelect`, `RK.stepSegs`, `RK.searchShortcut`, CSV and number/date helpers. Works with either stylesheet. |
+| `report-kit.js` | `window.RK` — DOM/format helpers, file download, namespaced `localStorage`, clipboard (rich HTML + text), upload wiring, xlsx plumbing, the **rules JSON module**, the reusable **staff-name editor**, and (since 1.1.0) the kit 2 runtime: `RK.modal`, `RK.confirm`, `RK.sortable`, `RK.chipsFromSelect`, `RK.stepSegs`, `RK.searchShortcut`, CSV and number/date helpers, and (1.2.0) `RK.dict`/`RK.has` for lookups keyed by file data. The kit 1 helpers and `RK.show`/`RK.hide` work under either stylesheet; the kit 2 helpers (`RK.modal`, `RK.confirm`, chips, steps) are styled only by `report-kit-2.css`. |
 | `vendor/sheetjs.js` | The vendored SheetJS mini build (read-only), inlined where a report reads `.xlsx`. One copy for all reports. |
 | `build.py` | The inliner. Turns a `reports/<name>.src.html` into the shipped single-file `<name>.html`. |
+
+## Security and testing rules
+
+- **Offline by policy.** Every source carries a `Content-Security-Policy` meta tag
+  (`default-src 'none'`, inline script and style only, images from `data:`/`blob:`,
+  `connect-src 'none'`), placed straight after the charset. Copy it from
+  `starter.src.html`. It turns "no network requests" from a habit into something
+  the browser enforces, and limits what any injected script could do.
+- **Lookups keyed by data use `RK.dict()`** (or a `Map`), never `{}`: a spreadsheet
+  cell or JSON key of `__proto__`, `constructor` or `toString` must stay a plain key.
+- **Text into HTML goes through `RK.esc`**, every time, including alert and toast text.
+- **Load, then commit.** Validate and render a loaded file before it replaces the
+  working state or is autosaved.
+- **`tests/smoke.cjs`** opens every built tool over `file://` and fails on a missing
+  CSP, any network request, any page or console error, or a broken main flow; it also
+  unit-checks the kit's pure helpers. A new tool needs an entry in its `FLOWS` table.
+  The GitHub Action in `.github/workflows/check.yml` runs `build.py --check` and the
+  smoke test on every pull request. Run them locally with:
+
+  ```
+  python3 framework/build.py --check
+  npm i --no-save playwright@1.56.1 && npx playwright install chromium   # once
+  node tests/smoke.cjs
+  ```
+
+  Fixtures live in `tests/fixtures/` (regenerate with `python3 tests/fixtures/make.py`).
 
 ## How a report is built
 
@@ -46,6 +72,7 @@ Build everything, or one report:
 python3 framework/build.py                       # all reports/*.src.html
 python3 framework/build.py reports/foo.src.html
 python3 framework/build.py --check               # fail if any committed .html is stale
+                                                 # (and prove starter.src.html's includes resolve)
 ```
 
 The built `.html` at the repo root is what users open and what ships. Always

@@ -4,6 +4,8 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<!-- Offline by policy: nothing may load from or send to the network (framework/DESIGN.md). -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; connect-src 'none'; form-action 'none'; base-uri 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light only">
 <title>PI Planning Capacity Calculator</title>
@@ -144,7 +146,7 @@ tr.pic-nocount td.pic-person{font-style:italic}
     </div>
     <div class="spacer"></div>
     <span class="pic-save" id="saveState"><span class="pic-dot"></span>Starting up</span>
-    <span class="ver" id="version">v1.0.0</span>
+    <span class="ver" id="version">v1.0.1</span>
     <button type="button" class="btn btn-ghost no-print pic-header-btn" id="settingsBtn">Settings</button>
     <button type="button" class="btn btn-ghost no-print pic-header-btn" id="topLoad">Load data</button>
     <button type="button" class="btn btn-primary no-print pic-header-btn" id="topSave">Save JSON</button>
@@ -434,7 +436,7 @@ tr.pic-nocount td.pic-person{font-style:italic}
    ============================================================ */
 (function () {
   "use strict";
-  var APP_VERSION = "1.0.0";
+  var APP_VERSION = "1.0.1";
   var SCHEMA_VERSION = 1;
   var LS_KEY = "pi-capacity:state:v1";
   var $ = RK.$, esc = RK.esc, show = RK.show, hide = RK.hide, round1 = RK.round1, round2 = RK.round2;
@@ -868,7 +870,7 @@ tr.pic-nocount td.pic-person{font-style:italic}
     // alerts
     var alerts = buildAlerts(R);
     $("alerts").innerHTML = alerts.length ? alerts.map(function (a) {
-      return '<div class="pic-alert ' + a.level + '">' + (a.who ? '<span class="who">' + esc(a.who) + "</span> " : "") + a.text + "</div>";
+      return '<div class="pic-alert ' + a.level + '">' + (a.who ? '<span class="who">' + esc(a.who) + "</span> " : "") + esc(a.text) + "</div>";
     }).join("") : "";
 
     // matrix

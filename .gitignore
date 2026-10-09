@@ -15,3 +15,6 @@ Thumbs.db
 *.swp
 .vscode/
 .idea/
+
+# Python bytecode (framework/build.py imported in tests)
+__pycache__/

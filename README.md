@@ -301,6 +301,11 @@ offline page.
   code in with `@include` directives.
 - Build with `python3 framework/build.py` (or `--check` to verify the committed
   `.html` files are up to date). Edit the source or the kit, rebuild, commit both.
+- `node tests/smoke.cjs` opens every built tool in a headless browser and checks it
+  loads clean, stays offline and its main flow works. A GitHub Action runs it and
+  `--check` on every pull request (setup in [`framework/README.md`](framework/README.md)).
+- Every tool carries a Content-Security-Policy that blocks all network access, so
+  "your data never leaves the machine" is enforced by the browser, not just intended.
 
 End users never build anything — they just open the `.html`. See
 [`framework/README.md`](framework/README.md) for the authoring guide and the
