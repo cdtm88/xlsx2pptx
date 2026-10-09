@@ -4,6 +4,8 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<!-- Offline by policy: nothing may load from or send to the network (framework/DESIGN.md). -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; connect-src 'none'; form-action 'none'; base-uri 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Vendor Spend Tracker</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMiIgaGVpZ2h0PSIzMiIgdmlld0JveD0iMCAwIDMyIDMyIj48cmVjdCB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHJ4PSI3IiBmaWxsPSIjMDBBOUNFIi8+PHBhdGggZD0iTTkgMTYuNSBsNCA0IEwyMyAxMSIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjMiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPjwvc3ZnPg==">
@@ -657,6 +659,32 @@
   function bindModal(overlay, onClose) { return RK.modal(overlay, { onClose: onClose }); }
   function showConfirm(message, onConfirm, okLabel) { RK.confirm(message, onConfirm, { okLabel: okLabel }); }
 
+  // ---------- Edits from another tab ----------
+  // Every save stamps state.saveToken with a fresh random token (and bumps state.rev), and
+  // the storage listener swaps in the other tab's state. A form remembers the version it
+  // was opened at: by default the save token (with the rev, for a tab still running an
+  // older copy that writes no token), which unlike a counter alone never comes round
+  // again (a Replace import cannot reset it to an old value); the Advance step passes the
+  // item's own version instead, so changes to other items do not count.
+  // If the version moved by the time Save is pressed, the form was filled from data that
+  // is now out of date, and saving it as-is would silently revert the other tab's change.
+  // guardStale() asks first. Returns true when it has taken over (the caller stops);
+  // onProceed runs if the user chooses to continue.
+  var openedAt = {};
+  function workspaceVersion() {
+    return (typeof state.saveToken === "string" ? state.saveToken : "") + "/" + (Number(state.rev) || 0);
+  }
+  function markOpened(form, version) { openedAt[form] = version != null ? String(version) : workspaceVersion(); }
+  function isStale(form, version) {
+    var now = version != null ? String(version) : workspaceVersion();
+    return openedAt[form] !== undefined && openedAt[form] !== now;
+  }
+  function guardStale(form, message, okLabel, onProceed, version) {
+    if (!isStale(form, version)) return false;
+    RK.confirm(message, function () { markOpened(form, version); onProceed(); }, { okLabel: okLabel, title: "Changed in another tab", danger: true });
+    return true;
+  }
+
   var STAGES = [
     "Estimate received",
     "Approved with business",
@@ -677,7 +705,7 @@
   // user-facing features that stay backward compatible, PATCH for fixes with no
   // behavior/schema change. Bump this by hand on each release; it is not read or
   // written anywhere else, so changing it never affects stored data.
-  var APP_VERSION = "1.1.0";
+  var APP_VERSION = "1.2.1";
 
   // The 8-segment stage-progress bar used in the items table and the detail drawer:
   // filled up to the current stage, all green once Closed.
@@ -686,65 +714,105 @@
   }
   var DEFAULT_RATES = { AED: 1, USD: 3.673, GBP: 4.5, EUR: 4.1 };
 
-  var state = { budgets: [], items: [], vendors: [], settings: { rates: Object.assign({}, DEFAULT_RATES) } };
+  var state = { rev: 0, saveToken: "", budgets: [], items: [], vendors: [], settings: { rates: Object.assign({}, DEFAULT_RATES) } };
 
   var uid = RK.uid;
 
   var DERIVED_ITEM_FIELDS = ["budgetName", "vendorName", "currentAmountAed", "invoicedAmountAed"];
 
   // Builds a clean state object from parsed JSON (storage, import, legacy). Never mutates
-  // the input. Returns null if the shape is not even minimally usable.
+  // the input. Returns null if the shape is not even minimally usable. Every entity is
+  // type-checked and every id made valid and unique here, so Replace and a reload get the
+  // same guarantees as Merge: a duplicated id would otherwise make deleting one item
+  // delete every item sharing it.
+  function isPlainObject(x) { return x !== null && typeof x === "object" && !Array.isArray(x); }
+  function str(x) { return typeof x === "string" ? x : (x == null ? "" : String(x)); }
+  function money(x) { var n = Number(x); return isFinite(n) ? n : 0; }
+  // An id or id reference as a string: older data stored ids as numbers (101), and a
+  // reference has to match its record whichever form either side used. Anything that is
+  // not a non-empty string or a finite number is no reference at all.
+  function idKey(x) {
+    if (typeof x === "number") return isFinite(x) ? String(x) : "";
+    return typeof x === "string" ? x : "";
+  }
+  // Gives each record a valid string id that no earlier record has taken: a number id
+  // whose string form is valid keeps that form (101 becomes "101"). Returns a map, keyed
+  // by the old id as a string, from an invalid incoming id to its replacement, so
+  // references to it can follow; a duplicate keeps pointing at the first record that had it.
+  function reId(list) {
+    var seen = RK.dict(), remap = RK.dict();
+    list.forEach(function (rec) {
+      var key = idKey(rec.id);
+      if (isValidId(key) && !seen[key]) { rec.id = key; seen[key] = 1; return; }
+      var fresh = uid();
+      while (seen[fresh]) fresh = uid();
+      if (key && !isValidId(key) && !remap[key]) remap[key] = fresh;
+      rec.id = fresh;
+      seen[fresh] = 1;
+    });
+    return remap;
+  }
+
   function normaliseState(parsed) {
     if (!parsed || !Array.isArray(parsed.budgets) || !Array.isArray(parsed.items)) return null;
 
     var out = {
-      budgets: parsed.budgets.map(function (b) {
-        return {
-          id: b.id,
-          name: b.name,
-          total: Number(b.total) || 0
-        };
+      rev: Number(parsed.rev) || 0,
+      saveToken: str(parsed.saveToken),
+      budgets: parsed.budgets.filter(isPlainObject).map(function (b) {
+        return { id: b.id, name: str(b.name), total: money(b.total) };
       }),
-      vendors: Array.isArray(parsed.vendors) ? parsed.vendors.map(function (v) {
+      vendors: Array.isArray(parsed.vendors) ? parsed.vendors.filter(isPlainObject).map(function (v) {
         return {
           id: v.id,
-          name: v.name,
-          systemName: v.systemName || "",
-          defaultCurrency: v.defaultCurrency || BASE_CURRENCY,
-          defaultBudgetId: v.defaultBudgetId || ""
+          name: str(v.name),
+          systemName: str(v.systemName),
+          defaultCurrency: RK.has(DEFAULT_RATES, v.defaultCurrency) ? v.defaultCurrency : BASE_CURRENCY,
+          defaultBudgetId: idKey(v.defaultBudgetId)
         };
       }) : [],
       items: [],
       settings: { rates: Object.assign({}, DEFAULT_RATES) }
     };
 
-    if (parsed.settings && parsed.settings.rates) {
-      Object.assign(out.settings.rates, parsed.settings.rates);
-    }
-    out.settings.rates.AED = 1;
-    ["USD", "GBP", "EUR"].forEach(function (c) {
-      if (out.settings.rates[c] == null) out.settings.rates[c] = DEFAULT_RATES[c];
+    // Only the known currencies, and only finite positive rates: "abc", 0 or a negative
+    // rate would quietly value every item in that currency at AED 0 or NaN.
+    var inRates = parsed.settings && isPlainObject(parsed.settings.rates) ? parsed.settings.rates : {};
+    Object.keys(DEFAULT_RATES).forEach(function (c) {
+      var r = Number(inRates[c]);
+      if (RK.has(inRates, c) && isFinite(r) && r > 0) out.settings.rates[c] = r;
     });
+    out.settings.rates.AED = 1;
 
-    var validBudgetIds = {};
+    var budgetRemap = reId(out.budgets), vendorRemap = reId(out.vendors);
+    var validBudgetIds = RK.dict();
     out.budgets.forEach(function (b) { validBudgetIds[b.id] = true; });
     out.vendors.forEach(function (v) {
+      if (budgetRemap[v.defaultBudgetId]) v.defaultBudgetId = budgetRemap[v.defaultBudgetId];
       if (v.defaultBudgetId && !validBudgetIds[v.defaultBudgetId]) v.defaultBudgetId = "";
     });
 
-    out.items = parsed.items.map(function (raw) {
+    out.items = parsed.items.filter(isPlainObject).map(function (raw) {
       var it = Object.assign({}, raw);
       DERIVED_ITEM_FIELDS.forEach(function (f) { delete it[f]; });
+      it.budgetId = idKey(it.budgetId);
+      it.vendorId = idKey(it.vendorId);
+      if (budgetRemap[it.budgetId]) it.budgetId = budgetRemap[it.budgetId];
+      if (vendorRemap[it.vendorId]) it.vendorId = vendorRemap[it.vendorId];
+      ["description", "owner", "poNumber", "dateEntered", "dateUpdated"].forEach(function (f) { it[f] = str(it[f]); });
+      it.currentAmount = money(it.currentAmount);
+      it.invoicedAmount = money(it.invoicedAmount);
 
-      // Validated against the known currency set, not just checked for presence —
-      // an unrecognised currency string (hand-edited or malformed import data) would
-      // otherwise flow into rateForItem/toAed, which silently fall back to rate 1 for
-      // any unknown code, quietly mis-converting the item's AED-equivalent figures.
-      if (DEFAULT_RATES[it.currency] == null) it.currency = BASE_CURRENCY;
+      // Validated against the known currency set (own keys only: "toString" or
+      // "constructor" are inherited members, not currencies). An unrecognised currency
+      // would otherwise flow into rateForItem/toAed, which fall back to rate 1 and
+      // quietly mis-convert the item's AED-equivalent figures.
+      if (!RK.has(DEFAULT_RATES, it.currency)) it.currency = BASE_CURRENCY;
       if (STAGES.indexOf(it.stage) === -1) {
         it.stage = STAGES[0];
       }
-      if (!it.createdAt) {
+      if (it.fxRate != null && !(isFinite(Number(it.fxRate)) && Number(it.fxRate) > 0)) it.fxRate = null;
+      if (!it.createdAt || typeof it.createdAt !== "string") {
         it.createdAt = (it.dateEntered ? it.dateEntered + "T00:00:00.000Z" : nowIso());
       }
       if (!Array.isArray(it.notes)) {
@@ -754,15 +822,19 @@
               return { timestamp: it.createdAt, text: line };
             })
           : [];
+      } else {
+        it.notes = it.notes.filter(isPlainObject).map(function (n) {
+          return { timestamp: str(n.timestamp) || it.createdAt, text: str(n.text) };
+        });
       }
       var isInvoiceStage = it.stage === "Final invoice received" || it.stage === "Closed" ||
         INVOICE_STAGES.indexOf(it.stage) !== -1;
       if (it.fxRate == null && isInvoiceStage) {
-        var r = out.settings.rates[it.currency];
-        it.fxRate = r == null ? 1 : r;
+        it.fxRate = out.settings.rates[it.currency];
       }
       return it;
     });
+    reId(out.items);
 
     return out;
   }
@@ -778,8 +850,9 @@
   var corruptDataWarning = null;
 
   function load() {
+    var raw = null;
     try {
-      var raw = localStorage.getItem(STORE_KEY);
+      raw = localStorage.getItem(STORE_KEY);
       if (!raw) return;
       var parsed;
       try {
@@ -798,10 +871,20 @@
       state = normalised;
     } catch (e) {
       console.warn("Failed to load stored data", e);
+      if (raw) saveCorruptCopy(raw);
+      corruptDataWarning = "Stored data could not be loaded and has been preserved as a backup key in storage. Starting with an empty workspace.";
     }
   }
 
+  // Marks a new version of the workspace: the rev counter for people reading the file,
+  // and a fresh random token that the stale-form guard compares (see markOpened).
+  function stampSave(s) {
+    s.rev = (Number(s.rev) || 0) + 1;
+    s.saveToken = uid() + uid();
+  }
+
   function save() {
+    stampSave(state);
     try {
       localStorage.setItem(STORE_KEY, JSON.stringify(state));
     } catch (e) {
@@ -810,7 +893,7 @@
   }
 
   function hasKnownRate(currency) {
-    return state.settings.rates[currency] != null;
+    return RK.has(state.settings.rates, currency);
   }
 
   // Rate used for an item's AED conversion: the item's locked fxRate once it has one
@@ -1131,7 +1214,7 @@
     budgetFilterCard = budgetFilterCard === id ? null : id;
     document.getElementById("filterBudget").value = budgetFilterCard || "";
     renderAll();
-    var again = document.querySelector('[data-budget-filter="' + id + '"]');
+    var again = document.querySelector('[data-budget-filter="' + CSS.escape(id) + '"]');
     if (again) again.focus();
   }
   document.getElementById("budgetGrid").addEventListener("click", function (e) {
@@ -1467,6 +1550,7 @@
     updateAedPreview();
     updateImpactPreview();
 
+    markOpened("item");
     itemModalCtl.open();
     document.getElementById("f_vendor").focus();
   }
@@ -1563,6 +1647,8 @@
 
   itemForm.addEventListener("submit", function (e) {
     e.preventDefault();
+    if (guardStale("item", "Line items were changed in another tab after you opened this form. Saving now writes every field in this form over those changes.",
+      "Save mine anyway", function () { itemForm.requestSubmit(); })) return;
     var id = document.getElementById("itemId").value;
     var isNew = !id;
     var existing = isNew ? null : state.items.find(function (it) { return it.id === id; });
@@ -1631,6 +1717,7 @@
     document.getElementById("b_id").value = budget ? budget.id : "";
     document.getElementById("b_name").value = budget ? budget.name : "";
     document.getElementById("b_total").value = budget ? budget.total : "";
+    markOpened("budget");
     budgetModalCtl.open();
     document.getElementById("b_name").focus();
   }
@@ -1644,6 +1731,8 @@
 
   budgetForm.addEventListener("submit", function (e) {
     e.preventDefault();
+    if (guardStale("budget", "Budgets were changed in another tab after you opened this form. Saving now writes this budget over those changes.",
+      "Save mine anyway", function () { budgetForm.requestSubmit(); })) return;
     var id = document.getElementById("b_id").value;
     var isNew = !id;
     var data = {
@@ -1766,6 +1855,7 @@
     document.getElementById("v_systemName").value = vendor ? vendor.systemName : "";
     document.getElementById("v_defaultCurrency").value = vendor ? (vendor.defaultCurrency || "AED") : "AED";
     populateVendorBudgetSelect(vendor ? vendor.defaultBudgetId : "");
+    markOpened("vendor");
     vendorModalCtl.open();
     document.getElementById("v_name").focus();
   }
@@ -1779,6 +1869,8 @@
 
   vendorForm.addEventListener("submit", function (e) {
     e.preventDefault();
+    if (guardStale("vendor", "Vendors were changed in another tab after you opened this form. Saving now writes this vendor over those changes.",
+      "Save mine anyway", function () { vendorForm.requestSubmit(); })) return;
     var id = document.getElementById("v_id").value;
     var isNew = !id;
     var data = {
@@ -1943,6 +2035,17 @@
     document.getElementById("adv_track").innerHTML = html;
   }
 
+  // The Advance step's own version of an item: the fields that decide which step comes
+  // next and what the invoice amount means. Another tab moving this item on or changing
+  // its amounts or currency changes it; changes to other items do not, and neither do a
+  // note or a description edit here (Advance appends to the latest notes and writes only
+  // stage, invoiced amount and FX rate, so it cannot revert those).
+  function itemVersion(it) {
+    return JSON.stringify([it.stage, Number(it.currentAmount) || 0, Number(it.invoicedAmount) || 0, it.currency]);
+  }
+
+  var advanceInvoicePrefill = "";
+
   function openAdvanceModal(itemId) {
     var it = state.items.find(function (x) { return x.id === itemId; });
     if (!it) return;
@@ -1962,8 +2065,10 @@
     var invField = document.getElementById("adv_invoicedAmount");
     invField.required = needsInvoiceAmount;
     invField.value = it.invoicedAmount || "";
+    advanceInvoicePrefill = invField.value;
     document.getElementById("adv_invoicedAmountTag").textContent = it.currency || "AED";
 
+    markOpened("advance", itemVersion(it));
     advanceModalCtl.open();
     (needsInvoiceAmount ? invField : document.getElementById("adv_note")).focus();
   }
@@ -2002,6 +2107,21 @@
     var itemId = document.getElementById("adv_itemId").value;
     var it = state.items.find(function (x) { return x.id === itemId; });
     if (!it) { closeAdvanceModal(); return; }
+    // Reopen keeps what was typed: the note always, the invoice amount when the user
+    // changed it from the prefilled value and the reopened step still asks for one.
+    var typedNote = document.getElementById("adv_note").value;
+    var typedInvoice = document.getElementById("adv_invoicedAmount").value;
+    var invoiceTouched = typedInvoice !== advanceInvoicePrefill;
+    if (guardStale("advance", "This item was moved on or edited in another tab since you opened this step. Reopen it with the latest stage before advancing.",
+      "Reopen", function () {
+        closeAdvanceModal();
+        openAdvanceModal(itemId);
+        if (advanceModal.hidden) return;
+        document.getElementById("adv_note").value = typedNote;
+        if (invoiceTouched && !document.getElementById("adv_invoicedAmountField").hidden) {
+          document.getElementById("adv_invoicedAmount").value = typedInvoice;
+        }
+      }, itemVersion(it))) return;
 
     var idx = STAGES.indexOf(it.stage);
     if (idx === -1 || idx >= STAGES.length - 1) { closeAdvanceModal(); return; }
@@ -2453,8 +2573,8 @@
   // is remapped through the same id map. Items whose id already exists are skipped so
   // re-importing the same file twice does not duplicate anything.
   function mergeState(incoming) {
-    var budgetIdMap = {};
-    var existingBudgetByName = {};
+    var budgetIdMap = RK.dict();
+    var existingBudgetByName = RK.dict();
     state.budgets.forEach(function (b) { existingBudgetByName[nameKey(b.name)] = b.id; });
 
     incoming.budgets.forEach(function (b) {
@@ -2469,8 +2589,8 @@
       }
     });
 
-    var vendorIdMap = {};
-    var existingVendorByName = {};
+    var vendorIdMap = RK.dict();
+    var existingVendorByName = RK.dict();
     state.vendors.forEach(function (v) { existingVendorByName[nameKey(v.name)] = v.id; });
 
     incoming.vendors.forEach(function (v) {
@@ -2500,9 +2620,9 @@
     // it must get a fresh uid() rather than being silently dropped or allowed to
     // collide, or two different items would end up sharing one id and every by-id
     // lookup (edit/delete/advance) would then address both of them at once.
-    var preMergeItemIds = {};
+    var preMergeItemIds = RK.dict();
     state.items.forEach(function (it) { preMergeItemIds[it.id] = true; });
-    var usedItemIds = Object.assign({}, preMergeItemIds);
+    var usedItemIds = Object.assign(RK.dict(), preMergeItemIds);
 
     incoming.items.forEach(function (it) {
       if (isValidId(it.id) && preMergeItemIds[it.id]) return;
@@ -2515,6 +2635,13 @@
       state.items.push(copy);
       usedItemIds[newId] = true;
     });
+  }
+
+  // Replace: backups carry no rev, so the counter continues from the higher of the two
+  // instead of restarting at 1 (save() then stamps a fresh token as well).
+  function adoptReplacement(normalised) {
+    normalised.rev = Math.max(Number(state.rev) || 0, Number(normalised.rev) || 0);
+    state = normalised;
   }
 
   function backupCurrentState() {
@@ -2554,7 +2681,7 @@
       return;
     }
     backupCurrentState();
-    state = normalised;
+    adoptReplacement(normalised);
     save();
     renderAll();
     closeImportChoiceModal();
@@ -2606,6 +2733,7 @@
   var settingsView = document.getElementById("settingsView");
 
   function populateRateInputs() {
+    ratesDirty = false;
     document.getElementById("rate_USD").value = state.settings.rates.USD;
     document.getElementById("rate_GBP").value = state.settings.rates.GBP;
     document.getElementById("rate_EUR").value = state.settings.rates.EUR;
@@ -2665,6 +2793,12 @@
     });
   });
 
+  // Rates typed but not yet saved survive another tab's save.
+  var ratesDirty = false;
+  ["rate_USD", "rate_GBP", "rate_EUR"].forEach(function (id) {
+    document.getElementById(id).addEventListener("input", function () { ratesDirty = true; });
+  });
+
   document.getElementById("btnSaveRates").addEventListener("click", function () {
     var usd = parseFloat(document.getElementById("rate_USD").value);
     var gbp = parseFloat(document.getElementById("rate_GBP").value);
@@ -2677,6 +2811,7 @@
     state.settings.rates.GBP = gbp;
     state.settings.rates.EUR = eur;
     state.settings.rates.AED = 1;
+    ratesDirty = false;
     save();
     alert("Rates saved.");
   });
@@ -2684,6 +2819,7 @@
   document.getElementById("btnResetRates").addEventListener("click", function () {
     if (!confirm("Reset exchange rates to defaults (USD 3.673, GBP 4.5, EUR 4.1)?")) return;
     state.settings.rates = Object.assign({}, DEFAULT_RATES);
+    ratesDirty = false;
     populateRateInputs();
     save();
   });
@@ -2709,11 +2845,17 @@
     state = normalised;
     renderAll();
     if (!settingsView.hidden) {
-      populateRateInputs();
+      if (!ratesDirty) populateRateInputs();
       renderVendorList();
       renderSettingsBudgetList();
     }
-    showStorageBanner("Data was changed in another tab and has been reloaded here.");
+    if (!detailModal.hidden && !document.getElementById("d_newNote").value.trim()) {
+      var openId = document.getElementById("d_itemId").value;
+      if (state.items.some(function (x) { return x.id === openId; })) openDetailModal(openId);
+      else closeDetailModal();
+    }
+    showStorageBanner("Data was changed in another tab and has been reloaded here." +
+      (document.querySelector(".modal-overlay:not([hidden])") ? " A form you have open was filled before that change; you will be asked before it overwrites anything." : ""));
   });
 
   function showStorageBanner(text) {
@@ -2882,6 +3024,119 @@
       assert("FX carry-forward: moved back to an open stage -> clears the rate",
         fxRateToCarryForward(closedUsd, { currency: "USD", stage: "PO issued" }) === null);
     })();
+
+    // Replace/reload: duplicate and missing item ids are made unique, so deleting one
+    // item can never take another with it; references to a re-id'd budget follow it.
+    withState(function () {
+      var out = normaliseState({
+        budgets: [{ id: "bad id!", name: "B", total: 1 }],
+        items: [
+          { id: "dup", budgetId: "bad id!", vendorId: "", currency: "AED", stage: "PO issued", currentAmount: 1, invoicedAmount: 0 },
+          { id: "dup", budgetId: "", vendorId: "", currency: "AED", stage: "PO issued", currentAmount: 2, invoicedAmount: 0 },
+          { budgetId: "", vendorId: "", currency: "AED", stage: "PO issued", currentAmount: 3, invoicedAmount: 0 },
+          null
+        ]
+      });
+      var ids = out.items.map(function (it) { return it.id; });
+      assert("normalise: null entries dropped", out.items.length === 3);
+      assert("normalise: item ids valid and unique", ids.every(isValidId) && ids[0] !== ids[1] && ids[1] !== ids[2] && ids[0] !== ids[2]);
+      assert("normalise: invalid budget id replaced and its items follow", isValidId(out.budgets[0].id) && out.items[0].budgetId === out.budgets[0].id);
+    });
+
+    // Inherited member names are not currencies, rates must be finite and positive, and
+    // notes must be objects.
+    withState(function () {
+      var out = normaliseState({ budgets: [], items: [
+        { id: "i1", currency: "toString", stage: "PO issued", currentAmount: 1, notes: [null, { text: "ok" }] }
+      ], settings: { rates: { USD: "abc", GBP: 0, EUR: 5 } } });
+      assert("normalise: 'toString' currency falls back to AED", out.items[0].currency === "AED");
+      assert("normalise: bad rates fall back to defaults, good ones kept",
+        out.settings.rates.USD === DEFAULT_RATES.USD && out.settings.rates.GBP === DEFAULT_RATES.GBP && out.settings.rates.EUR === 5);
+      assert("normalise: non-object notes dropped", out.items[0].notes.length === 1 && out.items[0].notes[0].text === "ok");
+    });
+
+    // Merge: a budget or vendor named like an Object.prototype member is still added.
+    withState(function () {
+      state = { budgets: [], vendors: [], items: [], settings: { rates: Object.assign({}, DEFAULT_RATES) } };
+      mergeState(normaliseState({
+        budgets: [{ id: "b1", name: "Constructor", total: 10 }],
+        vendors: [{ id: "v1", name: "__proto__", defaultCurrency: "AED" }],
+        items: [{ id: "i1", budgetId: "b1", vendorId: "v1", currency: "AED", stage: "PO issued", currentAmount: 1 }]
+      }));
+      assert("merge: 'Constructor' budget and '__proto__' vendor are added and referenced",
+        state.budgets.length === 1 && state.vendors.length === 1 &&
+        state.items[0].budgetId === state.budgets[0].id && state.items[0].vendorId === state.vendors[0].id);
+    });
+
+    // VS-R1: every save gets a new token, so a form opened before another tab's save is
+    // always caught, even after a Replace import of a file with no rev.
+    withState(function () {
+      var savedOpened = openedAt.__selftest;
+      try {
+        state = normaliseState({ rev: 3, saveToken: "tok3", budgets: [], items: [] });
+        var arrived = state.saveToken === "tok3";
+        markOpened("__selftest");
+        var seenTokens = [state.saveToken], seenRevs = [state.rev], everStaleMissed = false, tokensFresh = true;
+        var another = function (step) {
+          step();
+          var t = state.saveToken;
+          if (!t || seenTokens.indexOf(t) !== -1) tokensFresh = false;
+          if (!isStale("__selftest")) everStaleMissed = true;
+          seenTokens.push(t); seenRevs.push(state.rev);
+        };
+        another(function () { stampSave(state); });
+        another(function () { adoptReplacement(normaliseState({ budgets: [], items: [] })); stampSave(state); });
+        another(function () { stampSave(state); });
+        another(function () { stampSave(state); });
+        assert("VS-R1: save token arrives with the stored state", arrived);
+        assert("VS-R1: every save stamps a new token, Replace included", tokensFresh);
+        assert("VS-R1: a form opened before those saves is stale after each one", !everStaleMissed);
+        assert("VS-R1: Replace continues the rev instead of restarting it", seenRevs.join(",") === "3,4,5,6,7");
+        markOpened("__selftest");
+        assert("VS-R1: a form opened after the last save is not stale", !isStale("__selftest"));
+      } finally {
+        if (savedOpened === undefined) delete openedAt.__selftest; else openedAt.__selftest = savedOpened;
+      }
+    });
+
+    // VS-R2: older data with number ids keeps its vendor and budget links.
+    withState(function () {
+      var out = normaliseState({
+        budgets: [{ id: 101, name: "Ops", total: 1000 }, { id: 1.5, name: "Odd", total: 10 }],
+        vendors: [{ id: 202, name: "Acme", defaultCurrency: "AED", defaultBudgetId: 101 }, { id: 203, name: "Beta", defaultBudgetId: 1.5 }],
+        items: [
+          { id: 303, vendorId: 202, budgetId: 101, currency: "AED", stage: "PO issued", currentAmount: 400, invoicedAmount: 0 },
+          { id: 304, vendorId: "203", budgetId: 1.5, currency: "AED", stage: "PO issued", currentAmount: 1, invoicedAmount: 0 }
+        ]
+      });
+      var b = out.budgets, v = out.vendors, it = out.items;
+      assert("VS-R2: number ids become valid string ids", b.concat(v, it).every(function (r) { return isValidId(r.id); }) && b[0].id === "101" && it[0].id === "303");
+      assert("VS-R2: items keep their number-id budget and vendor", it[0].budgetId === b[0].id && it[0].vendorId === v[0].id && it[1].vendorId === v[1].id);
+      assert("VS-R2: vendor default budget keeps its number-id link", v[0].defaultBudgetId === b[0].id);
+      assert("VS-R2: an invalid number id is replaced and its references follow", b[1].id !== "1.5" && it[1].budgetId === b[1].id && v[1].defaultBudgetId === b[1].id);
+      state = out;
+      assert("VS-R2: budget shows the item as committed (40% spent)", budgetSpend(b[0].id).committed === 400);
+    });
+
+    // VS-R3: the Advance step compares the item's own version, not the workspace's.
+    withState(function () {
+      try {
+        var mk = function (id) { return { id: id, budgetId: "", vendorId: "", stage: "CR raised", dateUpdated: "2026-10-01", currentAmount: 100, invoicedAmount: 0, currency: "AED", notes: [] }; };
+        state = normaliseState({ budgets: [], items: [mk("a"), mk("b")] });
+        var a = function () { return state.items[0]; }, b = state.items[1];
+        markOpened("__selftest", itemVersion(a()));
+        b.stage = "MRE raised"; b.dateUpdated = "2026-10-09"; stampSave(state);
+        a().notes.push({ timestamp: "x", text: "note from another tab" }); a().dateUpdated = "2026-10-09"; stampSave(state);
+        assert("VS-R3: another item moving on, or a note on this one, does not make Advance stale", !isStale("__selftest", itemVersion(a())));
+        a().invoicedAmount = 50; stampSave(state);
+        var reinvoiced = isStale("__selftest", itemVersion(a()));
+        markOpened("__selftest", itemVersion(a()));
+        a().stage = "MRE raised"; stampSave(state);
+        assert("VS-R3: this item being re-invoiced or moved on makes Advance stale", reinvoiced && isStale("__selftest", itemVersion(a())));
+      } finally {
+        delete openedAt.__selftest;
+      }
+    });
 
     // Stuck chip wording: "2 stuck", never "2 stucks".
     (function () {

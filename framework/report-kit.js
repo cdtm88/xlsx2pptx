@@ -1,6 +1,6 @@
 /* ============================================================
    Report Kit — shared runtime for the browser report tools
-   kit-version: 1.1.0
+   kit-version: 1.2.0
    Exposes window.RK. Depends on window.XLSX (SheetJS) only for the
    xlsx.* helpers; everything else is standalone. Inlined into each
    report by framework/build.py so reports stay single-file/offline.
@@ -14,7 +14,7 @@
    ============================================================ */
 window.RK = (function () {
   "use strict";
-  var KIT_VERSION = "1.1.0";
+  var KIT_VERSION = "1.2.0";
 
   /* ---------- dom / format helpers ---------- */
   function $(id) { return document.getElementById(id); }
@@ -22,8 +22,15 @@ window.RK = (function () {
     return String(s === null || s === undefined ? "" : s)
       .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
   }
-  function show(el) { if (el) el.classList.remove("hidden"); }
-  function hide(el) { if (el) el.classList.add("hidden"); }
+  // Both the .hidden class (kit 1 CSS) and the hidden attribute (kit 2 CSS), so either
+  // stylesheet honours it.
+  function show(el) { if (el) { el.classList.remove("hidden"); el.hidden = false; } }
+  function hide(el) { if (el) { el.classList.add("hidden"); el.hidden = true; } }
+  // A lookup table with no prototype: keys from files ("__proto__", "constructor",
+  // "toString") are plain keys, never inherited members. Use it for any map keyed by
+  // data a user or a file supplied.
+  function dict() { return Object.create(null); }
+  function has(o, k) { return Object.prototype.hasOwnProperty.call(o, k); }
   function round1(n) { return Math.round((n + Number.EPSILON) * 10) / 10; }
   function round2(n) { return Math.round((n + Number.EPSILON) * 100) / 100; }
   function fmtHrs(n) { return (Math.round(n * 10) / 10).toFixed(1); }
@@ -41,7 +48,8 @@ window.RK = (function () {
   function store(key) {
     return {
       get: function () { try { var raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : null; } catch (e) { return null; } },
-      set: function (obj) { try { localStorage.setItem(key, JSON.stringify(obj)); } catch (e) { } }
+      // returns false when the browser refused (quota, blocked storage), so callers can say so
+      set: function (obj) { try { localStorage.setItem(key, JSON.stringify(obj)); return true; } catch (e) { return false; } }
     };
   }
 
@@ -176,8 +184,8 @@ window.RK = (function () {
     return { line: upto.split("\n").length, col: pos - upto.lastIndexOf("\n") };
   }
   function normId(id) { return String(id === null || id === undefined ? "" : id).trim().toUpperCase(); }
-  var KNOWN_TOP = { schemaVersion: 1, generatedAt: 1, label: 1, staff: 1 };
-  var KNOWN_STAFF = { name: 1, approvedDemands: 1 };
+  var KNOWN_TOP = dict(); ["schemaVersion", "generatedAt", "label", "staff"].forEach(function (k) { KNOWN_TOP[k] = 1; });
+  var KNOWN_STAFF = dict(); ["name", "approvedDemands"].forEach(function (k) { KNOWN_STAFF[k] = 1; });
 
   var rules = {
     SCHEMA_VERSION: SCHEMA_VERSION,
@@ -226,20 +234,22 @@ window.RK = (function () {
     },
     // serialise(opts) -> JSON string in the shared schema.
     // opts: { names:{id:name}, demands:{id:[...]}, staff:{id:{...}}, label, generatedAt, extraTop }
+    // When names (or demands) is passed it is the whole truth: an id missing from it has no
+    // name (no demands), so a name the user cleared stays cleared rather than coming back
+    // from staff. Keys are matched case-insensitively.
     serialise: function (opts) {
       opts = opts || {};
-      var names = opts.names || {}, demands = opts.demands || {}, staffIn = opts.staff || {};
-      var ids = {};
-      Object.keys(names).forEach(function (id) { ids[normId(id)] = 1; });
-      Object.keys(demands).forEach(function (id) { ids[normId(id)] = 1; });
-      Object.keys(staffIn).forEach(function (id) { ids[normId(id)] = 1; });
+      function norm(m) { var o = dict(); Object.keys(m || {}).forEach(function (id) { o[normId(id)] = m[id]; }); return o; }
+      var names = norm(opts.names), demands = norm(opts.demands), staffIn = norm(opts.staff);
+      var ids = dict();
+      [names, demands, staffIn].forEach(function (m) { Object.keys(m).forEach(function (id) { ids[id] = 1; }); });
       var staffOut = {};
       Object.keys(ids).sort().forEach(function (id) {
-        var base = staffIn[id] || {};
+        var base = (staffIn[id] && typeof staffIn[id] === "object") ? staffIn[id] : {};
         var out = {};
         Object.keys(base).forEach(function (k) { if (!KNOWN_STAFF[k]) out[k] = base[k]; }); // keep retained unknown fields
-        var name = (names[id] !== undefined) ? names[id] : (typeof base.name === "string" ? base.name : "");
-        var dem = (demands[id] !== undefined) ? demands[id] : (Array.isArray(base.approvedDemands) ? base.approvedDemands : []);
+        var name = opts.names ? (has(names, id) ? names[id] : "") : (typeof base.name === "string" ? base.name : "");
+        var dem = opts.demands ? (has(demands, id) ? demands[id] : []) : (Array.isArray(base.approvedDemands) ? base.approvedDemands : []);
         name = typeof name === "string" ? name : "";
         dem = Array.isArray(dem) ? dem.filter(function (x) { return typeof x === "string"; }).slice().sort() : [];
         if (name === "" && dem.length === 0 && !Object.keys(out).length) return;
@@ -332,7 +342,7 @@ window.RK = (function () {
     // stops a text cell starting with = + - @ being run as a formula; never use on numbers
     safeText: function (v) {
       var s = v === null || v === undefined ? "" : String(v);
-      return /^[=+\-@]/.test(s) ? "'" + s : s;
+      return /^[=+\-@\t\r]/.test(s) ? "'" + s : s;
     },
     // rows: array of arrays (first row = headers), already safeText'd where needed
     fromRows: function (rows) { return rows.map(function (r) { return r.map(csv.escape).join(","); }).join("\r\n"); }
@@ -363,7 +373,12 @@ window.RK = (function () {
     var dirty = false, opener = null, downOnBackdrop = false;
     box.addEventListener("input", function () { dirty = true; });
     box.addEventListener("change", function () { dirty = true; });
-    overlay.addEventListener("mousedown", function (e) { downOnBackdrop = e.target === overlay; });
+    overlay.addEventListener("mousedown", function (e) {
+      downOnBackdrop = e.target === overlay;
+      // a press on the backdrop must not move focus to <body>, or Escape and the Tab
+      // trap (both listen on the overlay) stop working
+      if (downOnBackdrop) e.preventDefault();
+    });
     overlay.addEventListener("mouseup", function (e) {
       if (downOnBackdrop && e.target === overlay && !dirty) close();
       downOnBackdrop = false;
@@ -387,6 +402,7 @@ window.RK = (function () {
     }
     return {
       open: function (from) {
+        if (!overlay.hidden) return; // already open: keep the original opener for focus return
         opener = from || document.activeElement;
         dirty = false;
         overlay.hidden = false;
@@ -464,6 +480,7 @@ window.RK = (function () {
      (1 asc, -1 desc), keeps aria-sort and a .sort-arrow span in step, then onSort().
      Returns update() to redraw the arrows after changing state in code. */
   function sortable(table, state, onSort) {
+    if (table.__rkSortable) return table.__rkSortable; // bound already: a second set of listeners would flip twice
     var ths = table.querySelectorAll("th[data-sort]");
     function update() {
       Array.prototype.forEach.call(ths, function (th) {
@@ -484,6 +501,7 @@ window.RK = (function () {
       th.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); activate(th); } });
     });
     update();
+    table.__rkSortable = update;
     return update;
   }
 
@@ -517,6 +535,7 @@ window.RK = (function () {
     round1: round1, round2: round2, fmtHrs: fmtHrs, nowIso: nowIso,
     download: download, store: store, clipboard: clipboard,
     upload: upload, xlsx: xlsx, rules: rules, NameEditor: NameEditor,
+    dict: dict, has: has,
     // kit 2 (1.1.0)
     uid: uid, localDate: localDate, today: today,
     fmtNum2: fmtNum2, fmtWhole: fmtWhole, fmtMoney: fmtMoney, csv: csv,

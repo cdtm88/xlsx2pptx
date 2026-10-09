@@ -40,8 +40,12 @@ keep their look. Do not include both stylesheets in one page: kit 2 styles bare
    has `role="button"` + `tabindex="0"` + Enter/Space. Dialogs move focus in,
    trap it, close on Escape and return focus (all done by `RK.modal`). `/`
    focuses search (`RK.searchShortcut`).
-8. **Single file, offline.** No external URLs, including icons: images are
-   inlined as data URIs.
+8. **Single file, offline, enforced.** No external URLs, including icons: images
+   are inlined as data URIs. The starter's `Content-Security-Policy` meta makes the
+   browser refuse every request and load to the network (fetch, images, scripts,
+   beacons), so keep it in every tool. It cannot stop the page navigating away, and
+   it allows inline script, so escaping text with `RK.esc` stays the real defence
+   against injected markup.
 
 ## Tokens
 
@@ -100,7 +104,7 @@ Type scale (px): 22 page headline, 20 settings title, 18 dialog/drawer title,
 | `.date-pair` | two date fields side by side |
 | `footer`, `.strapline`, `.app-version` | footer line, version in mono |
 
-## Runtime (`window.RK`, kit 1.1.0)
+## Runtime (`window.RK`, kit 1.2.0)
 
 | Helper | Does |
 |---|---|
@@ -112,13 +116,17 @@ Type scale (px): 22 page headline, 20 settings title, 18 dialog/drawer title,
 | `RK.searchShortcut(input, isActive?)` | `/` focuses the search box when nothing else has the keyboard |
 | `RK.fmtNum2`, `RK.fmtWhole`, `RK.fmtMoney(n, ccy, whole?)` | number formatting |
 | `RK.uid`, `RK.localDate(d)`, `RK.today()`, `RK.nowIso()` | ids and dates (local calendar day, not UTC) |
-| `RK.csv.escape`, `.safeText`, `.fromRows`, `.BOM` | CSV that opens cleanly in Excel and cannot run formulas |
+| `RK.csv.escape`, `.safeText`, `.fromRows`, `.BOM` | CSV that opens cleanly in Excel; `safeText` stops a text cell starting `=` `+` `-` `@`, tab or CR running as a formula |
+| `RK.dict()`, `RK.has(o, k)` | a lookup with no prototype, and an own-key test: use them for anything keyed by file or user data |
 | `RK.download(filename, text, type)`, `RK.store(key)`, `RK.esc` | from kit 1, unchanged |
 
 ## Checklist for a new tool
 
 - [ ] Started from `starter.src.html`; `report-kit-2.css` and `report-kit.js` included, nothing loaded from the network
 - [ ] Favicon and logo mark are data URIs
+- [ ] The offline `Content-Security-Policy` meta from the starter is in the head, unchanged
+- [ ] Maps keyed by file data use `RK.dict()`; every text into HTML goes through `RK.esc`
+- [ ] Has an entry in `tests/smoke.cjs` `FLOWS`, and `node tests/smoke.cjs` passes
 - [ ] Page opens on a `page-summary` answer; set-up is under Settings
 - [ ] Every figure is mono; money shows base currency first
 - [ ] Bar fills match their legend and share one scale

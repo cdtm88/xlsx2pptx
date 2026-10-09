@@ -40,11 +40,27 @@ opening from the Monday of that week. Plans written against the older
 sprint-based template still open: each `Q#.#` label is resolved to the dates
 that sprint covered and drawn on the same week timeline.
 
+Columns are found by name, so a sheet of your own works too. Start and End
+can be spelled most ways (`Start Date`, `StartDate`, `Start_Date`, `Est. Start`,
+`Forecast Finish`, `Due Date`, `Start Sprint`, `Start Date - dd/mm/yyyy`), and
+words that merely contain the letters (Vendor, Calendar, Weekend) are never
+taken for them. With several sets of dates, the plain one is plotted first,
+then forecast or planned, then target, then baseline or actual, always as a
+matching pair. Lanes come from a Category, Section or Workstream column,
+and flags from columns such as `Milestone`, `Key Milestone`, `At Risk` or
+`Risk Flag`. A line under the title says which columns were used; if no
+Start or End column is found, the error lists the headers it did find.
+
 Every field in the Tasks table is **editable in the page** — name, category,
 status, start and end dates, and the milestone and at-risk flags — so a late
 change goes straight in without editing the spreadsheet and re-uploading.
 Moving a date past the end of the timeline extends it rather than dropping the
-task.
+task. A date with a mistyped year (2016 for 2026) doesn't drag the timeline
+with it: the task is listed under the preview with its dates so the typo can
+be found and fixed. A plan that genuinely runs past five years shows its
+first five and lists the tasks after that. A week range you pick yourself is
+kept when a date edit shortens the timeline: only the end that fell off is
+pulled in.
 
 Tick **At Risk** (or set the column in the spreadsheet — `TRUE`, `Yes`, `Y`,
 `1` or `x`, or a Status of `At Risk`) and the block keeps its status colour and
@@ -75,6 +91,14 @@ following the classification rules in
 demands, lines with no Application or created by `GEN_LINES`, and people with no
 time logged, each with a reason. Untick any row to
 leave it out, then copy the email as rich HTML or plain text.
+**Settings > Import & export > Save tool with rules** downloads a copy of the
+tool with the rules and email wording built in. That copy opens on the upload
+screen. It uses its built-in rules when this browser has none, the same ones, or
+rules that came from that copy; if this browser has different rules, it asks
+once which set to use. The set not used is kept, and **Restore my previous
+rules** in Settings switches back. A copy baked with no people only fills in
+blank email wording. Details:
+[`docs/waqti-exception-rules.md`](docs/waqti-exception-rules.md#6-baked-copies-save-tool-with-rules).
 
 ## `waqti-demand-summary.html`
 
@@ -82,6 +106,12 @@ Drop the same Waqti export and read it on-screen: pick one or more demands and
 see who booked how many hours to which feature under each. Copy the selected
 tables to the clipboard (rich HTML plus plain text) for pasting into an email or
 doc. Staff names can be mapped from the same `rules.json` or typed by hand.
+When you export `rules.json` with an export loaded, a named person is written
+with `trackLoggedTime: false` (so `waqti-exceptions.html` does not list them
+under No time logged) only if their Staff ART in that export is not its main
+team. People missing from the export stay tracked, since they are who No time
+logged is for. Existing values are kept, and a note after the export says who
+was marked and why.
 
 ## `project-cost-tracker.html`
 
@@ -141,8 +171,12 @@ plan, so an overrun points at a line rather than just a number. **Set a baseline
 once the plan is approved and the tracker keeps score against it: a drift alert,
 a baseline column in the ledger and the CSV, a baseline line on the burn-up, and
 a per-line delta showing exactly what moved — including lines that have since
-been removed. **Undo** covers the destructive things (deletes, imports,
-clearing) rather than every keystroke.
+been removed. **Undo** steps back one change at a time — a field typed into is
+one step, as is a delete, an import or a currency switch — and its button names
+the change it will undo. Edits to two different rows are always two steps, even
+when the rows share a name. Opening a different project file starts a fresh undo
+history, so an undo can never write one project into another's file; saving the
+project on screen to a new file keeps its history.
 
 A cumulative chart has to treat a month with nothing booked as zero spend, which
 flattens the burn-up and quietly understates the run rate. So a month left empty
@@ -156,7 +190,16 @@ burn-up, team and ledger — with set-up, the timesheet import, vendors and cost
 drivers a click away.
 
 Day rates and vendor costs can be in AED, GBP, USD or EUR and are converted at
-rates you set; everything is reported in one base currency.
+rates you set; everything is reported in one base currency. Switching the base
+currency converts the estimate and the typed ledger actuals with it, so the
+figures keep their meaning; each is converted from the figure as typed, so
+switching back returns exactly what was typed rather than drifting by a cent.
+Moving the start month re-phases the plan, but actuals, timesheet hours and
+vendor invoices stay on the calendar month they were booked in. The move is
+applied once, when you leave the field or press Enter, never on each keystroke,
+and a toast counts any figures that fall before the new start (dropped) or past
+the end of the project (kept, hidden until you add months). Years before 1900
+are refused.
 
 **Saving.** In **Chrome**, **New project file…** picks where the project
 lives — keep it in the project's own docs folder — and from then on every change
@@ -164,7 +207,10 @@ is written straight into that file with no save step. **Open project file…** a
 the recent-files list switch between projects, one file each. The header always
 says which file it is writing to and when it last did. A file changed by
 something else stops the autosave and asks which side wins, rather than
-overwriting. Browsers that cannot use the file picker — including Edge where an
+overwriting — and so does reopening a file when this browser holds edits that
+never reached it. Until a write lands, closing the tab warns. A file shared with
+`pi-planning-capacity.html` keeps that tool's half through Load demo, Clear and
+Load data. Browsers that cannot use the file picker — including Edge where an
 administrator policy blocks it — fall back to autosaving in the browser, which
 holds one project at a time and says so. **Save JSON** still downloads a standalone copy to hand over or keep
 as a version, **Load data** reads one back (files from every earlier version of
@@ -227,15 +273,23 @@ counting role, a focus factor of zero, someone allocated 0% or over 100%, someon
 with no capacity anywhere in the PI, and leave whose dates read backwards.
 **Copy table** puts the capacity matrix on the clipboard for an email or a slide,
 and the **Planned leave** and **Per-person breakdown** cards each export their
-own table as CSV &mdash; the same columns, filters and figures you are looking at.
+own table as CSV &mdash; the same columns, filters and figures you are looking at,
+with a UTF-8 BOM so accented and Arabic names open cleanly in Excel, and any name
+or note starting `=`, `+`, `-` or `@` kept as text rather than run as a formula.
+A focus factor or allocation left blank counts as 100%, and the field fills in
+100 when you leave it, so a reload reads back exactly what was on screen.
 
 **One file can hold this and a cost tracker project.** A saved file is an
 envelope: this tool owns the `piCapacity` key and copies every other key straight
 back out, and the [cost tracker](#project-cost-trackerhtml) already keeps keys it
 does not recognise. So the same `.json` opens in both, each editing its own half
 and leaving the other untouched &mdash; no changes to the tracker were needed.
-Load a tracker file here and it offers to add that project's people as a team,
-matching their roles.
+Load a tracker file here and it keeps the plan you have open and adopts the
+project alongside it, so the next **Save JSON** writes both halves into that file;
+it then offers to add the project's people as a team, matching their roles.
+**Load data** asks before it replaces a plan that has teams or leave in it, and a
+file that cannot be read or shown changes nothing &mdash; not the screen and not
+the copy saved in the browser.
 
 Someone joining or leaving mid-PI gets **on team from / until** dates and is
 counted only for the part of the PI they are there.
@@ -301,6 +355,13 @@ offline page.
   code in with `@include` directives.
 - Build with `python3 framework/build.py` (or `--check` to verify the committed
   `.html` files are up to date). Edit the source or the kit, rebuild, commit both.
+- `node tests/smoke.cjs` opens every built tool in a headless browser and checks it
+  loads clean, stays offline and its main flow works. A GitHub Action runs it and
+  `--check` on every pull request (setup in [`framework/README.md`](framework/README.md)).
+- Every tool carries a Content-Security-Policy that refuses every request to the
+  network, so "your data never leaves the machine" is enforced by the browser, not
+  just intended. (It cannot stop a page navigating away, so escaping stays the main
+  guard against injected content.)
 
 End users never build anything — they just open the `.html`. See
 [`framework/README.md`](framework/README.md) for the authoring guide and the
@@ -314,6 +375,7 @@ rules-JSON compatibility/versioning policy.
 - `project-cost-tracker.html` — project cost position, burn-up and monthly ledger
 - `pi-planning-capacity.html` — PI planning capacity per team and sprint
 - `vendor-spend-tracker.html` — vendor spend against annual budgets, by line item and stage
+- `BACKLOG.md` — prioritised list of known bugs and refactors, ready to pick up
 - `framework/` — the shared Report Kit + the inliner (`build.py`)
 - `reports/` — the `*.src.html` sources the tools are built from
 - `assets/` — logo variants, favicon, and the blank delivery-plan Excel template

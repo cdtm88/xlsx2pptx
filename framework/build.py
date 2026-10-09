@@ -12,6 +12,8 @@ Usage:
   python3 framework/build.py reports/x.src.html [...]   # build specific sources
   python3 framework/build.py --check         # build to memory, fail if any
                                              # committed .html is out of date
+                                             # (also expands framework/starter.src.html
+                                             # to prove its includes resolve)
 
 Source conventions:
   - Put the report source at reports/<name>.src.html
@@ -34,6 +36,19 @@ INCLUDE = re.compile(r"(?:/\*|<!--)?\s*@include\s+(\S+?)\s*@\s*(?:\*/|-->)?")
 OUT_DIRECTIVE = re.compile(r"@out:\s*(\S+)")
 
 
+class BuildError(SystemExit):
+    pass
+
+
+def inside_repo(path, what):
+    """Resolve a path from a directive and refuse anything outside the repo, so a
+    source can never inline (or write) a file elsewhere on the machine."""
+    full = os.path.realpath(os.path.join(REPO, path))
+    if os.path.commonpath([full, os.path.realpath(REPO)]) != os.path.realpath(REPO):
+        raise BuildError(f"{what} outside the repo: {path}")
+    return full
+
+
 def read(path):
     with open(path, "r", encoding="utf-8", errors="surrogatepass") as f:
         return f.read()
@@ -46,7 +61,7 @@ def expand(src_text, seen=None):
 
     def repl(m):
         rel = m.group(1)
-        path = os.path.join(REPO, rel)
+        path = inside_repo(rel, "include")
         if not os.path.isfile(path):
             raise SystemExit(f"include not found: {rel}")
         if rel in seen:
@@ -59,7 +74,7 @@ def expand(src_text, seen=None):
 def out_path(src_path, src_text):
     m = OUT_DIRECTIVE.search(src_text)
     if m:
-        return os.path.join(REPO, m.group(1))
+        return inside_repo(m.group(1), "@out")
     base = os.path.basename(src_path)
     if base.endswith(".src.html"):
         base = base[:-len(".src.html")] + ".html"
@@ -76,7 +91,13 @@ def sources(args):
     return sorted(os.path.join(d, f) for f in os.listdir(d) if f.endswith(".src.html"))
 
 
+STARTER = os.path.join(REPO, "framework", "starter.src.html")
+
+
 def main(argv):
+    unknown = [a for a in argv if a.startswith("--") and a != "--check"]
+    if unknown:
+        raise SystemExit("unknown option: " + " ".join(unknown) + " (did you mean --check?)")
     check = "--check" in argv
     srcs = sources(argv)
     if not srcs:
@@ -99,6 +120,9 @@ def main(argv):
             with open(dist, "w", encoding="utf-8", errors="surrogatepass") as f:
                 f.write(built)
             print(f"[build] {os.path.relpath(src, REPO)} -> {rel_out} ({len(built)//1024} KB)")
+    if check and os.path.isfile(STARTER):
+        expand(read(STARTER))  # never written; raises if an include is missing
+        print("[check] framework/starter.src.html: includes resolve")
     if check and stale:
         raise SystemExit("out of date (run: python3 framework/build.py): " + ", ".join(stale))
 
