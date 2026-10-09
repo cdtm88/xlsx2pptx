@@ -151,8 +151,10 @@ plan, so an overrun points at a line rather than just a number. **Set a baseline
 once the plan is approved and the tracker keeps score against it: a drift alert,
 a baseline column in the ledger and the CSV, a baseline line on the burn-up, and
 a per-line delta showing exactly what moved — including lines that have since
-been removed. **Undo** covers the destructive things (deletes, imports,
-clearing) rather than every keystroke.
+been removed. **Undo** steps back one change at a time — a field typed into is
+one step, as is a delete, an import or a currency switch — and its button names
+the change it will undo. Opening a different project file starts a fresh undo
+history, so an undo can never write one project into another's file.
 
 A cumulative chart has to treat a month with nothing booked as zero spend, which
 flattens the burn-up and quietly understates the run rate. So a month left empty
@@ -166,7 +168,11 @@ burn-up, team and ledger — with set-up, the timesheet import, vendors and cost
 drivers a click away.
 
 Day rates and vendor costs can be in AED, GBP, USD or EUR and are converted at
-rates you set; everything is reported in one base currency.
+rates you set; everything is reported in one base currency. Switching the base
+currency converts the estimate and the typed ledger actuals with it, so the
+figures keep their meaning. Moving the start month re-phases the plan, but
+actuals, timesheet hours and vendor invoices stay on the calendar month they
+were booked in.
 
 **Saving.** In **Chrome**, **New project file…** picks where the project
 lives — keep it in the project's own docs folder — and from then on every change
@@ -174,7 +180,10 @@ is written straight into that file with no save step. **Open project file…** a
 the recent-files list switch between projects, one file each. The header always
 says which file it is writing to and when it last did. A file changed by
 something else stops the autosave and asks which side wins, rather than
-overwriting. Browsers that cannot use the file picker — including Edge where an
+overwriting — and so does reopening a file when this browser holds edits that
+never reached it. Until a write lands, closing the tab warns. A file shared with
+`pi-planning-capacity.html` keeps that tool's half through Load demo, Clear and
+Load data. Browsers that cannot use the file picker — including Edge where an
 administrator policy blocks it — fall back to autosaving in the browser, which
 holds one project at a time and says so. **Save JSON** still downloads a standalone copy to hand over or keep
 as a version, **Load data** reads one back (files from every earlier version of

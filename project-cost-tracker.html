@@ -398,6 +398,8 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 
 <div class="container">
 
+  <div class="callout pct-warn hidden" id="bootError" role="alert" style="margin-bottom:1rem"></div>
+
   <!-- ============ SET UP ============ -->
   <section class="card no-print">
     <div class="card-head">
@@ -1333,7 +1335,7 @@ window.RK = (function () {
 (function () {
   "use strict";
   var $ = RK.$, esc = RK.esc, show = RK.show, hide = RK.hide;
-  var VERSION = "v1.5.0";
+  var VERSION = "v1.6.0";
   var LS_KEY = "project-cost-tracker:v1";
   var LEGACY_KEY = "project-cost-tracker-v3";   // key used by the pre-Report-Kit build
   var CCYS = ["AED", "GBP", "USD", "EUR"];
@@ -1425,15 +1427,32 @@ window.RK = (function () {
        v1/v2  flat `days` + from/to months        v3  monthly `alloc` percentages
        v4     per-month `days` + `actualDays`     v5  per-month `days` + `actualHours`
      Retired currencies (INR, SAR) are converted into the base rate and dropped. */
+  // A plain object, not null, an array or a primitive. Anything else in a list of
+  // people or vendors is damage, and keeping it would break every later render.
+  function isObj(x) { return !!x && typeof x === "object" && !Array.isArray(x); }
+  function isMonth(k) { return typeof k === "string" && /^\d{4}-\d{1,2}$/.test(k); }
   function migrate(o) {
     var d = BASE();
-    if (!o || typeof o !== "object") return d;
+    if (!isObj(o)) return d;
     var s = Object.assign(d, o);
+    if (typeof s.name !== "string") s.name = d.name;
+    s.start = isMonth(s.start) ? addMonths(s.start, 0) : d.start;
+    s.today = isMonth(s.today) ? addMonths(s.today, 0) : d.today;
     s.duration = clamp(Math.round(num(s.duration)) || 12, 1, 60);
     s.workDays = clamp(num(s.workDays) || 21, 1, 31);
     s.hoursPerDay = clamp(num(s.hoursPerDay) || 8.4, 0.5, 24);
     s.estimate = Math.max(0, num(s.estimate));
-    if (!s.rates) s.rates = d.rates;
+    if (!isObj(s.rates)) s.rates = d.rates;
+    // Ledger actuals are keyed by month index. Only index keys holding a number
+    // or a typed string mean anything; null, arrays and objects become empty.
+    var acts = {};
+    if (s.actuals && typeof s.actuals === "object") {
+      Object.keys(s.actuals).forEach(function (k) {
+        var v = s.actuals[k];
+        if (/^\d+$/.test(k) && (typeof v === "number" || typeof v === "string")) acts[k] = v;
+      });
+    }
+    s.actuals = acts;
 
     var oldRates = Object.assign({ INR: 0.044, SAR: 0.98 }, o.rates || {});
     CCYS.forEach(function (c) { if (typeof s.rates[c] !== "number" || !(s.rates[c] > 0)) s.rates[c] = d.rates[c]; });
@@ -1441,7 +1460,7 @@ window.RK = (function () {
     if (CCYS.indexOf(s.base) < 0) s.base = "AED";
     s.rates[s.base] = 1;
 
-    s.team = (s.team || []).map(function (p) {
+    s.team = (Array.isArray(s.team) ? s.team : []).filter(isObj).map(function (p) {
       var q = Object.assign({}, p);
       if (!q.id) q.id = uid();
       q.rate = num(q.rate);
@@ -1479,7 +1498,7 @@ window.RK = (function () {
     });
 
     // v6 added vendors. Anything older simply has none — that is a valid project.
-    s.vendors = (Array.isArray(o.vendors) ? o.vendors : []).map(function (x) {
+    s.vendors = (Array.isArray(o.vendors) ? o.vendors : []).filter(isObj).map(function (x) {
       var w = Object.assign({}, x);
       if (!w.id) w.id = uid();
       w.name = typeof w.name === "string" ? w.name : "";
@@ -1515,12 +1534,12 @@ window.RK = (function () {
     s.ukCode = typeof o.ukCode === "string" ? o.ukCode : "";
 
     // v7 added the baseline. A file without one simply has no baseline.
-    s.baseline = (o.baseline && typeof o.baseline === "object" && !Array.isArray(o.baseline)) ? o.baseline : null;
+    s.baseline = isObj(o.baseline) ? o.baseline : null;
     if (s.baseline) {
       if (CCYS.indexOf(s.baseline.base) < 0) s.baseline.base = s.base;
-      if (!Array.isArray(s.baseline.team)) s.baseline.team = [];
-      if (!Array.isArray(s.baseline.vendors)) s.baseline.vendors = [];
-      if (!s.baseline.rates || typeof s.baseline.rates !== "object") s.baseline.rates = s.rates;
+      s.baseline.team = (Array.isArray(s.baseline.team) ? s.baseline.team : []).filter(isObj);
+      s.baseline.vendors = (Array.isArray(s.baseline.vendors) ? s.baseline.vendors : []).filter(isObj);
+      if (!isObj(s.baseline.rates)) s.baseline.rates = s.rates;
     }
 
     s.v = STATE_VERSION;
@@ -2521,17 +2540,49 @@ window.RK = (function () {
   }
 
   /* ---------- undo ----------
-     Snapshots before the destructive things only — deletes, imports,
-     baselining. Per-keystroke edits are not worth a stack entry. */
-  var undoStack = [], lastSnapAt = 0;
-  function snapshot(label, coalesceMs) {
+     Every change takes a snapshot of the state before it, so Undo steps back
+     one change at a time. Typing into one field is one step: keystrokes on the
+     same field inside EDIT_MS of each other coalesce into the first snapshot.
+     Each snapshot remembers which file it belongs to, and the stack is emptied
+     whenever the bound file changes, so an undo can never write one project
+     into another project's file. */
+  var undoStack = [], lastSnapAt = 0, EDIT_MS = 1500, UNDO_MAX = 50;
+  function snapshot(label, coalesceMs, state) {
     var t = Date.now();
     var top = undoStack[undoStack.length - 1];
-    if (coalesceMs && top && top.label === label && t - lastSnapAt < coalesceMs) { lastSnapAt = t; return; }
-    try { undoStack.push({ label: label, json: JSON.stringify(S) }); } catch (e) { return; }
-    if (undoStack.length > 20) undoStack.shift();
+    if (coalesceMs && top && top.label === label && top.doc === doc.id && t - lastSnapAt < coalesceMs) { lastSnapAt = t; return; }
+    var json;
+    try { json = JSON.stringify(state || S); } catch (e) { return; }
+    undoStack.push({ label: label, json: json, doc: doc.id });
+    if (undoStack.length > UNDO_MAX) undoStack.shift();
     lastSnapAt = t;
     renderUndo();
+  }
+  function edited(label) { snapshot(label, EDIT_MS); }
+  function clearUndo() { undoStack = []; lastSnapAt = 0; renderUndo(); }
+
+  /* Put a whole new state on screen — but only if it renders. A file that
+     migrates yet breaks a render must not become the state that autosave then
+     writes back and every later boot trips over: on any throw the previous
+     state is put back and the error rethrown for the caller to report. */
+  function replaceState(next) {
+    var prev = S;
+    S = next;
+    try { syncInputs(); render(); }
+    catch (e) { S = prev; syncInputs(); render(); throw e; }
+    hide($("bootError"));
+  }
+
+  /* A project file can be shared with other tools — pi-planning-capacity keeps
+     its half under `piCapacity` — and this tracker carries any key it does not
+     own straight through. Replacing the project (demo, clear, Load data) must
+     replace only the tracker's half, or the next save deletes the other's. */
+  var OWN_KEYS = Object.keys(BASE());
+  function withForeign(next) {
+    Object.keys(S).forEach(function (k) {
+      if (OWN_KEYS.indexOf(k) < 0 && !RK.has(next, k)) next[k] = S[k];
+    });
+    return next;
   }
   function renderUndo() {
     var b = $("undoBtn");
@@ -2672,15 +2723,18 @@ window.RK = (function () {
   }
 
   // Match a person in the file to a team member: remembered id first, then an
-  // exact name match, else they are new.
+  // exact name match, else they are new. A name match is only a guess, so it is
+  // not made against someone who already answers to other staff numbers: a
+  // second "Bob Smith" with a different number is a different person.
+  function tsIds(t) { return Array.isArray(t.staffIds) ? t.staffIds : []; }
   function tsMatch(per) {
     var i;
     for (i = 0; i < S.team.length; i++) {
-      var ids = Array.isArray(S.team[i].staffIds) ? S.team[i].staffIds : [];
-      if (per.no && ids.indexOf(per.no) >= 0) return S.team[i];
+      if (per.no && tsIds(S.team[i]).indexOf(per.no) >= 0) return S.team[i];
     }
     var nm = (per.name || "").trim().toLowerCase();
     if (nm) for (i = 0; i < S.team.length; i++) {
+      if (per.no && tsIds(S.team[i]).length) continue;
       if (String(S.team[i].name || "").trim().toLowerCase() === nm) return S.team[i];
     }
     return null;
@@ -2703,19 +2757,35 @@ window.RK = (function () {
     var ms = months(), idx = {};
     ms.forEach(function (k, i) { idx[k] = i; });
 
-    var changes = [], newPeople = [], outside = {}, seen = {};
+    // One person can book under several staff numbers (employee and contractor
+    // records), so hours are summed per matched team member and month first.
+    // Building a change per number would let the last one overwrite the rest.
+    var groups = [], byWho = RK.dict();
     Object.keys(g.people).forEach(function (key) {
-      var per = g.people[key], person = tsMatch(per), isNew = !person;
-      if (isNew) newPeople.push(per);
-      Object.keys(per.byMonth).sort().forEach(function (mk) {
+      var per = g.people[key], person = tsMatch(per);
+      var gk = person ? "id:" + person.id : "new:" + key;
+      var grp = byWho[gk];
+      if (!grp) {
+        grp = byWho[gk] = { key: key, name: per.name, person: person, nos: [], byMonth: RK.dict() };
+        groups.push(grp);
+      }
+      if (per.no && grp.nos.indexOf(per.no) < 0) grp.nos.push(per.no);
+      Object.keys(per.byMonth).forEach(function (mk) { grp.byMonth[mk] = (grp.byMonth[mk] || 0) + per.byMonth[mk]; });
+    });
+
+    var changes = [], newPeople = [], outside = {}, seen = {};
+    groups.forEach(function (grp) {
+      var person = grp.person, isNew = !person, key = grp.key;
+      if (isNew) newPeople.push(grp);
+      Object.keys(grp.byMonth).sort().forEach(function (mk) {
         if (person) seen[person.id + "|" + mk] = 1;
         if (idx[mk] === undefined) { outside[mk] = 1; return; }          // outside this project's months
-        var incoming = Math.round(per.byMonth[mk] * 100) / 100;
+        var incoming = Math.round(grp.byMonth[mk] * 100) / 100;
         var current = person ? num(person.actualHours[idx[mk]]) : 0;
         if (Math.abs(incoming - current) < 0.005) return;                 // nothing to say
         var whole = tsWholeMonth(mk);
         changes.push({
-          key: key, no: per.no, name: per.name, person: person, isNew: isNew,
+          key: key, nos: grp.nos, name: grp.name, person: person, isNew: isNew,
           monthKey: mk, monthIdx: idx[mk], current: current, incoming: incoming,
           apply: incoming, whole: whole,
           // A fall inside a month the file covers in full is a correction — timesheets
@@ -2755,7 +2825,7 @@ window.RK = (function () {
       (ts.span ? " · " + esc(tsSpanText()) : "") + ".</div>");
     if (ts.newPeople.length) {
       flags.push('<div class="callout pct-warn"><span class="lab">New to this tracker</span>' +
-        ts.newPeople.map(function (p) { return esc(p.name || p.no); }).join(", ") +
+        ts.newPeople.map(function (p) { return esc(p.name || p.nos.join(", ")); }).join(", ") +
         " will be added with a <strong>zero day rate</strong>, so their time costs nothing until you set one.</div>");
     }
     var corrections = ts.changes.filter(function (c) { return c.incoming < c.current && c.whole; });
@@ -2807,8 +2877,8 @@ window.RK = (function () {
     $("tsBody").innerHTML = ts.changes.map(function (c, i) {
       var delta = c.incoming - c.current, dn = delta < 0;
       return '<tr class="' + (c.hold ? "hold" : "") + '" data-i="' + i + '">' +
-        '<td class="who">' + esc(c.name || c.no) + (c.isNew ? '<span class="pct-newp">new</span>' : "") +
-          (c.no ? '<span class="sub2">' + esc(c.no) + "</span>" : "") + "</td>" +
+        '<td class="who">' + esc(c.name || c.nos.join(", ")) + (c.isNew ? '<span class="pct-newp">new</span>' : "") +
+          (c.nos.length ? '<span class="sub2">' + esc(c.nos.join(", ")) + "</span>" : "") + "</td>" +
         "<td>" + monthLabel(c.monthKey) +
           (c.whole ? "" : '<span class="sub2">part covered</span>') + "</td>" +
         '<td class="num">' + RK.fmtHrs(c.current) + "</td>" +
@@ -2842,13 +2912,13 @@ window.RK = (function () {
         if (!person) {
           var d = [], z = [];
           for (var i = 0; i < S.duration; i++) { d.push(0); z.push(0); }
-          person = { id: uid(), name: c.name || c.no, role: "", ccy: S.base, rate: 0,
+          person = { id: uid(), name: c.name || c.nos.join(", "), role: "", ccy: S.base, rate: 0,
             hpd: defaultHpd(), days: d, actualHours: z, staffIds: [] };
           S.team.push(person); made[c.key] = person; added++;
         }
       }
       if (!Array.isArray(person.staffIds)) person.staffIds = [];
-      if (c.no && person.staffIds.indexOf(c.no) < 0) person.staffIds.push(c.no);
+      c.nos.forEach(function (no) { if (person.staffIds.indexOf(no) < 0) person.staffIds.push(no); });
       normDays(person);
       person.actualHours[c.monthIdx] = Math.max(0, num(c.apply));
       touched++;
@@ -2888,6 +2958,11 @@ window.RK = (function () {
   var FS_OK = typeof window.showSaveFilePicker === "function";
   var doc = { id: null, handle: null, name: "", permission: "none", lastModified: 0, savedAt: 0 };
   var saveTimer = null, dirty = false, writing = false, stale = false;
+  // editSeq counts changes, so a write only clears `dirty` if nothing changed while
+  // it was in flight. writeFailed: the last write failed for a reason other than
+  // permission (the file is still ours, the bytes just did not land). staleWhy
+  // overrides the stale message when the newer side is this browser's buffer.
+  var editSeq = 0, writeFailed = false, lastWriteError = null, staleWhy = "";
 
   function idb() {
     return new Promise(function (res, rej) {
@@ -2927,16 +3002,34 @@ window.RK = (function () {
   /* One file, one editor. Every tab shares this origin, so without a claim a
      second tab would adopt the last-used file and start writing to it — and the
      first tab would only find out when its own next write was refused, if then.
-     Tabs answer for the file they hold; silence means it is free. */
+     Tabs answer for the file they hold; silence means it is free.
+
+     Where the browser has the Web Locks API the claim is a lock named after the
+     file: taking it is atomic, so two tabs booting together cannot both get it,
+     and the browser drops it when the tab goes. The BroadcastChannel answer is
+     kept for browsers without locks (and for older copies of this page). */
   var chan = window.BroadcastChannel ? new BroadcastChannel("project-cost-tracker") : null;
-  var claimed = null, blockedBy = "", recentRows = [];
+  var claimed = null, blockedBy = "", recentRows = [], held = RK.dict();
   if (chan) {
     chan.addEventListener("message", function (e) {
       var m = e.data || {};
       if (m.type === "who-has" && claimed && m.id === claimed) chan.postMessage({ type: "have", id: claimed });
     });
   }
+  var LOCKS = !!(navigator.locks && typeof navigator.locks.request === "function");
   function claim(id) {
+    if (RK.has(held, id)) { claimed = id; return Promise.resolve(true); }
+    if (!LOCKS) return claimByMessage(id);
+    return new Promise(function (res) {
+      navigator.locks.request("project-cost-tracker:" + id, { ifAvailable: true }, function (lock) {
+        if (!lock) { res(false); return; }
+        claimed = id;
+        res(true);
+        return new Promise(function (done) { held[id] = done; });   // held until release(id)
+      }).catch(function () { claimByMessage(id).then(res); });
+    });
+  }
+  function claimByMessage(id) {
     if (!chan) { claimed = id; return Promise.resolve(true); }
     return new Promise(function (res) {
       var taken = false;
@@ -2950,8 +3043,20 @@ window.RK = (function () {
       }, 180);
     });
   }
-  function release() { claimed = null; }
-  window.addEventListener("pagehide", release);
+  // release(id) lets one file go; release() with no id lets every file go.
+  function release(id) {
+    Object.keys(held).forEach(function (k) {
+      if (id === undefined || k === id) { var done = held[k]; delete held[k]; done(); }
+    });
+    if (id === undefined || claimed === id) claimed = null;
+  }
+  // Keep only the claim on the file now bound; the one switched away from is free.
+  function releaseOthers(id) {
+    Object.keys(held).forEach(function (k) { if (k !== id) release(k); });
+  }
+  // A held lock is freed by the browser when the document goes; dropping it
+  // here would let a page restored from the back/forward cache write unclaimed.
+  window.addEventListener("pagehide", function () { if (!LOCKS) release(); });
 
   function stamp(t) {
     t = t ? new Date(t) : new Date();
@@ -2963,8 +3068,14 @@ window.RK = (function () {
 
   function renderDocState() {
     var rec = $("reconnectBtn");
-    if (doc.handle && doc.permission === "granted") {
-      status(stale ? doc.name + " changed on disk" : "Saved to " + doc.name + (doc.savedAt ? " · " + stamp(doc.savedAt) : ""),
+    if (doc.handle && doc.permission === "granted" && writeFailed && !stale) {
+      // still ours, the write just did not land: say so, and offer to try again
+      status("Could not write " + doc.name + ", edits kept in this browser", "warn");
+      rec.textContent = "Retry";
+      show(rec);
+    } else if (doc.handle && doc.permission === "granted") {
+      status(stale ? (staleWhy ? "Unsaved edits for " + doc.name : doc.name + " changed on disk") :
+        "Saved to " + doc.name + (doc.savedAt ? " · " + stamp(doc.savedAt) : ""),
         stale ? "warn" : "live");
       hide(rec);
     } else if (doc.handle) {
@@ -2983,7 +3094,8 @@ window.RK = (function () {
       : "Autosaves to this browser as you type";
     if (stale) {
       show($("staleRow"));
-      $("staleMsg").textContent = doc.name + " was changed by something else since this page last wrote it. Nothing has been overwritten.";
+      $("staleMsg").textContent = staleWhy ||
+        (doc.name + " was changed by something else since this page last wrote it. Nothing has been overwritten.");
     } else hide($("staleRow"));
     $("fileState").textContent = doc.handle
       ? (doc.permission === "granted"
@@ -2998,6 +3110,9 @@ window.RK = (function () {
   // the length. Anything short of that is not a save.
   function writeFile(force) {
     if (!doc.handle || doc.permission !== "granted") return Promise.resolve(false);
+    // once stale, only an explicit "Keep mine" writes: the next keystroke must not
+    // quietly settle which side wins
+    if (stale && !force) return Promise.resolve(false);
     var text = JSON.stringify(S, null, 2);
     writing = true;
     return doc.handle.getFile().then(function (f) {
@@ -3011,32 +3126,54 @@ window.RK = (function () {
         if (after.size < new Blob([text]).size) throw new Error("short write");
         doc.lastModified = after.lastModified;
         doc.savedAt = Date.now();
-        stale = false;
+        stale = false; staleWhy = ""; writeFailed = false;
         return true;
       });
-    }).catch(function () { return false; })
+    }).catch(function (e) { lastWriteError = e; return false; })
       .then(function (ok) { writing = false; return ok; });
   }
 
+  // `dirty` stays set until the edits are somewhere durable: the file when one
+  // is bound (a stale or refused write is not a save, even though the crash
+  // buffer has them), browser storage otherwise. That is what the close-tab
+  // warning reads.
   function saveNow() {
-    dirty = false;
-    var payload = { id: doc.id, data: S, savedAt: Date.now(), name: doc.name };
+    clearTimeout(saveTimer);
+    dirty = true;
+    var seq = ++editSeq;
+    // fileModified: the file's timestamp as this tab last wrote or read it, so a
+    // reconnect after a browser restart can still tell whether it changed since
+    var payload = { id: doc.id, data: S, savedAt: Date.now(), name: doc.name, fileModified: doc.lastModified };
     // scratch first: it is the thing that survives a failed or blocked file write
     if (doc.id) idbPut("scratch", doc.id, payload);
     if (doc.handle) {
+      lastWriteError = null;
       return writeFile().then(function (ok) {
-        if (!ok && !stale) doc.permission = "prompt";
+        if (ok) {
+          if (seq === editSeq) {   // a newer save owns the buffer otherwise
+            dirty = false;
+            payload.fileModified = doc.lastModified;
+            idbPut("scratch", doc.id, payload);
+          }
+        } else if (!stale && doc.permission === "granted") {
+          // only a refusal means the permission has gone; anything else (a locked
+          // file, a full disk, a short write) leaves it ours, with a Retry
+          var n = lastWriteError && lastWriteError.name;
+          if (n === "NotAllowedError" || n === "SecurityError") doc.permission = "prompt";
+          else writeFailed = true;
+        }
         renderDocState();
         return ok;
       });
     }
     var ok = true;
     try { localStorage.setItem(LS_KEY, JSON.stringify(S)); } catch (e) { ok = false; }
+    if (ok && seq === editSeq) dirty = false;
     renderDocState();
     if (!ok) status("Not autosaved here, use Save JSON", "warn");
     return Promise.resolve(ok);
   }
-  function queueSave() { dirty = true; clearTimeout(saveTimer); saveTimer = setTimeout(saveNow, 600); }
+  function queueSave() { dirty = true; editSeq++; clearTimeout(saveTimer); saveTimer = setTimeout(saveNow, 600); }
   window.addEventListener("beforeunload", function (e) {
     if (dirty || writing) { e.preventDefault(); e.returnValue = ""; }
   });
@@ -3055,12 +3192,17 @@ window.RK = (function () {
       .then(renderRecents);
   }
   function bind(handle, id) {
+    id = id || uid() + uid();
+    // Undo steps belong to the file they were taken in. Replaying one after a
+    // switch would write the old project into the new file.
+    if (id !== doc.id) clearUndo();
     doc.handle = handle;
     doc.name = handle.name;
-    doc.id = id || uid() + uid();
+    doc.id = id;
     doc.permission = "granted";
     doc.lastModified = 0;
-    stale = false;
+    stale = false; staleWhy = ""; writeFailed = false;
+    releaseOthers(id);
   }
   // A silent catch-all here is worse than useless: the browser's own error name
   // is the only clue to whether this was a cancel, a refusal, or a block.
@@ -3151,13 +3293,18 @@ window.RK = (function () {
   function loadFromHandle(h, id) {
     return h.getFile().then(function (f) {
       return f.text().then(function (t) {
-        var next = migrate(JSON.parse(t));   // throws before anything has changed
-        snapshot("open " + h.name);
-        S = next;
+        // Re-reading the bound file is an undoable step; opening another file is
+        // not, and bind() empties the stack for it.
+        var same = !!id && id === doc.id, prev = S;
+        replaceState(migrate(JSON.parse(t)));   // throws before anything has changed
+        if (same) snapshot("load " + h.name, 0, prev);
         bind(h, id);
         doc.lastModified = f.lastModified;
         doc.savedAt = f.lastModified;
-        syncInputs(); render();
+        // what is on screen is now exactly the file: nothing unsaved, and the
+        // buffer must not offer the discarded edits back on the next boot
+        dirty = false;
+        idbPut("scratch", doc.id, { id: doc.id, data: S, savedAt: f.lastModified, name: doc.name, fileModified: f.lastModified });
         return rememberHandle();
       });
     }).then(function () {
@@ -3186,7 +3333,10 @@ window.RK = (function () {
       if (!free) { blockedBy = h.name; renderDocState(); toast(h.name + " is open in another tab"); return false; }
       blockedBy = "";
       return loadFromHandle(h, id).then(function () { return true; })
-        .catch(function (e) { release(); throw e; });   // a failed open must not hold the claim
+        .catch(function (e) {   // a failed open must not hold the claim, nor drop the one on the open file
+          if (id !== doc.id) { release(id); claimed = doc.id; }
+          throw e;
+        });
     });
   }
 
@@ -3241,10 +3391,15 @@ window.RK = (function () {
     askPermission(doc.handle).then(function (p) {
       doc.permission = p;
       if (p !== "granted") { toast("Still not connected"); renderDocState(); return; }
-      return doc.handle.getFile().then(function (f) {
-        doc.lastModified = f.lastModified;
-        return saveNow();
-      }).then(function () { toast("Reconnected to " + doc.name); });
+      // doc.lastModified is the file as this tab last wrote or read it. saveNow()
+      // checks it before writing, so a file changed meanwhile goes stale rather
+      // than being overwritten with what is on screen.
+      writeFailed = false;
+      return saveNow().then(function (ok) {
+        if (ok) toast("Reconnected to " + doc.name);
+        else if (stale) { openPanel("data"); toast(doc.name + " changed on disk, choose which version to keep"); }
+        else toast("Could not write " + doc.name);
+      });
     });
   }
 
@@ -3259,10 +3414,15 @@ window.RK = (function () {
     });
   });
   on("undoBtn", "click", function () {
-    var last = undoStack.pop();
-    if (!last) return;
-    S = migrate(JSON.parse(last.json));
-    syncInputs(); render(); renderUndo(); saveNow();
+    var now = JSON.stringify(S), last = undoStack.pop();
+    // an entry identical to the screen (a field set back to what it was) is no step
+    while (last && last.json === now && last.doc === doc.id) last = undoStack.pop();
+    lastSnapAt = 0;
+    if (!last) { renderUndo(); return; }
+    if (last.doc !== doc.id) { clearUndo(); toast("Nothing to undo in " + (doc.name || "this project")); return; }
+    try { replaceState(migrate(JSON.parse(last.json))); }
+    catch (e) { renderUndo(); toast("Could not undo that"); return; }
+    renderUndo(); saveNow();
     toast("Undone: " + last.label);
   });
   on("setBaseline", "click", function () {
@@ -3288,44 +3448,106 @@ window.RK = (function () {
 
   // The name touches no figure, so re-title in place rather than rebuild the model.
   on("pname", "input", function (e) {
+    edited("project name");
     S.name = e.target.value;
     $("headerSub").innerHTML = metaLine();
     document.title = (S.name || "Project") + " cost tracker";
     queueSave();
   });
   on("estimate", "input", function (e) {
+    edited("estimate");
     S.estimate = Math.max(0, num(e.target.value));
     var M = renderTop(); renderLedger(M); renderSetup(); queueSave();
   });
   on("base", "change", function (e) {
+    var nb = e.target.value;
+    if (nb === S.base || CCYS.indexOf(nb) < 0) return;
+    snapshot("base currency");
     // Re-base every rate against the new base so the numbers keep their meaning.
-    // 8dp, not 5: at 5 a there-and-back switch visibly drifted the rates.
-    var nb = e.target.value, div = num(S.rates[nb]) || 1, next = {};
-    CCYS.forEach(function (c) { next[c] = Math.round((num(S.rates[c]) / div) * 1e8) / 1e8; });
+    // 12 significant figures: fixed decimals (5, then 8) drifted a there-and-back
+    // switch, visibly so once the estimate and actuals are converted with them.
+    var div = num(S.rates[nb]) || 1, next = {};
+    CCYS.forEach(function (c) { next[c] = +(num(S.rates[c]) / div).toPrecision(12); });
     next[nb] = 1; S.rates = next; S.base = nb;
-    render(); queueSave();
+    // The estimate and the typed ledger actuals are held in the base currency, so
+    // they are converted too, or AED 2.1m would read as £2.1m. Rates, contracts and
+    // vendor amounts are in their own currencies, and the baseline carries its own
+    // base and rates, so none of those move.
+    // money, so rounded to the cent like any typed figure; a there-and-back switch can
+    // move a figure by a cent, as any currency conversion does (Undo restores exactly)
+    var conv = function (v) { return Math.round(num(v) / div * 100) / 100; };
+    S.estimate = conv(S.estimate);
+    Object.keys(S.actuals).forEach(function (k) {
+      var v = S.actuals[k];
+      if (v !== "" && v !== null) S.actuals[k] = conv(v);
+    });
+    syncInputs(); render(); queueSave();
   });
   $("fxFields").addEventListener("input", function (e) {
     var c = e.target.getAttribute("data-fx");
     if (!c) return;
+    edited(c + " rate");
     S.rates[c] = num(e.target.value);
     var M = renderTop(); renderTeam(); renderVendors(M); renderLedger(M); queueSave();
   });
-  on("start", "change", function (e) { S.start = e.target.value || S.start; render(); queueSave(); });
+  /* Month rows are stored by position from the start month. The plan moves with
+     the start (that is what re-phasing means), but what was actually spent or
+     booked happened in a calendar month: ledger actuals, timesheet hours and
+     vendor invoices are shifted so each figure stays on its month. Moving the
+     start later drops whatever falls before it; that is one undo step. */
+  on("start", "change", function (e) {
+    var nv = isMonth(e.target.value) ? addMonths(e.target.value, 0) : "";
+    if (!nv || nv === S.start) { e.target.value = S.start; return; }
+    snapshot("start month");
+    normalise();
+    var d = monthDiff(nv, S.start), lost = 0;
+    var shift = function (a) {
+      a = a.slice();
+      if (d > 0) { for (var i = 0; i < d; i++) a.unshift(0); }
+      else a.splice(0, -d).forEach(function (v) { if (num(v) > 0) lost++; });
+      return a;
+    };
+    S.team.forEach(function (p) { p.actualHours = shift(p.actualHours); });
+    S.vendors.forEach(function (v) { v.invoiced = shift(v.invoiced); });
+    var acts = {};
+    Object.keys(S.actuals).forEach(function (k) {
+      var j = +k + d;
+      if (j >= 0) acts[j] = S.actuals[k];
+      else if (S.actuals[k] !== "" && S.actuals[k] !== null) lost++;
+    });
+    S.actuals = acts;
+    S.start = nv;
+    render(); queueSave();
+    if (lost) toast(lost + (lost === 1 ? " figure" : " figures") + " before " + monthLabel(nv) + " dropped, Undo to bring back");
+  });
   on("duration", "change", function (e) {
+    edited("duration");
     S.duration = clamp(Math.round(num(e.target.value)) || 1, 1, 60);
     e.target.value = S.duration; render(); queueSave();
   });
-  on("today", "change", function (e) { S.today = e.target.value || S.today; render(); queueSave(); });
+  on("today", "change", function (e) { edited("current month"); S.today = e.target.value || S.today; render(); queueSave(); });
   on("wdays", "change", function (e) {
+    edited("working days");
     S.workDays = clamp(num(e.target.value) || 21, 1, 31);
     e.target.value = S.workDays; render(); queueSave();
   });
-  on("ukCode", "input", function (e) { S.ukCode = e.target.value.trim(); renderImportSub(); queueSave(); });
+  on("ukCode", "input", function (e) { edited("UK code"); S.ukCode = e.target.value.trim(); renderImportSub(); queueSave(); });
   on("hpd", "change", function (e) {
+    edited("hours per day");
     S.hoursPerDay = clamp(num(e.target.value) || 8.4, 0.5, 24);
     e.target.value = S.hoursPerDay; renderSetup(); queueSave();
   });
+
+  // Undo label for a grid edit. Stable while typing, so one field is one step:
+  // a name edit is labelled by the field, not by the name being typed.
+  var FIELD_LABELS = { role: "role", ccy: "currency", rate: "day rate", hpd: "hours per day", scope: "scope", contract: "contract" };
+  function gridEditLabel(row, kind, t, f, cellWord) {
+    if (f === "name") return kind + " name";
+    var who = row.name || kind;
+    if (f) return who + " " + (FIELD_LABELS[f] || f);
+    if (!t.hasAttribute("data-m")) return who;
+    return who + " " + monthLabel(addMonths(S.start, +t.getAttribute("data-m"))) + " " + cellWord;
+  }
 
   function onTeamEdit(e) {
     var t = e.target, tr = t.closest("tr");
@@ -3334,6 +3556,8 @@ window.RK = (function () {
     var p = S.team[idx];
     if (!p) return;
     var f = t.getAttribute("data-f");
+    // `change` follows `input` for the same edit; only the first takes the snapshot
+    if (e.type === "input") edited(gridEditLabel(p, "person", t, f, isActualView() ? "hours" : "days"));
 
     if (f) {
       // `min`/`max` on a number input are advisory — a typed value ignores them,
@@ -3372,6 +3596,7 @@ window.RK = (function () {
     var v = S.vendors[idx];
     if (!v) return;
     var f = t.getAttribute("data-f");
+    if (e.type === "input") edited(gridEditLabel(v, "vendor", t, f, isInvoicedView() ? "invoiced" : "planned"));
 
     if (f) {
       v[f] = (f === "contract") ? clamp(num(t.value), 0, MAX_MONEY) : t.value;
@@ -3408,6 +3633,7 @@ window.RK = (function () {
   on("modePlanned", "click", function () { S.daysView = "planned"; renderTeam(); queueSave(); });
   on("modeActual", "click", function () { S.daysView = "actual"; renderTeam(); queueSave(); });
   on("addRow", "click", function () {
+    snapshot("add person");
     var d = [], z = [];
     for (var i = 0; i < S.duration; i++) { d.push(num(S.workDays)); z.push(0); }
     S.team.push({ id: uid(), name: "New person", role: "", ccy: S.base, rate: 1500, hpd: defaultHpd(), days: d, actualHours: z });
@@ -3427,6 +3653,7 @@ window.RK = (function () {
   on("modeVendorPlanned", "click", function () { S.vendorView = "planned"; renderVendors(model()); queueSave(); });
   on("modeVendorInvoiced", "click", function () { S.vendorView = "invoiced"; renderVendors(model()); queueSave(); });
   on("addVendor", "click", function () {
+    snapshot("add vendor");
     var z = [], y = [];
     for (var i = 0; i < S.duration; i++) { z.push(0); y.push(0); }
     S.vendors.push({ id: uid(), name: "New vendor", scope: "", ccy: S.base, contract: 0, planned: z, invoiced: y });
@@ -3439,6 +3666,7 @@ window.RK = (function () {
   $("ledgerBody").addEventListener("input", function (e) {
     var m = e.target.getAttribute("data-m");
     if (m === null) return;
+    edited(monthLabel(addMonths(S.start, +m)) + " actual");
     var v = e.target.value;
     if (v === "") delete S.actuals[m]; else S.actuals[m] = num(v);
     var M = renderTop();
@@ -3481,10 +3709,11 @@ window.RK = (function () {
     var fr = new FileReader();
     fr.onload = function () {
       try {
-        var next = migrate(JSON.parse(fr.result));
-        snapshot("load data");
-        S = next;
-        syncInputs(); render(); saveNow(); toast("Data imported");
+        var raw = JSON.parse(fr.result), prev = S;
+        if (!isObj(raw)) throw new Error("not a JSON object");
+        replaceState(withForeign(migrate(raw)));
+        snapshot("load data", 0, prev);
+        saveNow(); toast("Data imported");
       } catch (err) { toast("That file could not be read as tracker JSON"); }
     };
     fr.onerror = function () { toast("Could not read that file"); };
@@ -3531,12 +3760,12 @@ window.RK = (function () {
   on("demoBtn", "click", function () {
     if (!confirm("Replace what is here with the demo project? Save a JSON first if you need it.")) return;
     snapshot("load demo");
-    S = migrate(DEMO()); syncInputs(); render(); saveNow(); toast("Demo project loaded");
+    replaceState(withForeign(migrate(DEMO()))); saveNow(); toast("Demo project loaded");
   });
   on("resetBtn", "click", function () {
     if (!confirm("Clear everything: people, days, actuals and set up? Save a JSON first if you need it.")) return;
     snapshot("clear all data");
-    S = EMPTY(); syncInputs(); render(); saveNow(); toast("Tracker cleared");
+    replaceState(withForeign(EMPTY())); saveNow(); toast("Tracker cleared");
   });
 
   on("reconnectBtn", "click", reconnect);
@@ -3556,6 +3785,7 @@ window.RK = (function () {
       if (!confirm("Overwrite " + doc.name + " with what is on screen? Whatever changed it will be lost.")) return;
       writeFile(true).then(function (ok) {
         stale = !ok;
+        if (ok) { dirty = false; idbPut("scratch", doc.id, { id: doc.id, data: S, savedAt: doc.lastModified, name: doc.name, fileModified: doc.lastModified }); }
         renderDocState();
         toast(ok ? "Overwrote " + doc.name : "Could not write the file");
       });
@@ -3641,10 +3871,24 @@ window.RK = (function () {
      for that file, then the shared browser copy. The file's permission cannot be
      re-granted without a click, so we show what we have and offer to reconnect
      rather than pretending we are saving. */
+  // A saved state that cannot be shown must not leave a blank, broken page that
+  // every reload repeats. Say what happened, in a box that stays put.
+  function bootError(msg) {
+    $("bootError").innerHTML = '<span class="lab">Saved project not shown</span>' + esc(msg);
+    show($("bootError"));
+  }
+  function errText(e) { return (e && e.message ? String(e.message) : String(e)).slice(0, 120); }
+
   function boot() {
     var restored = loadSaved();
     if (restored) S = restored;
-    syncInputs(); render(); renderDocState();
+    try { syncInputs(); render(); }
+    catch (e) {
+      S = EMPTY(); syncInputs(); render();
+      bootError("The project saved in this browser could not be displayed (" + errText(e) + "), so an empty one is open. " +
+        "Nothing is overwritten until you change something. Use Load data or Open project file to carry on.");
+    }
+    renderDocState();
     if (!FS_OK) { status("Autosaved to this browser", "live"); return; }
 
     if (fsBlockedBefore()) { blockFileMode(null, true); return; }
@@ -3666,24 +3910,49 @@ window.RK = (function () {
     }).then(renderDocState).then(renderRecents);
   }
 
+  // The file that will not display is let go rather than kept bound: autosave
+  // would otherwise write whatever is on screen over it.
+  function unbindUnreadable(row, e) {
+    doc.id = null; doc.handle = null; doc.name = ""; doc.permission = "none"; doc.lastModified = 0;
+    release(row.id);
+    bootError(row.name + " could not be read (" + errText(e) + "), so it was not opened and has not been changed.");
+  }
+
   function restoreDoc(row) {
     return checkPermission(row.handle).then(function (p) {
-          doc.permission = p;
-          if (p === "granted") {
-            return row.handle.getFile().then(function (f) {
-              return f.text().then(function (t) {
-                S = migrate(JSON.parse(t));
-                doc.lastModified = f.lastModified;
-                doc.savedAt = f.lastModified;
-                syncInputs(); render();
-              });
-            }).catch(function () { doc.permission = "prompt"; });
-          }
-          // no permission yet: fall back to the scratch we wrote for this file,
-          // so what is on screen is the newest we have, not the oldest
+      doc.permission = p;
+      if (p === "granted") {
+        return row.handle.getFile().then(function (f) {
+          return f.text().then(function (t) { return { f: f, t: t }; });
+        }).then(function (r) {
+          var f = r.f, fromFile;
+          try { fromFile = JSON.parse(r.t); replaceState(migrate(fromFile)); }
+          catch (e) { unbindUnreadable(row, e); return; }
+          doc.lastModified = f.lastModified;
+          doc.savedAt = f.lastModified;
+          // The file wins on load, unless this browser holds edits for it that are
+          // newer than the file and never reached it (a stale or failed write, then
+          // the tab closed). Those are shown, and the choice is offered exactly as
+          // when a save finds the file changed.
           return idbGet("scratch", row.id).then(function (sc) {
-            if (sc && sc.data) { S = migrate(sc.data); syncInputs(); render(); }
+            if (!sc || !isObj(sc.data) || !(num(sc.savedAt) > f.lastModified)) return;
+            if (JSON.stringify(sc.data) === JSON.stringify(fromFile)) return;
+            try { replaceState(migrate(sc.data)); } catch (e) { return; }
+            stale = true; dirty = true;
+            staleWhy = "This browser holds edits to " + doc.name + " from " + stamp(sc.savedAt) +
+              " that never reached the file. They are what is shown here; the file has not been changed.";
+            openPanel("data");
           });
+        }, function () { doc.permission = "prompt"; });
+      }
+      // no permission yet: fall back to the scratch we wrote for this file,
+      // so what is on screen is the newest we have, not the oldest. Its note of
+      // the file's timestamp lets Reconnect tell if the file changed meanwhile.
+      return idbGet("scratch", row.id).then(function (sc) {
+        if (!sc) return;
+        if (num(sc.fileModified) > 0) doc.lastModified = num(sc.fileModified);
+        if (sc.data) { try { replaceState(migrate(sc.data)); } catch (e) { bootError("The copy of " + row.name + " kept in this browser could not be displayed (" + errText(e) + ")."); } }
+      });
     });
   }
   boot();

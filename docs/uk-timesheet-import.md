@@ -48,6 +48,15 @@ exact case-insensitive name match, otherwise the person is new. Whenever a perso
 is matched or added, the `EmployeeNumber` from the file is recorded against them,
 so a later rename doesn't break the match.
 
+The name match is only a guess, so it is skipped for a team member who already
+answers to other numbers: a second "Bob Smith" under a number the existing Bob
+does not have is a different person, and is added as new rather than merged.
+
+One person can book under several numbers (an employee and a contractor record).
+Hours are summed per matched team member and month before anything is compared,
+so Alice booking 8 hours as `E1` and 5 as `C1` in March is one proposed change
+to 13 hours, and the review row lists both numbers.
+
 New people are added with a **zero day rate** and flagged twice — in the review
 modal before you accept, and as a standing alert afterwards. They therefore cost
 the project nothing until someone gives them a rate, which is a visible gap

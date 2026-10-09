@@ -162,7 +162,10 @@ The header's save indicator becomes the honest one:
   and ask, rather than clobbering.
 - **The browser copy is a cache, not the truth.** When a project is bound to a
   file, the file wins on load, and any difference is surfaced rather than
-  resolved silently.
+  resolved silently. The one exception is edits that never reached the file (a
+  stale or failed write, then the tab closed): if the crash buffer is newer than
+  the file and differs from it, it is shown and the same keep-mine / load-file
+  choice is offered.
 - **Deletes are confirmed and recoverable** — deleted projects go to a
   `deleted` flag for 30 days before they are really gone.
 - `navigator.storage.persist()` is requested on first run. It is refused on
@@ -242,16 +245,35 @@ holding a crash buffer.
   `Not connected to falcon-platform.json` with a Reconnect button when the
   permission has lapsed, or `In this browser only` when no file is bound — with
   the shared-copy caveat spelled out rather than implied.
-- **One file, one editor.** Tabs claim their file over `BroadcastChannel`. A
-  second tab will not adopt a file another tab is editing; it says so instead.
-  This closed a bug found in testing where a new tab silently adopted the last
-  used project and its first action overwrote it.
+- **One file, one editor.** Tabs claim their file with a Web Lock named after
+  it (`navigator.locks`, `ifAvailable`), which is atomic, so two tabs booting at
+  once cannot both take it; switching file lets the old one go. Browsers without
+  locks fall back to asking over `BroadcastChannel`. A second tab will not adopt
+  a file another tab is editing; it says so instead. This closed a bug found in
+  testing where a new tab silently adopted the last used project and its first
+  action overwrote it.
 - **Never clobber.** Writes verify the file has not changed underneath us and
   read back the byte length afterwards; a file changed by something else stops
   autosave and offers *Load the file, discard mine* or *Keep mine, overwrite*.
+  Nothing is written until one is chosen, and the tab counts as unsaved (closing
+  it warns) until a write actually lands.
 - **Crash buffer.** Every save also writes to IndexedDB, so a lapsed permission
-  or a crash cannot cost the edits since the last successful file write — and
-  reconnecting flushes them to the file.
+  or a crash cannot cost the edits since the last successful file write. The
+  buffer also notes the file's timestamp as last written, so reconnecting —
+  even after a browser restart — flushes the edits only if the file has not
+  changed meanwhile, and otherwise goes to the same choice. Only a refusal
+  (`NotAllowedError`, `SecurityError`) counts as a lapsed permission; any other
+  failed write keeps the file and offers *Retry*.
+- **Shared files keep the other half.** Load demo, Clear all data and Load data
+  replace only the tracker's own keys; anything else in the file (the
+  `piCapacity` half written by `pi-planning-capacity.html`) is carried through.
+- **Undo stays in its file.** The undo history is emptied whenever the bound file
+  changes, and each step is tagged with its file, so an undo is never written
+  into a different file than it came from.
+- **A file that cannot be shown is never kept.** Loaded data is migrated and
+  rendered before it replaces anything; if that fails the previous project stays.
+  A saved state that fails at boot opens an empty project with a visible message
+  instead of a broken page.
 - **Save JSON / Load data unchanged**, as the portable escape hatch.
 - Without the picker (Firefox, Safari) the file controls stay hidden and the
   tool falls back to browser autosave exactly as before.
