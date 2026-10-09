@@ -660,16 +660,28 @@
   function showConfirm(message, onConfirm, okLabel) { RK.confirm(message, onConfirm, { okLabel: okLabel }); }
 
   // ---------- Edits from another tab ----------
-  // Every save bumps state.rev, and the storage listener swaps in the other tab's state.
-  // A form remembers the rev it was opened at; if it moved by the time Save is pressed,
-  // the form was filled from data that is now out of date, and saving it as-is would
-  // silently revert the other tab's change. guardStale() asks first. Returns true when it
-  // has taken over (the caller stops); onProceed runs if the user chooses to continue.
-  var openedRev = {};
-  function markOpened(form) { openedRev[form] = state.rev; }
-  function guardStale(form, message, okLabel, onProceed) {
-    if (openedRev[form] === undefined || openedRev[form] === state.rev) return false;
-    RK.confirm(message, function () { openedRev[form] = state.rev; onProceed(); }, { okLabel: okLabel, title: "Changed in another tab", danger: true });
+  // Every save stamps state.saveToken with a fresh random token (and bumps state.rev), and
+  // the storage listener swaps in the other tab's state. A form remembers the version it
+  // was opened at: by default the save token (with the rev, for a tab still running an
+  // older copy that writes no token), which unlike a counter alone never comes round
+  // again (a Replace import cannot reset it to an old value); the Advance step passes the
+  // item's own version instead, so changes to other items do not count.
+  // If the version moved by the time Save is pressed, the form was filled from data that
+  // is now out of date, and saving it as-is would silently revert the other tab's change.
+  // guardStale() asks first. Returns true when it has taken over (the caller stops);
+  // onProceed runs if the user chooses to continue.
+  var openedAt = {};
+  function workspaceVersion() {
+    return (typeof state.saveToken === "string" ? state.saveToken : "") + "/" + (Number(state.rev) || 0);
+  }
+  function markOpened(form, version) { openedAt[form] = version != null ? String(version) : workspaceVersion(); }
+  function isStale(form, version) {
+    var now = version != null ? String(version) : workspaceVersion();
+    return openedAt[form] !== undefined && openedAt[form] !== now;
+  }
+  function guardStale(form, message, okLabel, onProceed, version) {
+    if (!isStale(form, version)) return false;
+    RK.confirm(message, function () { markOpened(form, version); onProceed(); }, { okLabel: okLabel, title: "Changed in another tab", danger: true });
     return true;
   }
 
@@ -693,7 +705,7 @@
   // user-facing features that stay backward compatible, PATCH for fixes with no
   // behavior/schema change. Bump this by hand on each release; it is not read or
   // written anywhere else, so changing it never affects stored data.
-  var APP_VERSION = "1.2.0";
+  var APP_VERSION = "1.2.1";
 
   // The 8-segment stage-progress bar used in the items table and the detail drawer:
   // filled up to the current stage, all green once Closed.
@@ -702,7 +714,7 @@
   }
   var DEFAULT_RATES = { AED: 1, USD: 3.673, GBP: 4.5, EUR: 4.1 };
 
-  var state = { budgets: [], items: [], vendors: [], settings: { rates: Object.assign({}, DEFAULT_RATES) } };
+  var state = { rev: 0, saveToken: "", budgets: [], items: [], vendors: [], settings: { rates: Object.assign({}, DEFAULT_RATES) } };
 
   var uid = RK.uid;
 
@@ -716,16 +728,25 @@
   function isPlainObject(x) { return x !== null && typeof x === "object" && !Array.isArray(x); }
   function str(x) { return typeof x === "string" ? x : (x == null ? "" : String(x)); }
   function money(x) { var n = Number(x); return isFinite(n) ? n : 0; }
-  // Gives each record a valid id that no earlier record has taken. Returns a map from an
-  // invalid incoming id to its replacement, so references to it can follow; a duplicate
-  // of a valid id keeps pointing at the first record that had it.
+  // An id or id reference as a string: older data stored ids as numbers (101), and a
+  // reference has to match its record whichever form either side used. Anything that is
+  // not a non-empty string or a finite number is no reference at all.
+  function idKey(x) {
+    if (typeof x === "number") return isFinite(x) ? String(x) : "";
+    return typeof x === "string" ? x : "";
+  }
+  // Gives each record a valid string id that no earlier record has taken: a number id
+  // whose string form is valid keeps that form (101 becomes "101"). Returns a map, keyed
+  // by the old id as a string, from an invalid incoming id to its replacement, so
+  // references to it can follow; a duplicate keeps pointing at the first record that had it.
   function reId(list) {
     var seen = RK.dict(), remap = RK.dict();
     list.forEach(function (rec) {
-      if (isValidId(rec.id) && !seen[rec.id]) { seen[rec.id] = 1; return; }
+      var key = idKey(rec.id);
+      if (isValidId(key) && !seen[key]) { rec.id = key; seen[key] = 1; return; }
       var fresh = uid();
       while (seen[fresh]) fresh = uid();
-      if (!isValidId(rec.id) && typeof rec.id === "string") remap[rec.id] = fresh;
+      if (key && !isValidId(key) && !remap[key]) remap[key] = fresh;
       rec.id = fresh;
       seen[fresh] = 1;
     });
@@ -737,6 +758,7 @@
 
     var out = {
       rev: Number(parsed.rev) || 0,
+      saveToken: str(parsed.saveToken),
       budgets: parsed.budgets.filter(isPlainObject).map(function (b) {
         return { id: b.id, name: str(b.name), total: money(b.total) };
       }),
@@ -746,7 +768,7 @@
           name: str(v.name),
           systemName: str(v.systemName),
           defaultCurrency: RK.has(DEFAULT_RATES, v.defaultCurrency) ? v.defaultCurrency : BASE_CURRENCY,
-          defaultBudgetId: typeof v.defaultBudgetId === "string" ? v.defaultBudgetId : ""
+          defaultBudgetId: idKey(v.defaultBudgetId)
         };
       }) : [],
       items: [],
@@ -773,9 +795,11 @@
     out.items = parsed.items.filter(isPlainObject).map(function (raw) {
       var it = Object.assign({}, raw);
       DERIVED_ITEM_FIELDS.forEach(function (f) { delete it[f]; });
-      if (typeof it.budgetId === "string" && budgetRemap[it.budgetId]) it.budgetId = budgetRemap[it.budgetId];
-      if (typeof it.vendorId === "string" && vendorRemap[it.vendorId]) it.vendorId = vendorRemap[it.vendorId];
-      ["description", "owner", "poNumber", "dateEntered", "dateUpdated", "budgetId", "vendorId"].forEach(function (f) { it[f] = str(it[f]); });
+      it.budgetId = idKey(it.budgetId);
+      it.vendorId = idKey(it.vendorId);
+      if (budgetRemap[it.budgetId]) it.budgetId = budgetRemap[it.budgetId];
+      if (vendorRemap[it.vendorId]) it.vendorId = vendorRemap[it.vendorId];
+      ["description", "owner", "poNumber", "dateEntered", "dateUpdated"].forEach(function (f) { it[f] = str(it[f]); });
       it.currentAmount = money(it.currentAmount);
       it.invoicedAmount = money(it.invoicedAmount);
 
@@ -852,8 +876,15 @@
     }
   }
 
+  // Marks a new version of the workspace: the rev counter for people reading the file,
+  // and a fresh random token that the stale-form guard compares (see markOpened).
+  function stampSave(s) {
+    s.rev = (Number(s.rev) || 0) + 1;
+    s.saveToken = uid() + uid();
+  }
+
   function save() {
-    state.rev = (Number(state.rev) || 0) + 1;
+    stampSave(state);
     try {
       localStorage.setItem(STORE_KEY, JSON.stringify(state));
     } catch (e) {
@@ -2004,6 +2035,17 @@
     document.getElementById("adv_track").innerHTML = html;
   }
 
+  // The Advance step's own version of an item: the fields that decide which step comes
+  // next and what the invoice amount means. Another tab moving this item on or changing
+  // its amounts or currency changes it; changes to other items do not, and neither do a
+  // note or a description edit here (Advance appends to the latest notes and writes only
+  // stage, invoiced amount and FX rate, so it cannot revert those).
+  function itemVersion(it) {
+    return JSON.stringify([it.stage, Number(it.currentAmount) || 0, Number(it.invoicedAmount) || 0, it.currency]);
+  }
+
+  var advanceInvoicePrefill = "";
+
   function openAdvanceModal(itemId) {
     var it = state.items.find(function (x) { return x.id === itemId; });
     if (!it) return;
@@ -2023,9 +2065,10 @@
     var invField = document.getElementById("adv_invoicedAmount");
     invField.required = needsInvoiceAmount;
     invField.value = it.invoicedAmount || "";
+    advanceInvoicePrefill = invField.value;
     document.getElementById("adv_invoicedAmountTag").textContent = it.currency || "AED";
 
-    markOpened("advance");
+    markOpened("advance", itemVersion(it));
     advanceModalCtl.open();
     (needsInvoiceAmount ? invField : document.getElementById("adv_note")).focus();
   }
@@ -2061,12 +2104,24 @@
 
   advanceForm.addEventListener("submit", function (e) {
     e.preventDefault();
-    var staleId = document.getElementById("adv_itemId").value;
-    if (guardStale("advance", "This item may have been moved on in another tab since you opened this step. Reopen it with the latest stage before advancing.",
-      "Reopen", function () { closeAdvanceModal(); openAdvanceModal(staleId); })) return;
     var itemId = document.getElementById("adv_itemId").value;
     var it = state.items.find(function (x) { return x.id === itemId; });
     if (!it) { closeAdvanceModal(); return; }
+    // Reopen keeps what was typed: the note always, the invoice amount when the user
+    // changed it from the prefilled value and the reopened step still asks for one.
+    var typedNote = document.getElementById("adv_note").value;
+    var typedInvoice = document.getElementById("adv_invoicedAmount").value;
+    var invoiceTouched = typedInvoice !== advanceInvoicePrefill;
+    if (guardStale("advance", "This item was moved on or edited in another tab since you opened this step. Reopen it with the latest stage before advancing.",
+      "Reopen", function () {
+        closeAdvanceModal();
+        openAdvanceModal(itemId);
+        if (advanceModal.hidden) return;
+        document.getElementById("adv_note").value = typedNote;
+        if (invoiceTouched && !document.getElementById("adv_invoicedAmountField").hidden) {
+          document.getElementById("adv_invoicedAmount").value = typedInvoice;
+        }
+      }, itemVersion(it))) return;
 
     var idx = STAGES.indexOf(it.stage);
     if (idx === -1 || idx >= STAGES.length - 1) { closeAdvanceModal(); return; }
@@ -2582,6 +2637,13 @@
     });
   }
 
+  // Replace: backups carry no rev, so the counter continues from the higher of the two
+  // instead of restarting at 1 (save() then stamps a fresh token as well).
+  function adoptReplacement(normalised) {
+    normalised.rev = Math.max(Number(state.rev) || 0, Number(normalised.rev) || 0);
+    state = normalised;
+  }
+
   function backupCurrentState() {
     try {
       localStorage.setItem(STORE_KEY + ".backup", JSON.stringify(state));
@@ -2619,7 +2681,7 @@
       return;
     }
     backupCurrentState();
-    state = normalised;
+    adoptReplacement(normalised);
     save();
     renderAll();
     closeImportChoiceModal();
@@ -3004,6 +3066,76 @@
       assert("merge: 'Constructor' budget and '__proto__' vendor are added and referenced",
         state.budgets.length === 1 && state.vendors.length === 1 &&
         state.items[0].budgetId === state.budgets[0].id && state.items[0].vendorId === state.vendors[0].id);
+    });
+
+    // VS-R1: every save gets a new token, so a form opened before another tab's save is
+    // always caught, even after a Replace import of a file with no rev.
+    withState(function () {
+      var savedOpened = openedAt.__selftest;
+      try {
+        state = normaliseState({ rev: 3, saveToken: "tok3", budgets: [], items: [] });
+        var arrived = state.saveToken === "tok3";
+        markOpened("__selftest");
+        var seenTokens = [state.saveToken], seenRevs = [state.rev], everStaleMissed = false, tokensFresh = true;
+        var another = function (step) {
+          step();
+          var t = state.saveToken;
+          if (!t || seenTokens.indexOf(t) !== -1) tokensFresh = false;
+          if (!isStale("__selftest")) everStaleMissed = true;
+          seenTokens.push(t); seenRevs.push(state.rev);
+        };
+        another(function () { stampSave(state); });
+        another(function () { adoptReplacement(normaliseState({ budgets: [], items: [] })); stampSave(state); });
+        another(function () { stampSave(state); });
+        another(function () { stampSave(state); });
+        assert("VS-R1: save token arrives with the stored state", arrived);
+        assert("VS-R1: every save stamps a new token, Replace included", tokensFresh);
+        assert("VS-R1: a form opened before those saves is stale after each one", !everStaleMissed);
+        assert("VS-R1: Replace continues the rev instead of restarting it", seenRevs.join(",") === "3,4,5,6,7");
+        markOpened("__selftest");
+        assert("VS-R1: a form opened after the last save is not stale", !isStale("__selftest"));
+      } finally {
+        if (savedOpened === undefined) delete openedAt.__selftest; else openedAt.__selftest = savedOpened;
+      }
+    });
+
+    // VS-R2: older data with number ids keeps its vendor and budget links.
+    withState(function () {
+      var out = normaliseState({
+        budgets: [{ id: 101, name: "Ops", total: 1000 }, { id: 1.5, name: "Odd", total: 10 }],
+        vendors: [{ id: 202, name: "Acme", defaultCurrency: "AED", defaultBudgetId: 101 }, { id: 203, name: "Beta", defaultBudgetId: 1.5 }],
+        items: [
+          { id: 303, vendorId: 202, budgetId: 101, currency: "AED", stage: "PO issued", currentAmount: 400, invoicedAmount: 0 },
+          { id: 304, vendorId: "203", budgetId: 1.5, currency: "AED", stage: "PO issued", currentAmount: 1, invoicedAmount: 0 }
+        ]
+      });
+      var b = out.budgets, v = out.vendors, it = out.items;
+      assert("VS-R2: number ids become valid string ids", b.concat(v, it).every(function (r) { return isValidId(r.id); }) && b[0].id === "101" && it[0].id === "303");
+      assert("VS-R2: items keep their number-id budget and vendor", it[0].budgetId === b[0].id && it[0].vendorId === v[0].id && it[1].vendorId === v[1].id);
+      assert("VS-R2: vendor default budget keeps its number-id link", v[0].defaultBudgetId === b[0].id);
+      assert("VS-R2: an invalid number id is replaced and its references follow", b[1].id !== "1.5" && it[1].budgetId === b[1].id && v[1].defaultBudgetId === b[1].id);
+      state = out;
+      assert("VS-R2: budget shows the item as committed (40% spent)", budgetSpend(b[0].id).committed === 400);
+    });
+
+    // VS-R3: the Advance step compares the item's own version, not the workspace's.
+    withState(function () {
+      try {
+        var mk = function (id) { return { id: id, budgetId: "", vendorId: "", stage: "CR raised", dateUpdated: "2026-10-01", currentAmount: 100, invoicedAmount: 0, currency: "AED", notes: [] }; };
+        state = normaliseState({ budgets: [], items: [mk("a"), mk("b")] });
+        var a = function () { return state.items[0]; }, b = state.items[1];
+        markOpened("__selftest", itemVersion(a()));
+        b.stage = "MRE raised"; b.dateUpdated = "2026-10-09"; stampSave(state);
+        a().notes.push({ timestamp: "x", text: "note from another tab" }); a().dateUpdated = "2026-10-09"; stampSave(state);
+        assert("VS-R3: another item moving on, or a note on this one, does not make Advance stale", !isStale("__selftest", itemVersion(a())));
+        a().invoicedAmount = 50; stampSave(state);
+        var reinvoiced = isStale("__selftest", itemVersion(a()));
+        markOpened("__selftest", itemVersion(a()));
+        a().stage = "MRE raised"; stampSave(state);
+        assert("VS-R3: this item being re-invoiced or moved on makes Advance stale", reinvoiced && isStale("__selftest", itemVersion(a())));
+      } finally {
+        delete openedAt.__selftest;
+      }
     });
 
     // Stuck chip wording: "2 stuck", never "2 stucks".
