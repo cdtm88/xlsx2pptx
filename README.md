@@ -44,7 +44,9 @@ Every field in the Tasks table is **editable in the page** — name, category,
 status, start and end dates, and the milestone and at-risk flags — so a late
 change goes straight in without editing the spreadsheet and re-uploading.
 Moving a date past the end of the timeline extends it rather than dropping the
-task.
+task. A date with a mistyped year (2016 for 2026) doesn't drag the timeline
+with it: the task is listed under the preview with its dates so the typo can
+be found and fixed.
 
 Tick **At Risk** (or set the column in the spreadsheet — `TRUE`, `Yes`, `Y`,
 `1` or `x`, or a Status of `At Risk`) and the block keeps its status colour and
@@ -235,15 +237,23 @@ counting role, a focus factor of zero, someone allocated 0% or over 100%, someon
 with no capacity anywhere in the PI, and leave whose dates read backwards.
 **Copy table** puts the capacity matrix on the clipboard for an email or a slide,
 and the **Planned leave** and **Per-person breakdown** cards each export their
-own table as CSV &mdash; the same columns, filters and figures you are looking at.
+own table as CSV &mdash; the same columns, filters and figures you are looking at,
+with a UTF-8 BOM so accented and Arabic names open cleanly in Excel, and any name
+or note starting `=`, `+`, `-` or `@` kept as text rather than run as a formula.
+A focus factor or allocation left blank counts as 100%, and the field fills in
+100 when you leave it, so a reload reads back exactly what was on screen.
 
 **One file can hold this and a cost tracker project.** A saved file is an
 envelope: this tool owns the `piCapacity` key and copies every other key straight
 back out, and the [cost tracker](#project-cost-trackerhtml) already keeps keys it
 does not recognise. So the same `.json` opens in both, each editing its own half
 and leaving the other untouched &mdash; no changes to the tracker were needed.
-Load a tracker file here and it offers to add that project's people as a team,
-matching their roles.
+Load a tracker file here and it keeps the plan you have open and adopts the
+project alongside it, so the next **Save JSON** writes both halves into that file;
+it then offers to add the project's people as a team, matching their roles.
+**Load data** asks before it replaces a plan that has teams or leave in it, and a
+file that cannot be read or shown changes nothing &mdash; not the screen and not
+the copy saved in the browser.
 
 Someone joining or leaving mid-PI gets **on team from / until** dates and is
 counted only for the part of the PI they are there.

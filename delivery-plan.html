@@ -130,7 +130,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Roboto,Arial,
 .task-table input.f-risk{accent-color:#FF6B00}
 .tag-offplan{display:inline-block;margin-left:.45rem;font-size:.6rem;font-weight:700;color:#97A0AF;border:1px solid #D3D9DE;
   border-radius:4px;padding:.05rem .35rem;vertical-align:middle;text-transform:uppercase;letter-spacing:.04em}
-.tag-nodate{display:inline-block;margin-left:.45rem;font-size:.6rem;font-weight:700;color:#B25E00;border:1px solid #F0C48A;
+.tag-nodate,.tag-outside{display:inline-block;margin-left:.45rem;font-size:.6rem;font-weight:700;color:#B25E00;border:1px solid #F0C48A;
   border-radius:4px;padding:.05rem .35rem;vertical-align:middle;text-transform:uppercase;letter-spacing:.04em}
 .sb{display:inline-block;padding:.16rem .55rem;border-radius:5px;font-size:.7rem;font-weight:600}
 .sb-d{background:#36B37E;color:#fff}
@@ -361,6 +361,12 @@ var LEGEND_GAP=0.30, LEGEND_H=0.14, ROWS_PAD=0.30;
 var AVAIL_H=SLIDE_H-ROWS_Y-(LEGEND_GAP+LEGEND_H+ROWS_PAD);
 var MIN_BAR_W=0.08;                    // a one-day task still reads as a bar
 var MAX_WEEKS=260;                     // guard against a mistyped year
+// Years a plan date can plausibly fall in. Anything else is a typo, or a year
+// half-typed into a date box (Chrome reports 0002, 0020, 0202 on the way to 2026).
+var YEAR_MIN=1990, YEAR_MAX=2100;
+function plausibleDate(d){
+  return !!d&&d.getFullYear()>=YEAR_MIN&&d.getFullYear()<=YEAR_MAX;
+}
 var DAY=864e5;
 // Section band palette: brand teals + green (no near-black)
 var SECTION_COLORS=['007A99','00A9CE','5BB85D','005A73'];
@@ -460,7 +466,7 @@ function sprintStartDate(sp){
 }
 
 function sprintDates(sprints,startSprint,startDate){
-  var dates={};
+  var dates=Object.create(null);   // keyed by cell text: "constructor" is no sprint
   var si=sprints.indexOf(startSprint);
   if(si<0||!startDate){
     var d=startDate||new Date();
@@ -521,22 +527,28 @@ function parseExcel(buf){
   if(hRow<0)throw new Error('Header row not found. Column A must contain "Task".');
 
   var cols={},sprints=[],sheetWeeks=[];
+  function take(key,re,sl,c){if(cols[key]===undefined&&re.test(sl)){cols[key]=c;return true}return false}
   for(var c2=0;c2<=ref.e.c;c2++){
     var h=cv(hRow,c2);
     if(h===null||h===undefined||h==='')continue;
     var hs=String(h).trim();
     if(/^Q\d+\.\d+$/.test(hs)){sprints.push(hs);continue}
-    var hd=(typeof h==='string')?null:parseDate(h);   // timeline columns are dates
-    if(hd){sheetWeeks.push(hd);continue}
-    var sl=hs.toLowerCase();
-    if(sl.indexOf('task')>=0&&cols.task===undefined)cols.task=c2;
-    else if(sl==='status')cols.status=c2;
-    else if(sl.indexOf('start')>=0)cols.start=c2;
-    else if(sl.indexOf('end')>=0||sl.indexOf('finish')>=0)cols.end=c2;
-    else if(sl.indexOf('note')>=0)cols.notes=c2;
-    else if(sl.indexOf('milestone')>=0&&cols.task!==c2)cols.milestone=c2;
-    else if(sl.indexOf('risk')>=0)cols.risk=c2;
-    else if(sl.indexOf('category')>=0||sl.indexOf('section')>=0)cols.section=c2;
+    // Timeline columns are dates: a real Date, or an Excel serial that lands in
+    // a plausible year. A bare number such as 2026 is a label, not a week.
+    var hd=(h instanceof Date||typeof h==='number')?parseDate(h):null;
+    if(hd&&(h instanceof Date||plausibleDate(hd))){sheetWeeks.push(hd);continue}
+    // Named columns match the whole header (case, spacing, a trailing colon or
+    // "(dd/mm/yyyy)" aside) and the first match wins, so "Vendor", "Calendar",
+    // "Dependencies" or "Risk description" never take over End Date or At Risk.
+    var sl=hs.toLowerCase().replace(/\s*\([^)]*\)\s*$/,'').replace(/[\s:?*]+$/,'').replace(/\s+/g,' ');
+    if(cols.task===undefined&&sl.indexOf('task')>=0)cols.task=c2;   // column A, found above
+    else take('status',/^status$/,sl,c2)
+      ||take('start',/^((planned|plan|baseline|target|forecast|actual) )?(start|begin|beginning)( date)?$/,sl,c2)
+      ||take('end',/^((planned|plan|baseline|target|forecast|actual) )?(end|finish|due)( date)?$/,sl,c2)
+      ||take('notes',/^notes?$/,sl,c2)
+      ||take('milestone',/^milestone$/,sl,c2)
+      ||take('risk',/^(at[ -]?)?risk$/,sl,c2)
+      ||take('section',/^(category|section)$/,sl,c2);
   }
   if(cols.start===undefined||cols.end===undefined)
     throw new Error('Start Date and End Date columns not found in the header row.');
@@ -595,22 +607,42 @@ function parseExcel(buf){
 // widened back to the Monday of that week rather than shifting every column
 // onto the start day.
 function buildWeeks(planStart,tasks,sheetWeeks){
-  var lo=null,hi=null;
-  function note(d){if(!d)return;if(!lo||d<lo)lo=d;if(!hi||d>hi)hi=d}
+  var pts=[];
+  function note(d){if(d)pts.push(d)}
   note(planStart);
   (sheetWeeks||[]).forEach(function(d){note(d);note(addDays(d,6))});
   tasks.forEach(function(t){note(t.start);note(t.end)});
-  if(!lo)return [];
-  var w=weekStartOf(lo), last=weekStartOf(hi), out=[];
-  while(w<=last&&out.length<MAX_WEEKS){out.push(w);w=addDays(w,7)}
+  if(!pts.length)return [];
+  pts.sort(function(a,b){return a-b});
+  var first=weekStartOf(pts[0]), last=weekStartOf(pts[pts.length-1]);
+  // Longer than the cap (a mistyped year, usually): keep the MAX_WEEKS stretch
+  // holding the most of the plan's dates, not the one opening at the earliest
+  // date, so one 2016 typo can't push every 2026 task off the axis. Tasks left
+  // outside it are listed with their dates (see computeLayout).
+  if(dayDiff(first,last)/7>=MAX_WEEKS){
+    var best=-1,j=0;
+    for(var i=0;i<pts.length;i++){
+      var ws=weekStartOf(pts[i]), we=addDays(ws,MAX_WEEKS*7);
+      while(j<pts.length&&pts[j]<we)j++;
+      if(j-i>best){best=j-i;first=ws;last=weekStartOf(pts[j-1])}
+    }
+  }
+  var w=first, out=[];
+  while(w<=last){out.push(w);w=addDays(w,7)}
   return out;
+}
+
+// True when a dated task lies wholly on the axis. Only a capped axis (see
+// buildWeeks) can leave a task off it.
+function onAxis(weeks,t){
+  return t.start>=weeks[0]&&t.end<addDays(weeks[weeks.length-1],7);
 }
 
 // Default visible window: the weeks the tasks actually span.
 function autoWeekRange(data){
   var weeks=data.weeks,lo=null,hi=null;
   data.tasks.forEach(function(t){
-    if(!t.start||!t.end||t.end<t.start)return;
+    if(!t.start||!t.end||t.end<t.start||!onAxis(weeks,t))return;
     if(!lo||t.start<lo)lo=t.start;
     if(!hi||t.end>hi)hi=t.end;
   });
@@ -678,10 +710,13 @@ function computeLayout(data,opts){
   }
 
   // Tasks that fall entirely outside the selected window have no bar and are
-  // auto-hidden from the plan (kept in `hidden` for a graceful note).
-  var placed=[],hidden=[],undated=[];
+  // auto-hidden from the plan (kept in `hidden` for a graceful note). Those
+  // running off the axis itself (only a capped one, so most likely a mistyped
+  // year) go in `outside`, listed with their dates so the typo can be found.
+  var placed=[],hidden=[],undated=[],outside=[];
   tasks.forEach(function(t){
     if(!t.start||!t.end||t.end<t.start){undated.push(t);return}
+    if(!onAxis(weeks,t)){outside.push(t);return}
     if(t.end<spanStart||t.start>=spanEnd){hidden.push(t);return}
     var x0=dateToX(t.start), x1=dateToX(addDays(t.end,1));
     if(x1-x0<MIN_BAR_W){
@@ -778,7 +813,7 @@ function computeLayout(data,opts){
     spanStart:spanStart,spanEnd:spanEnd,
     months:months,wHdrs:wHdrs,pages:pages,nT:nT,
     hasRisk:placed.some(function(o){return !!o.task.atRisk}),
-    hidden:hidden,undated:undated,colorMode:data.colorMode};
+    hidden:hidden,undated:undated,outside:outside,colorMode:data.colorMode};
 }
 
 // ===== PREVIEW =====
@@ -1306,15 +1341,23 @@ function populateWeekSelects(){
 }
 
 // Editing a task date can push the plan outside the current axis, so rebuild it
-// and carry the visible window across by date rather than by index.
-function refreshWeekAxis(){
+// and carry the visible window across by date rather than by index. A window
+// still on its automatic setting, or one the new axis no longer holds, is
+// worked out afresh instead: clamping it would leave a sliver of the plan.
+// `wasAuto` is whether the window matched autoWeekRange before the edit.
+function refreshWeekAxis(wasAuto){
   var fromD=currentData.weeks[currentData.weekFrom];
   var toD=currentData.weeks[currentData.weekTo];
   var weeks=buildWeeks(currentData.planStart,currentData.tasks,currentData.sheetWeeks);
   if(!weeks.length)return;                    // every date cleared — keep the axis
   currentData.weeks=weeks;
-  currentData.weekFrom=weekIndex(weeks,fromD);
-  currentData.weekTo=Math.max(currentData.weekFrom,weekIndex(weeks,toD));
+  if(wasAuto||!fromD||!toD||fromD<weeks[0]||toD>weeks[weeks.length-1]){
+    var auto=autoWeekRange(currentData);
+    currentData.weekFrom=auto[0]; currentData.weekTo=auto[1];
+  }else{
+    currentData.weekFrom=weekIndex(weeks,fromD);
+    currentData.weekTo=Math.max(currentData.weekFrom,weekIndex(weeks,toD));
+  }
   var from=document.getElementById('wk-from'), to=document.getElementById('wk-to');
   var html=weekOptionsHtml();
   from.innerHTML=html; to.innerHTML=html;
@@ -1399,9 +1442,26 @@ function onTaskEdit(e){
     t.atRisk=el.checked;updateUI();
   }else if(el.classList.contains('f-start')||el.classList.contains('f-end')){
     var d=el.value?fromInput(el.value):null;
+    // A year still being typed (0002, 0020, 0202…) or a typo leaves the task as
+    // it was and the axis alone; the box is put back on blur if left that way.
+    if(d&&!plausibleDate(d))return;
+    var auto=autoWeekRange(currentData);
+    var wasAuto=auto[0]===currentData.weekFrom&&auto[1]===currentData.weekTo;
     if(el.classList.contains('f-start'))t.start=d; else t.end=d;
-    refreshWeekAxis();updateUI();
+    refreshWeekAxis(wasAuto);updateUI();
   }
+}
+
+// A date box left on an implausible year goes back to the task's own date.
+function onTaskBlur(e){
+  if(!currentData)return;
+  var el=e.target;
+  if(!el.classList||!(el.classList.contains('f-start')||el.classList.contains('f-end'))||!el.value)return;
+  if(plausibleDate(fromInput(el.value)))return;
+  var t=currentData.tasks[+el.getAttribute('data-i')];
+  if(!t)return;
+  var d=el.classList.contains('f-start')?t.start:t.end;
+  el.value=d?toInput(d):'';
 }
 
 function updateTaskCount(){
@@ -1420,7 +1480,7 @@ function updateUI(){
   try{
     currentLayout=computeLayout(currentData);
     renderPreview(currentLayout,currentData);
-    renderHiddenNote(currentLayout.hidden,currentLayout.undated);
+    renderHiddenNote(currentLayout.hidden,currentLayout.undated,currentLayout.outside);
     buildLegend();
     var np=currentLayout.pages.length;
     document.getElementById('slide-count-lbl').textContent=
@@ -1435,11 +1495,12 @@ function updateUI(){
 
 // Reflect auto-hidden tasks (selected but outside the chosen weeks):
 // tag their table rows and show a graceful summary above the preview.
-function renderHiddenNote(hidden,undated){
-  hidden=hidden||[]; undated=undated||[];
-  var hset={},uset={};
+function renderHiddenNote(hidden,undated,outside){
+  hidden=hidden||[]; undated=undated||[]; outside=outside||[];
+  var hset={},uset={},oset={};
   hidden.forEach(function(t){hset[currentData.tasks.indexOf(t)]=true});
   undated.forEach(function(t){uset[currentData.tasks.indexOf(t)]=true});
+  outside.forEach(function(t){oset[currentData.tasks.indexOf(t)]=true});
   document.querySelectorAll('#task-tbody tr').forEach(function(tr){
     var i=+tr.getAttribute('data-i');
     var host=tr.querySelector('.tags');
@@ -1449,19 +1510,21 @@ function renderHiddenNote(hidden,undated){
       if(on&&!ex){var s=document.createElement('span');s.className=cls;s.textContent=txt;host.appendChild(s)}
       else if(!on&&ex)ex.remove();
     }
-    tr.classList.toggle('offplan',!!hset[i]||!!uset[i]);
+    tr.classList.toggle('offplan',!!hset[i]||!!uset[i]||!!oset[i]);
     tag('tag-offplan','off-plan',!!hset[i]);
     tag('tag-nodate','no dates',!!uset[i]);
+    tag('tag-outside','check dates',!!oset[i]);
   });
   var note=document.getElementById('hidden-note');
   note.innerHTML='';
-  function block(items,lead){
+  function block(items,lead,withDates){
     if(!items.length)return;
     var wrap=document.createElement('div'); wrap.className='note-block';
     var ld=document.createElement('div'); ld.className='note-lead'; ld.textContent=lead; wrap.appendChild(ld);
     var ul=document.createElement('ul'); ul.className='note-list';
     items.forEach(function(t,idx){
-      var li=document.createElement('li'); li.textContent=t.name;
+      var li=document.createElement('li');
+      li.textContent=t.name+(withDates?' ('+fmtFull(t.start)+' \u2013 '+fmtFull(t.end)+')':'');
       if(idx>=5)li.className='extra hidden';
       ul.appendChild(li);
     });
@@ -1480,7 +1543,8 @@ function renderHiddenNote(hidden,undated){
   }
   block(hidden,hidden.length+' task'+(hidden.length>1?'s':'')+' outside the selected weeks \u2014 widen the range to include:');
   block(undated,undated.length+' task'+(undated.length>1?'s':'')+' with no valid start/end date \u2014 can\u2019t be placed:');
-  note.classList.toggle('hidden', !hidden.length && !undated.length);
+  block(outside,outside.length+' task'+(outside.length>1?'s':'')+' dated far outside the rest of the plan. Check for a mistyped year:',true);
+  note.classList.toggle('hidden', !hidden.length && !undated.length && !outside.length);
 }
 
 function defaultNowDate(data){
@@ -1493,8 +1557,17 @@ function defaultNowDate(data){
 
 function handleFile(file){
   clearError();
+  // Clear the picker once the file is read (or fails to be), so choosing the
+  // same file again — say after fixing it — still fires a change.
+  function resetInput(){document.getElementById('file-input').value=''}
   var reader=new FileReader();
+  reader.onerror=function(){
+    resetInput();
+    showError('Couldn\u2019t read '+(file&&file.name?'\u201c'+file.name+'\u201d':'that file')
+      +'. Check it isn\u2019t open elsewhere or moved, then try again.');
+  };
   reader.onload=function(e){
+    resetInput();
     try{
       currentData=parseExcel(new Uint8Array(e.target.result));
       currentData.nowDate=defaultNowDate(currentData);
@@ -1569,6 +1642,7 @@ function init(){
   var tbody=document.getElementById('task-tbody');
   tbody.addEventListener('input',onTaskEdit);
   tbody.addEventListener('change',onTaskEdit);
+  tbody.addEventListener('focusout',onTaskBlur);
 
   document.getElementById('task-all').addEventListener('click',function(){setAllTasks(true)});
   document.getElementById('task-none').addEventListener('click',function(){setAllTasks(false)});
