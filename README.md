@@ -34,10 +34,29 @@ Full behaviour of every tool is in [`docs/tools.md`](docs/tools.md).
 2. Open it in Chrome, Edge, Firefox or Safari.
 3. Drop in your spreadsheet, or start from scratch.
 
+## Report Kit and design
+
+Every tool is built on the **Report Kit**, a shared foundation in
+[`framework/`](framework/README.md) that keeps the tools looking and behaving
+the same.
+
+| Part | What it is |
+|---|---|
+| [`report-kit-2.css`](framework/report-kit-2.css) | The current design language: header, stat cards, tables, dialogs, drawer and chips. |
+| [`report-kit.js`](framework/report-kit.js) | Shared runtime (`window.RK`): file loading, clipboard, storage, dialogs, sorting and the rules JSON module. |
+| [`DESIGN.md`](framework/DESIGN.md) | Principles, tokens, components and a checklist for new tools. |
+| [`starter.src.html`](framework/starter.src.html) | A small working page to copy when starting a new tool. |
+| [`report-kit.css`](framework/report-kit.css) | Kit 1, frozen. Kept for older tools; not for new ones. |
+
+The design in short: answer first, numbers in mono, colour only for status,
+quiet chrome, keyboard accessible, and offline enforced by a strict
+Content-Security-Policy. [`vendor-spend-tracker.html`](vendor-spend-tracker.html)
+is the reference implementation.
+
 ## Contributing
 
-The shipped `.html` files are built from `reports/*.src.html` and the shared
-Report Kit in [`framework/`](framework/README.md). Don't edit them by hand.
+The shipped `.html` files are built from `reports/*.src.html` and the Report
+Kit. Don't edit them by hand.
 
 ```sh
 python3 framework/build.py          # rebuild every tool
@@ -45,9 +64,8 @@ python3 framework/build.py --check  # verify built files are current
 node tests/smoke.cjs                # headless smoke test (needs Playwright)
 ```
 
-CI runs both checks on every pull request. New tools follow the design language
-in [`framework/DESIGN.md`](framework/DESIGN.md) and start from
-`framework/starter.src.html`.
+CI runs both checks on every pull request. New tools start from the starter page
+and follow [`DESIGN.md`](framework/DESIGN.md).
 
 ## Repository layout
 
