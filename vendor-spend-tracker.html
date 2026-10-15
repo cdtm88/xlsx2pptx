@@ -816,6 +816,11 @@ td.row-actions { text-align: right; }
 #itemsTable col.col-actions { width: 120px; }
 .vst-autofill-hint { display: block; color: var(--accent-dark); margin: -8px 0 12px; }
 .vst-stage-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.vst-budget-origin { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+.vst-changes { border-top: 1px solid var(--divider); margin-top: 6px; padding-top: 12px; }
+.vst-changes-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 6px; }
+.vst-changes .settings-table { margin-bottom: 10px; }
+.vst-approved-line { font-size: 13px; margin: 4px 0 0; }
 </style>
 </head>
 <body>
@@ -978,7 +983,7 @@ td.row-actions { text-align: right; }
         <div class="settings-panel" id="panel-budgets" hidden>
           <div class="settings-panel-head">
             <h3>Budgets</h3>
-            <span class="hint">Set annually; shown on the main page.</span>
+            <span class="hint">Set annually; shown on the main page. Use &ldquo;+&rdquo; to add approved money to a budget while keeping its original figure.</span>
             <button class="primary small" id="btnNewBudget">+ New</button>
           </div>
           <div id="settingsBudgetList" class="settings-table"></div>
@@ -1387,12 +1392,39 @@ td.row-actions { text-align: right; }
       </div>
       <div class="setting-row">
         <div class="setting-row-label">
-          <span class="label-text">Total Budget *</span>
+          <span class="label-text">Original Budget *</span>
+          <span class="label-hint">As first approved</span>
         </div>
         <div class="setting-row-control">
           <input type="number" step="0.01" min="0" id="b_total" required>
           <span class="unit-suffix">AED</span>
         </div>
+      </div>
+      <div class="vst-changes" id="b_changesSection" hidden>
+        <div class="vst-changes-head">
+          <span class="label-text">Approved changes</span>
+          <span class="hint">On top of the original; negative for a cut</span>
+        </div>
+        <div id="b_changesList" class="settings-table"></div>
+        <div class="field-row">
+          <div class="field">
+            <label for="b_addAmount">Amount</label>
+            <div class="amt-input-box">
+              <span class="amt-input-tag">AED</span>
+              <input type="number" step="0.01" id="b_addAmount">
+            </div>
+          </div>
+          <div class="field">
+            <label for="b_addDate">Approved on</label>
+            <input type="date" id="b_addDate">
+          </div>
+        </div>
+        <div class="field">
+          <label for="b_addReason">Reason</label>
+          <input type="text" id="b_addReason" placeholder="e.g. CR-114 signed off by finance">
+        </div>
+        <button type="button" class="small" id="btnAddBudgetChange">+ Add change</button>
+        <p class="vst-approved-line" id="b_approvedLine"></p>
       </div>
       <div class="modal-actions">
         <button type="button" id="btnCancelBudget">Cancel</button>
@@ -2037,7 +2069,7 @@ window.RK = (function () {
   // user-facing features that stay backward compatible, PATCH for fixes with no
   // behavior/schema change. Bump this by hand on each release; it is not read or
   // written anywhere else, so changing it never affects stored data.
-  var APP_VERSION = "1.2.1";
+  var APP_VERSION = "1.3.0";
 
   // The 8-segment stage-progress bar used in the items table and the detail drawer:
   // filled up to the current stage, all green once Closed.
@@ -2085,6 +2117,15 @@ window.RK = (function () {
     return remap;
   }
 
+  // A budget's approved changes since it was first set: { amount (AED, negative for a
+  // cut), date, reason }. Older data has none; a zero or non-numeric amount is dropped.
+  function normaliseAdjustments(list) {
+    if (!Array.isArray(list)) return [];
+    return list.filter(isPlainObject).map(function (a) {
+      return { amount: money(a.amount), date: str(a.date), reason: str(a.reason) };
+    }).filter(function (a) { return a.amount !== 0; });
+  }
+
   function normaliseState(parsed) {
     if (!parsed || !Array.isArray(parsed.budgets) || !Array.isArray(parsed.items)) return null;
 
@@ -2092,7 +2133,7 @@ window.RK = (function () {
       rev: Number(parsed.rev) || 0,
       saveToken: str(parsed.saveToken),
       budgets: parsed.budgets.filter(isPlainObject).map(function (b) {
-        return { id: b.id, name: str(b.name), total: money(b.total) };
+        return { id: b.id, name: str(b.name), total: money(b.total), adjustments: normaliseAdjustments(b.adjustments) };
       }),
       vendors: Array.isArray(parsed.vendors) ? parsed.vendors.filter(isPlainObject).map(function (v) {
         return {
@@ -2322,6 +2363,23 @@ window.RK = (function () {
 
   // ---------- Budget computations ----------
 
+  // budget.total is the ORIGINAL approved figure and never changes when money is added;
+  // each later approval is kept in budget.adjustments. Every spend %, status and
+  // remaining figure is measured against the approved total (original + changes).
+  function adjustmentsTotal(b) {
+    return (b && Array.isArray(b.adjustments) ? b.adjustments : []).reduce(function (sum, a) {
+      return sum + (Number(a.amount) || 0);
+    }, 0);
+  }
+
+  function approvedTotal(b) {
+    return (Number(b && b.total) || 0) + adjustmentsTotal(b);
+  }
+
+  function fmtSignedAedWhole(n) {
+    return (n < 0 ? "−" : "+") + fmtAedWhole(Math.abs(n));
+  }
+
   // Pipeline: estimates not yet approved. Committed: approved through initial invoice,
   // net of anything already invoiced, zeroed once the item reaches a locked stage (final
   // invoice / closed) so underspend does not stay committed forever. Invoiced: always counted.
@@ -2457,7 +2515,7 @@ window.RK = (function () {
     var grid = document.getElementById("budgetGrid");
     grid.innerHTML = "";
 
-    var grandTotal = 0, grandSpend = 0;
+    var grandTotal = 0, grandOriginal = 0, grandSpend = 0;
 
     if (state.budgets.length === 0) {
       grid.innerHTML = '<div class="hint">No budgets yet. Add one in Settings, under Budgets (e.g. per vendor or category).</div>';
@@ -2465,8 +2523,10 @@ window.RK = (function () {
 
     state.budgets.forEach(function (b) {
       var spend = budgetSpend(b.id);
-      var total = Number(b.total) || 0;
+      var total = approvedTotal(b);
+      var changed = adjustmentsTotal(b);
       grandTotal += total;
+      grandOriginal += Number(b.total) || 0;
       grandSpend += spend.total;
       var pct = total > 0 ? (spend.total / total) * 100 : 0;
       var status = budgetStatus(pct, total, spend.total);
@@ -2496,8 +2556,10 @@ window.RK = (function () {
         '</div>' +
         '<div class="stat-card-figure">' +
           '<span class="stat-card-value">' + pct.toFixed(0) + '%</span>' +
-          '<span class="stat-card-of">of ' + fmtAedWhole(total) + '</span>' +
+          '<span class="stat-card-of">of ' + fmtAedWhole(total) + (changed ? ' approved' : '') + '</span>' +
         '</div>' +
+        (changed ? '<div class="vst-budget-origin">Original ' + fmtAedWhole(Number(b.total) || 0) + ' · ' +
+          fmtSignedAedWhole(changed) + ' since</div>' : '') +
         '<div class="bar-track">' + seg(spend.invoiced, "solid") + seg(spend.committed, "hatched") + seg(spend.pipeline, "tint") + limitTick + '</div>' +
         '<div class="stat-card-nums">' +
           '<span>Pipeline<span class="stat-card-num">' + fmtAedWhole(spend.pipeline) + '</span></span>' +
@@ -2510,7 +2572,8 @@ window.RK = (function () {
     });
 
     var grandPct = grandTotal > 0 ? Math.round((grandSpend / grandTotal) * 100) : 0;
-    document.getElementById("budgetSummarySub").textContent = fiscalYearLabel() + " budgets · " + grandPct + "% used";
+    document.getElementById("budgetSummarySub").textContent = fiscalYearLabel() + " budgets · " + grandPct + "% used" +
+      (grandTotal !== grandOriginal ? " · original " + fmtAedWhole(grandOriginal) : "");
     document.getElementById("budgetSummaryMain").textContent =
       fmtAed(grandSpend) + " of " + fmtAed(grandTotal) + " committed or invoiced";
 
@@ -2946,7 +3009,7 @@ window.RK = (function () {
 
     var editingId = document.getElementById("itemId").value || null;
     var spend = budgetSpend(budgetId, editingId);
-    var total = Number(budget.total) || 0;
+    var total = approvedTotal(budget);
     var before = spend.total;
     var after = before + addAed;
     var scale = Math.max(total, after, 1);
@@ -3042,17 +3105,101 @@ window.RK = (function () {
 
   var budgetModal = document.getElementById("budgetModalOverlay");
   var budgetForm = document.getElementById("budgetForm");
-  var budgetModalCtl = bindModal(budgetModal, function () { budgetForm.reset(); });
+  var budgetModalCtl = bindModal(budgetModal, function () { budgetForm.reset(); budgetDraftChanges = []; });
 
-  function openBudgetModal(budget) {
-    document.getElementById("budgetModalTitle").textContent = budget ? "Edit Budget" : "New Budget";
+  // The approved changes as edited in the open dialog; written to the budget on Save.
+  var budgetDraftChanges = [];
+
+  // The change typed into the add fields, or null when the amount is blank or zero.
+  function pendingBudgetChange() {
+    var amount = parseFloat(document.getElementById("b_addAmount").value);
+    if (!isFinite(amount) || amount === 0) return null;
+    return {
+      amount: amount,
+      date: document.getElementById("b_addDate").value || todayStr(),
+      reason: document.getElementById("b_addReason").value.trim()
+    };
+  }
+
+  function renderBudgetChanges() {
+    var list = document.getElementById("b_changesList");
+    if (budgetDraftChanges.length === 0) {
+      list.innerHTML = '<div class="hint">None yet: the approved budget is the original.</div>';
+    } else {
+      list.innerHTML = budgetDraftChanges.map(function (a, i) {
+        return "<div class='settings-table-row' style='grid-template-columns:86px 110px 1fr 32px'>" +
+          "<span data-label='Approved on'>" + escapeHtml(a.date || "—") + "</span>" +
+          "<span class='col-num' data-label='Amount'>" + escapeHtml(fmtSignedAedWhole(a.amount)) + "</span>" +
+          "<span data-label='Reason'>" + escapeHtml(a.reason || "—") + "</span>" +
+          "<span class='col-actions'><button type='button' class='small icon-btn danger' title='Remove' aria-label='Remove this change' data-remove-change='" + i + "'>×</button></span>" +
+          "</div>";
+      }).join("");
+    }
+    var original = parseFloat(document.getElementById("b_total").value) || 0;
+    var pending = pendingBudgetChange();
+    var added = adjustmentsTotal({ adjustments: budgetDraftChanges }) + (pending ? pending.amount : 0);
+    document.getElementById("b_approvedLine").innerHTML = added
+      ? "Approved budget <strong>" + escapeHtml(fmtAedWhole(original + added)) + "</strong> (original " +
+        escapeHtml(fmtAedWhole(original)) + " " + escapeHtml(fmtSignedAedWhole(added)) + ")"
+      : "Approved budget <strong>" + escapeHtml(fmtAedWhole(original)) + "</strong>";
+  }
+
+  function resetBudgetChangeInputs() {
+    document.getElementById("b_addAmount").value = "";
+    document.getElementById("b_addDate").value = todayStr();
+    document.getElementById("b_addReason").value = "";
+  }
+
+  // focusAdd: opened from the "+" (add to budget) button, so start in the amount field.
+  function openBudgetModal(budget, focusAdd) {
+    document.getElementById("budgetModalTitle").textContent = budget ? (focusAdd ? "Add to Budget" : "Edit Budget") : "New Budget";
     document.getElementById("b_id").value = budget ? budget.id : "";
     document.getElementById("b_name").value = budget ? budget.name : "";
     document.getElementById("b_total").value = budget ? budget.total : "";
+    budgetDraftChanges = budget ? normaliseAdjustments(budget.adjustments) : [];
+    document.getElementById("b_changesSection").hidden = !budget;
+    resetBudgetChangeInputs();
+    renderBudgetChanges();
     markOpened("budget");
     budgetModalCtl.open();
-    document.getElementById("b_name").focus();
+    document.getElementById(budget && focusAdd ? "b_addAmount" : "b_name").focus();
   }
+
+  // Add/remove are button clicks, which the kit's dirty guard does not see on its own.
+  function markBudgetFormDirty() {
+    budgetForm.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+
+  document.getElementById("btnAddBudgetChange").addEventListener("click", function () {
+    var change = pendingBudgetChange();
+    if (!change) {
+      document.getElementById("b_addAmount").focus();
+      return;
+    }
+    budgetDraftChanges.push(change);
+    resetBudgetChangeInputs();
+    renderBudgetChanges();
+    markBudgetFormDirty();
+    document.getElementById("b_addAmount").focus();
+  });
+  document.getElementById("b_changesList").addEventListener("click", function (e) {
+    var btn = e.target.closest("[data-remove-change]");
+    if (!btn) return;
+    budgetDraftChanges.splice(Number(btn.getAttribute("data-remove-change")), 1);
+    renderBudgetChanges();
+    markBudgetFormDirty();
+  });
+  ["b_total", "b_addAmount"].forEach(function (id) {
+    document.getElementById(id).addEventListener("input", renderBudgetChanges);
+  });
+  // Enter in the add fields adds the change rather than submitting the whole form.
+  ["b_addAmount", "b_addDate", "b_addReason"].forEach(function (id) {
+    document.getElementById(id).addEventListener("keydown", function (e) {
+      if (e.key !== "Enter") return;
+      e.preventDefault();
+      document.getElementById("btnAddBudgetChange").click();
+    });
+  });
 
   function closeBudgetModal() {
     budgetModalCtl.close();
@@ -3067,10 +3214,13 @@ window.RK = (function () {
       "Save mine anyway", function () { budgetForm.requestSubmit(); })) return;
     var id = document.getElementById("b_id").value;
     var isNew = !id;
+    // A change typed in but not yet added with "+ Add change" still counts.
+    var pending = isNew ? null : pendingBudgetChange();
     var data = {
       id: id || uid(),
       name: document.getElementById("b_name").value.trim(),
-      total: parseFloat(document.getElementById("b_total").value) || 0
+      total: parseFloat(document.getElementById("b_total").value) || 0,
+      adjustments: budgetDraftChanges.concat(pending ? [pending] : [])
     };
     if (isNew) {
       state.budgets.push(data);
@@ -3084,7 +3234,7 @@ window.RK = (function () {
     closeBudgetModal();
   });
 
-  var BUDGET_COLS = "1fr 130px 180px 60px 72px";
+  var BUDGET_COLS = "1fr 120px 130px 160px 50px 104px";
 
   function renderSettingsBudgetList() {
     var list = document.getElementById("settingsBudgetList");
@@ -3098,12 +3248,13 @@ window.RK = (function () {
     var header = document.createElement("div");
     header.className = "settings-table-row header";
     header.style.gridTemplateColumns = BUDGET_COLS;
-    header.innerHTML = "<span>Budget Name</span><span class='col-num'>Total (AED)</span><span>Spent</span><span class='col-num'>%</span><span></span>";
+    header.innerHTML = "<span>Budget Name</span><span class='col-num'>Original (AED)</span><span class='col-num'>Approved (AED)</span><span>Spent</span><span class='col-num'>%</span><span></span>";
     list.appendChild(header);
 
     state.budgets.forEach(function (b) {
       var spend = budgetSpend(b.id);
-      var total = Number(b.total) || 0;
+      var total = approvedTotal(b);
+      var changes = (b.adjustments || []).length;
       var pct = total > 0 ? (spend.total / total) * 100 : 0;
       var status = budgetStatus(pct, total, spend.total);
       var visuals = statusVisuals(status);
@@ -3113,13 +3264,16 @@ window.RK = (function () {
       row.style.gridTemplateColumns = BUDGET_COLS;
       row.innerHTML =
         "<span data-label='Budget Name'>" + escapeHtml(b.name) + "</span>" +
-        "<span class='col-num' data-label='Total (AED)'>" + fmtAed(b.total) + "</span>" +
+        "<span class='col-num' data-label='Original (AED)'>" + fmtAed(b.total) + "</span>" +
+        "<span class='col-num' data-label='Approved (AED)'" + (changes ? " title='" + changes + " approved change" + (changes === 1 ? "" : "s") + "'" : "") + ">" +
+          fmtAed(total) + "</span>" +
         "<span class='row-bar-cell' data-label='Spent'>" +
           "<span class='row-bar-track'><span class='row-bar-fill' style='width:" + Math.min(pct, 100) + "%;background:" + barColor + "'></span></span>" +
           "<span class='hint' style='margin:0;'>" + fmtAed(spend.total) + "</span>" +
         "</span>" +
         "<span class='col-num' data-label='%' style='color:" + pctColor + ";font-weight:600;'>" + pct.toFixed(0) + "%</span>" +
         "<span class='col-actions'>" +
+          "<button type='button' class='small icon-btn' title='Add to budget' aria-label='Add to " + escapeHtml(b.name) + "' data-add-budget-settings='" + escapeHtml(b.id) + "'>+</button>" +
           "<button type='button' class='small icon-btn' title='Edit' aria-label='Edit " + escapeHtml(b.name) + "' data-edit-budget-settings='" + escapeHtml(b.id) + "'>&#9998;</button>" +
           "<button type='button' class='small icon-btn danger' title='Delete' aria-label='Delete " + escapeHtml(b.name) + "' data-del-budget-settings='" + escapeHtml(b.id) + "'>&#128465;</button>" +
         "</span>";
@@ -3139,10 +3293,11 @@ window.RK = (function () {
 
   document.getElementById("settingsBudgetList").addEventListener("click", function (e) {
     var editId = e.target.getAttribute("data-edit-budget-settings");
+    var addId = e.target.getAttribute("data-add-budget-settings");
     var delId = e.target.getAttribute("data-del-budget-settings");
-    if (editId) {
-      var b = state.budgets.find(function (x) { return x.id === editId; });
-      if (b) openBudgetModal(b);
+    if (editId || addId) {
+      var b = state.budgets.find(function (x) { return x.id === (editId || addId); });
+      if (b) openBudgetModal(b, !!addId);
     } else if (delId) {
       var inUse = state.items.some(function (it) { return it.budgetId === delId; });
       if (inUse) {
@@ -3917,7 +4072,7 @@ window.RK = (function () {
         var newId = isValidId(b.id) && !state.budgets.some(function (x) { return x.id === b.id; }) ? b.id : uid();
         budgetIdMap[b.id] = newId;
         existingBudgetByName[key] = newId;
-        state.budgets.push({ id: newId, name: b.name, total: b.total });
+        state.budgets.push({ id: newId, name: b.name, total: b.total, adjustments: normaliseAdjustments(b.adjustments) });
       }
     });
 
@@ -4469,6 +4624,37 @@ window.RK = (function () {
         delete openedAt.__selftest;
       }
     });
+
+    // Approved budget changes: the original stays as entered, the approved total adds the
+    // changes, older data without any loads cleanly, and Merge brings them across.
+    withState(function () {
+      var out = normaliseState({ budgets: [
+        { id: "b1", name: "Original only", total: 1000 },
+        { id: "b2", name: "Topped up", total: 1000, adjustments: [
+          { amount: 500, date: "2026-06-01", reason: "CR-1" }, { amount: "250" }, { amount: 0 }, { amount: "abc" }, "junk", { amount: -100 }
+        ] }
+      ], items: [
+        { id: "i1", budgetId: "b2", vendorId: "", currency: "AED", stage: "PO issued", currentAmount: 1400, invoicedAmount: 0 }
+      ] });
+      var b1 = out.budgets[0], b2 = out.budgets[1];
+      assert("budget changes: older data loads with none, approved = original",
+        Array.isArray(b1.adjustments) && b1.adjustments.length === 0 && approvedTotal(b1) === 1000);
+      assert("budget changes: zero, non-numeric and non-object entries dropped, cuts kept",
+        b2.adjustments.length === 3 && b2.adjustments[0].reason === "CR-1" && b2.adjustments[2].amount === -100);
+      assert("budget changes: original kept, approved = original + changes",
+        b2.total === 1000 && adjustmentsTotal(b2) === 650 && approvedTotal(b2) === 1650);
+      state = out;
+      renderAll();
+      var card = document.querySelector('[data-budget-filter="b2"]');
+      var text = card ? card.textContent : "";
+      assert("budget changes: card measures spend against the approved total and shows the original",
+        /85%/.test(text) && /approved/.test(text) && /Original AED 1,000/.test(text) && /On track|Watch/.test(text) && !/Over/.test(text));
+      state = { budgets: [], vendors: [], items: [], settings: { rates: Object.assign({}, DEFAULT_RATES) } };
+      mergeState(out);
+      assert("budget changes: merge carries them across",
+        state.budgets.length === 2 && approvedTotal(state.budgets[1]) === 1650 && state.budgets[1].total === 1000);
+    });
+    renderAll();
 
     // Stuck chip wording: "2 stuck", never "2 stucks".
     (function () {

@@ -294,6 +294,15 @@ Pipeline is shown but not counted as used. A bar that runs over its budget
 keeps going, with a red tick at the budget line. Click a card to filter the list
 to that budget.
 
+**Adding to a budget.** When more money is approved, press **+** next to the
+budget in Settings and log the change: amount, date approved and a reason (a
+negative amount records a cut). The budget keeps its **original** figure, and
+the **approved** budget is the original plus every change. Spend, status and
+remaining are measured against the approved budget; the card shows both
+("of AED 140,000 approved", "Original AED 100,000 · +AED 40,000 since"), and the
+Settings list has a column for each. Changes can be removed again from the
+budget's Edit dialog.
+
 The list groups the stages into Approval, Ordered, Invoicing and Closed tabs,
 with search (press `/`), budget and stage filters, and sortable columns. Amounts
 are converted to AED at rates set in Settings, with the native figure beneath.
