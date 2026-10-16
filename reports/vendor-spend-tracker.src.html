@@ -33,6 +33,18 @@
 .vst-changes-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 6px; }
 .vst-changes .settings-table { margin-bottom: 10px; }
 .vst-approved-line { font-size: 13px; margin: 4px 0 0; }
+/* Budget card: the name is the filter button, stretched over the whole card so a click
+   anywhere filters; "Details" sits above it and opens the budget drawer instead. */
+.vst-budget-card { position: relative; cursor: pointer; }
+.vst-budget-card:hover { border-color: var(--accent); }
+.vst-budget-card .stat-card-name { gap: 8px; }
+.vst-card-filter { all: unset; font: inherit; color: inherit; cursor: pointer; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vst-card-filter::after { content: ""; position: absolute; inset: 0; border-radius: 10px; }
+.vst-card-filter:focus-visible::after { box-shadow: 0 0 0 2px var(--accent); }
+.vst-card-name-end { display: flex; align-items: center; gap: 6px; flex: none; }
+.vst-card-open { position: relative; z-index: 1; }
+button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
+.vst-history-amount.neg { color: var(--red); }
 </style>
 </head>
 <body>
@@ -525,6 +537,62 @@
   </div>
 </div>
 
+<div class="modal-overlay drawer-overlay" id="budgetDetailModalOverlay" hidden>
+  <div class="modal drawer">
+    <div class="drawer-head">
+      <div class="drawer-head-top">
+        <div>
+          <div class="drawer-title-sub" id="bd_sub"></div>
+          <h2 class="drawer-title" id="bd_name"></h2>
+        </div>
+        <div class="drawer-head-actions">
+          <button type="button" class="small" id="btnBudgetDetailAdd">+ Add to budget</button>
+          <button type="button" class="small" id="btnBudgetDetailEdit">Edit</button>
+          <button type="button" class="drawer-close" id="btnCloseBudgetDetail" aria-label="Close">×</button>
+        </div>
+      </div>
+      <div class="figure-strip">
+        <div class="figure-box">
+          <span class="detail-label">Original</span>
+          <span class="figure" id="bd_original"></span>
+        </div>
+        <div class="figure-box">
+          <span class="detail-label">Changes</span>
+          <span class="figure" id="bd_changes"></span>
+        </div>
+        <div class="figure-box">
+          <span class="detail-label">Approved</span>
+          <span class="figure" id="bd_approved"></span>
+        </div>
+      </div>
+    </div>
+    <div class="drawer-body">
+      <div class="detail-grid drawer-section">
+        <div>
+          <div class="detail-label">Used</div>
+          <div class="detail-value" id="bd_used"></div>
+        </div>
+        <div>
+          <div class="detail-label">Remaining</div>
+          <div class="detail-value" id="bd_remaining"></div>
+        </div>
+        <div>
+          <div class="detail-label">Committed</div>
+          <div class="detail-value" id="bd_committed"></div>
+        </div>
+        <div>
+          <div class="detail-label">Invoiced</div>
+          <div class="detail-value" id="bd_invoiced"></div>
+        </div>
+      </div>
+      <div class="drawer-section-label">Budget history</div>
+      <div id="bd_history" class="drawer-section"></div>
+      <div class="drawer-section-label">Line items</div>
+      <div id="bd_itemsList"></div>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="exportModalOverlay" hidden>
   <div class="modal modal-compact">
     <h2>Filtered Export</h2>
@@ -737,7 +805,7 @@
   // user-facing features that stay backward compatible, PATCH for fixes with no
   // behavior/schema change. Bump this by hand on each release; it is not read or
   // written anywhere else, so changing it never affects stored data.
-  var APP_VERSION = "1.3.0";
+  var APP_VERSION = "1.4.0";
 
   // The 8-segment stage-progress bar used in the items table and the detail drawer:
   // filled up to the current stage, all green once Closed.
@@ -1201,12 +1269,8 @@
       var remaining = total - spend.total;
 
       var card = document.createElement("div");
-      card.className = "stat-card" + (budgetFilterCard === b.id ? " active" : "");
-      card.setAttribute("data-budget-filter", b.id);
-      card.setAttribute("role", "button");
-      card.setAttribute("tabindex", "0");
-      card.setAttribute("aria-pressed", budgetFilterCard === b.id ? "true" : "false");
-      card.setAttribute("aria-label", "Show only " + b.name + " line items");
+      card.className = "stat-card vst-budget-card" + (budgetFilterCard === b.id ? " active" : "");
+      card.setAttribute("data-budget-card", b.id);
 
       var visuals = statusVisuals(status);
       var pillClass = visuals.pillClass, pillLabel = visuals.pillLabel;
@@ -1219,8 +1283,13 @@
 
       card.innerHTML =
         '<div class="stat-card-name">' +
-          '<span>' + escapeHtml(b.name) + '</span>' +
-          '<span class="status-pill ' + pillClass + '">' + pillLabel + '</span>' +
+          '<button type="button" class="vst-card-filter" data-budget-filter="' + escapeHtml(b.id) + '" aria-pressed="' +
+            (budgetFilterCard === b.id ? 'true' : 'false') + '" title="Show only ' + escapeHtml(b.name) + ' line items">' + escapeHtml(b.name) + '</button>' +
+          '<span class="vst-card-name-end">' +
+            '<span class="status-pill ' + pillClass + '">' + pillLabel + '</span>' +
+            '<button type="button" class="small vst-card-open" data-budget-open="' + escapeHtml(b.id) + '" aria-label="' +
+              escapeHtml(b.name) + ' details and budget history">Details</button>' +
+          '</span>' +
         '</div>' +
         '<div class="stat-card-figure">' +
           '<span class="stat-card-value">' + pct.toFixed(0) + '%</span>' +
@@ -1281,15 +1350,10 @@
     if (again) again.focus();
   }
   document.getElementById("budgetGrid").addEventListener("click", function (e) {
-    var card = e.target.closest("[data-budget-filter]");
-    if (card) toggleBudgetCard(card);
-  });
-  document.getElementById("budgetGrid").addEventListener("keydown", function (e) {
-    if (e.key !== "Enter" && e.key !== " ") return;
-    var card = e.target.closest("[data-budget-filter]");
-    if (!card) return;
-    e.preventDefault();
-    toggleBudgetCard(card);
+    var open = e.target.closest("[data-budget-open]");
+    if (open) { openBudgetDetailModal(open.getAttribute("data-budget-open")); return; }
+    var card = e.target.closest("[data-budget-card]");
+    if (card) toggleBudgetCard(card.querySelector("[data-budget-filter]"));
   });
 
   document.getElementById("budgetChip").addEventListener("click", clearBudgetFilter);
@@ -2495,6 +2559,109 @@
     openItemFromVendorDrawer(row);
   });
 
+  // ---------- Budget detail drawer ----------
+
+  var budgetDetailModal = document.getElementById("budgetDetailModalOverlay");
+  var budgetDetailModalCtl = bindModal(budgetDetailModal, null);
+
+  // The budget's history oldest first: the original figure, then each approved change in
+  // date order (same-day changes keep the order they were logged), with the approved total
+  // after each one. Changes with no date sort first, as the oldest.
+  function budgetHistory(b) {
+    var running = Number(b.total) || 0;
+    var steps = [{ kind: "original", amount: running, approved: running }];
+    (b.adjustments || []).map(function (a, i) { return { a: a, i: i }; })
+      .sort(function (x, y) { return (x.a.date || "").localeCompare(y.a.date || "") || x.i - y.i; })
+      .forEach(function (x) {
+        running += Number(x.a.amount) || 0;
+        steps.push({ kind: "change", amount: Number(x.a.amount) || 0, date: x.a.date, reason: x.a.reason, approved: running });
+      });
+    return steps;
+  }
+
+  function renderBudgetHistory(b) {
+    var steps = budgetHistory(b).reverse();
+    document.getElementById("bd_history").innerHTML = steps.map(function (st, i) {
+      var isLast = i === steps.length - 1;
+      var title = st.kind === "original"
+        ? "Original budget " + fmtAedWhole(st.amount)
+        : "<span class='vst-history-amount" + (st.amount < 0 ? " neg" : "") + "'>" + escapeHtml(fmtSignedAedWhole(st.amount)) + "</span> " +
+          (st.amount < 0 ? "cut" : "added");
+      return "<div class='tl-row'>" +
+        "<div class='tl-rail'><span class='tl-dot" + (st.kind === "original" ? " note" : "") + "'></span>" + (isLast ? "" : "<span class='tl-line'></span>") + "</div>" +
+        "<div class='tl-body'>" +
+          "<div class='tl-body-top'><span class='tl-title'>" + (st.kind === "original" ? escapeHtml(title) : title) + "</span>" +
+          "<span class='tl-time'>" + escapeHtml(st.kind === "original" ? "Set up" : (st.date || "No date")) + "</span></div>" +
+          (st.kind === "change"
+            ? (st.reason ? "<span class='tl-text note-text'>" + escapeHtml(st.reason) + "</span>" : "") +
+              "<span class='hint'>Approved budget now " + escapeHtml(fmtAedWhole(st.approved)) + "</span>"
+            : "") +
+        "</div>" +
+      "</div>";
+    }).join("") + (steps.length === 1 ? "<div class='hint'>No approved changes yet. Use &ldquo;+ Add to budget&rdquo; when more is approved.</div>" : "");
+  }
+
+  function openBudgetDetailModal(budgetId) {
+    var b = state.budgets.find(function (x) { return x.id === budgetId; });
+    if (!b) return;
+    var spend = budgetSpend(b.id);
+    var total = approvedTotal(b), changed = adjustmentsTotal(b);
+    var pct = total > 0 ? (spend.total / total) * 100 : 0;
+    var visuals = statusVisuals(budgetStatus(pct, total, spend.total));
+
+    document.getElementById("bd_sub").textContent = fiscalYearLabel() + " budget";
+    document.getElementById("bd_name").textContent = b.name;
+    document.getElementById("bd_original").textContent = fmtAedWhole(Number(b.total) || 0);
+    document.getElementById("bd_changes").textContent = changed ? fmtSignedAedWhole(changed) : "None";
+    document.getElementById("bd_approved").textContent = fmtAedWhole(total);
+    document.getElementById("bd_used").innerHTML = pct.toFixed(0) + "% <span class='status-pill " + visuals.pillClass + "'>" + visuals.pillLabel + "</span>";
+    document.getElementById("bd_remaining").textContent = fmtAed(total - spend.total);
+    document.getElementById("bd_committed").textContent = fmtAed(spend.committed);
+    document.getElementById("bd_invoiced").textContent = fmtAed(spend.invoiced);
+    renderBudgetHistory(b);
+
+    var items = state.items.filter(function (it) { return it.budgetId === b.id; })
+      .sort(function (x, y) { return (y.createdAt || "").localeCompare(x.createdAt || ""); });
+    document.getElementById("bd_itemsList").innerHTML = items.length === 0
+      ? "<div class='muted-empty'>No line items on this budget yet.</div>"
+      : items.map(function (it) {
+          return "<div class='list-row' role='button' tabindex='0' data-bd-open-item='" + escapeHtml(it.id) + "'>" +
+            "<span class='list-row-main'>" +
+              "<span class='list-row-title'>" + escapeHtml(it.description || "(no description)") + "</span>" +
+              "<span class='list-row-sub'>" + escapeHtml(it.stage) + " · " + escapeHtml(vendorNameFor(it.vendorId)) + "</span>" +
+            "</span>" +
+            "<span class='list-row-figure'>" + fmtAed(itemAed(it, "currentAmount")) + "</span>" +
+          "</div>";
+        }).join("");
+
+    document.getElementById("btnBudgetDetailAdd").onclick = function () { closeBudgetDetailModal(); openBudgetModal(b, true); };
+    document.getElementById("btnBudgetDetailEdit").onclick = function () { closeBudgetDetailModal(); openBudgetModal(b); };
+
+    budgetDetailModalCtl.open();
+  }
+
+  function closeBudgetDetailModal() {
+    budgetDetailModalCtl.close();
+  }
+
+  document.getElementById("btnCloseBudgetDetail").addEventListener("click", closeBudgetDetailModal);
+
+  function openItemFromBudgetDrawer(row) {
+    closeBudgetDetailModal();
+    openDetailModal(row.getAttribute("data-bd-open-item"));
+  }
+  document.getElementById("bd_itemsList").addEventListener("click", function (e) {
+    var row = e.target.closest("[data-bd-open-item]");
+    if (row) openItemFromBudgetDrawer(row);
+  });
+  document.getElementById("bd_itemsList").addEventListener("keydown", function (e) {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    var row = e.target.closest("[data-bd-open-item]");
+    if (!row) return;
+    e.preventDefault();
+    openItemFromBudgetDrawer(row);
+  });
+
   // ---------- Table interactions (advance/detail) ----------
   // Edit and Delete live in the detail drawer now (openDetailModal); the row itself
   // only exposes Advance (or a "✓ Closed" label) and opening the detail view.
@@ -3313,7 +3480,7 @@
         b2.total === 1000 && adjustmentsTotal(b2) === 650 && approvedTotal(b2) === 1650);
       state = out;
       renderAll();
-      var card = document.querySelector('[data-budget-filter="b2"]');
+      var card = document.querySelector('[data-budget-card="b2"]');
       var text = card ? card.textContent : "";
       assert("budget changes: card measures spend against the approved total and shows the original",
         /85%/.test(text) && /approved/.test(text) && /Original AED 1,000/.test(text) && /On track|Watch/.test(text) && !/Over/.test(text));
@@ -3323,6 +3490,18 @@
         state.budgets.length === 2 && approvedTotal(state.budgets[1]) === 1650 && state.budgets[1].total === 1000);
     });
     renderAll();
+
+    // Budget drawer history: oldest first in date order with a running approved total,
+    // same-day changes in the order logged.
+    (function () {
+      var h = budgetHistory({ total: 100, adjustments: [
+        { amount: 30, date: "2026-08-01", reason: "b" }, { amount: 50, date: "2026-06-01", reason: "a" },
+        { amount: -20, date: "2026-08-01", reason: "c" }
+      ] });
+      assert("budget history: original first, then changes by date with running approved total",
+        h.length === 4 && h[0].kind === "original" && h[0].approved === 100 &&
+        h[1].reason === "a" && h[1].approved === 150 && h[2].reason === "b" && h[3].reason === "c" && h[3].approved === 160);
+    })();
 
     // Stuck chip wording: "2 stuck", never "2 stucks".
     (function () {

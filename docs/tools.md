@@ -303,6 +303,12 @@ remaining are measured against the approved budget; the card shows both
 Settings list has a column for each. Changes can be removed again from the
 budget's Edit dialog.
 
+**Details** on a budget card opens its drawer: original, changes and approved
+figures, how much is used and left, the **budget history** (newest first: each
+change with its date, reason and the approved budget after it, back to the
+original), and the budget's line items. **+ Add to budget** and **Edit** work
+from there too.
+
 The list groups the stages into Approval, Ordered, Invoicing and Closed tabs,
 with search (press `/`), budget and stage filters, and sortable columns. Amounts
 are converted to AED at rates set in Settings, with the native figure beneath.
