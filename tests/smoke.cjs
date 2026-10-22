@@ -102,6 +102,23 @@ const FLOWS = {
     t("months that come back with figures say so", await page.$eval("#extHidden", (e) => !e.hidden));
     await page.click("#extClear"); await page.click("#extOk");
     t("clearing them starts the months empty", (await forecast()) === before, before + " -> " + (await forecast()));
+
+    // Delaying the timeline: the plan moves later; actuals, the estimate and a
+    // zero-cost forecast stay where they were; the change is logged; undo reverses it.
+    await page.$eval("#demoBtn", (b) => b.click());
+    await page.click(".modal-overlay:not([hidden]) [data-rk-ok]");
+    const actuals = () => page.$$eval("#ledgerBody input", (i) => i.slice(0, 7).map((x) => x.value).join(","));
+    const a0 = await actuals();
+    await page.$eval("#delaySettingsBtn", (b) => b.click());
+    await page.click('#dlChips [data-months="3"]');
+    await page.fill("#dlReason", "Vendor environment not ready");
+    await page.click("#dlOk");
+    t("a zero-cost delay leaves the forecast unchanged", (await forecast()) === before, before + " -> " + (await forecast()));
+    t("the delay moves the end and says so", /3 months later than first planned/.test(await page.textContent("#headerSub")));
+    t("actuals stay on their months", (await actuals()) === a0);
+    t("the delay is logged with its reason", /Delayed 3 months from Aug 26[\s\S]*Vendor environment not ready/.test(await page.textContent("#timelineHistory")));
+    await page.click("#undoBtn");
+    t("undo takes the delay back", (await page.$eval("#duration", (d) => d.value)) === "12" && !/later than/.test(await page.textContent("#headerSub")));
   },
   "pi-planning-capacity.html": async (page, t) => {
     // "Load demo" lives in Settings and the export in a collapsible card: press them directly

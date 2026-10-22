@@ -990,6 +990,14 @@ td.money,td.foot-num,.pct-ledger td.num,.pct-drivers td.num{font-family:var(--fo
 .pct-preview td.dn{color:var(--yellow-fg);font-weight:600}
 .pct-preview .who{font-weight:600}
 
+/* timeline history and the delay preview */
+.pct-history{margin-top:14px}
+.pct-history .tl-text{margin-top:2px}
+.pct-impact-row{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:12px;padding:3px 0}
+.pct-impact-row span:last-child{font-family:var(--font-mono);text-align:right}
+.pct-swatch-paused{background-image:repeating-linear-gradient(135deg,#E3E6E8 0 2px,#F6F7F7 2px 4px)}
+.pct-key-v{width:0;height:12px;border-top:0;border-left:1.5px dashed #6B6B6B}
+
 /* add-months dialog */
 .pct-ext-body{display:flex;flex-direction:column;gap:12px}
 .pct-ext-body .modal-lead{margin:0}
@@ -1079,6 +1087,7 @@ td.money,td.foot-num,.pct-ledger td.num,.pct-drivers td.num{font-family:var(--fo
       <div class="pct-panel-head">
         <div class="pct-panel-title"><h2>Burn-up</h2><span class="hint">Cumulative spend against the estimate ceiling</span></div>
         <div class="pct-actions no-print">
+          <button type="button" class="small" id="delayBtn">Delay the timeline&hellip;</button>
           <button type="button" class="small" id="copyChart">Copy as image</button>
           <button type="button" class="small pct-toggle" data-panel="burnup" aria-expanded="true" aria-controls="panel-burnup">Hide</button>
         </div>
@@ -1093,6 +1102,8 @@ td.money,td.foot-num,.pct-ledger td.num,.pct-drivers td.num{font-family:var(--fo
           <span class="legend-item"><span class="pct-key" style="border-color:#8C8C8C"></span>Plan</span>
           <span class="legend-item"><span class="pct-key" style="border-color:#3D3D3D;border-top-style:dashed;border-top-width:1.5px"></span>Estimate</span>
           <span class="legend-item" id="legendBaseline" hidden><span class="pct-key" style="border-color:#B4BEC5;border-top-style:dotted;border-top-width:1.5px"></span>Baseline plan</span>
+          <span class="legend-item" id="legendPaused" hidden><span class="legend-swatch pct-swatch-paused"></span>Nothing planned</span>
+          <span class="legend-item" id="legendPlannedEnd" hidden><span class="pct-key pct-key-v"></span><span id="legendPlannedEndText">Planned end</span></span>
         </div>
       </div>
     </section>
@@ -1235,7 +1246,7 @@ td.money,td.foot-num,.pct-ledger td.num,.pct-drivers td.num{font-family:var(--fo
         <div class="setting-row-control"><input type="month" id="start" min="1900-01"></div>
       </div>
       <div class="setting-row">
-        <div class="setting-row-label"><label class="label-text" for="duration">Months</label><span class="label-hint">Adding months asks how to cost the team in them</span></div>
+        <div class="setting-row-label"><label class="label-text" for="duration">Months</label><span class="label-hint">Adding months asks how to cost the team in them. To push the remaining plan later, use Delay the timeline below</span></div>
         <div class="setting-row-control"><input type="number" class="narrow" id="duration" min="1" max="60" step="1"><span class="unit-suffix">months</span></div>
       </div>
       <div class="setting-row">
@@ -1265,6 +1276,13 @@ td.money,td.foot-num,.pct-ledger td.num,.pct-drivers td.num{font-family:var(--fo
         <button type="button" class="small danger" id="clearBaseline" hidden>Clear baseline</button>
         <span class="hint" id="baselineState"></span>
       </div>
+
+      <div class="pct-settings-sub">Timeline</div>
+      <div class="pct-btn-row">
+        <button type="button" class="small" id="delaySettingsBtn">Delay the timeline&hellip;</button>
+        <span class="hint" id="timelineState"></span>
+      </div>
+      <div class="pct-history" id="timelineHistory"></div>
     </div>
 
     <!-- timesheet import -->
@@ -1374,6 +1392,49 @@ td.money,td.foot-num,.pct-ledger td.num,.pct-drivers td.num{font-family:var(--fo
       <span class="pct-foot-note" id="tsFootNote"></span>
       <button type="button" id="tsDecline">Decline</button>
       <button type="button" class="primary" id="tsAccept">Apply selected</button>
+    </div>
+  </div>
+</div>
+
+<!-- delay the timeline -->
+<div class="modal-overlay" id="delayModal" hidden>
+  <div class="modal">
+    <h2>Delay the timeline</h2>
+    <p class="modal-lead">Planned work from the month you choose moves later. Actuals stay on the months they were booked in, and the estimate does not change.</p>
+    <div class="field-row">
+      <div class="field">
+        <label for="dlFrom">Delay from</label>
+        <select id="dlFrom"></select>
+      </div>
+      <div class="field">
+        <label for="dlMonths">By how many months</label>
+        <input type="number" id="dlMonths" min="1" max="59" step="1" value="1">
+        <div class="quick-chip-row" id="dlChips">
+          <button type="button" class="quick-chip" data-months="1">1</button>
+          <button type="button" class="quick-chip" data-months="2">2</button>
+          <button type="button" class="quick-chip" data-months="3">3</button>
+          <button type="button" class="quick-chip" data-months="6">6</button>
+        </div>
+      </div>
+    </div>
+    <div class="field">
+      <div class="label-text" style="margin-bottom:6px;">What should the team cost in the delay months?</div>
+      <div class="pct-opts">
+        <label class="pct-opt"><input type="radio" name="dlTeam" id="dlZero" value="zero" checked>
+          <span><b>Zero the team costs</b><span class="sub2">The project pauses: nothing is planned in the delay months.</span></span></label>
+        <label class="pct-opt" id="dlCarryOpt"><input type="radio" name="dlTeam" id="dlCarry" value="carry">
+          <span><b>Carry on the team costs</b><span class="sub2" id="dlCarrySub"></span></span></label>
+      </div>
+    </div>
+    <div class="field">
+      <label for="dlReason">Reason</label>
+      <input type="text" id="dlReason" maxlength="200" placeholder="For example: vendor environment not ready">
+    </div>
+    <div class="impact-box" id="dlImpact"></div>
+    <div class="callout warn" id="dlCap" style="margin:12px 0 0;" hidden></div>
+    <div class="modal-actions">
+      <button type="button" id="dlCancel">Cancel</button>
+      <button type="button" class="primary" id="dlOk">Delay</button>
     </div>
   </div>
 </div>
@@ -2003,11 +2064,11 @@ window.RK = (function () {
 (function () {
   "use strict";
   var $ = RK.$, esc = RK.esc, show = RK.show, hide = RK.hide;
-  var VERSION = "v2.0.0";
+  var VERSION = "v2.1.0";
   var LS_KEY = "project-cost-tracker:v1";
   var LEGACY_KEY = "project-cost-tracker-v3";   // key used by the pre-Report-Kit build
   var CCYS = ["AED", "GBP", "USD", "EUR"];
-  var STATE_VERSION = 10;
+  var STATE_VERSION = 11;
   var MAX_MONEY = 1e12;
   $("version").textContent = VERSION;
 
@@ -2045,7 +2106,9 @@ window.RK = (function () {
       ukCode: "",
       team: [], vendors: [], actuals: {}, baseline: null,
       // figures as typed before a base-currency switch; see the "base" handler
-      asTyped: null
+      asTyped: null,
+      // delays and extensions since the plan was first set, with the end it had then
+      timeline: null
     };
   }
   function EMPTY() { return BASE(); }
@@ -2124,6 +2187,26 @@ window.RK = (function () {
       any = true;
     }
     return any ? out : null;
+  }
+  // The timeline history: the end the project had before its first recorded
+  // change, then each delay or extension in the order it was made. Entries that
+  // are damaged are dropped rather than guessed at.
+  function cleanTimeline(t) {
+    if (!isObj(t) || !isMonth(t.originalEnd)) return null;
+    var changes = (Array.isArray(t.changes) ? t.changes : []).filter(function (c) {
+      return isObj(c) && (c.kind === "delay" || c.kind === "extend") && isMonth(c.endBefore) && isMonth(c.endAfter) && num(c.months) >= 1;
+    }).map(function (c) {
+      return {
+        id: typeof c.id === "string" && c.id ? c.id : uid(),
+        at: typeof c.at === "string" && !isNaN(new Date(c.at).getTime()) ? c.at : "",
+        kind: c.kind, months: clamp(Math.round(num(c.months)), 1, 60),
+        from: isMonth(c.from) ? addMonths(c.from, 0) : "",
+        team: c.team === "carry" ? "carry" : "zero", cleared: c.cleared === true,
+        reason: typeof c.reason === "string" ? c.reason.slice(0, 200) : "",
+        endBefore: addMonths(c.endBefore, 0), endAfter: addMonths(c.endAfter, 0)
+      };
+    });
+    return { originalEnd: addMonths(t.originalEnd, 0), changes: changes };
   }
   function migrate(o) {
     var d = BASE();
@@ -2229,6 +2312,9 @@ window.RK = (function () {
 
     s.asTyped = cleanAsTyped(o.asTyped);
 
+    // v11: the timeline history. A file without one has no delays recorded.
+    s.timeline = cleanTimeline(o.timeline);
+
     // v7 added the baseline. A file without one simply has no baseline.
     s.baseline = isObj(o.baseline) ? o.baseline : null;
     if (s.baseline) {
@@ -2302,6 +2388,36 @@ window.RK = (function () {
 
   function teamPlannedFor(i) { return S.team.reduce(function (s, p) { return s + costOf(p, "days", i); }, 0); }
   function plannedFor(i) { return teamPlannedFor(i) + vendorSum("planned", i); }
+
+  /* ---------- timeline ----------
+     The end month, and where it stands against the plan: the baseline's end
+     when there is a baseline, otherwise the end the project had before its
+     first recorded delay or extension. Changes are recorded once there is a
+     plan to change, so setting a project up never reads as a slip. */
+  function endKey() { return addMonths(S.start, S.duration - 1); }
+  function hasPlan() {
+    for (var i = 0; i < S.duration; i++) if (plannedFor(i) > 0) return true;
+    return false;
+  }
+  function plannedEnd() {
+    var bl = S.baseline;
+    if (bl && isMonth(bl.start) && num(bl.duration) >= 1) {
+      return { key: addMonths(bl.start, Math.round(num(bl.duration)) - 1), label: "the baseline" };
+    }
+    return S.timeline ? { key: S.timeline.originalEnd, label: "first planned" } : null;
+  }
+  // Months the end has moved against plannedEnd(): positive is later.
+  function slipMonths() { var r = plannedEnd(); return r ? monthDiff(r.key, endKey()) : 0; }
+  function slipText() {
+    var d = slipMonths(), r = plannedEnd();
+    if (!d) return "";
+    return Math.abs(d) + (Math.abs(d) === 1 ? " month " : " months ") + (d > 0 ? "later" : "earlier") + " than " + r.label;
+  }
+  function logTimeline(entry) {
+    if (!S.timeline) S.timeline = { originalEnd: entry.endBefore, changes: [] };
+    entry.id = uid(); entry.at = new Date().toISOString();
+    S.timeline.changes.push(entry);
+  }
   // What the month costs before anyone types over it: timesheet hours + vendor invoices.
   function derivedFor(i) { return tsCost(i) + vendorSum("invoiced", i); }
   function hasDerived(i) { return tsHas(i) || vendorHasInvoice(i); }
@@ -2429,7 +2545,7 @@ window.RK = (function () {
     var M = model();
     renderMeta(M); renderKpis(M); renderMeter(M); renderAlerts(M); renderChart(M);
     renderFx(); renderTeam(); renderVendors(M); renderDrivers(M); renderLedger(M);
-    renderBaselineControls(M); renderSetup(); renderPanels(); renderUndo(); renderImportSub();
+    renderBaselineControls(M); renderSetup(); renderTimeline(); renderPanels(); renderUndo(); renderImportSub();
     $("thActual").textContent = "Actual (" + S.base + ")";
     $("thPlanned").textContent = "Planned (" + S.base + ")";
     return M;
@@ -2493,7 +2609,8 @@ window.RK = (function () {
     var ms = months();
     var period = ms.length ? monthLabel(ms[0]) + " to " + monthLabel(ms[ms.length - 1]) + " · " + S.duration + " months" : "";
     var fte = S.team.reduce(function (s, p) { return s + totalDays(p); }, 0) / Math.max(1, S.duration * num(S.workDays));
-    return esc(S.name || "Untitled project") + " &middot; " + esc(period) +
+    var slip = slipText();
+    return esc(S.name || "Untitled project") + " &middot; " + esc(period) + (slip ? " (" + esc(slip) + ")" : "") +
       " &middot; " + S.team.length + " people &middot; " + (Math.round(fte * 10) / 10) + " avg FTE";
   }
   // The answer first: where the forecast lands against the estimate, as a sentence.
@@ -2691,11 +2808,24 @@ window.RK = (function () {
     grid: "#EEF0F1", axis: "#E3E6E8", ink: "#6B6B6B",
     ceil: "#3D3D3D", band: "rgba(179,38,30,.055)",
     plan: "#8C8C8C", base: "#B4BEC5", now: "#D5DADD", nowInk: "#8C8C8C",
-    teal: "#007A99", breach: "#B3261E",
+    teal: "#007A99", breach: "#B3261E", paused: "#E3E6E8", pausedBg: "#F6F7F7",
     // Report Kit 2's stacks: words in the UI face, figures in mono
     ui: '"Segoe UI", -apple-system, system-ui, Roboto, Arial, sans-serif',
     mono: 'ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace'
   };
+
+  /* What the burn-up marks about the timeline: future months the plan has
+     nothing in (a pause), and where the project was planned to end, drawn only
+     once the end has moved. Shared by the SVG and the canvas. */
+  function chartTimeline(M) {
+    var paused = M.totalPlanned > 0 ? M.rows.filter(function (r) { return r.i > M.lastActualIdx && !(r.planned > 0); }).map(function (r) { return r.i; }) : [];
+    var r = plannedEnd(), endIdx = null;
+    if (r && slipMonths()) {
+      var j = monthDiff(S.start, r.key);
+      if (j >= 0 && j < M.rows.length) endIdx = j;
+    }
+    return { paused: paused, endIdx: endIdx, endLabel: r ? (r.label === "the baseline" ? "Baseline end" : "Planned end") : "" };
+  }
 
   function renderChart(M) {
     var W = 900, H = 340, L = 96, R = 22, T = 18, B = 42;
@@ -2712,6 +2842,15 @@ window.RK = (function () {
     // the tint MEANS something: it appears only once the forecast enters the zone,
     // so a healthy project gets a clean chart and an overrun is unmistakable
     if (over && ey > T + 1) p.push('<rect x="' + L + '" y="' + T + '" width="' + iw + '" height="' + (ey - T) + '" fill="' + CH.band + '"/>');
+    var tlm = chartTimeline(M), half = n > 1 ? iw / (n - 1) / 2 : iw / 2;
+    if (tlm.paused.length) {
+      p.push('<defs><pattern id="pctPaused" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">' +
+        '<rect width="6" height="6" fill="' + CH.pausedBg + '"/><rect width="3" height="6" fill="' + CH.paused + '"/></pattern></defs>');
+      tlm.paused.forEach(function (i) {
+        var x0 = Math.max(L, x(i) - half), x1 = Math.min(W - R, x(i) + half);
+        p.push('<rect x="' + x0 + '" y="' + T + '" width="' + (x1 - x0) + '" height="' + ih + '" fill="url(#pctPaused)"/>');
+      });
+    }
     sc.ticks.forEach(function (val) {
       var yy = y(val);
       p.push('<line x1="' + L + '" y1="' + yy + '" x2="' + (W - R) + '" y2="' + yy + '" stroke="' + CH.grid + '" stroke-width="1"/>');
@@ -2732,6 +2871,15 @@ window.RK = (function () {
       p.push('<line x1="' + nx + '" y1="' + (T + 12) + '" x2="' + nx + '" y2="' + (T + ih) + '" stroke="' + CH.now + '" stroke-width="1"/>');
       p.push('<text x="' + (nx + 5) + '" y="' + (T + 10) + '" ' + f(10.5, 600) + ' fill="' + CH.nowInk + '">now</text>');
     }
+    if (tlm.endIdx !== null) {
+      var px = x(tlm.endIdx), right = tlm.endIdx > n * 0.6;
+      p.push('<line x1="' + px + '" y1="' + (T + 12) + '" x2="' + px + '" y2="' + (T + ih) + '" stroke="' + CH.ink + '" stroke-width="1.5" stroke-dasharray="4 4"/>');
+      p.push('<text x="' + (px + (right ? -5 : 5)) + '" y="' + (T + 10) + '" text-anchor="' + (right ? "end" : "start") + '" ' +
+        f(10.5, 600) + ' fill="' + CH.ink + '">' + esc(tlm.endLabel) + "</text>");
+    }
+    $("legendPaused").hidden = !tlm.paused.length;
+    $("legendPlannedEnd").hidden = tlm.endIdx === null;
+    if (tlm.endIdx !== null) $("legendPlannedEndText").textContent = tlm.endLabel + " " + monthLabel(plannedEnd().key);
 
     var path = function (vals, from) {
       return vals.map(function (v, i) { return (i === 0 ? "M" : "L") + x(i + from) + " " + y(v); }).join(" ");
@@ -3073,6 +3221,34 @@ window.RK = (function () {
       (bl ? '<td class="num">' + plain(blTotal) + '</td><td class="num">' + plainSigned(total - blTotal) + "</td>" : "");
   }
 
+  // Settings > Project > Timeline: where the end stands, then every change, newest first.
+  function renderTimeline() {
+    var slip = slipText(), tl = S.timeline;
+    $("timelineState").textContent = "Ends " + monthLabel(endKey()) + (slip ? ", " + slip : (plannedEnd() ? ", as planned" : "")) + ".";
+    if (!tl || !tl.changes.length) {
+      $("timelineHistory").innerHTML = '<p class="hint" style="margin:0;">No delays or extensions yet. Each one is listed here with its reason.</p>';
+      return;
+    }
+    var plural = function (n) { return n + (n === 1 ? " month" : " months"); };
+    var steps = tl.changes.map(function (c) {
+      return {
+        title: c.kind === "delay" ? "Delayed " + plural(c.months) + (c.from ? " from " + monthLabel(c.from) : "") : "Extended by " + plural(c.months),
+        sub: "Team " + (c.team === "carry" ? "carried on" : "at zero") + (c.cleared ? ", old figures cleared" : "") +
+          " · end " + monthLabel(c.endBefore) + " → " + monthLabel(c.endAfter),
+        time: c.at ? baselineDate(c.at) : "", reason: c.reason
+      };
+    }).reverse().concat([{ title: "Planned end " + monthLabel(tl.originalEnd), sub: "", time: "", reason: "", first: true }]);
+    $("timelineHistory").innerHTML = steps.map(function (st, i) {
+      return '<div class="tl-row"><div class="tl-rail"><span class="tl-dot' + (st.first ? " note" : "") + '"></span>' +
+          (i === steps.length - 1 ? "" : '<span class="tl-line"></span>') + "</div>" +
+        '<div class="tl-body"><div class="tl-body-top"><span class="tl-title">' + esc(st.title) + "</span>" +
+          '<span class="tl-time">' + esc(st.time) + "</span></div>" +
+          (st.sub ? '<span class="hint" style="margin:0;">' + esc(st.sub) + "</span>" : "") +
+          (st.reason ? '<span class="tl-text note-text">' + esc(st.reason) + "</span>" : "") +
+        "</div></div>";
+    }).join("");
+  }
+
   function renderBaselineControls(M) {
     var bl = M.baseline;
     if (bl) show($("clearBaseline")); else hide($("clearBaseline"));
@@ -3173,6 +3349,14 @@ window.RK = (function () {
 
     var ey = y(S.estimate);
     if (M.eac > S.estimate * 1.0001 && ey > T + 1) { g.fillStyle = CH.band; g.fillRect(L, T, W - L - R, ey - T); }
+    var tlm = chartTimeline(M), half = n > 1 ? iw / (n - 1) / 2 : iw / 2;
+    if (tlm.paused.length) {
+      g.fillStyle = hatch(g, CH.paused, CH.pausedBg);
+      tlm.paused.forEach(function (i) {
+        var x0 = Math.max(L, x(i) - half), x1 = Math.min(W - R, x(i) + half);
+        g.fillRect(x0, T, x1 - x0, ih);
+      });
+    }
 
     g.font = F(400, 11.5, true);
     sc.ticks.forEach(function (v) {
@@ -3202,6 +3386,14 @@ window.RK = (function () {
       g.beginPath(); g.moveTo(nx, T + 12); g.lineTo(nx, T + ih); g.stroke();
       g.fillStyle = CH.nowInk; g.font = F(600, 10.5);
       g.fillText("now", nx + 5, T + 10);
+    }
+    if (tlm.endIdx !== null) {
+      var px = x(tlm.endIdx), pr = tlm.endIdx > n * 0.6;
+      g.strokeStyle = CH.ink; g.lineWidth = 1.5; g.setLineDash([4, 4]);
+      g.beginPath(); g.moveTo(px, T + 12); g.lineTo(px, T + ih); g.stroke(); g.setLineDash([]);
+      g.fillStyle = CH.ink; g.font = F(600, 10.5); g.textAlign = pr ? "right" : "left";
+      g.fillText(tlm.endLabel, px + (pr ? -5 : 5), T + 10);
+      g.textAlign = "left";
     }
 
     var line = function (vals, from, colour, width, dash) {
@@ -3258,6 +3450,17 @@ window.RK = (function () {
     key(CH.teal, null, 3, "Actual"); key(CH.teal, [6, 5], 2.5, "Forecast");
     key(CH.plan, null, 2, "Plan"); key(CH.ceil, [10, 6], 1.5, "Estimate");
     if (blc) key(CH.base, [2, 5], 1.5, "Baseline plan");
+    if (tlm.paused.length) {
+      g.fillStyle = hatch(g, CH.paused, CH.pausedBg); g.fillRect(lx, ly - 10, 12, 12);
+      g.fillStyle = CH.ink; g.font = F(400, 12.5); g.fillText("Nothing planned", lx + 19, ly);
+      lx += 19 + g.measureText("Nothing planned").width + 26;
+    }
+    if (tlm.endIdx !== null) {
+      g.strokeStyle = CH.ink; g.lineWidth = 1.5; g.setLineDash([4, 4]);
+      g.beginPath(); g.moveTo(lx + 6, ly - 12); g.lineTo(lx + 6, ly + 2); g.stroke(); g.setLineDash([]);
+      var el = tlm.endLabel + " " + monthLabel(plannedEnd().key);
+      g.fillStyle = CH.ink; g.font = F(400, 12.5); g.fillText(el, lx + 17, ly);
+    }
     return c;
   }
 
@@ -4470,6 +4673,8 @@ window.RK = (function () {
   }
   function extendApply(carry, clear) {
     snapshot("add months");
+    normalise();
+    var endBefore = endKey(), planned = hasPlan();
     S.team.forEach(function (p) {
       extFill(p.days, carry ? num(p.days[ext.from - 1]) : 0, clear);
       if (clear) extFill(p.actualHours, 0, true);
@@ -4481,6 +4686,8 @@ window.RK = (function () {
     }
     S.duration = ext.to;
     $("duration").value = S.duration;
+    if (planned) logTimeline({ kind: "extend", months: ext.to - ext.from, from: "", team: carry ? "carry" : "zero",
+      cleared: !!clear, reason: "", endBefore: endBefore, endAfter: endKey() });
     render(); queueSave();
   }
   on("extZero", "change", extRefresh);
@@ -4494,6 +4701,102 @@ window.RK = (function () {
     toast("Added " + (ext.to - ext.from) + (ext.to - ext.from === 1 ? " month" : " months") +
       (carry ? ", team carried on" : ", team at zero") + (clear ? ", old figures cleared" : "") + ". Undo to reverse");
   });
+  /* Delaying the timeline. From month k on, every planned figure (team days,
+     vendor spend) moves n months later, and the n months that opens are
+     planned at zero, or at each person's days from the month before for "carry
+     on". What actually happened stays put: timesheet hours, invoices and ledger
+     actuals belong to their calendar month, which is why k is never before the
+     first month with no actuals. The estimate does not change. One undo step. */
+  var dlUi = RK.modal($("delayModal"));
+  function delayApply(k, n, carry, reason) {
+    normalise();
+    var endBefore = endKey(), from = addMonths(S.start, k);
+    var gap = function (fill) { var a = []; for (var i = 0; i < n; i++) a.push(fill); return a; };
+    S.team.forEach(function (p) {
+      Array.prototype.splice.apply(p.days, [k, 0].concat(gap(carry && k > 0 ? num(p.days[k - 1]) : 0)));
+    });
+    S.vendors.forEach(function (v) { Array.prototype.splice.apply(v.planned, [k, 0].concat(gap(0))); });
+    S.duration += n;
+    logTimeline({ kind: "delay", months: n, from: from, team: carry ? "carry" : "zero", cleared: false,
+      reason: reason, endBefore: endBefore, endAfter: endKey() });
+  }
+  function delayRead() {
+    var k = +$("dlFrom").value;
+    return { k: k, n: clamp(Math.round(num($("dlMonths").value)) || 1, 1, 60),
+      carry: $("dlCarry").checked && k > 0, reason: $("dlReason").value.trim() };
+  }
+  // What the delay would do, worked out on a copy of the project so nothing moves yet.
+  function delayRefresh() {
+    var d = delayRead(), room = 60 - S.duration;
+    if (d.k === 0 && $("dlCarry").checked) $("dlZero").checked = true;
+    $("dlCarryOpt").hidden = d.k === 0;   // nothing before the first month to carry on from
+    if (d.k > 0) $("dlCarrySub").textContent = "Each person repeats their " + monthLabel(addMonths(S.start, d.k - 1)) +
+      " days in every delay month, so the delay costs what the team costs.";
+    Array.prototype.forEach.call($("dlChips").children, function (b) { b.classList.toggle("active", +b.getAttribute("data-months") === d.n); });
+    if (d.n > room) {
+      $("dlCap").textContent = room > 0
+        ? "A project can run to 60 months, so this one can be delayed by " + room + (room === 1 ? " month" : " months") + " at most."
+        : "This project is already 60 months long, the most the tracker holds.";
+      show($("dlCap")); $("dlOk").disabled = true; $("dlImpact").hidden = true;
+      return;
+    }
+    hide($("dlCap")); $("dlOk").disabled = false; $("dlImpact").hidden = false;
+    var before = model(), after, keep = S;
+    S = JSON.parse(JSON.stringify(keep));
+    try { delayApply(d.k, d.n, d.carry, ""); after = model(); } finally { S = keep; }
+    var row = function (label, a, b) {
+      return '<div class="pct-impact-row"><span>' + label + "</span><span>" + esc(a === b ? a + " (no change)" : a + " → " + b) + "</span></div>";
+    };
+    $("dlImpact").innerHTML =
+      '<div class="impact-head"><span class="impact-title">What this changes</span></div>' +
+      row("End month", monthLabel(endKey()), monthLabel(addMonths(endKey(), d.n))) +
+      row("Planned total", money(before.totalPlanned), money(after.totalPlanned)) +
+      row("Forecast at completion", money(before.eac), money(after.eac)) +
+      row("Headroom (negative is over)", moneySigned(before.variance), moneySigned(after.variance));
+    $("dlOk").textContent = "Delay " + d.n + (d.n === 1 ? " month" : " months");
+  }
+  function delayOpen(opener) {
+    var first = model().lastActualIdx + 1;
+    if (first > S.duration - 1) {
+      toast("Every month already has actuals, so there is no plan left to delay. Add months instead");
+      return;
+    }
+    var opts = "";
+    for (var i = first; i < S.duration; i++) opts += '<option value="' + i + '">' + monthLabel(addMonths(S.start, i)) + "</option>";
+    $("dlFrom").innerHTML = opts;
+    $("dlFrom").value = String(first);
+    $("dlMonths").value = 1;
+    $("dlZero").checked = true; $("dlCarry").checked = false;
+    $("dlReason").value = "";
+    delayRefresh();
+    dlUi.open(opener);
+    $("dlFrom").focus();
+  }
+  on("delayBtn", "click", function (e) { delayOpen(e.currentTarget); });
+  on("delaySettingsBtn", "click", function (e) { delayOpen(e.currentTarget); });
+  on("dlFrom", "change", delayRefresh);
+  on("dlMonths", "input", delayRefresh);
+  on("dlZero", "change", delayRefresh);
+  on("dlCarry", "change", delayRefresh);
+  $("dlChips").addEventListener("click", function (e) {
+    var b = e.target.closest("[data-months]");
+    if (!b) return;
+    $("dlMonths").value = b.getAttribute("data-months");
+    delayRefresh();
+  });
+  on("dlCancel", "click", function () { dlUi.close(); });
+  on("dlOk", "click", function () {
+    var d = delayRead();
+    if (S.duration + d.n > 60) return;
+    snapshot("delay");
+    delayApply(d.k, d.n, d.carry, d.reason);
+    $("duration").value = S.duration;
+    dlUi.close();
+    render(); queueSave();
+    toast("Delayed " + d.n + (d.n === 1 ? " month" : " months") + " from " + monthLabel(addMonths(S.start, d.k)) +
+      ", now ends " + monthLabel(endKey()) + ". Undo to reverse");
+  });
+
   on("duration", "change", function (e) {
     var n = clamp(Math.round(num(e.target.value)) || 1, 1, 60);
     e.target.value = n;

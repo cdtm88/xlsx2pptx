@@ -115,6 +115,26 @@ moved earlier and pushed figures past the end), the dialog says how many. They
 are kept unless you tick **Clear them**. Adding months is one undo step.
 Shortening the project hides the last months rather than deleting them.
 
+**Delaying the timeline.** When the work slips rather than grows, use **Delay the
+timeline** (on the burn-up, or in Settings under Timeline). Pick the month the
+delay starts, how many months, what the team costs in the delay months (zero, the
+default, or carry on at each person's days from the month before) and a reason.
+From that month on, every planned figure moves later; the months it opens are
+planned at nothing, or at the carried-on days. Actuals, timesheet hours and
+invoices stay on the months they were booked in, so a delay can start no earlier
+than the first month with no actuals, and the estimate never changes. A preview
+shows the new end month, planned total, forecast and headroom before you confirm.
+A delay is one undo step. The project can run to 60 months, and the dialog says
+how far that leaves room to go.
+
+Every delay, and every extension once the project has a plan, is recorded under
+Settings, Timeline: when, how many months, how the team was costed, the end before
+and after, and the reason. The summary line says how far the end has moved, measured
+against the baseline when there is one, otherwise against the end the project had
+before its first recorded change. The burn-up hatches future months with nothing
+planned, so a pause reads as a pause, and marks the planned end once the end has
+moved.
+
 Vendors are entirely optional. A project with none behaves exactly as if the
 feature were not there — nothing added to the plan, nothing flagged — and a
 vendor left on time and materials (no contract value) is never flagged either.
