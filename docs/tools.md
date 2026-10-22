@@ -174,11 +174,16 @@ flattens the burn-up and quietly understates the run rate. So a month left empty
 while a later month has figures is called out by name, and the burn-up draws it
 as a hollow point — "nothing booked here", not "nothing spent here".
 
-Every card collapses, and each grid sits in a fixed-height scroller with its
-header and totals row pinned, so a long team or a 60-month project never pushes
-the rest of the page out of view. The page opens as a report — position,
-burn-up, team and ledger — with set-up, the timesheet import, vendors and cost
-drivers a click away.
+The page has two views, switched in the header. **Report** opens on the answer
+(spent against the estimate and where the forecast lands, with an On track,
+Watch or Over pill), then position, burn-up, the monthly ledger, the team and
+vendor grids and cost drivers. Vendors and cost drivers start collapsed; every
+section can be hidden or shown. Each grid sits in a fixed-height scroller with
+its header and totals row pinned, so a long team or a 60-month project never
+pushes the rest of the page out of view. **Settings** holds the project set-up
+(estimate, currency, months, working pattern, exchange rates and the baseline),
+the timesheet import, and saving and data (project files, JSON, the ledger CSV,
+the demo and Clear all data). It is built on Report Kit 2.
 
 Day rates and vendor costs can be in AED, GBP, USD or EUR and are converted at
 rates you set; everything is reported in one base currency. Switching the base

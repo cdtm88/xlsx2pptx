@@ -146,6 +146,7 @@ across versions:
    file and (ideally) drive it headless before shipping. Run the
    `DESIGN.md` checklist.
 
-The tools built before kit 2 (Waqti, cost tracker, PI capacity, delivery plan)
-still use kit 1 and look as they did. Moving one over means switching its
-stylesheet include and its markup to the kit 2 classes.
+The tools built before kit 2 (Waqti, PI capacity, delivery plan) still use kit 1
+and look as they did. Moving one over means switching its stylesheet include and
+its markup to the kit 2 classes. The project cost tracker has moved: its source
+shows a kit 1 tool's cards, dialogs and dense grids carried over to kit 2.

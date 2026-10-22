@@ -72,6 +72,9 @@ const FLOWS = {
     t("lists the export's demands", /D100/.test(await page.textContent("#demandCard")) && /D200/.test(await page.textContent("#demandCard")));
   },
   "project-cost-tracker.html": async (page, t) => {
+    // Demo and the CSV export live under Settings, Saving & data
+    await page.click('.app-nav-item[data-view="settings"]');
+    await page.click('.settings-nav-item[data-tab="data"]');
     await page.click("#demoBtn");
     t("loading the demo asks first, in the page", await page.isVisible(".modal-overlay [data-rk-ok]"));
     await page.click(".modal-overlay [data-rk-ok]");
