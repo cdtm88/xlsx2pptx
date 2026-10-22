@@ -73,6 +73,8 @@ const FLOWS = {
   },
   "project-cost-tracker.html": async (page, t) => {
     await page.click("#demoBtn");
+    t("loading the demo asks first, in the page", await page.isVisible(".modal-overlay [data-rk-ok]"));
+    await page.click(".modal-overlay [data-rk-ok]");
     await page.waitForTimeout(300);
     const dl = page.waitForEvent("download", { timeout: 5000 });
     await page.click("#expCsv");

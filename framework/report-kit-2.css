@@ -1,6 +1,6 @@
 /* ============================================================
    Report Kit 2: the design language for new browser tools
-   kit-version: 2.0.0
+   kit-version: 2.1.0
    Extracted from vendor-spend-tracker.html. Inlined into a report
    by framework/build.py. See framework/DESIGN.md for the rules and
    framework/starter.src.html for a page that uses every part.
@@ -567,6 +567,8 @@ td.row-actions { text-align: right; }
 }
 .modal:focus { outline: none; }
 .modal.modal-compact { max-width: 420px; }
+/* a dialog that holds a table, e.g. a review of imported rows */
+.modal.modal-wide { max-width: 980px; }
 .modal h2 { margin: 0 0 16px; font-size: 18px; font-weight: 600; color: var(--heading); }
 .modal-lead { margin: 0 0 14px; font-size: 14px; color: var(--text); }
 .modal-actions {
@@ -594,6 +596,44 @@ td.row-actions { text-align: right; }
 }
 .callout.danger { background: var(--red-bg); border-left-color: var(--red); }
 .callout.warn { background: var(--yellow-bg); border-left-color: var(--yellow); }
+.callout.ok { background: var(--green-bg); border-left-color: var(--green); }
+
+/* ---- File drop zone (RK.upload adds .dragover while a file is over it) ---- */
+.upload-area {
+  border: 2px dashed var(--border-input);
+  border-radius: 10px;
+  padding: 24px 28px;
+  text-align: center;
+  cursor: pointer;
+  background: var(--lighter-grey);
+  transition: border-color .15s, background .15s;
+}
+.upload-area:hover, .upload-area.dragover { background: var(--teal-tint); border-color: var(--teal); }
+.upload-area:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+.upload-area .big { font-size: 14px; font-weight: 600; color: var(--text); }
+.upload-area .or { font-size: 12px; color: var(--text-dim); margin: 6px 0; }
+/* RK.xlsx.renderMapper labels each column select with a bare label.field */
+label.field { display: block; font-size: 12px; font-weight: 600; color: var(--text); }
+
+/* ---- Toast: a short confirmation at the foot of the screen (RK.toast) ---- */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  max-width: calc(100% - 32px);
+  background: var(--charcoal);
+  color: #fff;
+  padding: 9px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  box-shadow: 0 6px 20px rgba(0,0,0,.2);
+  z-index: 60;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .18s;
+}
+.toast.on { opacity: 1; }
 
 /* ---- Drawer: a full-height detail view from the right ---- */
 .modal-overlay.drawer-overlay { padding: 0; justify-content: flex-end; background: rgba(20,26,28,.42); }

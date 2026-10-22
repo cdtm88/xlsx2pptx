@@ -334,7 +334,29 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 .pct-dialog-foot{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;
   padding:.9rem 1.4rem;border-top:1px solid var(--line);background:var(--light-grey)}
 @media (max-width:640px){ .pct-overlay{padding:0} .pct-dialog{max-height:100vh;border-radius:0} }
+.pct-dialog:focus{outline:none}
 .pct-overlay[hidden]{display:none}
+
+/* RK.confirm builds Report Kit 2 dialog markup, which kit 1 does not style
+   (BACKLOG KIT-04). Enough of kit 2's dialog to look at home here; this block
+   goes when the tracker moves to report-kit-2.css. */
+.modal-overlay{position:fixed;inset:0;background:rgba(23,43,77,.45);z-index:90;display:flex;align-items:center;
+  justify-content:center;padding:1.5rem}
+.modal-overlay[hidden]{display:none}
+.modal-overlay .modal{background:var(--card);border-radius:var(--radius);box-shadow:0 12px 40px rgba(23,43,77,.25);
+  width:min(440px,100%);padding:1.2rem 1.4rem}
+.modal-overlay .modal:focus{outline:none}
+.modal-overlay h2{font-size:1rem;font-weight:800;color:var(--slate);letter-spacing:-.01em;margin-bottom:.4rem}
+.modal-overlay .modal-lead{font-size:.86rem;color:var(--mid)}
+.modal-overlay .modal-actions{display:flex;justify-content:flex-end;gap:.5rem;margin-top:1.1rem}
+.modal-overlay .modal-actions button{padding:.55rem 1.1rem;border:1px solid var(--line);border-radius:9px;background:#fff;
+  color:var(--slate);font-size:.86rem;font-weight:600;font-family:inherit;cursor:pointer}
+.modal-overlay .modal-actions button:hover{border-color:var(--teal);color:var(--teal-dark)}
+.modal-overlay .modal-actions button:focus-visible{outline:2px solid var(--teal);outline-offset:2px}
+.modal-overlay .modal-actions .primary{background:var(--teal);border-color:var(--teal);color:#fff}
+.modal-overlay .modal-actions .primary:hover{background:var(--teal-dark);color:#fff}
+.modal-overlay .modal-actions .danger-fill{background:#C0392B;border-color:#C0392B}
+.modal-overlay .modal-actions .danger-fill:hover{background:#A93226}
 
 /* add-months dialog */
 .pct-dialog.pct-dialog-sm{width:min(560px,100%)}
@@ -402,16 +424,16 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     </div>
     <div class="spacer"></div>
     <span class="pct-save" id="saveState"><span class="pct-dot"></span>Starting up</span>
-    <button type="button" class="btn btn-ghost no-print pct-header-btn hidden" id="reconnectBtn">Reconnect</button>
+    <button type="button" class="btn btn-ghost no-print pct-header-btn hidden" id="reconnectBtn" hidden>Reconnect</button>
     <span class="ver" id="version">v0.0.0</span>
-    <button type="button" class="btn btn-ghost no-print pct-header-btn hidden" id="undoBtn">Undo</button>
+    <button type="button" class="btn btn-ghost no-print pct-header-btn hidden" id="undoBtn" hidden>Undo</button>
     <button type="button" class="btn btn-ghost no-print pct-header-btn" id="topImport">Load data</button>
   </div>
 </header>
 
 <div class="container">
 
-  <div class="callout pct-warn hidden" id="bootError" role="alert" style="margin-bottom:1rem"></div>
+  <div class="callout pct-warn hidden" id="bootError" role="alert" style="margin-bottom:1rem" hidden></div>
 
   <!-- ============ SET UP ============ -->
   <section class="card no-print">
@@ -422,7 +444,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
       </div>
       <button type="button" class="mini-btn pct-toggle" data-panel="setup" aria-expanded="true" aria-controls="panel-setup">Hide</button>
     </div>
-    <div id="panel-setup" class="hidden">
+    <div id="panel-setup" class="hidden" hidden>
       <!-- one 12-column grid: every field is as wide as what it holds, so a
            two-digit month count does not get the same box as a project name.
            Rows come out 6+3+3, 3+2+3+2+2, then 6+2+2+2 for the code and rates. -->
@@ -472,7 +494,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
       <div class="pct-divider" style="margin-top:.9rem;"></div>
       <div class="controls-row" style="margin-top:.8rem;">
         <button type="button" class="mini-btn" id="setBaseline">Set baseline from this plan</button>
-        <button type="button" class="mini-btn hidden" id="clearBaseline">Clear baseline</button>
+        <button type="button" class="mini-btn hidden" id="clearBaseline" hidden>Clear baseline</button>
         <span class="sub" id="baselineState"></span>
       </div>
     </div>
@@ -532,7 +554,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
       <span><span class="pct-key" style="border-color:#007A99;border-top-style:dashed"></span>Forecast</span>
       <span><span class="pct-key" style="border-color:#7A848C"></span>Plan</span>
       <span><span class="pct-key" style="border-color:#3D3D3D;border-top-style:dashed;border-top-width:1.5px"></span>Estimate</span>
-      <span class="hidden" id="legendBaseline"><span class="pct-key" style="border-color:#B4BEC5;border-top-style:dotted;border-top-width:1.5px"></span>Baseline plan</span>
+      <span class="hidden" id="legendBaseline" hidden><span class="pct-key" style="border-color:#B4BEC5;border-top-style:dotted;border-top-width:1.5px"></span>Baseline plan</span>
     </div>
     </div>
   </section>
@@ -546,24 +568,24 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
       </div>
       <button type="button" class="mini-btn pct-toggle" data-panel="import" aria-expanded="false" aria-controls="panel-import">Show</button>
     </div>
-    <div id="panel-import" class="hidden">
+    <div id="panel-import" class="hidden" hidden>
       <div class="upload-area" id="tsDrop" tabindex="0" role="button" aria-label="Drop a UK timesheet xlsx export here, or press Enter to browse">
         <div class="big">Drop the UK timesheet .xlsx here</div>
         <div class="or">or</div>
         <button type="button" class="btn btn-primary" id="tsBrowse">Browse for file</button>
-        <input type="file" id="tsFile" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" class="hidden">
+        <input type="file" id="tsFile" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" class="hidden" hidden>
       </div>
-      <div id="tsError" class="err hidden"></div>
+      <div id="tsError" class="err hidden" hidden></div>
       <div class="note" id="tsNote" style="margin-bottom:0;">
         Hours are totalled per person per month and compared with what is already recorded. Nothing changes until you
         approve it. Months with no rows in the file are left alone &mdash; a shorter export never means zero.
       </div>
-      <div id="tsMapper" class="hidden" style="margin-top:1rem;">
+      <div id="tsMapper" class="hidden" style="margin-top:1rem;" hidden>
         <div style="font-size:.74rem;font-weight:700;color:var(--slate);margin-bottom:.4rem;">Map the required columns</div>
         <p class="sub">Not all expected headers were found. Match each field to a column, then confirm.</p>
         <div id="tsMapperFields" style="margin-top:.5rem;"></div>
         <div class="controls-row" style="margin-top:.7rem;"><button type="button" class="btn btn-primary" id="tsMapperConfirm">Confirm mapping</button></div>
-        <div id="tsMapperError" class="err hidden"></div>
+        <div id="tsMapperError" class="err hidden" hidden></div>
       </div>
     </div>
   </section>
@@ -603,7 +625,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
         <span class="sub" id="vendorSummary"></span>
       </div>
       <div class="controls-row no-print">
-        <span class="seg hidden" id="vendorModes">
+        <span class="seg hidden" id="vendorModes" hidden>
           <button type="button" id="modeVendorPlanned">Planned</button>
           <button type="button" id="modeVendorInvoiced">Invoiced</button>
         </span>
@@ -611,7 +633,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
         <button type="button" class="mini-btn pct-toggle" data-panel="vendors" aria-expanded="true" aria-controls="panel-vendors">Hide</button>
       </div>
     </div>
-    <div id="panel-vendors" class="hidden">
+    <div id="panel-vendors" class="hidden" hidden>
     <div class="sub" id="vendorNote" style="margin-bottom:.7rem;"></div>
     <div class="table-wrap pct-scroll">
       <table class="data pct-matrix pct-vendors" id="vendorTable">
@@ -632,7 +654,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
       </div>
       <button type="button" class="mini-btn pct-toggle" data-panel="drivers" aria-expanded="true" aria-controls="panel-drivers">Hide</button>
     </div>
-    <div id="panel-drivers" class="hidden">
+    <div id="panel-drivers" class="hidden" hidden>
     <div class="table-wrap pct-scroll">
       <table class="data pct-drivers" id="driverTable">
         <thead><tr id="driverHead"></tr></thead>
@@ -664,7 +686,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
             <th class="num">Cumulative</th>
             <th class="num">Remaining</th>
             <th class="num">% of est.</th>
-            <th class="num hidden" id="thBaseline">Baseline</th>
+            <th class="num hidden" id="thBaseline" hidden>Baseline</th>
           </tr>
         </thead>
         <tbody id="ledgerBody"></tbody>
@@ -676,7 +698,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
           <td class="num tnum" id="sumCum">0</td>
           <td class="num tnum" id="sumRem">0</td>
           <td class="num tnum" id="sumPct">0%</td>
-          <td class="num tnum hidden" id="sumBaseline">0</td>
+          <td class="num tnum hidden" id="sumBaseline" hidden>0</td>
         </tr></tfoot>
       </table>
     </div>
@@ -693,20 +715,20 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
       <button type="button" class="mini-btn pct-toggle" data-panel="data" aria-expanded="true" aria-controls="panel-data">Hide</button>
     </div>
     <div id="panel-data">
-    <div id="fileRow" class="hidden">
+    <div id="fileRow" class="hidden" hidden>
       <div class="controls-row" style="margin-bottom:.8rem;">
         <button type="button" class="btn btn-primary" id="newProject">New project file&hellip;</button>
         <button type="button" class="btn btn-ghost" id="openProject">Open project file&hellip;</button>
-        <button type="button" class="btn btn-ghost hidden" id="saveAsProject">Save as&hellip;</button>
+        <button type="button" class="btn btn-ghost hidden" id="saveAsProject" hidden>Save as&hellip;</button>
         <span class="sub" id="fileState"></span>
       </div>
-      <div class="controls-row hidden" id="staleRow" style="margin-bottom:.8rem;">
+      <div class="controls-row hidden" id="staleRow" style="margin-bottom:.8rem;" hidden>
         <span class="sub" id="staleMsg"></span>
         <button type="button" class="mini-btn" id="useDisk">Load the file, discard mine</button>
         <button type="button" class="mini-btn" id="overwriteFile">Keep mine, overwrite the file</button>
       </div>
       <div id="recents"></div>
-      <div class="note hidden" id="fsBlocked" style="margin-top:.8rem;"></div>
+      <div class="note hidden" id="fsBlocked" style="margin-top:.8rem;" hidden></div>
       <div class="pct-divider" style="margin:.9rem 0 .8rem"></div>
     </div>
     <div class="controls-row">
@@ -715,7 +737,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
       <button type="button" class="btn btn-ghost" id="expCsv">Export ledger CSV</button>
       <button type="button" class="btn btn-ghost" id="demoBtn">Load demo project</button>
       <button type="button" class="btn btn-ghost" id="resetBtn">Clear all data</button>
-      <input type="file" id="fileIn" accept=".json,application/json" class="hidden">
+      <input type="file" id="fileIn" accept=".json,application/json" class="hidden" hidden>
     </div>
     <div class="note" style="margin-bottom:0;">
       <strong>With a project file</strong> every change is written straight into it, so the file on disk is always current
@@ -730,8 +752,8 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 </div>
 
 <footer class="app-footer">Dreamt up by Christian, built with Claude &mdash; a human + AI double act 🤝</footer>
-<div class="pct-overlay hidden" id="tsModal" role="dialog" aria-modal="true" aria-labelledby="tsModalTitle">
-  <div class="pct-dialog">
+<div class="pct-overlay" id="tsModal" hidden>
+  <div class="pct-dialog modal">
     <div class="pct-dialog-head">
       <div>
         <h2 id="tsModalTitle">Review timesheet changes</h2>
@@ -740,11 +762,11 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
       <button type="button" class="mini-btn" id="tsClose" aria-label="Close">Cancel</button>
     </div>
     <div class="pct-dialog-body">
-      <div id="tsPickCode" class="hidden">
+      <div id="tsPickCode" class="hidden" hidden>
         <p class="sub" style="margin-bottom:.6rem;">Which of these is this project? The choice is remembered as the project's UK timesheet code.</p>
         <div id="tsCodeList"></div>
       </div>
-      <div id="tsReview" class="hidden">
+      <div id="tsReview" class="hidden" hidden>
         <div id="tsFlags"></div>
         <div class="ms-toolbar">
           <span class="ms-count" id="tsCount"></span>
@@ -824,7 +846,7 @@ parse_Primary(n.content)}catch(l){}a="/EncryptionInfo";n=Qe.find(e,a);if(!n||!n.
 <script>
 /* ============================================================
    Report Kit — shared runtime for the browser report tools
-   kit-version: 1.2.0
+   kit-version: 1.3.0
    Exposes window.RK. Depends on window.XLSX (SheetJS) only for the
    xlsx.* helpers; everything else is standalone. Inlined into each
    report by framework/build.py so reports stay single-file/offline.
@@ -838,7 +860,7 @@ parse_Primary(n.content)}catch(l){}a="/EncryptionInfo";n=Qe.find(e,a);if(!n||!n.
    ============================================================ */
 window.RK = (function () {
   "use strict";
-  var KIT_VERSION = "1.2.0";
+  var KIT_VERSION = "1.3.0";
 
   /* ---------- dom / format helpers ---------- */
   function $(id) { return document.getElementById(id); }
@@ -1240,6 +1262,25 @@ window.RK = (function () {
     };
   }
 
+  /* ---------- toast ----------
+     toast(message, ms?) shows a short status line (.toast, kit 2) and fades it
+     after ms (default 2600). One element, made on first use; a new message
+     replaces the one showing. Announced politely to screen readers. */
+  var toastEl = null, toastTimer = null;
+  function toast(message, ms) {
+    if (!toastEl) {
+      toastEl = document.createElement("div");
+      toastEl.className = "toast";
+      toastEl.setAttribute("role", "status");
+      toastEl.setAttribute("aria-live", "polite");
+      document.body.appendChild(toastEl);
+    }
+    toastEl.textContent = message;
+    toastEl.classList.add("on");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toastEl.classList.remove("on"); }, ms || 2600);
+  }
+
   /* ---------- confirm dialog (in-page replacement for window.confirm) ----------
      confirm(message, onConfirm, { okLabel, title, danger }). Builds its own markup on
      first use. onConfirm runs only if the primary button is pressed. */
@@ -1364,7 +1405,9 @@ window.RK = (function () {
     uid: uid, localDate: localDate, today: today,
     fmtNum2: fmtNum2, fmtWhole: fmtWhole, fmtMoney: fmtMoney, csv: csv,
     modal: modal, confirm: confirmDialog, chipsFromSelect: chipsFromSelect,
-    sortable: sortable, stepSegs: stepSegs, searchShortcut: searchShortcut
+    sortable: sortable, stepSegs: stepSegs, searchShortcut: searchShortcut,
+    // 1.3.0
+    toast: toast
   };
 })();
 </script>
@@ -1382,7 +1425,7 @@ window.RK = (function () {
 (function () {
   "use strict";
   var $ = RK.$, esc = RK.esc, show = RK.show, hide = RK.hide;
-  var VERSION = "v1.7.0";
+  var VERSION = "v1.7.1";
   var LS_KEY = "project-cost-tracker:v1";
   var LEGACY_KEY = "project-cost-tracker-v3";   // key used by the pre-Report-Kit build
   var CCYS = ["AED", "GBP", "USD", "EUR"];
@@ -1659,6 +1702,8 @@ window.RK = (function () {
   }
   function normalise() { S.team.forEach(normDays); S.vendors.forEach(normVendor); }
 
+  // A two-way toggle button: the look and what a screen reader hears move together.
+  function pressed(b, on) { b.className = on ? "active" : ""; b.setAttribute("aria-pressed", on ? "true" : "false"); }
   function unitDays(p, field, v) { return field === "actualHours" ? num(v) / hpdOf(p) : num(v); }
   function costOf(p, field, i) { return num(p.rate) * unitDays(p, field, p[field][i]) * fxOf(p.ccy); }
   function totalIn(p, field) { var t = 0; for (var i = 0; i < S.duration; i++) t += costOf(p, field, i); return t; }
@@ -2158,8 +2203,7 @@ window.RK = (function () {
     var fullOf = function (p) { return actual ? num(S.workDays) * hpdOf(p) : num(S.workDays); };
     var max = actual ? 744 : 31;
 
-    $("modePlanned").className = actual ? "" : "active";
-    $("modeActual").className = actual ? "active" : "";
+    pressed($("modePlanned"), !actual); pressed($("modeActual"), actual);
     $("teamNote").textContent = actual
       ? "Hours booked from timesheets, converted at each person's own hours per day. These drive the ledger actuals."
       : "Days planned per person per month. Cost = day rate × days.";
@@ -2218,8 +2262,7 @@ window.RK = (function () {
     var any = S.vendors.length > 0;
 
     if (any) show($("vendorModes")); else hide($("vendorModes"));
-    $("modeVendorPlanned").className = invoiced ? "" : "active";
-    $("modeVendorInvoiced").className = invoiced ? "active" : "";
+    pressed($("modeVendorPlanned"), !invoiced); pressed($("modeVendorInvoiced"), invoiced);
 
     // With no vendors the card says so quietly and adds nothing anywhere else.
     if (!any) {
@@ -2783,17 +2826,19 @@ window.RK = (function () {
     return fmtd(f) + " to " + fmtd(t);
   }
 
+  // RK.modal: focus moves in and is trapped, Escape closes, focus goes back. The
+  // backdrop closes it only while nothing has been typed or ticked.
+  var tsUi = RK.modal($("tsModal"), {
+    onClose: function () { ts.buffer = null; ts.byCode = null; ts.changes = null; ts.gone = null; }
+  });
   function tsOpen() {
-    show($("tsModal"));
+    tsUi.open();
     $("tsSummary").textContent = ts.fileName + (ts.span ? " · covers " + tsSpanText() : "");
     var g = S.ukCode ? ts.byCode[S.ukCode] : null;
     if (!g) { tsShowCodePicker(); return; }
     tsBuildChanges(g);
   }
-  function tsClose() {
-    hide($("tsModal"));
-    ts.buffer = null; ts.byCode = null; ts.changes = null; ts.gone = null;
-  }
+  function tsClose() { tsUi.close(); }
 
   function tsShowCodePicker() {
     show($("tsPickCode")); hide($("tsReview"));
@@ -3578,7 +3623,11 @@ window.RK = (function () {
     toast("Undone: " + last.label);
   });
   on("setBaseline", "click", function () {
-    if (S.baseline && !confirm("Replace the existing baseline with the current plan?")) return;
+    if (S.baseline) RK.confirm("The comparison columns will measure against the plan as it is now.", setBaseline,
+      { title: "Replace the baseline?", okLabel: "Replace baseline" });
+    else setBaseline();
+  });
+  function setBaseline() {
     snapshot(S.baseline ? "re-baseline" : "set baseline");
     S.baseline = {
       at: new Date().toISOString(), base: S.base,
@@ -3588,12 +3637,13 @@ window.RK = (function () {
       team: JSON.parse(JSON.stringify(S.team)), vendors: JSON.parse(JSON.stringify(S.vendors))
     };
     render(); saveNow(); toast("Baseline set from the current plan");
-  });
+  }
   on("clearBaseline", "click", function () {
-    if (!confirm("Clear the baseline? The comparison columns go with it.")) return;
-    snapshot("clear baseline");
-    S.baseline = null;
-    render(); saveNow(); toast("Baseline cleared");
+    RK.confirm("The comparison columns go with it. Undo brings it back.", function () {
+      snapshot("clear baseline");
+      S.baseline = null;
+      render(); saveNow(); toast("Baseline cleared");
+    }, { title: "Clear the baseline?", okLabel: "Clear baseline", danger: true });
   });
   on("copyPos", "click", function () { copyCanvas(drawPosition, "position", "Position copied, paste into your slide or email"); });
   on("copyChart", "click", function () { copyCanvas(drawBurnup, "burnup", "Burn-up copied, paste into your slide or email"); });
@@ -4072,14 +4122,16 @@ window.RK = (function () {
     RK.download(slug(S.name) + "-ledger-" + S.base + ".csv", lines.join("\n"), "text/csv;charset=utf-8");
   });
   on("demoBtn", "click", function () {
-    if (!confirm("Replace what is here with the demo project? Save a JSON first if you need it.")) return;
-    snapshot("load demo");
-    replaceState(withForeign(migrate(DEMO()))); saveNow(); toast("Demo project loaded");
+    RK.confirm("What is here is replaced by the demo project. Save a JSON first if you need it.", function () {
+      snapshot("load demo");
+      replaceState(withForeign(migrate(DEMO()))); saveNow(); toast("Demo project loaded");
+    }, { title: "Load the demo project?", okLabel: "Load demo" });
   });
   on("resetBtn", "click", function () {
-    if (!confirm("Clear everything: people, days, actuals and set up? Save a JSON first if you need it.")) return;
-    snapshot("clear all data");
-    replaceState(withForeign(EMPTY())); saveNow(); toast("Tracker cleared");
+    RK.confirm("People, days, actuals and set-up are all cleared. Save a JSON first if you need it.", function () {
+      snapshot("clear all data");
+      replaceState(withForeign(EMPTY())); saveNow(); toast("Tracker cleared");
+    }, { title: "Clear everything?", okLabel: "Clear everything", danger: true });
   });
 
   on("reconnectBtn", "click", reconnect);
@@ -4097,14 +4149,16 @@ window.RK = (function () {
     });
     on("overwriteFile", "click", function () {
       if (!doc.handle) return;
-      if (!confirm("Overwrite " + doc.name + " with what is on screen? Whatever changed it will be lost.")) return;
       var d = doc;
-      saveNow(true).then(function (ok) {
-        if (d !== doc) return;
-        if (!ok) stale = true;
-        renderDocState();
-        toast(ok ? "Overwrote " + doc.name : "Could not write the file");
-      });
+      RK.confirm("Whatever changed " + d.name + " since it was loaded will be lost.", function () {
+        if (d !== doc) return;   // another file was opened while the dialog was up
+        saveNow(true).then(function (ok) {
+          if (d !== doc) return;
+          if (!ok) stale = true;
+          renderDocState();
+          toast(ok ? "Overwrote " + doc.name : "Could not write the file");
+        });
+      }, { title: "Overwrite " + d.name + " with what is on screen?", okLabel: "Overwrite file", danger: true });
     });
     $("recents").addEventListener("click", function (e) {
       if (e.target.id === "forgetRecents") {
@@ -4132,12 +4186,19 @@ window.RK = (function () {
     var btn = e.target.closest("[data-code]");
     if (!btn) return;
     var code = btn.getAttribute("data-code");
-    if (TS_LEAVE.test(code) && !confirm("“" + code + "” looks like leave rather than project work. Use it anyway?")) return;
+    if (TS_LEAVE.test(code)) RK.confirm("“" + code + "” looks like leave rather than project work.", function () { tsPickCode(code); },
+      { title: "Use this code anyway?", okLabel: "Use it" });
+    else tsPickCode(code);
+  });
+  function tsPickCode(code) {
+    if (!ts.byCode) return;   // the review was closed while the dialog was up
     S.ukCode = code;
     $("ukCode").value = code;
     renderImportSub(); queueSave();
     tsBuildChanges(ts.byCode[code]);
-  });
+    // the picked button is now hidden: keep focus in the dialog, or Escape and Tab stop working
+    $("tsModal").querySelector(".modal").focus();
+  }
   $("tsBody").addEventListener("input", function (e) {
     var t = e.target, i = t.getAttribute("data-apply");
     if (i !== null) { ts.changes[+i].apply = Math.max(0, num(t.value)); return; }
@@ -4158,10 +4219,6 @@ window.RK = (function () {
   on("tsAccept", "click", tsApply);
   on("tsDecline", "click", tsClose);
   on("tsClose", "click", tsClose);
-  $("tsModal").addEventListener("click", function (e) { if (e.target === $("tsModal")) tsClose(); });
-  document.addEventListener("keydown", function (e) {
-    if (e.key === "Escape" && !$("tsModal").classList.contains("hidden")) tsClose();
-  });
 
   /* ---------- boot ---------- */
   function syncInputs() {
