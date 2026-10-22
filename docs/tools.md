@@ -101,7 +101,19 @@ Add any **vendors** the same way: scope, currency, an optional contract or PO
 value, and the spend planned per month. Together that is the plan. Enter actual
 spend in the monthly ledger (or book timesheet hours per person and vendor
 invoices per month, and let the tool cost them), and the remainder is forecast
-at the worse of the plan and the observed burn rate.
+at the worse of the plan and the observed burn rate. The burn rate is only
+charged to months that have planned spend, so a month planned at nothing
+forecasts nothing.
+
+**Adding months.** Raising Months asks how to cost the team in the new months:
+**zero the team costs** (the default; the months start empty) or **carry on the
+team costs**, where each person repeats their last month's days. The dialog
+shows what carrying on adds to the plan. Vendors, actuals and the estimate never
+change, so adding empty months leaves the forecast where it was. If the new
+months still hold figures from before (the project was shortened, or the start
+moved earlier and pushed figures past the end), the dialog says how many. They
+are kept unless you tick **Clear them**. Adding months is one undo step.
+Shortening the project hides the last months rather than deleting them.
 
 Vendors are entirely optional. A project with none behaves exactly as if the
 feature were not there — nothing added to the plan, nothing flagged — and a

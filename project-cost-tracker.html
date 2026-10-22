@@ -334,6 +334,19 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 .pct-dialog-foot{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;
   padding:.9rem 1.4rem;border-top:1px solid var(--line);background:var(--light-grey)}
 @media (max-width:640px){ .pct-overlay{padding:0} .pct-dialog{max-height:100vh;border-radius:0} }
+.pct-overlay[hidden]{display:none}
+
+/* add-months dialog */
+.pct-dialog.pct-dialog-sm{width:min(560px,100%)}
+.pct-ext-body{display:flex;flex-direction:column;gap:.8rem}
+.pct-opt{display:flex;align-items:flex-start;gap:.6rem;padding:.65rem .8rem;border:1px solid var(--line);
+  border-radius:8px;cursor:pointer;font-size:.86rem;color:var(--slate)}
+.pct-opt:has(input:checked){border-color:var(--teal);background:var(--teal-tint)}
+.pct-opt input{accent-color:var(--teal);margin-top:.2rem;flex:none}
+.pct-opt .sub2{display:block;font-size:.76rem;color:var(--mid);font-weight:500;margin-top:.1rem}
+.pct-opts{display:flex;flex-direction:column;gap:.45rem}
+.pct-ext-clear{display:flex;align-items:center;gap:.5rem;margin-top:.5rem;font-weight:600;cursor:pointer}
+.pct-ext-clear input{accent-color:var(--teal);width:16px;height:16px}
 
 /* code picker */
 .pct-code{display:flex;align-items:center;gap:.8rem;width:100%;text-align:left;padding:.6rem .8rem;
@@ -755,6 +768,40 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
       <div class="controls-row">
         <button type="button" class="btn btn-ghost" id="tsDecline">Decline</button>
         <button type="button" class="btn btn-primary" id="tsAccept">Apply selected</button>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="pct-overlay" id="extModal" hidden>
+  <div class="pct-dialog pct-dialog-sm modal">
+    <div class="pct-dialog-head">
+      <div>
+        <h2 id="extTitle">Add months</h2>
+        <p class="sub" id="extSub"></p>
+      </div>
+    </div>
+    <div class="pct-dialog-body pct-ext-body">
+      <div id="extTeamChoice">
+        <p class="sub" style="margin-bottom:.5rem;">What should the team cost in the new months?</p>
+        <div class="pct-opts">
+          <label class="pct-opt"><input type="radio" name="extTeam" id="extZero" value="zero" checked>
+            <span><b>Zero the team costs</b><span class="sub2">No planned days in the new months. Add them in the team grid when you know them.</span></span></label>
+          <label class="pct-opt"><input type="radio" name="extTeam" id="extCarry" value="carry">
+            <span><b>Carry on the team costs</b><span class="sub2" id="extCarrySub"></span></span></label>
+        </div>
+      </div>
+      <div class="callout pct-warn hidden" id="extHidden" hidden>
+        <span class="lab">Figures from before</span>
+        <span id="extHiddenText"></span>
+        <label class="pct-ext-clear"><input type="checkbox" id="extClear"> Clear them and start these months empty</label>
+      </div>
+      <p class="sub">Vendors, actuals and the estimate are not changed by adding months.</p>
+    </div>
+    <div class="pct-dialog-foot">
+      <span class="sub" id="extImpact"></span>
+      <div class="controls-row">
+        <button type="button" class="btn btn-ghost" id="extCancel">Cancel</button>
+        <button type="button" class="btn btn-primary" id="extOk">Add months</button>
       </div>
     </div>
   </div>
@@ -1335,7 +1382,7 @@ window.RK = (function () {
 (function () {
   "use strict";
   var $ = RK.$, esc = RK.esc, show = RK.show, hide = RK.hide;
-  var VERSION = "v1.6.1";
+  var VERSION = "v1.7.0";
   var LS_KEY = "project-cost-tracker:v1";
   var LEGACY_KEY = "project-cost-tracker-v3";   // key used by the pre-Report-Kit build
   var CCYS = ["AED", "GBP", "USD", "EUR"];
@@ -1587,11 +1634,12 @@ window.RK = (function () {
      only — use span() wherever a whole row is summed or drawn. */
   function span(arr) { return arr.slice(0, S.duration); }
 
-  // New months inherit the last planned value (extending a project keeps its shape)
-  // and start with zero actual hours.
+  // Padding is zero, planned and actual alike: a row that is short of the project
+  // must not gain cost just by being read. Carrying the team on into added months
+  // is a choice made in the add-months dialog (extendApply), never a default.
   function normDays(p) {
     var a = Array.isArray(p.days) ? p.days.slice() : [];
-    while (a.length < S.duration) a.push(a.length ? num(a[a.length - 1]) : num(S.workDays));
+    while (a.length < S.duration) a.push(0);
     p.days = a.map(function (v) { return clamp(num(v), 0, 31); });
     var b = Array.isArray(p.actualHours) ? p.actualHours.slice() : [];
     while (b.length < S.duration) b.push(0);
@@ -1721,14 +1769,21 @@ window.RK = (function () {
     var burn = wa.length ? spent / wa.length : 0;
     var remainingMonths = Math.max(0, S.duration - (lastActualIdx + 1));
     var remainingPlanned = rows.filter(function (r) { return r.i > lastActualIdx; }).reduce(function (s, r) { return s + r.planned; }, 0);
+    // The burn rate is charged only to remaining months the plan has spend in. A
+    // month planned at nothing (added empty, or a pause) forecasts nothing, so
+    // lengthening a project never raises the forecast by itself. A project with
+    // no plan at all has nothing to tell the months apart, so every month runs.
+    var hasPlan = cp > 0;
+    var active = function (r) { return r.i > lastActualIdx && (!hasPlan || r.planned > 0); };
+    var activeMonths = rows.filter(active).length;
     // Forecast the remainder at the worse of "the plan" and "the observed burn rate".
-    var remainingForecast = wa.length ? Math.max(remainingPlanned, burn * remainingMonths) : remainingPlanned;
+    var remainingForecast = wa.length ? Math.max(remainingPlanned, burn * activeMonths) : remainingPlanned;
     var eac = spent + remainingForecast;
 
-    var fc = spent, per = remainingMonths ? remainingForecast / remainingMonths : 0;
+    var fc = spent, per = activeMonths ? remainingForecast / activeMonths : 0;
     rows.forEach(function (r) {
       if (r.i <= lastActualIdx) r.cumForecast = r.cumActual;
-      else { fc += per; r.cumForecast = fc; }
+      else { if (active(r)) fc += per; r.cumForecast = fc; }
     });
 
     var breachMonth = null;
@@ -1738,7 +1793,7 @@ window.RK = (function () {
       rows: rows, spent: spent, plannedToDate: plannedToDate, totalPlanned: cp, burn: burn, gaps: gaps, monthsBooked: wa.length,
       eac: eac, eacPlan: spent + remainingPlanned, variance: S.estimate - eac,
       burnVariance: plannedToDate ? (spent - plannedToDate) / plannedToDate : 0,
-      lastActualIdx: lastActualIdx, remainingMonths: remainingMonths, breachMonth: breachMonth,
+      lastActualIdx: lastActualIdx, remainingMonths: remainingMonths, activeMonths: activeMonths, breachMonth: breachMonth,
       runwayMonths: burn ? (S.estimate - spent) / burn : Infinity,
       vendors: vendorPositions(lastActualIdx),
       baseline: baselinePlan()
@@ -1807,7 +1862,9 @@ window.RK = (function () {
     return [
       { k: "Total estimate", v: money(S.estimate), s: "Approved ceiling" },
       { k: "Spent to date", v: money(M.spent), s: pct(S.estimate ? M.spent / S.estimate : 0) + " of estimate" },
-      { k: "Remaining", v: money(S.estimate - M.spent), s: M.remainingMonths + " months to run" },
+      { k: "Remaining", v: money(S.estimate - M.spent),
+        s: M.remainingMonths + " months to run" +
+          (M.remainingMonths > M.activeMonths ? ", " + (M.remainingMonths - M.activeMonths) + " with nothing planned" : "") },
       { k: "Avg monthly burn", v: money(M.burn),
         s: M.lastActualIdx < 0 ? "No actuals"
           : M.monthsBooked + " month" + (M.monthsBooked === 1 ? "" : "s") + " with figures" +
@@ -1925,10 +1982,10 @@ window.RK = (function () {
           " Cost drivers below shows which lines moved."]);
       }
     }
-    if (isFinite(M.runwayMonths) && M.runwayMonths < M.remainingMonths) {
+    if (isFinite(M.runwayMonths) && M.runwayMonths < M.activeMonths) {
       out.push(["issue", "Runway is shorter than the plan",
         "At " + money(M.burn) + " a month you have about " + (Math.floor(M.runwayMonths * 10) / 10) +
-        " months of budget left against " + M.remainingMonths + " months of delivery."]);
+        " months of budget left against " + M.activeMonths + " months of delivery."]);
     }
     return out;
   }
@@ -3679,10 +3736,102 @@ window.RK = (function () {
     else if (e.key === "Escape") e.target.value = S.start;
     else if (e.key !== "Tab" && e.key !== "Shift") startKeyed = true;
   });
+  /* Adding months. New months start empty; the dialog asks whether the team
+     should carry on at its last month's days instead. Months a shorter project
+     had hidden (shortened earlier, or pushed past the end by a start move) still
+     hold their figures: they come back as they were unless the dialog's Clear is
+     ticked. Shortening only hides the tail, as before. Either way, one undo step. */
+  var extUi = RK.modal($("extModal"), { onClose: function () { $("duration").value = S.duration; } });
+  var ext = null;
+  function inRange(i) { return i >= ext.from && i < ext.to; }
+  function hiddenCount(from, to) {
+    var c = 0, at = function (i, v) { if (i >= from && i < to && num(v) > 0) c++; };
+    S.team.forEach(function (p) { p.days.forEach(function (v, i) { at(i, v); }); p.actualHours.forEach(function (v, i) { at(i, v); }); });
+    S.vendors.forEach(function (v) { v.planned.forEach(function (x, i) { at(i, x); }); v.invoiced.forEach(function (x, i) { at(i, x); }); });
+    Object.keys(S.actuals).forEach(function (k) {
+      var v = S.actuals[k];
+      if (+k >= from && +k < to && v !== "" && v !== null) c++;
+    });
+    return c;
+  }
+  // What each new month's planned team days become: kept figures stay unless cleared.
+  function extFill(a, fill, clear) {
+    for (var i = ext.from; i < ext.to; i++) if (clear || !(num(a[i]) > 0)) a[i] = fill;
+  }
+  // What carrying the team on adds to the plan, over the months extFill would fill.
+  function carryCost(clear) {
+    var c = 0;
+    S.team.forEach(function (p) {
+      for (var i = ext.from; i < ext.to; i++) if (clear || !(num(p.days[i]) > 0)) c += num(p.rate) * num(p.days[ext.from - 1]) * fxOf(p.ccy);
+    });
+    return c;
+  }
+  function extRefresh() {
+    var c = $("extCarry").checked ? carryCost($("extClear").checked) : 0;
+    $("extImpact").textContent = "Ends " + monthLabel(addMonths(S.start, ext.to - 1)) + " · " +
+      (c ? "+" + money(c) + " planned" : "no cost added");
+  }
+  function extendAsk(from, to) {
+    normalise();
+    ext = { from: from, to: to };
+    var n = to - from, hidden = hiddenCount(from, to);
+    var carryable = S.team.some(function (p) { return num(p.days[from - 1]) > 0; });
+    // nobody has days to carry on and nothing old comes back: nothing to choose
+    if (!carryable && !hidden) {
+      extendApply(false, false);
+      if (S.team.length || S.vendors.length) toast("Added " + n + (n === 1 ? " month" : " months") + " with nothing planned. Undo to reverse");
+      return;
+    }
+    var span = monthLabel(addMonths(S.start, from)) + (n > 1 ? " to " + monthLabel(addMonths(S.start, to - 1)) : "");
+    $("extTitle").textContent = "Add " + n + (n === 1 ? " month" : " months");
+    $("extSub").textContent = span + ". The project now ends " + monthLabel(addMonths(S.start, to - 1)) + ".";
+    $("extZero").checked = true; $("extCarry").checked = false; $("extClear").checked = false;
+    if (carryable) show($("extTeamChoice")); else hide($("extTeamChoice"));
+    $("extCarrySub").textContent = "Each person repeats their " + monthLabel(addMonths(S.start, from - 1)) +
+      " days in every new month: +" + money(carryCost(false)) + " to the plan.";
+    if (hidden) {
+      $("extHiddenText").textContent = (n === 1 ? "This month" : "These months") + " still hold " + hidden +
+        (hidden === 1 ? " figure" : " figures") + " from before the project was shortened or its start moved. They are kept as they were.";
+      show($("extHidden"));
+    } else hide($("extHidden"));
+    $("extOk").textContent = "Add " + n + (n === 1 ? " month" : " months");
+    extRefresh();
+    extUi.open($("duration"));
+    $("extOk").focus();
+  }
+  function extendApply(carry, clear) {
+    snapshot("add months");
+    S.team.forEach(function (p) {
+      extFill(p.days, carry ? num(p.days[ext.from - 1]) : 0, clear);
+      if (clear) extFill(p.actualHours, 0, true);
+    });
+    if (clear) {
+      S.vendors.forEach(function (v) { extFill(v.planned, 0, true); extFill(v.invoiced, 0, true); });
+      Object.keys(S.actuals).forEach(function (k) { if (inRange(+k)) delete S.actuals[k]; });
+      if (S.asTyped && S.asTyped.actuals) Object.keys(S.asTyped.actuals).forEach(function (k) { if (inRange(+k)) delete S.asTyped.actuals[k]; });
+    }
+    S.duration = ext.to;
+    $("duration").value = S.duration;
+    render(); queueSave();
+  }
+  on("extZero", "change", extRefresh);
+  on("extCarry", "change", extRefresh);
+  on("extClear", "change", extRefresh);
+  on("extCancel", "click", function () { extUi.close(); });
+  on("extOk", "click", function () {
+    var carry = $("extCarry").checked && !$("extTeamChoice").hidden, clear = $("extClear").checked && !$("extHidden").hidden;
+    extendApply(carry, clear);
+    extUi.close();
+    toast("Added " + (ext.to - ext.from) + (ext.to - ext.from === 1 ? " month" : " months") +
+      (carry ? ", team carried on" : ", team at zero") + (clear ? ", old figures cleared" : "") + ". Undo to reverse");
+  });
   on("duration", "change", function (e) {
+    var n = clamp(Math.round(num(e.target.value)) || 1, 1, 60);
+    e.target.value = n;
+    if (extUi.isOpen() || n === S.duration) return;
+    if (n > S.duration) { extendAsk(S.duration, n); return; }
     edited("duration");
-    S.duration = clamp(Math.round(num(e.target.value)) || 1, 1, 60);
-    e.target.value = S.duration; render(); queueSave();
+    S.duration = n; render(); queueSave();
   });
   on("today", "change", function (e) { edited("current month"); S.today = e.target.value || S.today; render(); queueSave(); });
   on("wdays", "change", function (e) {

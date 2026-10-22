@@ -78,6 +78,25 @@ const FLOWS = {
     await page.click("#expCsv");
     const csv = fs.readFileSync(await (await dl).path(), "utf8");
     t("loads the demo and exports a ledger CSV", csv.split("\n").length > 3);
+
+    // Adding months: the dialog offers zero or carry-on team costs, and months the
+    // project had hidden come back with their figures unless cleared.
+    const forecast = async () => (/forecast at completion\s*AED\s*([\d,]+)/i.exec(await page.textContent("#kpis")) || [])[1];
+    const months = (n) => page.$eval("#duration", (d, n) => { d.value = n; d.dispatchEvent(new Event("change", { bubbles: true })); }, n);
+    const open = () => page.$eval("#extModal", (m) => !m.hidden);
+    const before = await forecast();
+    await months(15);
+    t("adding months asks how to cost the team", await open());
+    await page.click("#extOk");
+    t("months added at zero leave the forecast unchanged", (await forecast()) === before, before + " -> " + (await forecast()));
+    await months(12); await months(15);
+    await page.click("#extCarry"); await page.click("#extOk");
+    const carried = await forecast();
+    t("carrying the team on adds its cost", carried !== before, carried);
+    await months(12); await months(15);
+    t("months that come back with figures say so", await page.$eval("#extHidden", (e) => !e.hidden));
+    await page.click("#extClear"); await page.click("#extOk");
+    t("clearing them starts the months empty", (await forecast()) === before, before + " -> " + (await forecast()));
   },
   "pi-planning-capacity.html": async (page, t) => {
     // "Load demo" lives in Settings and the export in a collapsible card: press them directly
