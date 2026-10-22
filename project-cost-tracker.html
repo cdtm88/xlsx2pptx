@@ -904,6 +904,12 @@ label.field { display: block; font-size: 12px; font-weight: 600; color: var(--te
 .pct-matrix td,.pct-ledger td,.pct-drivers td{padding:5px 10px;font-size:13px}
 .pct-matrix input,.pct-matrix select,.pct-ledger input{height:28px;padding:3px 7px;font-size:12px}
 .pct-matrix input[type=number],.pct-ledger input[type=number]{font-family:var(--font-mono);text-align:right}
+/* No spinners in the grids: they take a third of a month cell, and a figure that
+   no longer fits is drawn from its left edge, so "15.5" sits off-centre */
+.pct-matrix input[type=number],.pct-ledger input[type=number],.pct-preview input[type=number]{-moz-appearance:textfield;appearance:textfield}
+.pct-matrix input[type=number]::-webkit-outer-spin-button,.pct-matrix input[type=number]::-webkit-inner-spin-button,
+.pct-ledger input[type=number]::-webkit-outer-spin-button,.pct-ledger input[type=number]::-webkit-inner-spin-button,
+.pct-preview input[type=number]::-webkit-outer-spin-button,.pct-preview input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
 td.money,td.foot-num,.pct-ledger td.num,.pct-drivers td.num{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
 .pct-over{color:var(--red)!important;font-weight:600}
 .pct-under{color:var(--green-fg)!important}
@@ -917,7 +923,7 @@ td.money,td.foot-num,.pct-ledger td.num,.pct-drivers td.num{font-family:var(--fo
 .pct-scroll .pct-matrix tfoot td.sticky{z-index:3}
 .pct-matrix th.mhead{text-align:center;padding:8px 4px}
 .pct-matrix td.mcell{padding:4px 3px}
-.pct-matrix td.mcell input{width:58px;text-align:center}
+.pct-matrix td.mcell input{width:60px;padding-left:3px;padding-right:3px;text-align:center}
 .pct-matrix td.money{text-align:right;font-weight:600;color:var(--accent-dark)}
 .pct-matrix td.foot-num{text-align:center;font-size:11px;color:var(--slate)}
 .pct-matrix .c-role input{min-width:110px}
@@ -2064,7 +2070,7 @@ window.RK = (function () {
 (function () {
   "use strict";
   var $ = RK.$, esc = RK.esc, show = RK.show, hide = RK.hide;
-  var VERSION = "v2.1.0";
+  var VERSION = "v2.1.1";
   var LS_KEY = "project-cost-tracker:v1";
   var LEGACY_KEY = "project-cost-tracker-v3";   // key used by the pre-Report-Kit build
   var CCYS = ["AED", "GBP", "USD", "EUR"];
