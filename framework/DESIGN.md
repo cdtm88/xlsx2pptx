@@ -88,7 +88,7 @@ Type scale (px): 22 page headline, 20 settings title, 18 dialog/drawer title,
 | `.setting-row`, `-label`, `.label-text`, `.label-hint`, `-control`, `.unit-suffix` | label left, control right |
 | `.settings-table`, `.settings-table-row` (+ `.header`), `.col-num`, `.col-actions`, `[data-label]` | light grid list; stacks on phones using `data-label` |
 | `.avatar-chip`, `.entity`, `.entity-text`, `.entity-name`, `.entity-sub` | a named thing with initials |
-| `.modal-overlay`, `.modal` (+ `.modal-compact`), `.modal-lead`, `.modal-actions` (+ `.start`), `.field`, `.field-row`, `.field-row-3`, `.hint`, `.callout` (+ `.warn`, `.danger`) | dialogs and forms |
+| `.modal-overlay`, `.modal` (+ `.modal-compact`, `.modal-wide`), `.modal-lead`, `.modal-actions` (+ `.start`), `.field`, `.field-row`, `.field-row-3`, `.hint`, `.callout` (+ `.ok`, `.warn`, `.danger`) | dialogs and forms; `.modal-wide` (980px) is for a dialog that holds a table |
 | `.drawer-overlay`, `.drawer`, `.drawer-head`, `-head-top`, `-head-actions`, `-title-sub`, `-title`, `-close`, `-body`, `-section`, `-section-label`, `-foot` | right-hand detail drawer |
 | `.figure-strip`, `.figure-box`, `.figure` | three headline figures in a bordered strip |
 | `.detail-grid`, `.detail-label`, `.detail-value` | read-only key/value pairs |
@@ -102,9 +102,11 @@ Type scale (px): 22 page headline, 20 settings title, 18 dialog/drawer title,
 | `.impact-box`, `.impact-head`, `.impact-title`, `.impact-pct` | live "what this does to the total" preview inside a form |
 | `.option-cards`, `.option-card`, `-title`, `-desc` | radio cards, e.g. export format |
 | `.date-pair` | two date fields side by side |
+| `.upload-area` (+ `.dragover`), `.big`, `.or`, `label.field` | file drop zone for `RK.upload`; `label.field` is what `RK.xlsx.renderMapper` emits |
+| `.toast` (+ `.on`) | short confirmation at the foot of the screen, made by `RK.toast` |
 | `footer`, `.strapline`, `.app-version` | footer line, version in mono |
 
-## Runtime (`window.RK`, kit 1.2.0)
+## Runtime (`window.RK`, kit 1.3.0)
 
 | Helper | Does |
 |---|---|
@@ -118,6 +120,7 @@ Type scale (px): 22 page headline, 20 settings title, 18 dialog/drawer title,
 | `RK.uid`, `RK.localDate(d)`, `RK.today()`, `RK.nowIso()` | ids and dates (local calendar day, not UTC) |
 | `RK.csv.escape`, `.safeText`, `.fromRows`, `.BOM` | CSV that opens cleanly in Excel; `safeText` stops a text cell starting `=` `+` `-` `@`, tab or CR running as a formula |
 | `RK.dict()`, `RK.has(o, k)` | a lookup with no prototype, and an own-key test: use them for anything keyed by file or user data |
+| `RK.toast(message, ms?)` | shows a `.toast` and fades it after `ms` (default 2600); a new message replaces the one showing |
 | `RK.download(filename, text, type)`, `RK.store(key)`, `RK.esc` | from kit 1, unchanged |
 
 ## Checklist for a new tool

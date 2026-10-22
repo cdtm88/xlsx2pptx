@@ -101,7 +101,39 @@ Add any **vendors** the same way: scope, currency, an optional contract or PO
 value, and the spend planned per month. Together that is the plan. Enter actual
 spend in the monthly ledger (or book timesheet hours per person and vendor
 invoices per month, and let the tool cost them), and the remainder is forecast
-at the worse of the plan and the observed burn rate.
+at the worse of the plan and the observed burn rate. The burn rate is only
+charged to months that have planned spend, so a month planned at nothing
+forecasts nothing.
+
+**Adding months.** Raising Months asks how to cost the team in the new months:
+**zero the team costs** (the default; the months start empty) or **carry on the
+team costs**, where each person repeats their last month's days. The dialog
+shows what carrying on adds to the plan. Vendors, actuals and the estimate never
+change, so adding empty months leaves the forecast where it was. If the new
+months still hold figures from before (the project was shortened, or the start
+moved earlier and pushed figures past the end), the dialog says how many. They
+are kept unless you tick **Clear them**. Adding months is one undo step.
+Shortening the project hides the last months rather than deleting them.
+
+**Delaying the timeline.** When the work slips rather than grows, use **Delay the
+timeline** (on the burn-up, or in Settings under Timeline). Pick the month the
+delay starts, how many months, what the team costs in the delay months (zero, the
+default, or carry on at each person's days from the month before) and a reason.
+From that month on, every planned figure moves later; the months it opens are
+planned at nothing, or at the carried-on days. Actuals, timesheet hours and
+invoices stay on the months they were booked in, so a delay can start no earlier
+than the first month with no actuals, and the estimate never changes. A preview
+shows the new end month, planned total, forecast and headroom before you confirm.
+A delay is one undo step. The project can run to 60 months, and the dialog says
+how far that leaves room to go.
+
+Every delay, and every extension once the project has a plan, is recorded under
+Settings, Timeline: when, how many months, how the team was costed, the end before
+and after, and the reason. The summary line says how far the end has moved, measured
+against the baseline when there is one, otherwise against the end the project had
+before its first recorded change. The burn-up hatches future months with nothing
+planned, so a pause reads as a pause, and marks the planned end once the end has
+moved.
 
 Vendors are entirely optional. A project with none behaves exactly as if the
 feature were not there — nothing added to the plan, nothing flagged — and a
@@ -162,11 +194,16 @@ flattens the burn-up and quietly understates the run rate. So a month left empty
 while a later month has figures is called out by name, and the burn-up draws it
 as a hollow point — "nothing booked here", not "nothing spent here".
 
-Every card collapses, and each grid sits in a fixed-height scroller with its
-header and totals row pinned, so a long team or a 60-month project never pushes
-the rest of the page out of view. The page opens as a report — position,
-burn-up, team and ledger — with set-up, the timesheet import, vendors and cost
-drivers a click away.
+The page has two views, switched in the header. **Report** opens on the answer
+(spent against the estimate and where the forecast lands, with an On track,
+Watch or Over pill), then position, burn-up, the monthly ledger, the team and
+vendor grids and cost drivers. Vendors and cost drivers start collapsed; every
+section can be hidden or shown. Each grid sits in a fixed-height scroller with
+its header and totals row pinned, so a long team or a 60-month project never
+pushes the rest of the page out of view. **Settings** holds the project set-up
+(estimate, currency, months, working pattern, exchange rates and the baseline),
+the timesheet import, and saving and data (project files, JSON, the ledger CSV,
+the demo and Clear all data). It is built on Report Kit 2.
 
 Day rates and vendor costs can be in AED, GBP, USD or EUR and are converted at
 rates you set; everything is reported in one base currency. Switching the base

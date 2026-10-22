@@ -13,7 +13,7 @@ no build step *for the user*, and no external requests.
 | `starter.src.html` | A small working page in the kit 2 language. Copy it to start a new tool. |
 | `DESIGN.md` | The design language: principles, tokens, every component, the runtime helpers, a checklist for new tools. |
 | `report-kit.css` | Kit 1, **frozen**: the original look (cards, light-header tables, upload zone, KPIs, staff-name editor). Kept so the tools built on it do not change; not for new tools. |
-| `report-kit.js` | `window.RK` — DOM/format helpers, file download, namespaced `localStorage`, clipboard (rich HTML + text), upload wiring, xlsx plumbing, the **rules JSON module**, the reusable **staff-name editor**, and (since 1.1.0) the kit 2 runtime: `RK.modal`, `RK.confirm`, `RK.sortable`, `RK.chipsFromSelect`, `RK.stepSegs`, `RK.searchShortcut`, CSV and number/date helpers, and (1.2.0) `RK.dict`/`RK.has` for lookups keyed by file data. The kit 1 helpers and `RK.show`/`RK.hide` work under either stylesheet; the kit 2 helpers (`RK.modal`, `RK.confirm`, chips, steps) are styled only by `report-kit-2.css`. |
+| `report-kit.js` | `window.RK` — DOM/format helpers, file download, namespaced `localStorage`, clipboard (rich HTML + text), upload wiring, xlsx plumbing, the **rules JSON module**, the reusable **staff-name editor**, and (since 1.1.0) the kit 2 runtime: `RK.modal`, `RK.confirm`, `RK.sortable`, `RK.chipsFromSelect`, `RK.stepSegs`, `RK.searchShortcut`, CSV and number/date helpers, and (1.2.0) `RK.dict`/`RK.has` for lookups keyed by file data, and (1.3.0) `RK.toast`. The kit 1 helpers and `RK.show`/`RK.hide` work under either stylesheet; the kit 2 helpers (`RK.modal`, `RK.confirm`, chips, steps) are styled only by `report-kit-2.css`. |
 | `vendor/sheetjs.js` | The vendored SheetJS mini build (read-only), inlined where a report reads `.xlsx`. One copy for all reports. |
 | `build.py` | The inliner. Turns a `reports/<name>.src.html` into the shipped single-file `<name>.html`. |
 
@@ -146,6 +146,7 @@ across versions:
    file and (ideally) drive it headless before shipping. Run the
    `DESIGN.md` checklist.
 
-The tools built before kit 2 (Waqti, cost tracker, PI capacity, delivery plan)
-still use kit 1 and look as they did. Moving one over means switching its
-stylesheet include and its markup to the kit 2 classes.
+The tools built before kit 2 (Waqti, PI capacity, delivery plan) still use kit 1
+and look as they did. Moving one over means switching its stylesheet include and
+its markup to the kit 2 classes. The project cost tracker has moved: its source
+shows a kit 1 tool's cards, dialogs and dense grids carried over to kit 2.

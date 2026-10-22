@@ -72,12 +72,53 @@ const FLOWS = {
     t("lists the export's demands", /D100/.test(await page.textContent("#demandCard")) && /D200/.test(await page.textContent("#demandCard")));
   },
   "project-cost-tracker.html": async (page, t) => {
+    // Demo and the CSV export live under Settings, Saving & data
+    await page.click('.app-nav-item[data-view="settings"]');
+    await page.click('.settings-nav-item[data-tab="data"]');
     await page.click("#demoBtn");
+    t("loading the demo asks first, in the page", await page.isVisible(".modal-overlay [data-rk-ok]"));
+    await page.click(".modal-overlay [data-rk-ok]");
     await page.waitForTimeout(300);
     const dl = page.waitForEvent("download", { timeout: 5000 });
     await page.click("#expCsv");
     const csv = fs.readFileSync(await (await dl).path(), "utf8");
     t("loads the demo and exports a ledger CSV", csv.split("\n").length > 3);
+
+    // Adding months: the dialog offers zero or carry-on team costs, and months the
+    // project had hidden come back with their figures unless cleared.
+    const forecast = async () => (/forecast at completion\s*AED\s*([\d,]+)/i.exec(await page.textContent("#kpis")) || [])[1];
+    const months = (n) => page.$eval("#duration", (d, n) => { d.value = n; d.dispatchEvent(new Event("change", { bubbles: true })); }, n);
+    const open = () => page.$eval("#extModal", (m) => !m.hidden);
+    const before = await forecast();
+    await months(15);
+    t("adding months asks how to cost the team", await open());
+    await page.click("#extOk");
+    t("months added at zero leave the forecast unchanged", (await forecast()) === before, before + " -> " + (await forecast()));
+    await months(12); await months(15);
+    await page.click("#extCarry"); await page.click("#extOk");
+    const carried = await forecast();
+    t("carrying the team on adds its cost", carried !== before, carried);
+    await months(12); await months(15);
+    t("months that come back with figures say so", await page.$eval("#extHidden", (e) => !e.hidden));
+    await page.click("#extClear"); await page.click("#extOk");
+    t("clearing them starts the months empty", (await forecast()) === before, before + " -> " + (await forecast()));
+
+    // Delaying the timeline: the plan moves later; actuals, the estimate and a
+    // zero-cost forecast stay where they were; the change is logged; undo reverses it.
+    await page.$eval("#demoBtn", (b) => b.click());
+    await page.click(".modal-overlay:not([hidden]) [data-rk-ok]");
+    const actuals = () => page.$$eval("#ledgerBody input", (i) => i.slice(0, 7).map((x) => x.value).join(","));
+    const a0 = await actuals();
+    await page.$eval("#delaySettingsBtn", (b) => b.click());
+    await page.click('#dlChips [data-months="3"]');
+    await page.fill("#dlReason", "Vendor environment not ready");
+    await page.click("#dlOk");
+    t("a zero-cost delay leaves the forecast unchanged", (await forecast()) === before, before + " -> " + (await forecast()));
+    t("the delay moves the end and says so", /3 months later than first planned/.test(await page.textContent("#headerSub")));
+    t("actuals stay on their months", (await actuals()) === a0);
+    t("the delay is logged with its reason", /Delayed 3 months from Aug 26[\s\S]*Vendor environment not ready/.test(await page.textContent("#timelineHistory")));
+    await page.click("#undoBtn");
+    t("undo takes the delay back", (await page.$eval("#duration", (d) => d.value)) === "12" && !/later than/.test(await page.textContent("#headerSub")));
   },
   "pi-planning-capacity.html": async (page, t) => {
     // "Load demo" lives in Settings and the export in a collapsible card: press them directly

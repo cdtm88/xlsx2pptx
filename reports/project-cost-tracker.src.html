@@ -11,600 +11,546 @@
 <title>Project Cost Tracker</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMiIgaGVpZ2h0PSIzMiIgdmlld0JveD0iMCAwIDMyIDMyIj48cmVjdCB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHJ4PSI3IiBmaWxsPSIjMDBBOUNFIi8+PHBhdGggZD0iTTkgMTYuNSBsNCA0IEwyMyAxMSIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjMiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPjwvc3ZnPg==">
 <style>
-/*@include framework/report-kit.css@*/
+/*@include framework/report-kit-2.css@*/
 
 /* ============================================================
    report-specific: cost tracker
-   Prefix: .pct-*  (kit classes are reused wherever they fit)
+   Prefix: .pct-*. Kit 2 classes are used wherever one fits; what is
+   here is what the kit has no component for: the section panels, the
+   editable month grids, the burn-up and the two review dialogs.
    ============================================================ */
 
-/* the tracker is a wide, dense tool — give it more room than the kit default */
-.app-header .inner,.container,.app-footer{max-width:1320px}
-
-/* number / month inputs — the kit styles text, search, date, select and textarea */
-input[type=number],input[type=month]{font-family:inherit;font-size:.86rem;color:var(--charcoal);background:#fff;
-  border:1px solid var(--line);border-radius:8px;padding:.55rem .7rem;width:100%}
-input[type=number]:focus,input[type=month]:focus{outline:none;border-color:var(--teal);box-shadow:0 0 0 3px rgba(0,169,206,.14)}
-input[type=number]{-moz-appearance:textfield}
-input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
-.tnum{font-variant-numeric:tabular-nums}
-
-/* header extras */
-.pct-save{font-size:.74rem;font-weight:600;color:var(--mid);white-space:nowrap;margin-right:.8rem}
-.pct-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:.4rem;background:#B4BCC4;vertical-align:1px}
+/* header: where the page is saving to */
+.pct-save{font-size:12px;color:var(--text-dim);white-space:nowrap}
+.pct-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;background:var(--border-input);vertical-align:0}
 .pct-dot.live{background:var(--green)}
-.pct-dot.warn{background:#C8891A}
-.pct-header-btn{margin-left:.8rem}
-/* the header carries more than the other tools' — let it wrap rather than overflow */
-@media (max-width:760px){
-  .app-header .inner{flex-wrap:wrap;gap:.4rem .8rem}
-  .app-header .spacer{display:none}
-  .pct-header-btn{margin-left:0}
-}
+.pct-dot.warn{background:var(--yellow)}
 
-/* set-up fields */
-.pct-fields{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:.75rem .9rem;align-items:end}
-#fxFields{display:contents}
-.pct-field label{display:block;font-size:.72rem;font-weight:600;color:var(--slate);margin:0 0 .25rem;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.pct-field.c2{grid-column:span 2}
-.pct-field.c3{grid-column:span 3}
-.pct-field.c4{grid-column:span 4}
-.pct-field.c6{grid-column:span 6}
-.pct-field.wide{grid-column:1/-1}
-/* the rates note sits under the rates it explains, not across the whole card */
-.pct-fields .note{grid-column:7/-1;margin:.15rem 0 0}
-/* Fewer, wider columns as the card narrows. The spans are equalised at each step
-   so the fields divide evenly into rows instead of leaving one stranded: four
-   across, then two, then one. */
-@media (max-width:1040px){
-  .pct-field.c2,.pct-field.c3,.pct-field.c4{grid-column:span 3}
-  .pct-field.c6{grid-column:span 12}
-  .pct-fields .note{grid-column:1/-1}
-}
-@media (max-width:700px){ .pct-field.c2,.pct-field.c3,.pct-field.c4{grid-column:span 6} }
-@media (max-width:430px){ .pct-fields .pct-field{grid-column:1/-1} }
-.pct-divider{grid-column:1/-1;border-top:1px solid var(--line-soft);margin:.3rem 0 0}
+/* a section of the report: a quiet white panel with a title row */
+.pct-panel{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:16px 18px;margin-bottom:16px}
+.pct-panel-head{display:flex;align-items:center;justify-content:space-between;gap:10px 16px;flex-wrap:wrap;margin-bottom:14px}
+.pct-panel-head:last-child{margin-bottom:0}
+.pct-panel-title{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;min-width:0}
+.pct-panel-title h2{font-size:16px;font-weight:700;color:var(--heading);margin:0;white-space:nowrap}
+.pct-panel-title .hint{margin:0}
+.pct-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.pct-toggle{min-width:56px}
 
-/* KPI tiles — kit .kpi, three lines instead of two */
-.pct-kpis{display:grid;grid-template-columns:1fr;gap:.8rem;margin:.2rem 0 1rem}
-@media (min-width:600px){.pct-kpis{grid-template-columns:repeat(2,1fr)}}
-@media (min-width:960px){.pct-kpis{grid-template-columns:repeat(3,1fr)}}
-.pct-kpi{padding:.8rem 1rem}
-.pct-kpi .k{font-size:.7rem;font-weight:700;color:var(--mid);text-transform:uppercase;letter-spacing:.05em}
-.pct-kpi .v{font-size:1.5rem;font-weight:800;color:var(--charcoal);letter-spacing:-.02em;font-variant-numeric:tabular-nums;margin-top:.2rem}
-.pct-kpi .s{font-size:.72rem;color:var(--mid);font-weight:600;margin-top:.15rem}
-.pct-kpi .v.neg{color:#A8321F}
-.pct-kpi .v.mid{color:#9A6212}
-.pct-kpi .v.pos{color:#3F8F41}
+/* position: six headline cards, three across */
+.pct-kpis.stat-grid{grid-template-columns:repeat(3,minmax(0,1fr));margin-bottom:16px}
+@media (max-width:900px){.pct-kpis.stat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:560px){.pct-kpis.stat-grid{grid-template-columns:1fr}}
+.pct-kpis .stat-card-value{font-size:24px}
+.stat-card-value.pct-neg{color:var(--red)}
 
-/* budget consumption meter */
-.pct-meter{margin:.2rem 0 1rem}
-.pct-meter-top{display:flex;justify-content:space-between;align-items:baseline;gap:1rem;flex-wrap:wrap;
-  font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--mid);margin-bottom:.45rem}
-.pct-bar{position:relative;height:32px;background:var(--light-grey);border:1px solid var(--line);border-radius:8px;overflow:hidden}
-/* NB: not `.seg` — that is the kit's segmented control, and its border,
-   padding and radius would break each bar segment into a rounded pill. */
-.pct-bar .pct-seg{position:absolute;top:0;bottom:0;left:0;border:0;padding:0;border-radius:0}
-.pct-bar .spent{background:var(--teal-dark)}
-.pct-bar .fcast{background:repeating-linear-gradient(135deg,#A9BFC2 0 6px,#CBD8DA 6px 12px)}
-.pct-bar .over{background:repeating-linear-gradient(135deg,#C0392B 0 6px,#9E2E22 6px 12px)}
-.pct-bar .tick{position:absolute;top:0;bottom:0;width:2px;background:var(--slate)}
-.pct-legend{display:flex;flex-wrap:wrap;gap:.4rem 1.1rem;margin-top:.5rem;font-size:.74rem;color:var(--mid);font-weight:600}
-.pct-swatch{display:inline-block;width:10px;height:10px;margin-right:.35rem;vertical-align:-1px;border:1px solid rgba(0,0,0,.12);border-radius:2px}
-.pct-key{display:inline-block;width:22px;height:0;border-top-width:2px;border-top-style:solid;margin-right:.4rem;vertical-align:4px}
+/* budget meter: kit bar, a little taller since it is the only one */
+.pct-meter{margin-bottom:16px}
+.pct-meter-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px 16px;flex-wrap:wrap;margin-bottom:8px}
+.pct-meter-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--text-dim)}
+.pct-meter-pct{font:500 12px var(--font-mono);color:var(--text)}
+.pct-meter .bar-track{height:14px;border-radius:7px}
+.pct-meter .bar-fill:first-child{border-radius:7px 0 0 7px}
+.pct-meter .bar-fill.status-red{background-image:repeating-linear-gradient(135deg,var(--red) 0 3px,var(--red-soft) 3px 6px)}
+.pct-meter .legend{margin-top:10px}
+.swatch-over{background-image:repeating-linear-gradient(135deg,var(--red) 0 2px,var(--red-soft) 2px 4px)}
 
-/* callouts — kit .callout is the info variant; these are the other severities */
-.pct-alerts .callout{margin-bottom:.6rem}
-.pct-alerts .callout:last-child{margin-bottom:0}
-.callout .lab{display:block;font-size:.68rem;font-weight:800;text-transform:uppercase;letter-spacing:.06em;
-  color:var(--teal-dark);margin-bottom:.2rem}
-.callout.pct-ok{background:#EDF7ED;border-color:#CBE7CC;border-left-color:var(--green)}
-.callout.pct-ok .lab{color:#3F8F41}
-.callout.pct-warn{background:#FDF3E7;border-color:#F0D6A6;border-left-color:#C8891A}
-.callout.pct-warn .lab{color:#9A6212}
-.callout.pct-issue{background:#FCEDEA;border-color:#F3C0B6;border-left-color:#D9503A}
-.callout.pct-issue .lab{color:#A8321F}
+/* alerts: kit callouts, stacked */
+.pct-alerts{display:flex;flex-direction:column;gap:8px}
+.pct-alerts .callout,#tsFlags .callout{margin:0}
+.callout .lab{display:block;font-size:12px;font-weight:700;margin-bottom:2px}
 
-/* chart */
+/* burn-up */
 .pct-chart svg{display:block;width:100%;height:auto}
+.pct-key{display:inline-block;width:22px;height:0;border-top:2px solid;flex:none}
 
-/* Every grid sits in a fixed viewport: it scrolls in both directions with the
-   header and the totals row pinned, so a long team or a 60-month project never
-   pushes the rest of the page down. max-height, so short tables stay short. */
-.pct-scroll{max-height:22rem;overflow:auto}
-.pct-scroll table.data thead th{position:sticky;top:0;z-index:5}
-.pct-scroll table.data tfoot td{position:sticky;bottom:0;z-index:5;box-shadow:inset 0 1px 0 var(--line)}
-/* the sticky first column of the two matrices has to out-rank the sticky rows */
-.pct-scroll .pct-matrix thead th.sticky{z-index:7}
-.pct-scroll .pct-matrix tfoot td.sticky{z-index:7}
-.pct-scroll .pct-matrix tbody td.sticky{z-index:3}
-@media print{ .pct-scroll{max-height:none;overflow:visible} }
+/* Every grid sits in a fixed viewport: it scrolls both ways with the header
+   and the totals row pinned, so a long team or a 60-month project never pushes
+   the rest of the page down. max-height, so short tables stay short. */
+.table-container.pct-scroll{max-height:22rem}
+.pct-scroll tfoot td{position:sticky;bottom:0;z-index:1;background:var(--light-grey);font-weight:600;
+  box-shadow:inset 0 1px 0 var(--border)}
+@media print{ .table-container.pct-scroll{max-height:none;overflow:visible} .pct-scroll tfoot td{position:static} }
 
-/* panel show/hide */
-.pct-toggle{min-width:3.4rem}
+/* dense tables: the kit's 10px x 14px cells are for lists, not month grids */
+.pct-matrix th,.pct-ledger th,.pct-drivers th{padding:8px 10px}
+.pct-matrix td,.pct-ledger td,.pct-drivers td{padding:5px 10px;font-size:13px}
+.pct-matrix input,.pct-matrix select,.pct-ledger input{height:28px;padding:3px 7px;font-size:12px}
+.pct-matrix input[type=number],.pct-ledger input[type=number]{font-family:var(--font-mono);text-align:right}
+td.money,td.foot-num,.pct-ledger td.num,.pct-drivers td.num{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+.pct-over{color:var(--red)!important;font-weight:600}
+.pct-under{color:var(--green-fg)!important}
+.pct-muted{color:var(--text-dim)!important}
 
-/* shared table density for the two grids */
-.pct-matrix,.pct-ledger{font-size:.82rem}
-.pct-matrix thead th,.pct-ledger thead th{padding:.45rem .6rem;white-space:nowrap}
-.pct-matrix td,.pct-ledger td{padding:.3rem .6rem;white-space:nowrap}
-.pct-matrix input,.pct-matrix select,.pct-ledger input{padding:.32rem .45rem;font-size:.8rem;border-radius:6px}
-/* over/under/muted must out-specify the kit's `table.data td { color }` */
-.pct-matrix td.pct-over,.pct-ledger td.pct-over,table.pct-ledger tfoot td.pct-over{color:#A8321F;font-weight:700}
-.pct-matrix td.pct-under,.pct-ledger td.pct-under{color:#3F8F41}
-.pct-matrix td.pct-muted,.pct-ledger td.pct-muted,.pct-muted{color:var(--mid);font-weight:500}
-
-/* allocation matrix — sticky first column, tinted month cells */
+/* the two month grids: sticky first column, tinted month cells */
 .pct-matrix{min-width:1000px;border-collapse:separate;border-spacing:0}
-.pct-matrix th.sticky,.pct-matrix td.sticky{position:sticky;left:0;z-index:3;width:184px;min-width:184px;
-  border-right:1px solid var(--line);text-align:left}
-.pct-matrix thead th.sticky{z-index:4;background:var(--teal-tint)}
-.pct-matrix tbody tr:nth-child(odd) td.sticky{background:#fff}
-.pct-matrix tbody tr:nth-child(even) td.sticky{background:var(--light-grey)}
-.pct-matrix tfoot td.sticky{background:#fff}
-.pct-matrix th.mhead{text-align:center;font-size:.64rem;padding:.45rem .25rem}
-.pct-matrix td.mcell{padding:.22rem .18rem}
+.pct-matrix th.sticky,.pct-matrix td.sticky{position:sticky;left:0;z-index:2;width:184px;min-width:184px;
+  box-shadow:inset -1px 0 0 var(--border)}
+.pct-matrix thead th.sticky{z-index:3}
+.pct-scroll .pct-matrix tfoot td.sticky{z-index:3}
+.pct-matrix th.mhead{text-align:center;padding:8px 4px}
+.pct-matrix td.mcell{padding:4px 3px}
 .pct-matrix td.mcell input{width:58px;text-align:center}
-.pct-matrix td.money{text-align:right;font-variant-numeric:tabular-nums;font-weight:700;color:var(--teal-dark)}
-.pct-matrix td.foot-num{text-align:center;font-size:.72rem;font-variant-numeric:tabular-nums;color:var(--slate)}
+.pct-matrix td.money{text-align:right;font-weight:600;color:var(--accent-dark)}
+.pct-matrix td.foot-num{text-align:center;font-size:11px;color:var(--slate)}
 .pct-matrix .c-role input{min-width:110px}
-.pct-matrix .c-ccy select{min-width:74px;padding-right:.2rem}
-.pct-matrix .c-rate input{min-width:88px;text-align:right}
-.pct-matrix .c-hpd input{min-width:60px;text-align:right}
-.pct-matrix td.del{width:36px}
-.pct-matrix tfoot td{border-top:2px solid var(--line);background:#fff;font-weight:700;color:var(--slate)}
+.pct-matrix .c-ccy select{min-width:76px;width:auto}
+.pct-matrix .c-rate input{min-width:92px}
+.pct-matrix .c-hpd input{min-width:64px}
+.pct-matrix td.del{width:40px}
 /* absorbs leftover width on a wide screen so the month cells stay tight */
 .pct-matrix .spacer{width:100%;padding:0}
-
-/* vendor matrix — same skeleton as the team matrix, money cells instead of days */
-.pct-vendors td.mcell input{width:82px;text-align:right}
+.pct-vendors td.mcell input{width:84px}
 .pct-vendors .c-scope input{min-width:130px}
-.pct-vendors .c-contract input{min-width:96px;text-align:right}
-.pct-vendors th.mhead{text-align:right;padding-right:.5rem}
-/* a row total past its contract must beat the teal `td.money` rule above */
-.pct-matrix td.money.pct-over{color:#A8321F}
+.pct-vendors .c-contract input{min-width:100px}
+.pct-vendors th.mhead{text-align:right;padding-right:8px}
+.pct-icon{height:26px;min-width:26px;padding:0 7px;font-size:15px;line-height:1;color:var(--text-dim)}
+.pct-icon:hover{color:var(--red);border-color:var(--red-soft);background:var(--red-bg)}
 
 /* monthly ledger */
 .pct-ledger{min-width:820px}
-.pct-ledger td.act input{width:120px;text-align:right}
-.pct-ledger tbody tr.now td{background:var(--teal-tint);font-weight:700}
-.pct-icon{border:1px solid var(--line);background:#fff;color:var(--mid);border-radius:6px;line-height:1;
-  padding:.2rem .45rem;font-size:1rem;cursor:pointer;font-family:inherit}
-.pct-icon:hover{color:#A8321F;border-color:#F3C0B6;background:#FCEDEA}
+.pct-ledger td.act input{width:124px}
+.pct-ledger tbody tr.now td{background:var(--teal-tint);font-weight:600}
 
 /* cost drivers */
 .pct-drivers{min-width:720px}
 .pct-drivers td.line{font-weight:600}
-.pct-drivers td.line .sub2{display:block;font-size:.72rem;color:var(--mid);font-weight:500}
-.pct-drivers td.num{font-variant-numeric:tabular-nums}
-.pct-share{position:relative;height:8px;background:var(--light-grey);border-radius:4px;overflow:hidden;min-width:80px}
-.pct-share span{position:absolute;left:0;top:0;bottom:0;background:var(--teal);border-radius:4px}
-.pct-drivers tr.gone td{opacity:.75;font-style:italic}
-.pct-kind{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--mid)}
+.pct-drivers .row-bar-track{min-width:90px}
+.pct-drivers .row-bar-fill{background:var(--teal-dark)}
+.pct-drivers tr.gone td{color:var(--text-dim);font-style:italic}
+.pct-kind{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.03em;color:var(--text-dim)}
+.sub2{display:block;font-size:11px;font-weight:400;color:var(--text-dim)}
 
-/* timesheet import: staff match table */
-#matchTable select{padding:.32rem .45rem;font-size:.8rem;border-radius:6px;min-width:190px;width:auto}
-#matchTable td{white-space:nowrap}
+/* settings: the panels under the settings tabs */
+.pct-settings-panel .setting-row-control input[type=month]{width:160px}
+.pct-settings-sub{font-size:13px;font-weight:700;color:var(--heading);margin:22px 0 2px}
+.pct-settings-panel .hint{margin-top:6px}
+.pct-btn-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:12px}
+.pct-btn-row .hint{margin:0}
+.pct-divider{border-top:1px solid var(--divider);margin:18px 0}
+.pct-recents-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;color:var(--text-dim);margin:14px 0 6px}
+#tsMapper{margin-top:16px}
+#tsMapperFields select{max-width:360px}
 
-/* review modal */
-.pct-overlay{position:fixed;inset:0;background:rgba(23,43,77,.45);z-index:80;display:flex;align-items:center;
-  justify-content:center;padding:1.5rem}
-.pct-dialog{background:var(--card);border-radius:var(--radius);box-shadow:0 12px 40px rgba(23,43,77,.25);
-  width:min(980px,100%);max-height:90vh;display:flex;flex-direction:column;overflow:hidden}
-.pct-dialog-head{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;
-  padding:1.1rem 1.4rem;border-bottom:1px solid var(--line)}
-.pct-dialog-head h2{font-size:1rem;font-weight:800;color:var(--slate);letter-spacing:-.01em}
-.pct-dialog-body{padding:1.1rem 1.4rem;overflow:auto}
-.pct-dialog-foot{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;
-  padding:.9rem 1.4rem;border-top:1px solid var(--line);background:var(--light-grey)}
-@media (max-width:640px){ .pct-overlay{padding:0} .pct-dialog{max-height:100vh;border-radius:0} }
+/* timesheet review: a wide dialog whose body scrolls between a fixed head and foot */
+.modal.pct-dialog{display:flex;flex-direction:column;overflow:hidden;padding:0}
+.pct-dialog-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:20px 24px 14px;
+  border-bottom:1px solid var(--divider)}
+.modal .pct-dialog-head h2{margin:0 0 2px}
+.pct-dialog-body{padding:16px 24px;overflow:auto;min-height:0}
+.pct-dialog .modal-actions{margin:0;padding:14px 24px;align-items:center;background:var(--lighter-grey)}
+.pct-foot-note{margin-right:auto;font-size:12px;color:var(--text-dim)}
+#tsFlags{display:flex;flex-direction:column;gap:8px}
+#tsFlags:not(:empty){margin-bottom:14px}
+.pct-review-table{max-height:26rem}
 
 /* code picker */
-.pct-code{display:flex;align-items:center;gap:.8rem;width:100%;text-align:left;padding:.6rem .8rem;
-  border:1px solid var(--line);background:#fff;border-radius:8px;margin-bottom:.4rem;cursor:pointer;font-family:inherit}
-.pct-code:hover{border-color:var(--teal);background:var(--teal-tint)}
-.pct-code .c-name{flex:1;font-weight:600;color:var(--slate);font-size:.86rem;word-break:break-word}
-.pct-code .c-meta{font-size:.76rem;color:var(--mid);white-space:nowrap;font-variant-numeric:tabular-nums}
-.pct-code.leave{opacity:.6}
+.pct-code{display:flex;align-items:center;gap:12px;width:100%;height:auto;text-align:left;padding:10px 12px;margin-bottom:6px}
+.pct-code:hover{background:var(--teal-tint)}
+.pct-code .c-name{flex:1;font-weight:600;word-break:break-word}
+.pct-code .c-meta{font:400 12px var(--font-mono);color:var(--text-dim);white-space:nowrap}
+.pct-code.leave{opacity:.65}
+.pct-newp{margin-left:6px;vertical-align:1px}
 
-/* callouts stack flush by default, which reads as one block colliding with the
-   toolbar under it — space them, and give the toolbar its own gap */
-#tsFlags{display:flex;flex-direction:column;gap:.45rem}
-#tsFlags:not(:empty){margin-bottom:1rem}
-
-/* preview rows */
-.pct-preview td.num{font-variant-numeric:tabular-nums}
-.pct-preview input[type=number]{width:88px;padding:.3rem .45rem;font-size:.8rem;text-align:right;border-radius:6px}
-.pct-preview input[type=checkbox]{accent-color:var(--teal);width:16px;height:16px;cursor:pointer}
+/* review rows */
+.pct-preview td.num{font-family:var(--font-mono)}
+.pct-preview input[type=number]{width:90px;height:28px;padding:3px 7px;font:12px var(--font-mono);text-align:right}
+.pct-preview input[type=checkbox]{width:16px;height:16px;cursor:pointer}
+.pct-preview td.c{text-align:center}
 /* held back: a fall in a month the file only part covers, unticked by default */
-.pct-preview tr.hold td{background:#FDF3E7}
-.pct-preview tr.hold:nth-child(even) td{background:#FBEDDC}
-.pct-preview td .sub2{display:block;font-size:.72rem;color:var(--mid);font-weight:500}
-.pct-preview td.up{color:#3F8F41;font-weight:700}
-.pct-preview td.dn{color:#9A6212;font-weight:700}
+.pct-preview tbody tr.hold td{background:var(--yellow-bg)}
+.pct-preview td.up{color:var(--green-fg);font-weight:600}
+.pct-preview td.dn{color:var(--yellow-fg);font-weight:600}
 .pct-preview .who{font-weight:600}
-.pct-preview .who .sub2{display:block;font-size:.72rem;color:var(--mid);font-weight:500}
-.pct-newp{display:inline-block;font-size:.66rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;
-  color:#9A6212;background:#FDF3E7;border:1px solid #F0D6A6;border-radius:20px;padding:.05rem .45rem;margin-left:.35rem}
 
-/* toast */
-#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:24px;background:var(--slate);color:#fff;
-  padding:.6rem 1rem;font-size:.82rem;font-weight:600;border-radius:9px;z-index:60;opacity:0;pointer-events:none;
-  transition:opacity .18s;box-shadow:0 4px 14px rgba(23,43,77,.18)}
-#toast.on{opacity:1}
+/* timeline history and the delay preview */
+.pct-history{margin-top:14px}
+.pct-history .tl-text{margin-top:2px}
+.pct-impact-row{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:12px;padding:3px 0}
+.pct-impact-row span:last-child{font-family:var(--font-mono);text-align:right}
+.pct-swatch-paused{background-image:repeating-linear-gradient(135deg,#E3E6E8 0 2px,#F6F7F7 2px 4px)}
+.pct-key-v{width:0;height:12px;border-top:0;border-left:1.5px dashed #6B6B6B}
+
+/* add-months dialog */
+.pct-ext-body{display:flex;flex-direction:column;gap:12px}
+.pct-ext-body .modal-lead{margin:0}
+.pct-opts{display:flex;flex-direction:column;gap:6px}
+.pct-opt{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px}
+.pct-opt:hover{border-color:var(--accent)}
+.pct-opt:has(input:checked){border-color:var(--teal);background:var(--teal-tint)}
+.pct-opt input{margin-top:3px;flex:none}
+.pct-ext-clear{display:flex;align-items:center;gap:8px;margin-top:8px;font-weight:600;cursor:pointer}
+.pct-ext-clear input{width:16px;height:16px}
+#extImpact{font-family:var(--font-mono)}
 
 @media (max-width:640px){
-  .pct-kpi .v{font-size:1.3rem}
+  .modal-overlay .modal.pct-dialog{max-height:100vh}
+  .pct-dialog-head,.pct-dialog-body,.pct-dialog .modal-actions{padding-left:16px;padding-right:16px}
 }
 @media print{
   body{background:#fff}
-  .no-print{display:none!important}
-  .card{break-inside:avoid;box-shadow:none}
-  .table-wrap{overflow:visible}
+  .pct-panel{break-inside:avoid}
 }
 </style>
 </head>
 <body>
-<header class="app-header">
-  <div class="inner">
-    <div>
-      <h1>Project Cost Tracker</h1>
-      <p id="headerSub">&nbsp;</p>
-    </div>
-    <div class="spacer"></div>
+<div class="wrap">
+
+  <header class="app-header">
+    <div class="app-logo"><img class="app-logo-mark" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMiIgaGVpZ2h0PSIzMiIgdmlld0JveD0iMCAwIDMyIDMyIj48cmVjdCB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHJ4PSI3IiBmaWxsPSIjMDBBOUNFIi8+PHBhdGggZD0iTTkgMTYuNSBsNCA0IEwyMyAxMSIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjMiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPjwvc3ZnPg==" alt="">Project Cost Tracker</div>
+    <nav class="app-nav" aria-label="Views">
+      <button type="button" class="app-nav-item active" data-view="report" aria-pressed="true">Report</button>
+      <button type="button" class="app-nav-item" data-view="settings" aria-pressed="false">Settings</button>
+    </nav>
+    <div class="app-header-spacer"></div>
     <span class="pct-save" id="saveState"><span class="pct-dot"></span>Starting up</span>
-    <button type="button" class="btn btn-ghost no-print pct-header-btn hidden" id="reconnectBtn">Reconnect</button>
-    <span class="ver" id="version">v0.0.0</span>
-    <button type="button" class="btn btn-ghost no-print pct-header-btn hidden" id="undoBtn">Undo</button>
-    <button type="button" class="btn btn-ghost no-print pct-header-btn" id="topImport">Load data</button>
+    <button type="button" class="no-print" id="reconnectBtn" hidden>Reconnect</button>
+    <button type="button" class="no-print" id="undoBtn" hidden>Undo</button>
+    <button type="button" class="primary no-print" id="topImport">Load data</button>
+  </header>
+
+  <div class="callout warn" id="bootError" role="alert" hidden></div>
+
+  <!-- ================= REPORT ================= -->
+  <div id="reportView">
+
+    <div class="page-summary">
+      <div class="page-summary-text">
+        <span class="page-summary-sub" id="headerSub">&nbsp;</span>
+        <span class="page-summary-main" id="summaryMain"></span>
+      </div>
+      <span class="status-pill" id="summaryPill"></span>
+    </div>
+
+    <!-- position -->
+    <section class="pct-panel">
+      <div class="pct-panel-head">
+        <div class="pct-panel-title"><h2>Position</h2><span class="hint" id="posHint"></span></div>
+        <div class="pct-actions no-print">
+          <button type="button" class="small" id="copyPos">Copy as image</button>
+          <button type="button" class="small pct-toggle" data-panel="position" aria-expanded="true" aria-controls="panel-position">Hide</button>
+        </div>
+      </div>
+      <div id="panel-position">
+        <div class="stat-grid pct-kpis" id="kpis"></div>
+        <div class="pct-meter">
+          <div class="pct-meter-top">
+            <span class="pct-meter-label">Budget consumption</span>
+            <span class="pct-meter-pct" id="meterPct"></span>
+          </div>
+          <div class="bar-track" id="meterTrack">
+            <div class="bar-fill solid" id="segSpent"></div>
+            <div class="bar-fill hatched" id="segFcast"></div>
+            <div class="bar-fill status-red" id="segOver"></div>
+            <div class="bar-limit" id="tickEstimate" title="Estimate" hidden></div>
+          </div>
+          <div class="legend">
+            <span class="legend-item"><span class="legend-swatch swatch-solid"></span>Actual to date</span>
+            <span class="legend-item"><span class="legend-swatch swatch-hatched"></span>Forecast remaining</span>
+            <span class="legend-item"><span class="legend-swatch swatch-over"></span>Over the estimate</span>
+            <span class="legend-item"><span class="legend-swatch"></span>Estimate left</span>
+          </div>
+        </div>
+        <div class="pct-alerts" id="alerts"></div>
+      </div>
+    </section>
+
+    <!-- burn-up -->
+    <section class="pct-panel">
+      <div class="pct-panel-head">
+        <div class="pct-panel-title"><h2>Burn-up</h2><span class="hint">Cumulative spend against the estimate ceiling</span></div>
+        <div class="pct-actions no-print">
+          <button type="button" class="small" id="delayBtn">Delay the timeline&hellip;</button>
+          <button type="button" class="small" id="copyChart">Copy as image</button>
+          <button type="button" class="small pct-toggle" data-panel="burnup" aria-expanded="true" aria-controls="panel-burnup">Hide</button>
+        </div>
+      </div>
+      <div id="panel-burnup">
+        <div class="pct-chart">
+          <svg id="chart" viewBox="0 0 900 340" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Cumulative spend against the estimate"></svg>
+        </div>
+        <div class="legend">
+          <span class="legend-item"><span class="pct-key" style="border-color:#007A99;border-top-width:3px"></span>Actual</span>
+          <span class="legend-item"><span class="pct-key" style="border-color:#007A99;border-top-style:dashed"></span>Forecast</span>
+          <span class="legend-item"><span class="pct-key" style="border-color:#8C8C8C"></span>Plan</span>
+          <span class="legend-item"><span class="pct-key" style="border-color:#3D3D3D;border-top-style:dashed;border-top-width:1.5px"></span>Estimate</span>
+          <span class="legend-item" id="legendBaseline" hidden><span class="pct-key" style="border-color:#B4BEC5;border-top-style:dotted;border-top-width:1.5px"></span>Baseline plan</span>
+          <span class="legend-item" id="legendPaused" hidden><span class="legend-swatch pct-swatch-paused"></span>Nothing planned</span>
+          <span class="legend-item" id="legendPlannedEnd" hidden><span class="pct-key pct-key-v"></span><span id="legendPlannedEndText">Planned end</span></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- monthly ledger -->
+    <section class="pct-panel">
+      <div class="pct-panel-head">
+        <div class="pct-panel-title"><h2>Monthly ledger</h2><span class="hint">Blank uses vendor invoices and timesheet hours where entered, otherwise the plan. Grey figures are forecast.</span></div>
+        <div class="pct-actions no-print">
+          <button type="button" class="small pct-toggle" data-panel="ledger" aria-expanded="true" aria-controls="panel-ledger">Hide</button>
+        </div>
+      </div>
+      <div id="panel-ledger">
+        <div class="table-container pct-scroll">
+          <table class="pct-ledger" id="ledgerTable">
+            <thead>
+              <tr>
+                <th>Month</th>
+                <th class="num" id="thPlanned">Planned</th>
+                <th class="num" id="thActual">Actual</th>
+                <th class="num">Variance</th>
+                <th class="num">Cumulative</th>
+                <th class="num">Remaining</th>
+                <th class="num">% of est.</th>
+                <th class="num" id="thBaseline" hidden>Baseline</th>
+              </tr>
+            </thead>
+            <tbody id="ledgerBody"></tbody>
+            <tfoot><tr>
+              <td>Total, forecast</td>
+              <td class="num" id="sumPlanned">0</td>
+              <td class="num" id="sumActual">0</td>
+              <td class="num" id="sumVar">0</td>
+              <td class="num" id="sumCum">0</td>
+              <td class="num" id="sumRem">0</td>
+              <td class="num" id="sumPct">0%</td>
+              <td class="num" id="sumBaseline" hidden>0</td>
+            </tr></tfoot>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- team -->
+    <section class="pct-panel">
+      <div class="pct-panel-head">
+        <div class="pct-panel-title"><h2>Team &amp; days</h2><span class="hint" id="teamNote"></span></div>
+        <div class="pct-actions no-print">
+          <div class="seg-tabs" role="group" aria-label="Show">
+            <button type="button" class="seg-tab" id="modePlanned">Planned days</button>
+            <button type="button" class="seg-tab" id="modeActual">Actual hours</button>
+          </div>
+          <button type="button" class="small" id="addRow">Add person</button>
+          <button type="button" class="small pct-toggle" data-panel="team" aria-expanded="true" aria-controls="panel-team">Hide</button>
+        </div>
+      </div>
+      <div id="panel-team">
+        <div class="table-container pct-scroll">
+          <table class="pct-matrix" id="teamTable">
+            <thead><tr id="teamHead"></tr></thead>
+            <tbody id="teamBody"></tbody>
+            <tfoot><tr id="teamFoot"></tr></tfoot>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- vendors -->
+    <section class="pct-panel">
+      <div class="pct-panel-head">
+        <div class="pct-panel-title"><h2>Vendors</h2><span class="hint" id="vendorSummary"></span></div>
+        <div class="pct-actions no-print">
+          <div class="seg-tabs" id="vendorModes" role="group" aria-label="Show" hidden>
+            <button type="button" class="seg-tab" id="modeVendorPlanned">Planned</button>
+            <button type="button" class="seg-tab" id="modeVendorInvoiced">Invoiced</button>
+          </div>
+          <button type="button" class="small" id="addVendor">Add vendor</button>
+          <button type="button" class="small pct-toggle" data-panel="vendors" aria-expanded="true" aria-controls="panel-vendors">Hide</button>
+        </div>
+      </div>
+      <div id="panel-vendors" hidden>
+        <p class="hint" id="vendorNote" style="margin:0 0 10px;"></p>
+        <div class="table-container pct-scroll">
+          <table class="pct-matrix pct-vendors" id="vendorTable">
+            <thead><tr id="vendorHead"></tr></thead>
+            <tbody id="vendorBody"></tbody>
+            <tfoot><tr id="vendorFoot"></tr></tfoot>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- cost drivers -->
+    <section class="pct-panel">
+      <div class="pct-panel-head">
+        <div class="pct-panel-title"><h2>Cost drivers</h2><span class="hint" id="driverHint"></span></div>
+        <div class="pct-actions no-print">
+          <button type="button" class="small pct-toggle" data-panel="drivers" aria-expanded="true" aria-controls="panel-drivers">Hide</button>
+        </div>
+      </div>
+      <div id="panel-drivers" hidden>
+        <div class="table-container pct-scroll">
+          <table class="pct-drivers" id="driverTable">
+            <thead><tr id="driverHead"></tr></thead>
+            <tbody id="driverBody"></tbody>
+            <tfoot><tr id="driverFoot"></tr></tfoot>
+          </table>
+        </div>
+      </div>
+    </section>
+
   </div>
-</header>
 
-<div class="container">
+  <!-- ================= SETTINGS ================= -->
+  <div id="settingsView" hidden>
+    <div class="settings-header"><h2>Settings</h2><span class="app-version" id="version">v0.0.0</span></div>
+    <nav class="settings-nav" aria-label="Settings sections">
+      <button type="button" class="settings-nav-item active" data-tab="project" aria-pressed="true"><span class="settings-nav-label">Project</span></button>
+      <button type="button" class="settings-nav-item" data-tab="import" aria-pressed="false"><span class="settings-nav-label">Timesheet import</span></button>
+      <button type="button" class="settings-nav-item" data-tab="data" aria-pressed="false"><span class="settings-nav-label">Saving &amp; data</span></button>
+    </nav>
 
-  <div class="callout pct-warn hidden" id="bootError" role="alert" style="margin-bottom:1rem"></div>
-
-  <!-- ============ SET UP ============ -->
-  <section class="card no-print">
-    <div class="card-head">
-      <div>
-        <span class="title">Set up</span>
-        <span class="sub" id="setupSummary"></span>
+    <!-- project -->
+    <div class="settings-content pct-settings-panel" id="panel-setup">
+      <div class="settings-panel-head"><h3>Project</h3><span class="hint" id="setupSummary"></span></div>
+      <div class="setting-row">
+        <div class="setting-row-label"><label class="label-text" for="pname">Project name</label></div>
+        <div class="setting-row-control"><input type="text" id="pname" spellcheck="false" placeholder="Untitled project" style="width:280px;text-align:left"></div>
       </div>
-      <button type="button" class="mini-btn pct-toggle" data-panel="setup" aria-expanded="true" aria-controls="panel-setup">Hide</button>
-    </div>
-    <div id="panel-setup" class="hidden">
-      <!-- one 12-column grid: every field is as wide as what it holds, so a
-           two-digit month count does not get the same box as a project name.
-           Rows come out 6+3+3, 3+2+3+2+2, then 6+2+2+2 for the code and rates. -->
-      <div class="pct-fields">
-        <div class="pct-field c6">
-          <label for="pname">Project name</label>
-          <input type="text" id="pname" spellcheck="false" placeholder="Untitled project">
-        </div>
-        <div class="pct-field c4">
-          <label for="estimate" title="Total approved estimate">Estimate</label>
-          <input type="number" id="estimate" min="0" step="any">
-        </div>
-        <div class="pct-field c2">
-          <label for="base" title="Base currency — every figure is reported in this">Currency</label>
-          <select id="base"></select>
-        </div>
-        <div class="pct-field c3">
-          <label for="start">Start month</label>
-          <input type="month" id="start" min="1900-01">
-        </div>
-        <div class="pct-field c2">
-          <label for="duration" title="Duration in months">Months</label>
-          <input type="number" id="duration" min="1" max="60" step="1">
-        </div>
-        <div class="pct-field c3">
-          <label for="today" title="The month you are reporting from">Now</label>
-          <input type="month" id="today">
-        </div>
-        <div class="pct-field c2">
-          <label for="wdays" title="Working days per month">Days / month</label>
-          <input type="number" id="wdays" min="1" max="31" step="any">
-        </div>
-        <div class="pct-field c2">
-          <label for="hpd" title="Default hours per day for newly added people">Hours / day</label>
-          <input type="number" id="hpd" min="0.5" max="24" step="any">
-        </div>
-        <div class="pct-divider"></div>
-        <div class="pct-field c6">
-          <label for="ukCode" title="The ProjectName this project appears under in the UK timesheet export">UK timesheet code</label>
-          <input type="text" id="ukCode" spellcheck="false" placeholder="Set on the first import, or paste it here">
-        </div>
-        <!-- display:contents, so the rate fields sit in this grid rather than a nested one -->
-        <div id="fxFields"></div>
-        <div class="note" id="fxNote"></div>
+      <div class="setting-row">
+        <div class="setting-row-label"><label class="label-text" for="estimate">Estimate</label><span class="label-hint">The total approved budget</span></div>
+        <div class="setting-row-control"><input type="number" id="estimate" min="0" step="any"></div>
+      </div>
+      <div class="setting-row">
+        <div class="setting-row-label"><label class="label-text" for="base">Currency</label><span class="label-hint">Every figure is reported in this</span></div>
+        <div class="setting-row-control"><select id="base"></select></div>
+      </div>
+      <div class="setting-row">
+        <div class="setting-row-label"><label class="label-text" for="start">Start month</label><span class="label-hint">Moving it re-phases the plan; actuals stay on their months</span></div>
+        <div class="setting-row-control"><input type="month" id="start" min="1900-01"></div>
+      </div>
+      <div class="setting-row">
+        <div class="setting-row-label"><label class="label-text" for="duration">Months</label><span class="label-hint">Adding months asks how to cost the team in them. To push the remaining plan later, use Delay the timeline below</span></div>
+        <div class="setting-row-control"><input type="number" class="narrow" id="duration" min="1" max="60" step="1"><span class="unit-suffix">months</span></div>
+      </div>
+      <div class="setting-row">
+        <div class="setting-row-label"><label class="label-text" for="today">Now</label><span class="label-hint">The month you are reporting from</span></div>
+        <div class="setting-row-control"><input type="month" id="today"></div>
+      </div>
+      <div class="setting-row">
+        <div class="setting-row-label"><label class="label-text" for="wdays">Working days</label><span class="label-hint">Per month</span></div>
+        <div class="setting-row-control"><input type="number" class="narrow" id="wdays" min="1" max="31" step="any"><span class="unit-suffix">days</span></div>
+      </div>
+      <div class="setting-row">
+        <div class="setting-row-label"><label class="label-text" for="hpd">Hours per day</label><span class="label-hint">Default for people you add</span></div>
+        <div class="setting-row-control"><input type="number" class="narrow" id="hpd" min="0.5" max="24" step="any"><span class="unit-suffix">hours</span></div>
+      </div>
+      <div class="setting-row">
+        <div class="setting-row-label"><label class="label-text" for="ukCode">UK timesheet code</label><span class="label-hint">The ProjectName this project appears under in the export</span></div>
+        <div class="setting-row-control"><input type="text" id="ukCode" spellcheck="false" placeholder="Set on the first import" style="width:280px;text-align:left"></div>
       </div>
 
-      <div class="pct-divider" style="margin-top:.9rem;"></div>
-      <div class="controls-row" style="margin-top:.8rem;">
-        <button type="button" class="mini-btn" id="setBaseline">Set baseline from this plan</button>
-        <button type="button" class="mini-btn hidden" id="clearBaseline">Clear baseline</button>
-        <span class="sub" id="baselineState"></span>
-      </div>
-    </div>
-  </section>
+      <div class="pct-settings-sub">Exchange rates</div>
+      <div id="fxFields"></div>
+      <p class="hint" id="fxNote"></p>
 
-  <!-- ============ POSITION ============ -->
-  <section class="card">
-    <div class="card-head">
-      <div>
-        <span class="title">Position</span>
-        <span class="sub" id="posHint"></span>
+      <div class="pct-settings-sub">Baseline</div>
+      <div class="pct-btn-row">
+        <button type="button" class="small" id="setBaseline">Set baseline from this plan</button>
+        <button type="button" class="small danger" id="clearBaseline" hidden>Clear baseline</button>
+        <span class="hint" id="baselineState"></span>
       </div>
-      <div class="controls-row no-print">
-        <button type="button" class="mini-btn" id="copyPos">Copy as image</button>
-        <button type="button" class="mini-btn pct-toggle" data-panel="position" aria-expanded="true" aria-controls="panel-position">Hide</button>
-      </div>
-    </div>
-    <div id="panel-position">
-    <div class="pct-kpis" id="kpis"></div>
-    <div class="pct-meter">
-      <div class="pct-meter-top"><span>Budget consumption</span><span id="meterPct"></span></div>
-      <div class="pct-bar">
-        <div class="pct-seg spent" id="segSpent"></div>
-        <div class="pct-seg fcast" id="segFcast"></div>
-        <div class="pct-seg over" id="segOver"></div>
-        <div class="tick" id="tickEstimate" title="Total estimate"></div>
-      </div>
-      <div class="pct-legend">
-        <span><span class="pct-swatch" style="background:#007A99"></span>Actual to date</span>
-        <span><span class="pct-swatch" style="background:repeating-linear-gradient(135deg,#A9BFC2 0 3px,#CBD8DA 3px 6px)"></span>Forecast remaining</span>
-        <span><span class="pct-swatch" style="background:repeating-linear-gradient(135deg,#C0392B 0 3px,#9E2E22 3px 6px)"></span>Over estimate</span>
-        <span><span class="pct-swatch" style="background:#3D3D3D"></span>Estimate ceiling</span>
-      </div>
-    </div>
-    <div class="pct-alerts" id="alerts"></div>
-    </div>
-  </section>
 
-  <!-- ============ BURN-UP ============ -->
-  <section class="card">
-    <div class="card-head">
-      <div>
-        <span class="title">Burn-up</span>
-        <span class="sub">Cumulative spend against the estimate ceiling</span>
+      <div class="pct-settings-sub">Timeline</div>
+      <div class="pct-btn-row">
+        <button type="button" class="small" id="delaySettingsBtn">Delay the timeline&hellip;</button>
+        <span class="hint" id="timelineState"></span>
       </div>
-      <div class="controls-row no-print">
-        <button type="button" class="mini-btn" id="copyChart">Copy as image</button>
-        <button type="button" class="mini-btn pct-toggle" data-panel="burnup" aria-expanded="true" aria-controls="panel-burnup">Hide</button>
-      </div>
+      <div class="pct-history" id="timelineHistory"></div>
     </div>
-    <div id="panel-burnup">
-    <div class="pct-chart">
-      <svg id="chart" viewBox="0 0 900 340" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Cumulative spend against the estimate"></svg>
-    </div>
-    <div class="pct-legend" style="padding-left:.2rem;">
-      <span><span class="pct-key" style="border-color:#007A99;border-top-width:3px"></span>Actual</span>
-      <span><span class="pct-key" style="border-color:#007A99;border-top-style:dashed"></span>Forecast</span>
-      <span><span class="pct-key" style="border-color:#7A848C"></span>Plan</span>
-      <span><span class="pct-key" style="border-color:#3D3D3D;border-top-style:dashed;border-top-width:1.5px"></span>Estimate</span>
-      <span class="hidden" id="legendBaseline"><span class="pct-key" style="border-color:#B4BEC5;border-top-style:dotted;border-top-width:1.5px"></span>Baseline plan</span>
-    </div>
-    </div>
-  </section>
 
-  <!-- ============ TIMESHEET IMPORT ============ -->
-  <section class="card no-print">
-    <div class="card-head">
-      <div>
-        <span class="title">Timesheet import</span>
-        <span class="sub" id="importSub">Drop a UK timesheet export to update actual hours</span>
-      </div>
-      <button type="button" class="mini-btn pct-toggle" data-panel="import" aria-expanded="false" aria-controls="panel-import">Show</button>
-    </div>
-    <div id="panel-import" class="hidden">
+    <!-- timesheet import -->
+    <div class="settings-content pct-settings-panel" id="panel-import" hidden>
+      <div class="settings-panel-head"><h3>Timesheet import</h3><span class="hint" id="importSub">Drop a UK timesheet export to update actual hours</span></div>
       <div class="upload-area" id="tsDrop" tabindex="0" role="button" aria-label="Drop a UK timesheet xlsx export here, or press Enter to browse">
         <div class="big">Drop the UK timesheet .xlsx here</div>
         <div class="or">or</div>
-        <button type="button" class="btn btn-primary" id="tsBrowse">Browse for file</button>
-        <input type="file" id="tsFile" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" class="hidden">
+        <button type="button" class="primary" id="tsBrowse">Browse for file</button>
+        <input type="file" id="tsFile" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
       </div>
-      <div id="tsError" class="err hidden"></div>
-      <div class="note" id="tsNote" style="margin-bottom:0;">
+      <div class="callout danger" id="tsError" style="margin:12px 0 0;" hidden></div>
+      <p class="hint" id="tsNote">
         Hours are totalled per person per month and compared with what is already recorded. Nothing changes until you
-        approve it. Months with no rows in the file are left alone &mdash; a shorter export never means zero.
-      </div>
-      <div id="tsMapper" class="hidden" style="margin-top:1rem;">
-        <div style="font-size:.74rem;font-weight:700;color:var(--slate);margin-bottom:.4rem;">Map the required columns</div>
-        <p class="sub">Not all expected headers were found. Match each field to a column, then confirm.</p>
-        <div id="tsMapperFields" style="margin-top:.5rem;"></div>
-        <div class="controls-row" style="margin-top:.7rem;"><button type="button" class="btn btn-primary" id="tsMapperConfirm">Confirm mapping</button></div>
-        <div id="tsMapperError" class="err hidden"></div>
+        approve it. Months with no rows in the file are left alone: a shorter export never means zero.
+      </p>
+      <div id="tsMapper" hidden>
+        <div class="pct-settings-sub" style="margin-top:0;">Map the required columns</div>
+        <p class="hint">Not all expected headers were found. Match each field to a column, then confirm.</p>
+        <div id="tsMapperFields"></div>
+        <div class="pct-btn-row"><button type="button" class="primary" id="tsMapperConfirm">Confirm mapping</button></div>
+        <div class="callout danger" id="tsMapperError" style="margin:12px 0 0;" hidden></div>
       </div>
     </div>
-  </section>
 
-  <!-- ============ TEAM & DAYS ============ -->
-  <section class="card">
-    <div class="card-head">
-      <div>
-        <span class="title">Team &amp; days</span>
-        <span class="sub" id="teamNote"></span>
+    <!-- saving & data -->
+    <div class="settings-content pct-settings-panel" id="panel-data" hidden>
+      <div class="settings-panel-head"><h3>Saving &amp; data</h3><span class="hint" id="dataSub">Autosaves to this browser as you type</span></div>
+      <div id="fileRow" hidden>
+        <div class="pct-btn-row" style="margin-top:0;">
+          <button type="button" class="primary" id="newProject">New project file&hellip;</button>
+          <button type="button" id="openProject">Open project file&hellip;</button>
+          <button type="button" id="saveAsProject" hidden>Save as&hellip;</button>
+        </div>
+        <p class="hint" id="fileState"></p>
+        <div class="callout warn" id="staleRow" style="margin:12px 0 0;" hidden>
+          <span id="staleMsg"></span>
+          <div class="pct-btn-row" style="margin-top:8px;">
+            <button type="button" class="small" id="useDisk">Load the file, discard mine</button>
+            <button type="button" class="small" id="overwriteFile">Keep mine, overwrite the file</button>
+          </div>
+        </div>
+        <div id="recents"></div>
+        <p class="hint" id="fsBlocked" hidden></p>
+        <div class="pct-divider"></div>
       </div>
-      <div class="controls-row no-print">
-        <span class="seg">
-          <button type="button" id="modePlanned">Planned days</button>
-          <button type="button" id="modeActual">Actual hours</button>
-        </span>
-        <button type="button" class="mini-btn" id="addRow">Add person</button>
-        <button type="button" class="mini-btn pct-toggle" data-panel="team" aria-expanded="true" aria-controls="panel-team">Hide</button>
+      <div class="pct-btn-row" style="margin-top:0;">
+        <button type="button" id="expJson">Save JSON</button>
+        <button type="button" id="impJson">Load data</button>
+        <button type="button" id="expCsv">Export ledger CSV</button>
+        <button type="button" id="demoBtn">Load demo project</button>
+        <button type="button" class="danger" id="resetBtn">Clear all data</button>
+        <input type="file" id="fileIn" accept=".json,application/json" hidden>
       </div>
+      <p class="hint" style="margin-top:12px;">
+        <strong>With a project file</strong> every change is written straight into it, so the file on disk is always current
+        and you can keep it beside the rest of the project. One file per project: open a different one to switch.
+        <strong>Without one</strong> everything sits in this browser, which every copy of this tool shares, so only one
+        project can live there at a time.
+        <strong>Save JSON</strong> still downloads a standalone copy to hand to someone else or keep as a version.
+      </p>
     </div>
-    <div id="panel-team">
-    <div class="table-wrap pct-scroll">
-      <table class="data pct-matrix" id="teamTable">
-        <thead><tr id="teamHead"></tr></thead>
-        <tbody id="teamBody"></tbody>
-        <tfoot><tr id="teamFoot"></tr></tfoot>
-      </table>
-    </div>
-    </div>
-  </section>
+  </div>
 
-  <!-- ============ VENDORS ============ -->
-  <section class="card">
-    <div class="card-head">
-      <div>
-        <span class="title">Vendors</span>
-        <span class="sub" id="vendorSummary"></span>
-      </div>
-      <div class="controls-row no-print">
-        <span class="seg hidden" id="vendorModes">
-          <button type="button" id="modeVendorPlanned">Planned</button>
-          <button type="button" id="modeVendorInvoiced">Invoiced</button>
-        </span>
-        <button type="button" class="mini-btn" id="addVendor">Add vendor</button>
-        <button type="button" class="mini-btn pct-toggle" data-panel="vendors" aria-expanded="true" aria-controls="panel-vendors">Hide</button>
-      </div>
-    </div>
-    <div id="panel-vendors" class="hidden">
-    <div class="sub" id="vendorNote" style="margin-bottom:.7rem;"></div>
-    <div class="table-wrap pct-scroll">
-      <table class="data pct-matrix pct-vendors" id="vendorTable">
-        <thead><tr id="vendorHead"></tr></thead>
-        <tbody id="vendorBody"></tbody>
-        <tfoot><tr id="vendorFoot"></tr></tfoot>
-      </table>
-    </div>
-    </div>
-  </section>
-
-  <!-- ============ COST DRIVERS ============ -->
-  <section class="card">
-    <div class="card-head">
-      <div>
-        <span class="title">Cost drivers</span>
-        <span class="sub" id="driverHint"></span>
-      </div>
-      <button type="button" class="mini-btn pct-toggle" data-panel="drivers" aria-expanded="true" aria-controls="panel-drivers">Hide</button>
-    </div>
-    <div id="panel-drivers" class="hidden">
-    <div class="table-wrap pct-scroll">
-      <table class="data pct-drivers" id="driverTable">
-        <thead><tr id="driverHead"></tr></thead>
-        <tbody id="driverBody"></tbody>
-        <tfoot><tr id="driverFoot"></tr></tfoot>
-      </table>
-    </div>
-    </div>
-  </section>
-
-  <!-- ============ MONTHLY LEDGER ============ -->
-  <section class="card">
-    <div class="card-head">
-      <div>
-        <span class="title">Monthly ledger</span>
-        <span class="sub">Blank uses vendor invoices and timesheet hours where entered, otherwise the plan. Grey figures are forecast.</span>
-      </div>
-      <button type="button" class="mini-btn pct-toggle" data-panel="ledger" aria-expanded="true" aria-controls="panel-ledger">Hide</button>
-    </div>
-    <div id="panel-ledger">
-    <div class="table-wrap pct-scroll">
-      <table class="data pct-ledger" id="ledgerTable">
-        <thead>
-          <tr>
-            <th>Month</th>
-            <th class="num" id="thPlanned">Planned</th>
-            <th class="num" id="thActual">Actual</th>
-            <th class="num">Variance</th>
-            <th class="num">Cumulative</th>
-            <th class="num">Remaining</th>
-            <th class="num">% of est.</th>
-            <th class="num hidden" id="thBaseline">Baseline</th>
-          </tr>
-        </thead>
-        <tbody id="ledgerBody"></tbody>
-        <tfoot><tr>
-          <td>Total, forecast</td>
-          <td class="num tnum" id="sumPlanned">0</td>
-          <td class="num tnum" id="sumActual">0</td>
-          <td class="num tnum" id="sumVar">0</td>
-          <td class="num tnum" id="sumCum">0</td>
-          <td class="num tnum" id="sumRem">0</td>
-          <td class="num tnum" id="sumPct">0%</td>
-          <td class="num tnum hidden" id="sumBaseline">0</td>
-        </tr></tfoot>
-      </table>
-    </div>
-    </div>
-  </section>
-
-  <!-- ============ DATA ============ -->
-  <section class="card no-print">
-    <div class="card-head">
-      <div>
-        <span class="title">Saving &amp; data</span>
-        <span class="sub" id="dataSub">Autosaves to this browser as you type</span>
-      </div>
-      <button type="button" class="mini-btn pct-toggle" data-panel="data" aria-expanded="true" aria-controls="panel-data">Hide</button>
-    </div>
-    <div id="panel-data">
-    <div id="fileRow" class="hidden">
-      <div class="controls-row" style="margin-bottom:.8rem;">
-        <button type="button" class="btn btn-primary" id="newProject">New project file&hellip;</button>
-        <button type="button" class="btn btn-ghost" id="openProject">Open project file&hellip;</button>
-        <button type="button" class="btn btn-ghost hidden" id="saveAsProject">Save as&hellip;</button>
-        <span class="sub" id="fileState"></span>
-      </div>
-      <div class="controls-row hidden" id="staleRow" style="margin-bottom:.8rem;">
-        <span class="sub" id="staleMsg"></span>
-        <button type="button" class="mini-btn" id="useDisk">Load the file, discard mine</button>
-        <button type="button" class="mini-btn" id="overwriteFile">Keep mine, overwrite the file</button>
-      </div>
-      <div id="recents"></div>
-      <div class="note hidden" id="fsBlocked" style="margin-top:.8rem;"></div>
-      <div class="pct-divider" style="margin:.9rem 0 .8rem"></div>
-    </div>
-    <div class="controls-row">
-      <button type="button" class="btn btn-primary" id="expJson">Save JSON</button>
-      <button type="button" class="btn btn-ghost" id="impJson">Load data</button>
-      <button type="button" class="btn btn-ghost" id="expCsv">Export ledger CSV</button>
-      <button type="button" class="btn btn-ghost" id="demoBtn">Load demo project</button>
-      <button type="button" class="btn btn-ghost" id="resetBtn">Clear all data</button>
-      <input type="file" id="fileIn" accept=".json,application/json" class="hidden">
-    </div>
-    <div class="note" style="margin-bottom:0;">
-      <strong>With a project file</strong> every change is written straight into it, so the file on disk is always current
-      and you can keep it beside the rest of the project. One file per project &mdash; open a different one to switch.
-      <strong>Without one</strong> everything sits in this browser, which every copy of this tool shares, so only one
-      project can live there at a time.
-      <strong>Save JSON</strong> still downloads a standalone copy to hand to someone else or keep as a version.
-    </div>
-    </div>
-  </section>
-
+  <footer>
+    Dreamt up by Christian, built with Claude: a human and AI double act 🤝
+    <div class="strapline">Single file, works offline. Your data never leaves this machine.</div>
+  </footer>
 </div>
 
-<footer class="app-footer">Dreamt up by Christian, built with Claude &mdash; a human + AI double act 🤝</footer>
-<div class="pct-overlay hidden" id="tsModal" role="dialog" aria-modal="true" aria-labelledby="tsModalTitle">
-  <div class="pct-dialog">
+<!-- timesheet review -->
+<div class="modal-overlay" id="tsModal" hidden>
+  <div class="modal modal-wide pct-dialog">
     <div class="pct-dialog-head">
       <div>
         <h2 id="tsModalTitle">Review timesheet changes</h2>
-        <p class="sub" id="tsSummary"></p>
+        <p class="hint" id="tsSummary" style="margin:0;"></p>
       </div>
-      <button type="button" class="mini-btn" id="tsClose" aria-label="Close">Cancel</button>
+      <button type="button" class="small" id="tsClose">Cancel</button>
     </div>
     <div class="pct-dialog-body">
-      <div id="tsPickCode" class="hidden">
-        <p class="sub" style="margin-bottom:.6rem;">Which of these is this project? The choice is remembered as the project's UK timesheet code.</p>
+      <div id="tsPickCode" hidden>
+        <p class="modal-lead">Which of these is this project? The choice is remembered as the project's UK timesheet code.</p>
         <div id="tsCodeList"></div>
       </div>
-      <div id="tsReview" class="hidden">
+      <div id="tsReview" hidden>
         <div id="tsFlags"></div>
-        <div class="ms-toolbar">
-          <span class="ms-count" id="tsCount"></span>
-          <button type="button" class="mini-btn" id="tsAll">Select all</button>
-          <button type="button" class="mini-btn" id="tsNone">Select none</button>
-          <button type="button" class="mini-btn" id="tsIncreases">Only increases</button>
+        <div class="toolbar">
+          <button type="button" class="small" id="tsAll">Select all</button>
+          <button type="button" class="small" id="tsNone">Select none</button>
+          <button type="button" class="small" id="tsIncreases">Only increases</button>
+          <div class="toolbar-spacer"></div>
+          <span class="list-meta" id="tsCount"></span>
         </div>
-        <div class="table-wrap pct-scroll" style="max-height:26rem">
-          <table class="data pct-preview" id="tsTable">
+        <div class="table-container pct-review-table">
+          <table class="pct-preview" id="tsTable">
             <thead><tr>
               <th>Person</th><th>Month</th><th class="num">Recorded</th><th class="num">In the file</th>
               <th class="num">Change</th><th class="num">Apply</th><th class="c">Use</th>
@@ -614,16 +560,86 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
         </div>
       </div>
     </div>
-    <div class="pct-dialog-foot">
-      <span class="sub" id="tsFootNote"></span>
-      <div class="controls-row">
-        <button type="button" class="btn btn-ghost" id="tsDecline">Decline</button>
-        <button type="button" class="btn btn-primary" id="tsAccept">Apply selected</button>
-      </div>
+    <div class="modal-actions">
+      <span class="pct-foot-note" id="tsFootNote"></span>
+      <button type="button" id="tsDecline">Decline</button>
+      <button type="button" class="primary" id="tsAccept">Apply selected</button>
     </div>
   </div>
 </div>
-<div id="toast" role="status" aria-live="polite"></div>
+
+<!-- delay the timeline -->
+<div class="modal-overlay" id="delayModal" hidden>
+  <div class="modal">
+    <h2>Delay the timeline</h2>
+    <p class="modal-lead">Planned work from the month you choose moves later. Actuals stay on the months they were booked in, and the estimate does not change.</p>
+    <div class="field-row">
+      <div class="field">
+        <label for="dlFrom">Delay from</label>
+        <select id="dlFrom"></select>
+      </div>
+      <div class="field">
+        <label for="dlMonths">By how many months</label>
+        <input type="number" id="dlMonths" min="1" max="59" step="1" value="1">
+        <div class="quick-chip-row" id="dlChips">
+          <button type="button" class="quick-chip" data-months="1">1</button>
+          <button type="button" class="quick-chip" data-months="2">2</button>
+          <button type="button" class="quick-chip" data-months="3">3</button>
+          <button type="button" class="quick-chip" data-months="6">6</button>
+        </div>
+      </div>
+    </div>
+    <div class="field">
+      <div class="label-text" style="margin-bottom:6px;">What should the team cost in the delay months?</div>
+      <div class="pct-opts">
+        <label class="pct-opt"><input type="radio" name="dlTeam" id="dlZero" value="zero" checked>
+          <span><b>Zero the team costs</b><span class="sub2">The project pauses: nothing is planned in the delay months.</span></span></label>
+        <label class="pct-opt" id="dlCarryOpt"><input type="radio" name="dlTeam" id="dlCarry" value="carry">
+          <span><b>Carry on the team costs</b><span class="sub2" id="dlCarrySub"></span></span></label>
+      </div>
+    </div>
+    <div class="field">
+      <label for="dlReason">Reason</label>
+      <input type="text" id="dlReason" maxlength="200" placeholder="For example: vendor environment not ready">
+    </div>
+    <div class="impact-box" id="dlImpact"></div>
+    <div class="callout warn" id="dlCap" style="margin:12px 0 0;" hidden></div>
+    <div class="modal-actions">
+      <button type="button" id="dlCancel">Cancel</button>
+      <button type="button" class="primary" id="dlOk">Delay</button>
+    </div>
+  </div>
+</div>
+
+<!-- add months -->
+<div class="modal-overlay" id="extModal" hidden>
+  <div class="modal">
+    <h2 id="extTitle">Add months</h2>
+    <div class="pct-ext-body">
+      <p class="modal-lead" id="extSub"></p>
+      <div id="extTeamChoice">
+        <div class="label-text" style="margin-bottom:6px;">What should the team cost in the new months?</div>
+        <div class="pct-opts">
+          <label class="pct-opt"><input type="radio" name="extTeam" id="extZero" value="zero" checked>
+            <span><b>Zero the team costs</b><span class="sub2">No planned days in the new months. Add them in the team grid when you know them.</span></span></label>
+          <label class="pct-opt"><input type="radio" name="extTeam" id="extCarry" value="carry">
+            <span><b>Carry on the team costs</b><span class="sub2" id="extCarrySub"></span></span></label>
+        </div>
+      </div>
+      <div class="callout warn" id="extHidden" style="margin:0;" hidden>
+        <span class="lab">Figures from before</span>
+        <span id="extHiddenText"></span>
+        <label class="pct-ext-clear"><input type="checkbox" id="extClear"> Clear them and start these months empty</label>
+      </div>
+      <p class="hint" style="margin:0;">Vendors, actuals and the estimate are not changed by adding months.</p>
+    </div>
+    <div class="modal-actions">
+      <span class="pct-foot-note" id="extImpact"></span>
+      <button type="button" id="extCancel">Cancel</button>
+      <button type="button" class="primary" id="extOk">Add months</button>
+    </div>
+  </div>
+</div>
 
 <script>
 /*@include framework/vendor/sheetjs.js@*/
@@ -645,11 +661,11 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 (function () {
   "use strict";
   var $ = RK.$, esc = RK.esc, show = RK.show, hide = RK.hide;
-  var VERSION = "v1.6.1";
+  var VERSION = "v2.1.0";
   var LS_KEY = "project-cost-tracker:v1";
   var LEGACY_KEY = "project-cost-tracker-v3";   // key used by the pre-Report-Kit build
   var CCYS = ["AED", "GBP", "USD", "EUR"];
-  var STATE_VERSION = 10;
+  var STATE_VERSION = 11;
   var MAX_MONEY = 1e12;
   $("version").textContent = VERSION;
 
@@ -687,7 +703,9 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
       ukCode: "",
       team: [], vendors: [], actuals: {}, baseline: null,
       // figures as typed before a base-currency switch; see the "base" handler
-      asTyped: null
+      asTyped: null,
+      // delays and extensions since the plan was first set, with the end it had then
+      timeline: null
     };
   }
   function EMPTY() { return BASE(); }
@@ -766,6 +784,26 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
       any = true;
     }
     return any ? out : null;
+  }
+  // The timeline history: the end the project had before its first recorded
+  // change, then each delay or extension in the order it was made. Entries that
+  // are damaged are dropped rather than guessed at.
+  function cleanTimeline(t) {
+    if (!isObj(t) || !isMonth(t.originalEnd)) return null;
+    var changes = (Array.isArray(t.changes) ? t.changes : []).filter(function (c) {
+      return isObj(c) && (c.kind === "delay" || c.kind === "extend") && isMonth(c.endBefore) && isMonth(c.endAfter) && num(c.months) >= 1;
+    }).map(function (c) {
+      return {
+        id: typeof c.id === "string" && c.id ? c.id : uid(),
+        at: typeof c.at === "string" && !isNaN(new Date(c.at).getTime()) ? c.at : "",
+        kind: c.kind, months: clamp(Math.round(num(c.months)), 1, 60),
+        from: isMonth(c.from) ? addMonths(c.from, 0) : "",
+        team: c.team === "carry" ? "carry" : "zero", cleared: c.cleared === true,
+        reason: typeof c.reason === "string" ? c.reason.slice(0, 200) : "",
+        endBefore: addMonths(c.endBefore, 0), endAfter: addMonths(c.endAfter, 0)
+      };
+    });
+    return { originalEnd: addMonths(t.originalEnd, 0), changes: changes };
   }
   function migrate(o) {
     var d = BASE();
@@ -871,6 +909,9 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 
     s.asTyped = cleanAsTyped(o.asTyped);
 
+    // v11: the timeline history. A file without one has no delays recorded.
+    s.timeline = cleanTimeline(o.timeline);
+
     // v7 added the baseline. A file without one simply has no baseline.
     s.baseline = isObj(o.baseline) ? o.baseline : null;
     if (s.baseline) {
@@ -897,11 +938,12 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
      only — use span() wherever a whole row is summed or drawn. */
   function span(arr) { return arr.slice(0, S.duration); }
 
-  // New months inherit the last planned value (extending a project keeps its shape)
-  // and start with zero actual hours.
+  // Padding is zero, planned and actual alike: a row that is short of the project
+  // must not gain cost just by being read. Carrying the team on into added months
+  // is a choice made in the add-months dialog (extendApply), never a default.
   function normDays(p) {
     var a = Array.isArray(p.days) ? p.days.slice() : [];
-    while (a.length < S.duration) a.push(a.length ? num(a[a.length - 1]) : num(S.workDays));
+    while (a.length < S.duration) a.push(0);
     p.days = a.map(function (v) { return clamp(num(v), 0, 31); });
     var b = Array.isArray(p.actualHours) ? p.actualHours.slice() : [];
     while (b.length < S.duration) b.push(0);
@@ -921,6 +963,8 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
   }
   function normalise() { S.team.forEach(normDays); S.vendors.forEach(normVendor); }
 
+  // A two-way toggle button: the look and what a screen reader hears move together.
+  function pressed(b, on) { b.classList.toggle("active", on); b.setAttribute("aria-pressed", on ? "true" : "false"); }
   function unitDays(p, field, v) { return field === "actualHours" ? num(v) / hpdOf(p) : num(v); }
   function costOf(p, field, i) { return num(p.rate) * unitDays(p, field, p[field][i]) * fxOf(p.ccy); }
   function totalIn(p, field) { var t = 0; for (var i = 0; i < S.duration; i++) t += costOf(p, field, i); return t; }
@@ -941,6 +985,36 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 
   function teamPlannedFor(i) { return S.team.reduce(function (s, p) { return s + costOf(p, "days", i); }, 0); }
   function plannedFor(i) { return teamPlannedFor(i) + vendorSum("planned", i); }
+
+  /* ---------- timeline ----------
+     The end month, and where it stands against the plan: the baseline's end
+     when there is a baseline, otherwise the end the project had before its
+     first recorded delay or extension. Changes are recorded once there is a
+     plan to change, so setting a project up never reads as a slip. */
+  function endKey() { return addMonths(S.start, S.duration - 1); }
+  function hasPlan() {
+    for (var i = 0; i < S.duration; i++) if (plannedFor(i) > 0) return true;
+    return false;
+  }
+  function plannedEnd() {
+    var bl = S.baseline;
+    if (bl && isMonth(bl.start) && num(bl.duration) >= 1) {
+      return { key: addMonths(bl.start, Math.round(num(bl.duration)) - 1), label: "the baseline" };
+    }
+    return S.timeline ? { key: S.timeline.originalEnd, label: "first planned" } : null;
+  }
+  // Months the end has moved against plannedEnd(): positive is later.
+  function slipMonths() { var r = plannedEnd(); return r ? monthDiff(r.key, endKey()) : 0; }
+  function slipText() {
+    var d = slipMonths(), r = plannedEnd();
+    if (!d) return "";
+    return Math.abs(d) + (Math.abs(d) === 1 ? " month " : " months ") + (d > 0 ? "later" : "earlier") + " than " + r.label;
+  }
+  function logTimeline(entry) {
+    if (!S.timeline) S.timeline = { originalEnd: entry.endBefore, changes: [] };
+    entry.id = uid(); entry.at = new Date().toISOString();
+    S.timeline.changes.push(entry);
+  }
   // What the month costs before anyone types over it: timesheet hours + vendor invoices.
   function derivedFor(i) { return tsCost(i) + vendorSum("invoiced", i); }
   function hasDerived(i) { return tsHas(i) || vendorHasInvoice(i); }
@@ -1031,14 +1105,21 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     var burn = wa.length ? spent / wa.length : 0;
     var remainingMonths = Math.max(0, S.duration - (lastActualIdx + 1));
     var remainingPlanned = rows.filter(function (r) { return r.i > lastActualIdx; }).reduce(function (s, r) { return s + r.planned; }, 0);
+    // The burn rate is charged only to remaining months the plan has spend in. A
+    // month planned at nothing (added empty, or a pause) forecasts nothing, so
+    // lengthening a project never raises the forecast by itself. A project with
+    // no plan at all has nothing to tell the months apart, so every month runs.
+    var hasPlan = cp > 0;
+    var active = function (r) { return r.i > lastActualIdx && (!hasPlan || r.planned > 0); };
+    var activeMonths = rows.filter(active).length;
     // Forecast the remainder at the worse of "the plan" and "the observed burn rate".
-    var remainingForecast = wa.length ? Math.max(remainingPlanned, burn * remainingMonths) : remainingPlanned;
+    var remainingForecast = wa.length ? Math.max(remainingPlanned, burn * activeMonths) : remainingPlanned;
     var eac = spent + remainingForecast;
 
-    var fc = spent, per = remainingMonths ? remainingForecast / remainingMonths : 0;
+    var fc = spent, per = activeMonths ? remainingForecast / activeMonths : 0;
     rows.forEach(function (r) {
       if (r.i <= lastActualIdx) r.cumForecast = r.cumActual;
-      else { fc += per; r.cumForecast = fc; }
+      else { if (active(r)) fc += per; r.cumForecast = fc; }
     });
 
     var breachMonth = null;
@@ -1048,7 +1129,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
       rows: rows, spent: spent, plannedToDate: plannedToDate, totalPlanned: cp, burn: burn, gaps: gaps, monthsBooked: wa.length,
       eac: eac, eacPlan: spent + remainingPlanned, variance: S.estimate - eac,
       burnVariance: plannedToDate ? (spent - plannedToDate) / plannedToDate : 0,
-      lastActualIdx: lastActualIdx, remainingMonths: remainingMonths, breachMonth: breachMonth,
+      lastActualIdx: lastActualIdx, remainingMonths: remainingMonths, activeMonths: activeMonths, breachMonth: breachMonth,
       runwayMonths: burn ? (S.estimate - spent) / burn : Infinity,
       vendors: vendorPositions(lastActualIdx),
       baseline: baselinePlan()
@@ -1061,7 +1142,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     var M = model();
     renderMeta(M); renderKpis(M); renderMeter(M); renderAlerts(M); renderChart(M);
     renderFx(); renderTeam(); renderVendors(M); renderDrivers(M); renderLedger(M);
-    renderBaselineControls(M); renderSetup(); renderPanels(); renderUndo(); renderImportSub();
+    renderBaselineControls(M); renderSetup(); renderTimeline(); renderPanels(); renderUndo(); renderImportSub();
     $("thActual").textContent = "Actual (" + S.base + ")";
     $("thPlanned").textContent = "Planned (" + S.base + ")";
     return M;
@@ -1085,8 +1166,32 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     });
   }
   // Adding a row to a collapsed grid would put it out of sight — open it instead.
+  // Set-up, import and saving are Settings tabs rather than panels: go there.
+  var SETTINGS_TAB = { setup: "project", "import": "import", data: "data" };
   function openPanel(key) {
+    if (SETTINGS_TAB[key]) { showView("settings"); showTab(SETTINGS_TAB[key]); return; }
     if (S.panels[key] === false) { S.panels[key] = true; renderPanels(); }
+  }
+
+  /* ---------- views ----------
+     Report and Settings, switched in the header; Settings has three tabs. Which
+     one is showing is a matter of this visit, so it is not saved. */
+  function showView(view) {
+    $("reportView").hidden = view !== "report";
+    $("settingsView").hidden = view !== "settings";
+    document.querySelectorAll(".app-nav-item").forEach(function (b) {
+      var on = b.getAttribute("data-view") === view;
+      b.classList.toggle("active", on); b.setAttribute("aria-pressed", on ? "true" : "false");
+    });
+  }
+  function showTab(tab) {
+    document.querySelectorAll(".settings-nav-item").forEach(function (b) {
+      var on = b.getAttribute("data-tab") === tab;
+      b.classList.toggle("active", on); b.setAttribute("aria-pressed", on ? "true" : "false");
+    });
+    $("panel-setup").hidden = tab !== "project";
+    $("panel-import").hidden = tab !== "import";
+    $("panel-data").hidden = tab !== "data";
   }
 
   function renderSetup() {
@@ -1101,11 +1206,20 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     var ms = months();
     var period = ms.length ? monthLabel(ms[0]) + " to " + monthLabel(ms[ms.length - 1]) + " · " + S.duration + " months" : "";
     var fte = S.team.reduce(function (s, p) { return s + totalDays(p); }, 0) / Math.max(1, S.duration * num(S.workDays));
-    return esc(S.name || "Untitled project") + " &middot; " + esc(period) +
+    var slip = slipText();
+    return esc(S.name || "Untitled project") + " &middot; " + esc(period) + (slip ? " (" + esc(slip) + ")" : "") +
       " &middot; " + S.team.length + " people &middot; " + (Math.round(fte * 10) / 10) + " avg FTE";
+  }
+  // The answer first: where the forecast lands against the estimate, as a sentence.
+  function varianceStatus(M) {
+    if (!(S.estimate > 0)) return ["pill-grey", "No estimate"];
+    return M.variance < 0 ? ["pill-red", "Over"] : M.variance < S.estimate * 0.05 ? ["pill-yellow", "Watch"] : ["pill-green", "On track"];
   }
   function renderMeta(M) {
     $("headerSub").innerHTML = metaLine();
+    $("summaryMain").textContent = money(M.spent) + " spent of " + money(S.estimate) + " · forecast " + money(M.eac);
+    var st = varianceStatus(M), pill = $("summaryPill");
+    pill.className = "status-pill " + st[0]; pill.textContent = st[1];
     document.title = (S.name || "Project") + " cost tracker";
     $("posHint").textContent = M.lastActualIdx < 0
       ? "No actuals yet, showing the plan."
@@ -1117,7 +1231,9 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     return [
       { k: "Total estimate", v: money(S.estimate), s: "Approved ceiling" },
       { k: "Spent to date", v: money(M.spent), s: pct(S.estimate ? M.spent / S.estimate : 0) + " of estimate" },
-      { k: "Remaining", v: money(S.estimate - M.spent), s: M.remainingMonths + " months to run" },
+      { k: "Remaining", v: money(S.estimate - M.spent),
+        s: M.remainingMonths + " months to run" +
+          (M.remainingMonths > M.activeMonths ? ", " + (M.remainingMonths - M.activeMonths) + " with nothing planned" : "") },
       { k: "Avg monthly burn", v: money(M.burn),
         s: M.lastActualIdx < 0 ? "No actuals"
           : M.monthsBooked + " month" + (M.monthsBooked === 1 ? "" : "s") + " with figures" +
@@ -1130,10 +1246,12 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     ];
   }
   function renderKpis(M) {
+    var st = varianceStatus(M);
     $("kpis").innerHTML = kpiItems(M).map(function (it) {
-      return '<div class="kpi pct-kpi"><div class="k">' + esc(it.k) + '</div>' +
-        '<div class="v ' + (it.cls || "") + '">' + esc(it.v) + '</div>' +
-        '<div class="s">' + esc(it.s) + '</div></div>';
+      return '<div class="stat-card"><div class="stat-card-name"><span>' + esc(it.k) + "</span>" +
+          (it.cls ? '<span class="status-pill ' + st[0] + '">' + esc(st[1]) + "</span>" : "") + "</div>" +
+        '<div class="stat-card-value' + (it.cls === "neg" ? " pct-neg" : "") + '">' + esc(it.v) + "</div>" +
+        '<div class="stat-card-of">' + esc(it.s) + "</div></div>";
     }).join("");
   }
 
@@ -1150,12 +1268,13 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
   }
   function renderMeter(M) {
     var g = meterGeom(M);
+    // kit bar: the segments sit side by side on one scale, max(estimate, forecast);
+    // the limit line marks the estimate once the forecast runs past it
     $("segSpent").style.width = g.spent + "%";
-    var f = $("segFcast");
-    f.style.left = g.spent + "%"; f.style.width = Math.max(0, g.fcastEnd - g.spent) + "%";
-    var o = $("segOver");
-    o.style.left = g.estimate + "%"; o.style.width = g.over ? Math.max(0, g.eacEnd - g.estimate) + "%" : "0%";
-    $("tickEstimate").style.left = "calc(" + g.estimate + "% - 1px)";
+    $("segFcast").style.width = Math.max(0, g.fcastEnd - g.spent) + "%";
+    $("segOver").style.width = g.over ? Math.max(0, g.eacEnd - g.estimate) + "%" : "0%";
+    $("tickEstimate").style.left = g.estimate + "%";
+    $("tickEstimate").hidden = !g.over;
     $("meterPct").textContent = pct(S.estimate ? M.spent / S.estimate : 0) + " spent · forecast " + pct(S.estimate ? M.eac / S.estimate : 0);
   }
 
@@ -1235,16 +1354,16 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
           " Cost drivers below shows which lines moved."]);
       }
     }
-    if (isFinite(M.runwayMonths) && M.runwayMonths < M.remainingMonths) {
+    if (isFinite(M.runwayMonths) && M.runwayMonths < M.activeMonths) {
       out.push(["issue", "Runway is shorter than the plan",
         "At " + money(M.burn) + " a month you have about " + (Math.floor(M.runwayMonths * 10) / 10) +
-        " months of budget left against " + M.remainingMonths + " months of delivery."]);
+        " months of budget left against " + M.activeMonths + " months of delivery."]);
     }
     return out;
   }
   function renderAlerts(M) {
     $("alerts").innerHTML = alertList(M).map(function (a) {
-      var cls = a[0] === "info" ? "callout" : "callout pct-" + a[0];
+      var cls = "callout" + ({ issue: " danger", warn: " warn", ok: " ok" }[a[0]] || "");
       return '<div class="' + cls + '"><span class="lab">' + esc(a[1]) + "</span>" + esc(a[2]) + "</div>";
     }).join("");
   }
@@ -1283,11 +1402,27 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
      above it, so "past the estimate" reads as a region at a glance instead of
      having to be traced along a line. */
   var CH = {
-    grid: "#EDF0F2", axis: "#D8DEE2", ink: "#6B6B6B",
-    ceil: "#3D3D3D", band: "rgba(192,57,43,.055)",
-    plan: "#7A848C", base: "#B4BEC5", now: "#CBD3D9", nowInk: "#98A2AA",
-    teal: "#007A99", breach: "#C0392B"
+    grid: "#EEF0F1", axis: "#E3E6E8", ink: "#6B6B6B",
+    ceil: "#3D3D3D", band: "rgba(179,38,30,.055)",
+    plan: "#8C8C8C", base: "#B4BEC5", now: "#D5DADD", nowInk: "#8C8C8C",
+    teal: "#007A99", breach: "#B3261E", paused: "#E3E6E8", pausedBg: "#F6F7F7",
+    // Report Kit 2's stacks: words in the UI face, figures in mono
+    ui: '"Segoe UI", -apple-system, system-ui, Roboto, Arial, sans-serif',
+    mono: 'ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace'
   };
+
+  /* What the burn-up marks about the timeline: future months the plan has
+     nothing in (a pause), and where the project was planned to end, drawn only
+     once the end has moved. Shared by the SVG and the canvas. */
+  function chartTimeline(M) {
+    var paused = M.totalPlanned > 0 ? M.rows.filter(function (r) { return r.i > M.lastActualIdx && !(r.planned > 0); }).map(function (r) { return r.i; }) : [];
+    var r = plannedEnd(), endIdx = null;
+    if (r && slipMonths()) {
+      var j = monthDiff(S.start, r.key);
+      if (j >= 0 && j < M.rows.length) endIdx = j;
+    }
+    return { paused: paused, endIdx: endIdx, endLabel: r ? (r.label === "the baseline" ? "Baseline end" : "Planned end") : "" };
+  }
 
   function renderChart(M) {
     var W = 900, H = 340, L = 96, R = 22, T = 18, B = 42;
@@ -1295,17 +1430,28 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     var sc = chartScale(M);
     var x = function (i) { return n <= 1 ? L : L + (i / (n - 1)) * iw; };
     var y = function (v) { return T + ih - (v / sc.max) * ih; };
-    var f = function (sz, w) { return 'font-family="Inter,Arial,sans-serif" font-size="' + sz + '"' + (w ? ' font-weight="' + w + '"' : ""); };
+    var f = function (sz, w, mono) {
+      return "font-family='" + (mono ? CH.mono : CH.ui) + "' font-size=\"" + sz + '"' + (w ? ' font-weight="' + w + '"' : "");
+    };
     var p = ['<rect x="0" y="0" width="' + W + '" height="' + H + '" fill="#FFFFFF"/>'];
 
     var ey = y(S.estimate), over = M.eac > S.estimate * 1.0001;
     // the tint MEANS something: it appears only once the forecast enters the zone,
     // so a healthy project gets a clean chart and an overrun is unmistakable
     if (over && ey > T + 1) p.push('<rect x="' + L + '" y="' + T + '" width="' + iw + '" height="' + (ey - T) + '" fill="' + CH.band + '"/>');
+    var tlm = chartTimeline(M), half = n > 1 ? iw / (n - 1) / 2 : iw / 2;
+    if (tlm.paused.length) {
+      p.push('<defs><pattern id="pctPaused" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">' +
+        '<rect width="6" height="6" fill="' + CH.pausedBg + '"/><rect width="3" height="6" fill="' + CH.paused + '"/></pattern></defs>');
+      tlm.paused.forEach(function (i) {
+        var x0 = Math.max(L, x(i) - half), x1 = Math.min(W - R, x(i) + half);
+        p.push('<rect x="' + x0 + '" y="' + T + '" width="' + (x1 - x0) + '" height="' + ih + '" fill="url(#pctPaused)"/>');
+      });
+    }
     sc.ticks.forEach(function (val) {
       var yy = y(val);
       p.push('<line x1="' + L + '" y1="' + yy + '" x2="' + (W - R) + '" y2="' + yy + '" stroke="' + CH.grid + '" stroke-width="1"/>');
-      p.push('<text x="' + (L - 10) + '" y="' + (yy + 4) + '" text-anchor="end" ' + f(12) + ' fill="' + CH.ink + '">' + plain(val) + "</text>");
+      p.push('<text x="' + (L - 10) + '" y="' + (yy + 4) + '" text-anchor="end" ' + f(11.5, 0, true) + ' fill="' + CH.ink + '">' + plain(val) + "</text>");
     });
     p.push('<line x1="' + L + '" y1="' + ey + '" x2="' + (W - R) + '" y2="' + ey + '" stroke="' + CH.ceil + '" stroke-width="1.5" stroke-dasharray="10 6"/>');
     p.push('<text x="' + (W - R) + '" y="' + (ey - 8) + '" text-anchor="end" ' + f(12, 600) + ' fill="' + CH.ceil + '">Estimate</text>');
@@ -1322,6 +1468,15 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
       p.push('<line x1="' + nx + '" y1="' + (T + 12) + '" x2="' + nx + '" y2="' + (T + ih) + '" stroke="' + CH.now + '" stroke-width="1"/>');
       p.push('<text x="' + (nx + 5) + '" y="' + (T + 10) + '" ' + f(10.5, 600) + ' fill="' + CH.nowInk + '">now</text>');
     }
+    if (tlm.endIdx !== null) {
+      var px = x(tlm.endIdx), right = tlm.endIdx > n * 0.6;
+      p.push('<line x1="' + px + '" y1="' + (T + 12) + '" x2="' + px + '" y2="' + (T + ih) + '" stroke="' + CH.ink + '" stroke-width="1.5" stroke-dasharray="4 4"/>');
+      p.push('<text x="' + (px + (right ? -5 : 5)) + '" y="' + (T + 10) + '" text-anchor="' + (right ? "end" : "start") + '" ' +
+        f(10.5, 600) + ' fill="' + CH.ink + '">' + esc(tlm.endLabel) + "</text>");
+    }
+    $("legendPaused").hidden = !tlm.paused.length;
+    $("legendPlannedEnd").hidden = tlm.endIdx === null;
+    if (tlm.endIdx !== null) $("legendPlannedEndText").textContent = tlm.endLabel + " " + monthLabel(plannedEnd().key);
 
     var path = function (vals, from) {
       return vals.map(function (v, i) { return (i === 0 ? "M" : "L") + x(i + from) + " " + y(v); }).join(" ");
@@ -1363,8 +1518,10 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     }
     sel.value = S.base;
     $("fxFields").innerHTML = CCYS.filter(function (c) { return c !== S.base; }).map(function (c) {
-      return '<div class="pct-field c2"><label for="fx-' + c + '" title="1 ' + c + " in " + S.base + '">' + c + " → " + S.base + "</label>" +
-        '<input id="fx-' + c + '" type="number" min="0" step="any" data-fx="' + c + '" value="' + num(S.rates[c]) + '"></div>';
+      return '<div class="setting-row"><div class="setting-row-label"><label class="label-text" for="fx-' + c + '">' + c + " → " + S.base + "</label>" +
+          '<span class="label-hint">' + S.base + " for 1 " + c + "</span></div>" +
+        '<div class="setting-row-control"><input id="fx-' + c + '" type="number" min="0" step="any" data-fx="' + c + '" value="' + num(S.rates[c]) + '">' +
+          '<span class="unit-suffix">' + S.base + "</span></div></div>";
     }).join("");
     var used = S.team.concat(S.vendors).map(function (e) { return e.ccy; })
       .filter(function (c, i, a) { return a.indexOf(c) === i && c !== S.base; });
@@ -1411,8 +1568,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     var fullOf = function (p) { return actual ? num(S.workDays) * hpdOf(p) : num(S.workDays); };
     var max = actual ? 744 : 31;
 
-    $("modePlanned").className = actual ? "" : "active";
-    $("modeActual").className = actual ? "active" : "";
+    pressed($("modePlanned"), !actual); pressed($("modeActual"), actual);
     $("teamNote").textContent = actual
       ? "Hours booked from timesheets, converted at each person's own hours per day. These drive the ledger actuals."
       : "Days planned per person per month. Cost = day rate × days.";
@@ -1471,8 +1627,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     var any = S.vendors.length > 0;
 
     if (any) show($("vendorModes")); else hide($("vendorModes"));
-    $("modeVendorPlanned").className = invoiced ? "" : "active";
-    $("modeVendorInvoiced").className = invoiced ? "active" : "";
+    pressed($("modeVendorPlanned"), !invoiced); pressed($("modeVendorInvoiced"), invoiced);
 
     // With no vendors the card says so quietly and adds nothing anywhere else.
     if (!any) {
@@ -1649,7 +1804,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
         '<td><span class="pct-kind">' + r.kind + "</span></td>" +
         '<td class="num">' + plain(r.plan) + "</td>" +
         '<td class="num">' + pct(share) + "</td>" +
-        '<td><div class="pct-share"><span style="width:' + (Math.round(share * 1000) / 10) + '%"></span></div></td>' +
+        '<td><span class="row-bar-track"><span class="row-bar-fill" style="width:' + (Math.round(share * 1000) / 10) + '%"></span></span></td>' +
         '<td class="num ' + (r.hasBooked ? "" : "pct-muted") + '">' + (r.hasBooked ? plain(r.booked) : "&mdash;") + "</td>" +
         (bl ? '<td class="num pct-muted">' + (r.baseline === null ? "&mdash;" : plain(r.baseline)) + "</td>" +
               '<td class="num ' + dCls + '">' + (delta === null ? "new" : plainSigned(delta)) + "</td>" : "") +
@@ -1663,6 +1818,34 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
       (bl ? '<td class="num">' + plain(blTotal) + '</td><td class="num">' + plainSigned(total - blTotal) + "</td>" : "");
   }
 
+  // Settings > Project > Timeline: where the end stands, then every change, newest first.
+  function renderTimeline() {
+    var slip = slipText(), tl = S.timeline;
+    $("timelineState").textContent = "Ends " + monthLabel(endKey()) + (slip ? ", " + slip : (plannedEnd() ? ", as planned" : "")) + ".";
+    if (!tl || !tl.changes.length) {
+      $("timelineHistory").innerHTML = '<p class="hint" style="margin:0;">No delays or extensions yet. Each one is listed here with its reason.</p>';
+      return;
+    }
+    var plural = function (n) { return n + (n === 1 ? " month" : " months"); };
+    var steps = tl.changes.map(function (c) {
+      return {
+        title: c.kind === "delay" ? "Delayed " + plural(c.months) + (c.from ? " from " + monthLabel(c.from) : "") : "Extended by " + plural(c.months),
+        sub: "Team " + (c.team === "carry" ? "carried on" : "at zero") + (c.cleared ? ", old figures cleared" : "") +
+          " · end " + monthLabel(c.endBefore) + " → " + monthLabel(c.endAfter),
+        time: c.at ? baselineDate(c.at) : "", reason: c.reason
+      };
+    }).reverse().concat([{ title: "Planned end " + monthLabel(tl.originalEnd), sub: "", time: "", reason: "", first: true }]);
+    $("timelineHistory").innerHTML = steps.map(function (st, i) {
+      return '<div class="tl-row"><div class="tl-rail"><span class="tl-dot' + (st.first ? " note" : "") + '"></span>' +
+          (i === steps.length - 1 ? "" : '<span class="tl-line"></span>') + "</div>" +
+        '<div class="tl-body"><div class="tl-body-top"><span class="tl-title">' + esc(st.title) + "</span>" +
+          '<span class="tl-time">' + esc(st.time) + "</span></div>" +
+          (st.sub ? '<span class="hint" style="margin:0;">' + esc(st.sub) + "</span>" : "") +
+          (st.reason ? '<span class="tl-text note-text">' + esc(st.reason) + "</span>" : "") +
+        "</div></div>";
+    }).join("");
+  }
+
   function renderBaselineControls(M) {
     var bl = M.baseline;
     if (bl) show($("clearBaseline")); else hide($("clearBaseline"));
@@ -1674,13 +1857,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
   }
 
   /* ---------- toast ---------- */
-  var toastTimer = null;
-  function toast(msg) {
-    var t = $("toast");
-    t.textContent = msg; t.classList.add("on");
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(function () { t.classList.remove("on"); }, 2600);
-  }
+  function toast(msg) { RK.toast(msg); }
 
   /* ---------- copy as image ----------
      Canvas twins of the Position panel and the burn-up, so either can be
@@ -1709,12 +1886,12 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     c.width = W * sc; c.height = H * sc;
     var g = c.getContext("2d");
     g.scale(sc, sc);
-    var F = function (w, s) { return w + " " + s + "px Inter, Arial, sans-serif"; };
+    var F = function (w, s, mono) { return w + " " + s + "px " + (mono ? CH.mono : CH.ui); };
 
     g.fillStyle = "#FFFFFF"; g.fillRect(0, 0, W, H);
     g.textBaseline = "alphabetic";
 
-    g.fillStyle = "#3D3D3D"; g.font = F(800, 17);
+    g.fillStyle = "#1A1A1A"; g.font = F(700, 17);
     g.fillText(S.name || "Untitled project", PAD, 24);
 
     var gw = (W - PAD * 2) / COLS;
@@ -1722,8 +1899,8 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
       var cx = PAD + (n % COLS) * gw, cy = headH + Math.floor(n / COLS) * kH;
       g.fillStyle = "#6B6B6B"; g.font = F(600, 11.5);
       g.fillText(it.k.toUpperCase(), cx, cy + 18);
-      g.fillStyle = it.cls === "neg" ? "#A8321F" : it.cls === "mid" ? "#9A6212" : it.cls === "pos" ? "#3F8F41" : "#1A1A1A";
-      g.font = F(700, 28);
+      g.fillStyle = it.cls === "neg" ? "#B3261E" : "#1A1A1A";
+      g.font = F(500, 26, true);
       g.fillText(it.v, cx, cy + 52);
       g.fillStyle = "#6B6B6B"; g.font = F(400, 12.5);
       g.fillText(it.s, cx, cy + 74);
@@ -1738,16 +1915,15 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 
     var bx = PAD, by = yy + 14, bw = W - PAD * 2, bh = 34;
     var gm = meterGeom(M);
-    g.fillStyle = "#F4F4F4"; g.fillRect(bx, by, bw, bh);
-    g.fillStyle = hatch(g, "#A9BFC2", "#CBD8DA");
+    g.fillStyle = "#E9ECEE"; g.fillRect(bx, by, bw, bh);
+    g.fillStyle = hatch(g, "#00A9CE", "#E6F6FA");
     g.fillRect(bx + bw * gm.spent / 100, by, bw * Math.max(0, gm.fcastEnd - gm.spent) / 100, bh);
     g.fillStyle = "#007A99"; g.fillRect(bx, by, bw * gm.spent / 100, bh);
     if (gm.over) {
-      g.fillStyle = hatch(g, "#C0392B", "#9E2E22");
+      g.fillStyle = hatch(g, "#B3261E", "#E57368");
       g.fillRect(bx + bw * gm.estimate / 100, by, bw * Math.max(0, gm.eacEnd - gm.estimate) / 100, bh);
     }
-    g.strokeStyle = "#CFCFCF"; g.strokeRect(bx, by, bw, bh);
-    g.fillStyle = "#3D3D3D"; g.fillRect(bx + bw * gm.estimate / 100 - 1, by, 2, bh);
+    if (gm.over) { g.fillStyle = "#B3261E"; g.fillRect(bx + bw * gm.estimate / 100 - 1, by - 4, 2, bh + 8); }
     return c;
   }
 
@@ -1763,15 +1939,23 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     var s2 = 2;
     var c = document.createElement("canvas"); c.width = W * s2; c.height = H * s2;
     var g = c.getContext("2d"); g.scale(s2, s2);
-    var F = function (w, sz) { return w + " " + sz + "px Inter, Arial, sans-serif"; };
+    var F = function (w, sz, mono) { return w + " " + sz + "px " + (mono ? CH.mono : CH.ui); };
 
     g.fillStyle = "#FFFFFF"; g.fillRect(0, 0, W, H);
     g.textBaseline = "alphabetic";
 
     var ey = y(S.estimate);
     if (M.eac > S.estimate * 1.0001 && ey > T + 1) { g.fillStyle = CH.band; g.fillRect(L, T, W - L - R, ey - T); }
+    var tlm = chartTimeline(M), half = n > 1 ? iw / (n - 1) / 2 : iw / 2;
+    if (tlm.paused.length) {
+      g.fillStyle = hatch(g, CH.paused, CH.pausedBg);
+      tlm.paused.forEach(function (i) {
+        var x0 = Math.max(L, x(i) - half), x1 = Math.min(W - R, x(i) + half);
+        g.fillRect(x0, T, x1 - x0, ih);
+      });
+    }
 
-    g.font = F(400, 12);
+    g.font = F(400, 11.5, true);
     sc.ticks.forEach(function (v) {
       var yy = y(v);
       g.strokeStyle = CH.grid; g.lineWidth = 1;
@@ -1799,6 +1983,14 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
       g.beginPath(); g.moveTo(nx, T + 12); g.lineTo(nx, T + ih); g.stroke();
       g.fillStyle = CH.nowInk; g.font = F(600, 10.5);
       g.fillText("now", nx + 5, T + 10);
+    }
+    if (tlm.endIdx !== null) {
+      var px = x(tlm.endIdx), pr = tlm.endIdx > n * 0.6;
+      g.strokeStyle = CH.ink; g.lineWidth = 1.5; g.setLineDash([4, 4]);
+      g.beginPath(); g.moveTo(px, T + 12); g.lineTo(px, T + ih); g.stroke(); g.setLineDash([]);
+      g.fillStyle = CH.ink; g.font = F(600, 10.5); g.textAlign = pr ? "right" : "left";
+      g.fillText(tlm.endLabel, px + (pr ? -5 : 5), T + 10);
+      g.textAlign = "left";
     }
 
     var line = function (vals, from, colour, width, dash) {
@@ -1855,6 +2047,17 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     key(CH.teal, null, 3, "Actual"); key(CH.teal, [6, 5], 2.5, "Forecast");
     key(CH.plan, null, 2, "Plan"); key(CH.ceil, [10, 6], 1.5, "Estimate");
     if (blc) key(CH.base, [2, 5], 1.5, "Baseline plan");
+    if (tlm.paused.length) {
+      g.fillStyle = hatch(g, CH.paused, CH.pausedBg); g.fillRect(lx, ly - 10, 12, 12);
+      g.fillStyle = CH.ink; g.font = F(400, 12.5); g.fillText("Nothing planned", lx + 19, ly);
+      lx += 19 + g.measureText("Nothing planned").width + 26;
+    }
+    if (tlm.endIdx !== null) {
+      g.strokeStyle = CH.ink; g.lineWidth = 1.5; g.setLineDash([4, 4]);
+      g.beginPath(); g.moveTo(lx + 6, ly - 12); g.lineTo(lx + 6, ly + 2); g.stroke(); g.setLineDash([]);
+      var el = tlm.endLabel + " " + monthLabel(plannedEnd().key);
+      g.fillStyle = CH.ink; g.font = F(400, 12.5); g.fillText(el, lx + 17, ly);
+    }
     return c;
   }
 
@@ -2036,17 +2239,19 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     return fmtd(f) + " to " + fmtd(t);
   }
 
+  // RK.modal: focus moves in and is trapped, Escape closes, focus goes back. The
+  // backdrop closes it only while nothing has been typed or ticked.
+  var tsUi = RK.modal($("tsModal"), {
+    onClose: function () { ts.buffer = null; ts.byCode = null; ts.changes = null; ts.gone = null; }
+  });
   function tsOpen() {
-    show($("tsModal"));
+    tsUi.open();
     $("tsSummary").textContent = ts.fileName + (ts.span ? " · covers " + tsSpanText() : "");
     var g = S.ukCode ? ts.byCode[S.ukCode] : null;
     if (!g) { tsShowCodePicker(); return; }
     tsBuildChanges(g);
   }
-  function tsClose() {
-    hide($("tsModal"));
-    ts.buffer = null; ts.byCode = null; ts.changes = null; ts.gone = null;
-  }
+  function tsClose() { tsUi.close(); }
 
   function tsShowCodePicker() {
     show($("tsPickCode")); hide($("tsReview"));
@@ -2058,7 +2263,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     $("tsCodeList").innerHTML = codes.map(function (c) {
       var g = ts.byCode[c], leave = TS_LEAVE.test(c);
       return '<button type="button" class="pct-code' + (leave ? " leave" : "") + '" data-code="' + esc(c) + '">' +
-        '<span class="c-name">' + esc(c) + (leave ? ' <span class="pct-newp">leave</span>' : "") + "</span>" +
+        '<span class="c-name">' + esc(c) + (leave ? '<span class="status-pill pill-yellow pct-newp">leave</span>' : "") + "</span>" +
         '<span class="c-meta">' + Object.keys(g.people).length + " people · " + RK.fmtHrs(g.hours) + " h</span></button>";
     }).join("");
   }
@@ -2165,7 +2370,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
       Object.keys(g.people).length + " people · " + RK.fmtHrs(g.hours) + " hours in the file" +
       (ts.span ? " · " + esc(tsSpanText()) : "") + ".</div>");
     if (ts.newPeople.length) {
-      flags.push('<div class="callout pct-warn"><span class="lab">New to this tracker</span>' +
+      flags.push('<div class="callout warn"><span class="lab">New to this tracker</span>' +
         ts.newPeople.map(function (p) { return esc(p.name || p.nos.join(", ")); }).join(", ") +
         " will be added with a <strong>zero day rate</strong>, so their time costs nothing until you set one.</div>");
     }
@@ -2177,7 +2382,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     }
     var held = ts.changes.filter(function (c) { return c.hold; });
     if (held.length) {
-      flags.push('<div class="callout pct-warn"><span class="lab">' + held.length + " held back</span>" +
+      flags.push('<div class="callout warn"><span class="lab">' + held.length + " held back</span>" +
         (held.length === 1 ? "This falls" : "These fall") + " in a month the file only <strong>part covers</strong>" +
         (ts.span ? " (it runs " + esc(tsSpanText()) + ")" : "") +
         ", so lower hours there are probably the window rather than a correction. " +
@@ -2218,7 +2423,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     $("tsBody").innerHTML = ts.changes.map(function (c, i) {
       var delta = c.incoming - c.current, dn = delta < 0;
       return '<tr class="' + (c.hold ? "hold" : "") + '" data-i="' + i + '">' +
-        '<td class="who">' + esc(c.name || c.nos.join(", ")) + (c.isNew ? '<span class="pct-newp">new</span>' : "") +
+        '<td class="who">' + esc(c.name || c.nos.join(", ")) + (c.isNew ? '<span class="status-pill pill-yellow pct-newp">new</span>' : "") +
           (c.nos.length ? '<span class="sub2">' + esc(c.nos.join(", ")) + "</span>" : "") + "</td>" +
         "<td>" + monthLabel(c.monthKey) +
           (c.whole ? "" : '<span class="sub2">part covered</span>') + "</td>" +
@@ -2641,7 +2846,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
           "<code>chrome://policy</code> for <code>DefaultFileSystemWriteGuardSetting</code>.") +
       " Here, the tracker keeps your project in this browser, which holds <strong>one project at a time</strong> — " +
       "use <strong>Save JSON</strong> before starting or opening another project. " +
-      '<button type="button" class="mini-btn" id="fsRetry" style="margin-top:.5rem;">Try file saving again</button>';
+      '<br><button type="button" class="small" id="fsRetry" style="margin-top:8px;">Try file saving again</button>';
     show(el);
     hide($("newProject")); hide($("openProject")); hide($("saveAsProject"));
     $("fileState").textContent = "";
@@ -2769,12 +2974,12 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
       rows = rows.slice(0, 6);
       recentRows = rows;
       if (!rows.length) { $("recents").innerHTML = ""; return; }
-      $("recents").innerHTML = '<div class="sub" style="margin-bottom:.4rem;">Recent project files</div>' +
-        '<div class="controls-row">' + rows.map(function (r) {
+      $("recents").innerHTML = '<div class="pct-recents-label">Recent project files</div>' +
+        '<div class="pct-btn-row" style="margin-top:0;">' + rows.map(function (r) {
           var open = doc.id === r.id;
-          return '<button type="button" class="mini-btn" data-recent="' + esc(r.id) + '"' +
+          return '<button type="button" class="small" data-recent="' + esc(r.id) + '"' +
             (open ? ' disabled title="Open now"' : "") + ">" + esc(r.name) + (open ? " ·  open" : "") + "</button>";
-        }).join("") + '<button type="button" class="mini-btn" id="forgetRecents">Clear list</button></div>';
+        }).join("") + '<button type="button" class="small link-action" id="forgetRecents">Clear list</button></div>';
     });
   }
 
@@ -2811,6 +3016,12 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
   /* ---------- events ---------- */
   function on(id, ev, fn) { $(id).addEventListener(ev, fn); }
 
+  document.querySelectorAll(".app-nav-item").forEach(function (b) {
+    b.addEventListener("click", function () { showView(b.getAttribute("data-view")); });
+  });
+  document.querySelectorAll(".settings-nav-item").forEach(function (b) {
+    b.addEventListener("click", function () { showTab(b.getAttribute("data-tab")); });
+  });
   document.querySelectorAll(".pct-toggle").forEach(function (btn) {
     btn.addEventListener("click", function () {
       var key = btn.getAttribute("data-panel");
@@ -2831,7 +3042,11 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     toast("Undone: " + last.label);
   });
   on("setBaseline", "click", function () {
-    if (S.baseline && !confirm("Replace the existing baseline with the current plan?")) return;
+    if (S.baseline) RK.confirm("The comparison columns will measure against the plan as it is now.", setBaseline,
+      { title: "Replace the baseline?", okLabel: "Replace baseline" });
+    else setBaseline();
+  });
+  function setBaseline() {
     snapshot(S.baseline ? "re-baseline" : "set baseline");
     S.baseline = {
       at: new Date().toISOString(), base: S.base,
@@ -2841,12 +3056,13 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
       team: JSON.parse(JSON.stringify(S.team)), vendors: JSON.parse(JSON.stringify(S.vendors))
     };
     render(); saveNow(); toast("Baseline set from the current plan");
-  });
+  }
   on("clearBaseline", "click", function () {
-    if (!confirm("Clear the baseline? The comparison columns go with it.")) return;
-    snapshot("clear baseline");
-    S.baseline = null;
-    render(); saveNow(); toast("Baseline cleared");
+    RK.confirm("The comparison columns go with it. Undo brings it back.", function () {
+      snapshot("clear baseline");
+      S.baseline = null;
+      render(); saveNow(); toast("Baseline cleared");
+    }, { title: "Clear the baseline?", okLabel: "Clear baseline", danger: true });
   });
   on("copyPos", "click", function () { copyCanvas(drawPosition, "position", "Position copied, paste into your slide or email"); });
   on("copyChart", "click", function () { copyCanvas(drawBurnup, "burnup", "Burn-up copied, paste into your slide or email"); });
@@ -2989,10 +3205,202 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     else if (e.key === "Escape") e.target.value = S.start;
     else if (e.key !== "Tab" && e.key !== "Shift") startKeyed = true;
   });
+  /* Adding months. New months start empty; the dialog asks whether the team
+     should carry on at its last month's days instead. Months a shorter project
+     had hidden (shortened earlier, or pushed past the end by a start move) still
+     hold their figures: they come back as they were unless the dialog's Clear is
+     ticked. Shortening only hides the tail, as before. Either way, one undo step. */
+  var extUi = RK.modal($("extModal"), { onClose: function () { $("duration").value = S.duration; } });
+  var ext = null;
+  function inRange(i) { return i >= ext.from && i < ext.to; }
+  function hiddenCount(from, to) {
+    var c = 0, at = function (i, v) { if (i >= from && i < to && num(v) > 0) c++; };
+    S.team.forEach(function (p) { p.days.forEach(function (v, i) { at(i, v); }); p.actualHours.forEach(function (v, i) { at(i, v); }); });
+    S.vendors.forEach(function (v) { v.planned.forEach(function (x, i) { at(i, x); }); v.invoiced.forEach(function (x, i) { at(i, x); }); });
+    Object.keys(S.actuals).forEach(function (k) {
+      var v = S.actuals[k];
+      if (+k >= from && +k < to && v !== "" && v !== null) c++;
+    });
+    return c;
+  }
+  // What each new month's planned team days become: kept figures stay unless cleared.
+  function extFill(a, fill, clear) {
+    for (var i = ext.from; i < ext.to; i++) if (clear || !(num(a[i]) > 0)) a[i] = fill;
+  }
+  // What carrying the team on adds to the plan, over the months extFill would fill.
+  function carryCost(clear) {
+    var c = 0;
+    S.team.forEach(function (p) {
+      for (var i = ext.from; i < ext.to; i++) if (clear || !(num(p.days[i]) > 0)) c += num(p.rate) * num(p.days[ext.from - 1]) * fxOf(p.ccy);
+    });
+    return c;
+  }
+  function extRefresh() {
+    var c = $("extCarry").checked ? carryCost($("extClear").checked) : 0;
+    $("extImpact").textContent = "Ends " + monthLabel(addMonths(S.start, ext.to - 1)) + " · " +
+      (c ? "+" + money(c) + " planned" : "no cost added");
+  }
+  function extendAsk(from, to) {
+    normalise();
+    ext = { from: from, to: to };
+    var n = to - from, hidden = hiddenCount(from, to);
+    var carryable = S.team.some(function (p) { return num(p.days[from - 1]) > 0; });
+    // nobody has days to carry on and nothing old comes back: nothing to choose
+    if (!carryable && !hidden) {
+      extendApply(false, false);
+      if (S.team.length || S.vendors.length) toast("Added " + n + (n === 1 ? " month" : " months") + " with nothing planned. Undo to reverse");
+      return;
+    }
+    var span = monthLabel(addMonths(S.start, from)) + (n > 1 ? " to " + monthLabel(addMonths(S.start, to - 1)) : "");
+    $("extTitle").textContent = "Add " + n + (n === 1 ? " month" : " months");
+    $("extSub").textContent = span + ". The project now ends " + monthLabel(addMonths(S.start, to - 1)) + ".";
+    $("extZero").checked = true; $("extCarry").checked = false; $("extClear").checked = false;
+    if (carryable) show($("extTeamChoice")); else hide($("extTeamChoice"));
+    $("extCarrySub").textContent = "Each person repeats their " + monthLabel(addMonths(S.start, from - 1)) +
+      " days in every new month: +" + money(carryCost(false)) + " to the plan.";
+    if (hidden) {
+      $("extHiddenText").textContent = (n === 1 ? "This month" : "These months") + " still hold " + hidden +
+        (hidden === 1 ? " figure" : " figures") + " from before the project was shortened or its start moved. They are kept as they were.";
+      show($("extHidden"));
+    } else hide($("extHidden"));
+    $("extOk").textContent = "Add " + n + (n === 1 ? " month" : " months");
+    extRefresh();
+    extUi.open($("duration"));
+    $("extOk").focus();
+  }
+  function extendApply(carry, clear) {
+    snapshot("add months");
+    normalise();
+    var endBefore = endKey(), planned = hasPlan();
+    S.team.forEach(function (p) {
+      extFill(p.days, carry ? num(p.days[ext.from - 1]) : 0, clear);
+      if (clear) extFill(p.actualHours, 0, true);
+    });
+    if (clear) {
+      S.vendors.forEach(function (v) { extFill(v.planned, 0, true); extFill(v.invoiced, 0, true); });
+      Object.keys(S.actuals).forEach(function (k) { if (inRange(+k)) delete S.actuals[k]; });
+      if (S.asTyped && S.asTyped.actuals) Object.keys(S.asTyped.actuals).forEach(function (k) { if (inRange(+k)) delete S.asTyped.actuals[k]; });
+    }
+    S.duration = ext.to;
+    $("duration").value = S.duration;
+    if (planned) logTimeline({ kind: "extend", months: ext.to - ext.from, from: "", team: carry ? "carry" : "zero",
+      cleared: !!clear, reason: "", endBefore: endBefore, endAfter: endKey() });
+    render(); queueSave();
+  }
+  on("extZero", "change", extRefresh);
+  on("extCarry", "change", extRefresh);
+  on("extClear", "change", extRefresh);
+  on("extCancel", "click", function () { extUi.close(); });
+  on("extOk", "click", function () {
+    var carry = $("extCarry").checked && !$("extTeamChoice").hidden, clear = $("extClear").checked && !$("extHidden").hidden;
+    extendApply(carry, clear);
+    extUi.close();
+    toast("Added " + (ext.to - ext.from) + (ext.to - ext.from === 1 ? " month" : " months") +
+      (carry ? ", team carried on" : ", team at zero") + (clear ? ", old figures cleared" : "") + ". Undo to reverse");
+  });
+  /* Delaying the timeline. From month k on, every planned figure (team days,
+     vendor spend) moves n months later, and the n months that opens are
+     planned at zero, or at each person's days from the month before for "carry
+     on". What actually happened stays put: timesheet hours, invoices and ledger
+     actuals belong to their calendar month, which is why k is never before the
+     first month with no actuals. The estimate does not change. One undo step. */
+  var dlUi = RK.modal($("delayModal"));
+  function delayApply(k, n, carry, reason) {
+    normalise();
+    var endBefore = endKey(), from = addMonths(S.start, k);
+    var gap = function (fill) { var a = []; for (var i = 0; i < n; i++) a.push(fill); return a; };
+    S.team.forEach(function (p) {
+      Array.prototype.splice.apply(p.days, [k, 0].concat(gap(carry && k > 0 ? num(p.days[k - 1]) : 0)));
+    });
+    S.vendors.forEach(function (v) { Array.prototype.splice.apply(v.planned, [k, 0].concat(gap(0))); });
+    S.duration += n;
+    logTimeline({ kind: "delay", months: n, from: from, team: carry ? "carry" : "zero", cleared: false,
+      reason: reason, endBefore: endBefore, endAfter: endKey() });
+  }
+  function delayRead() {
+    var k = +$("dlFrom").value;
+    return { k: k, n: clamp(Math.round(num($("dlMonths").value)) || 1, 1, 60),
+      carry: $("dlCarry").checked && k > 0, reason: $("dlReason").value.trim() };
+  }
+  // What the delay would do, worked out on a copy of the project so nothing moves yet.
+  function delayRefresh() {
+    var d = delayRead(), room = 60 - S.duration;
+    if (d.k === 0 && $("dlCarry").checked) $("dlZero").checked = true;
+    $("dlCarryOpt").hidden = d.k === 0;   // nothing before the first month to carry on from
+    if (d.k > 0) $("dlCarrySub").textContent = "Each person repeats their " + monthLabel(addMonths(S.start, d.k - 1)) +
+      " days in every delay month, so the delay costs what the team costs.";
+    Array.prototype.forEach.call($("dlChips").children, function (b) { b.classList.toggle("active", +b.getAttribute("data-months") === d.n); });
+    if (d.n > room) {
+      $("dlCap").textContent = room > 0
+        ? "A project can run to 60 months, so this one can be delayed by " + room + (room === 1 ? " month" : " months") + " at most."
+        : "This project is already 60 months long, the most the tracker holds.";
+      show($("dlCap")); $("dlOk").disabled = true; $("dlImpact").hidden = true;
+      return;
+    }
+    hide($("dlCap")); $("dlOk").disabled = false; $("dlImpact").hidden = false;
+    var before = model(), after, keep = S;
+    S = JSON.parse(JSON.stringify(keep));
+    try { delayApply(d.k, d.n, d.carry, ""); after = model(); } finally { S = keep; }
+    var row = function (label, a, b) {
+      return '<div class="pct-impact-row"><span>' + label + "</span><span>" + esc(a === b ? a + " (no change)" : a + " → " + b) + "</span></div>";
+    };
+    $("dlImpact").innerHTML =
+      '<div class="impact-head"><span class="impact-title">What this changes</span></div>' +
+      row("End month", monthLabel(endKey()), monthLabel(addMonths(endKey(), d.n))) +
+      row("Planned total", money(before.totalPlanned), money(after.totalPlanned)) +
+      row("Forecast at completion", money(before.eac), money(after.eac)) +
+      row("Headroom (negative is over)", moneySigned(before.variance), moneySigned(after.variance));
+    $("dlOk").textContent = "Delay " + d.n + (d.n === 1 ? " month" : " months");
+  }
+  function delayOpen(opener) {
+    var first = model().lastActualIdx + 1;
+    if (first > S.duration - 1) {
+      toast("Every month already has actuals, so there is no plan left to delay. Add months instead");
+      return;
+    }
+    var opts = "";
+    for (var i = first; i < S.duration; i++) opts += '<option value="' + i + '">' + monthLabel(addMonths(S.start, i)) + "</option>";
+    $("dlFrom").innerHTML = opts;
+    $("dlFrom").value = String(first);
+    $("dlMonths").value = 1;
+    $("dlZero").checked = true; $("dlCarry").checked = false;
+    $("dlReason").value = "";
+    delayRefresh();
+    dlUi.open(opener);
+    $("dlFrom").focus();
+  }
+  on("delayBtn", "click", function (e) { delayOpen(e.currentTarget); });
+  on("delaySettingsBtn", "click", function (e) { delayOpen(e.currentTarget); });
+  on("dlFrom", "change", delayRefresh);
+  on("dlMonths", "input", delayRefresh);
+  on("dlZero", "change", delayRefresh);
+  on("dlCarry", "change", delayRefresh);
+  $("dlChips").addEventListener("click", function (e) {
+    var b = e.target.closest("[data-months]");
+    if (!b) return;
+    $("dlMonths").value = b.getAttribute("data-months");
+    delayRefresh();
+  });
+  on("dlCancel", "click", function () { dlUi.close(); });
+  on("dlOk", "click", function () {
+    var d = delayRead();
+    if (S.duration + d.n > 60) return;
+    snapshot("delay");
+    delayApply(d.k, d.n, d.carry, d.reason);
+    $("duration").value = S.duration;
+    dlUi.close();
+    render(); queueSave();
+    toast("Delayed " + d.n + (d.n === 1 ? " month" : " months") + " from " + monthLabel(addMonths(S.start, d.k)) +
+      ", now ends " + monthLabel(endKey()) + ". Undo to reverse");
+  });
+
   on("duration", "change", function (e) {
+    var n = clamp(Math.round(num(e.target.value)) || 1, 1, 60);
+    e.target.value = n;
+    if (extUi.isOpen() || n === S.duration) return;
+    if (n > S.duration) { extendAsk(S.duration, n); return; }
     edited("duration");
-    S.duration = clamp(Math.round(num(e.target.value)) || 1, 1, 60);
-    e.target.value = S.duration; render(); queueSave();
+    S.duration = n; render(); queueSave();
   });
   on("today", "change", function (e) { edited("current month"); S.today = e.target.value || S.today; render(); queueSave(); });
   on("wdays", "change", function (e) {
@@ -3233,14 +3641,16 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     RK.download(slug(S.name) + "-ledger-" + S.base + ".csv", lines.join("\n"), "text/csv;charset=utf-8");
   });
   on("demoBtn", "click", function () {
-    if (!confirm("Replace what is here with the demo project? Save a JSON first if you need it.")) return;
-    snapshot("load demo");
-    replaceState(withForeign(migrate(DEMO()))); saveNow(); toast("Demo project loaded");
+    RK.confirm("What is here is replaced by the demo project. Save a JSON first if you need it.", function () {
+      snapshot("load demo");
+      replaceState(withForeign(migrate(DEMO()))); saveNow(); toast("Demo project loaded");
+    }, { title: "Load the demo project?", okLabel: "Load demo" });
   });
   on("resetBtn", "click", function () {
-    if (!confirm("Clear everything: people, days, actuals and set up? Save a JSON first if you need it.")) return;
-    snapshot("clear all data");
-    replaceState(withForeign(EMPTY())); saveNow(); toast("Tracker cleared");
+    RK.confirm("People, days, actuals and set-up are all cleared. Save a JSON first if you need it.", function () {
+      snapshot("clear all data");
+      replaceState(withForeign(EMPTY())); saveNow(); toast("Tracker cleared");
+    }, { title: "Clear everything?", okLabel: "Clear everything", danger: true });
   });
 
   on("reconnectBtn", "click", reconnect);
@@ -3258,14 +3668,16 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     });
     on("overwriteFile", "click", function () {
       if (!doc.handle) return;
-      if (!confirm("Overwrite " + doc.name + " with what is on screen? Whatever changed it will be lost.")) return;
       var d = doc;
-      saveNow(true).then(function (ok) {
-        if (d !== doc) return;
-        if (!ok) stale = true;
-        renderDocState();
-        toast(ok ? "Overwrote " + doc.name : "Could not write the file");
-      });
+      RK.confirm("Whatever changed " + d.name + " since it was loaded will be lost.", function () {
+        if (d !== doc) return;   // another file was opened while the dialog was up
+        saveNow(true).then(function (ok) {
+          if (d !== doc) return;
+          if (!ok) stale = true;
+          renderDocState();
+          toast(ok ? "Overwrote " + doc.name : "Could not write the file");
+        });
+      }, { title: "Overwrite " + d.name + " with what is on screen?", okLabel: "Overwrite file", danger: true });
     });
     $("recents").addEventListener("click", function (e) {
       if (e.target.id === "forgetRecents") {
@@ -3293,12 +3705,19 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     var btn = e.target.closest("[data-code]");
     if (!btn) return;
     var code = btn.getAttribute("data-code");
-    if (TS_LEAVE.test(code) && !confirm("“" + code + "” looks like leave rather than project work. Use it anyway?")) return;
+    if (TS_LEAVE.test(code)) RK.confirm("“" + code + "” looks like leave rather than project work.", function () { tsPickCode(code); },
+      { title: "Use this code anyway?", okLabel: "Use it" });
+    else tsPickCode(code);
+  });
+  function tsPickCode(code) {
+    if (!ts.byCode) return;   // the review was closed while the dialog was up
     S.ukCode = code;
     $("ukCode").value = code;
     renderImportSub(); queueSave();
     tsBuildChanges(ts.byCode[code]);
-  });
+    // the picked button is now hidden: keep focus in the dialog, or Escape and Tab stop working
+    $("tsModal").querySelector(".modal").focus();
+  }
   $("tsBody").addEventListener("input", function (e) {
     var t = e.target, i = t.getAttribute("data-apply");
     if (i !== null) { ts.changes[+i].apply = Math.max(0, num(t.value)); return; }
@@ -3319,10 +3738,6 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
   on("tsAccept", "click", tsApply);
   on("tsDecline", "click", tsClose);
   on("tsClose", "click", tsClose);
-  $("tsModal").addEventListener("click", function (e) { if (e.target === $("tsModal")) tsClose(); });
-  document.addEventListener("keydown", function (e) {
-    if (e.key === "Escape" && !$("tsModal").classList.contains("hidden")) tsClose();
-  });
 
   /* ---------- boot ---------- */
   function syncInputs() {

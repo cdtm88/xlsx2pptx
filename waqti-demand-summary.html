@@ -285,7 +285,7 @@ parse_Primary(n.content)}catch(l){}a="/EncryptionInfo";n=Qe.find(e,a);if(!n||!n.
 <script>
 /* ============================================================
    Report Kit — shared runtime for the browser report tools
-   kit-version: 1.2.0
+   kit-version: 1.3.0
    Exposes window.RK. Depends on window.XLSX (SheetJS) only for the
    xlsx.* helpers; everything else is standalone. Inlined into each
    report by framework/build.py so reports stay single-file/offline.
@@ -299,7 +299,7 @@ parse_Primary(n.content)}catch(l){}a="/EncryptionInfo";n=Qe.find(e,a);if(!n||!n.
    ============================================================ */
 window.RK = (function () {
   "use strict";
-  var KIT_VERSION = "1.2.0";
+  var KIT_VERSION = "1.3.0";
 
   /* ---------- dom / format helpers ---------- */
   function $(id) { return document.getElementById(id); }
@@ -701,6 +701,25 @@ window.RK = (function () {
     };
   }
 
+  /* ---------- toast ----------
+     toast(message, ms?) shows a short status line (.toast, kit 2) and fades it
+     after ms (default 2600). One element, made on first use; a new message
+     replaces the one showing. Announced politely to screen readers. */
+  var toastEl = null, toastTimer = null;
+  function toast(message, ms) {
+    if (!toastEl) {
+      toastEl = document.createElement("div");
+      toastEl.className = "toast";
+      toastEl.setAttribute("role", "status");
+      toastEl.setAttribute("aria-live", "polite");
+      document.body.appendChild(toastEl);
+    }
+    toastEl.textContent = message;
+    toastEl.classList.add("on");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toastEl.classList.remove("on"); }, ms || 2600);
+  }
+
   /* ---------- confirm dialog (in-page replacement for window.confirm) ----------
      confirm(message, onConfirm, { okLabel, title, danger }). Builds its own markup on
      first use. onConfirm runs only if the primary button is pressed. */
@@ -825,7 +844,9 @@ window.RK = (function () {
     uid: uid, localDate: localDate, today: today,
     fmtNum2: fmtNum2, fmtWhole: fmtWhole, fmtMoney: fmtMoney, csv: csv,
     modal: modal, confirm: confirmDialog, chipsFromSelect: chipsFromSelect,
-    sortable: sortable, stepSegs: stepSegs, searchShortcut: searchShortcut
+    sortable: sortable, stepSegs: stepSegs, searchShortcut: searchShortcut,
+    // 1.3.0
+    toast: toast
   };
 })();
 </script>
