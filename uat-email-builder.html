@@ -1,0 +1,2615 @@
+<!-- @out: uat-email-builder.html -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<!-- Offline by policy: nothing may load from or send to the network (framework/DESIGN.md). -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; connect-src 'none'; form-action 'none'; base-uri 'none'">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light only">
+<title>UAT Email Builder</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMiIgaGVpZ2h0PSIzMiIgdmlld0JveD0iMCAwIDMyIDMyIj48cmVjdCB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHJ4PSI3IiBmaWxsPSIjMDBBOUNFIi8+PHJlY3QgeD0iOSIgeT0iOCIgd2lkdGg9IjE0IiBoZWlnaHQ9IjE3IiByeD0iMiIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjIiLz48cmVjdCB4PSIxMi41IiB5PSI2IiB3aWR0aD0iNyIgaGVpZ2h0PSI0IiByeD0iMS4yIiBmaWxsPSIjZmZmIi8+PHBhdGggZD0iTTEyLjUgMTcuMmwyLjQgMi40TDE5LjggMTQuNiIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjIuMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+PC9zdmc+">
+<style>
+/* ============================================================
+   Report Kit 2: the design language for new browser tools
+   kit-version: 2.1.0
+   Extracted from vendor-spend-tracker.html. Inlined into a report
+   by framework/build.py. See framework/DESIGN.md for the rules and
+   framework/starter.src.html for a page that uses every part.
+
+   Unlike report-kit.css (v1, kept for the tools built on it), this
+   file styles bare elements (button, input, select, table), so a
+   page includes one kit stylesheet or the other, never both.
+   Report-specific styles go in the report's own <style> block,
+   after this include, with report-specific class names.
+   ============================================================ */
+:root {
+  /* brand */
+  --teal: #00A9CE;
+  --teal-dark: #007A99;
+  --teal-tint: #E6F6FA;
+  --teal-tint-border: #BFE6F0;
+  --green: #5BB85D;
+  --charcoal: #1A1A1A;
+  --slate: #3D3D3D;
+  --mid-grey: #6B6B6B;
+  --dim-grey: #8C8C8C;
+  --light-grey: #F6F7F7;
+  --lighter-grey: #FAFBFB;
+
+  /* roles */
+  --bg: #F6F7F7;
+  --panel: #ffffff;
+  --border: #E3E6E8;
+  --border-input: #D5DADD;
+  --divider: #EEF0F1;
+  --track: #E9ECEE;
+  --text: var(--charcoal);
+  --text-dim: var(--mid-grey);
+  --heading: var(--charcoal);
+  --accent: var(--teal);
+  --accent-dark: var(--teal-dark);
+  --row-hover: #F5FBFD;
+
+  /* status: green = fine, yellow = watch, red = act */
+  --green-bg: #eaf7eb;
+  --green-fg: #2b6e2d;
+  --yellow: #E0A526;
+  --yellow-fg: #8a6400;
+  --yellow-bg: #fdf3d9;
+  --red: #b3261e;
+  --red-soft: #E57368;
+  --red-bg: #fbe6e4;
+
+  --font-ui: "Segoe UI", -apple-system, system-ui, Roboto, Arial, Helvetica, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", "Consolas", monospace;
+  color-scheme: light only;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 14px;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+[hidden] { display: none !important; }
+.mono { font-family: var(--font-mono); }
+.tnum { font-variant-numeric: tabular-nums; }
+
+/* ---- Page shell ---- */
+.wrap {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 24px 60px;
+}
+.app-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 56px;
+  margin: 0 -24px 20px;
+  padding: 10px 24px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+  row-gap: 10px;
+}
+.app-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -.01em;
+  color: var(--heading);
+  white-space: nowrap;
+  flex: none;
+}
+.app-logo-mark {
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  flex: none;
+  display: block;
+}
+.app-nav {
+  display: flex;
+  gap: 4px;
+  height: 100%;
+  flex: none;
+}
+.app-nav-item {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  border: none;
+  border-radius: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  padding: 0 12px;
+  font-size: 13px;
+  color: var(--text-dim);
+}
+.app-nav-item:hover { background: transparent; border-color: var(--border); color: var(--text); }
+.app-nav-item.active { font-weight: 600; color: var(--text); border-color: var(--teal); }
+.app-header-spacer { flex: 1; min-width: 8px; }
+.app-search {
+  position: relative;
+  width: 280px;
+  max-width: 40vw;
+  flex: none;
+}
+.app-search input { padding-right: 26px; }
+.search-hint-key {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font: 500 11px var(--font-mono);
+  color: var(--dim-grey);
+  pointer-events: none;
+}
+.app-search:focus-within .search-hint-key { display: none; }
+.app-header button { flex: none; }
+.app-version {
+  font: 500 11px var(--font-mono);
+  color: var(--dim-grey);
+}
+footer {
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 12px;
+  margin-top: 24px;
+}
+.strapline { margin-top: 6px; font-size: 11px; color: var(--text-dim); opacity: .8; }
+
+/* ---- Buttons ---- */
+button {
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  height: 34px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 0 14px;
+  transition: background .1s, border-color .1s;
+}
+button:hover { background: var(--row-hover); border-color: var(--accent); }
+button:focus-visible { outline: none; border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+button:disabled { opacity: .5; cursor: not-allowed; }
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+button.primary:hover { background: var(--accent-dark); border-color: var(--accent-dark); }
+button.danger { color: var(--red); }
+button.primary.danger-fill { background: var(--red); border-color: var(--red); }
+button.primary.danger-fill:hover { background: #8f1e18; border-color: #8f1e18; }
+button.small { height: 28px; padding: 0 10px; font-size: 12px; }
+button.icon-btn { padding: 7px 9px; line-height: 1; font-size: 13px; min-width: 30px; min-height: 30px; }
+/* a quiet text action, e.g. "Delete line item" at the foot of a drawer */
+.link-action {
+  cursor: pointer;
+  color: var(--accent-dark);
+  font-size: 12px;
+  font-weight: 500;
+  background: none;
+  border: none;
+  height: auto;
+  padding: 0;
+}
+.link-action:hover { text-decoration: underline; background: none; }
+.link-action.danger { color: var(--red); }
+
+/* ---- Inputs ---- */
+input, select, textarea {
+  font: inherit;
+  font-size: 13px;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border-input);
+  border-radius: 6px;
+  padding: 7px 10px;
+  width: 100%;
+}
+input[type="checkbox"], input[type="radio"] { width: auto; accent-color: var(--teal); }
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--teal-tint);
+}
+input:disabled { background: var(--light-grey); color: var(--text-dim); }
+textarea { resize: vertical; min-height: 50px; }
+.select-hidden-visually {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* ---- Page summary: one sentence answer above the cards ---- */
+.page-summary {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.page-summary-text { display: flex; flex-direction: column; gap: 4px; }
+.page-summary-sub { font-size: 12px; font-weight: 500; color: var(--text-dim); }
+.page-summary-main { font-size: 22px; font-weight: 600; letter-spacing: -.01em; color: var(--text); }
+
+/* ---- Legend ---- */
+.legend { display: flex; gap: 18px; flex-wrap: wrap; font-size: 12px; color: var(--text-dim); }
+.legend-item { display: flex; align-items: center; gap: 6px; }
+.legend-swatch { width: 10px; height: 10px; border-radius: 2px; background: var(--track); }
+.swatch-solid { background: var(--teal-dark); }
+.swatch-hatched { background-image: repeating-linear-gradient(135deg, var(--teal) 0 2px, var(--teal-tint) 2px 4px); }
+.swatch-tint { background: var(--teal-tint-border); }
+
+/* ---- Stat cards: a clickable grid of things with a headline figure ---- */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.stat-card {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  background: var(--panel);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-align: left;
+}
+.stat-card[role="button"], button.stat-card { cursor: pointer; height: auto; font: inherit; color: inherit; }
+.stat-card[role="button"]:hover, button.stat-card:hover { border-color: var(--accent); background: var(--panel); }
+.stat-card.active { border-color: var(--teal); box-shadow: 0 0 0 3px var(--teal-tint); }
+.stat-card-name {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--heading);
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  align-items: center;
+}
+.stat-card-figure { display: flex; align-items: baseline; gap: 6px; }
+.stat-card-value { font: 500 28px/1 var(--font-mono); letter-spacing: -.02em; color: var(--text); }
+.stat-card-of { font-size: 12px; color: var(--text-dim); }
+.stat-card-nums {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 16px;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+.stat-card-nums > span { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.stat-card-num { display: block; font: 500 12px var(--font-mono); color: var(--text); white-space: nowrap; }
+.stat-card-num.neg { color: var(--red); }
+
+/* ---- Bars: stacked segments on a track, all scaled to one maximum ---- */
+.bar-track {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--track);
+  position: relative;
+  display: flex;
+  overflow: visible;
+}
+.bar-fill { height: 100%; flex: none; }
+.bar-fill:first-child { border-radius: 4px 0 0 4px; }
+.bar-fill.solid { background: var(--teal-dark); }
+.bar-fill.hatched {
+  background-image: repeating-linear-gradient(135deg, var(--teal) 0 3px, var(--teal-tint) 3px 6px);
+}
+.bar-fill.tint { background: var(--teal-tint-border); }
+.bar-fill.status-green { background: var(--green); }
+.bar-fill.status-yellow { background: var(--yellow); }
+.bar-fill.status-red { background: var(--red-soft); }
+/* marks the 100% line once a bar runs past it */
+.bar-limit {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--red);
+  border-radius: 1px;
+}
+.row-bar-cell { display: flex; flex-direction: column; gap: 4px; }
+.row-bar-track { height: 5px; border-radius: 3px; background: var(--track); overflow: hidden; display: block; }
+.row-bar-fill { height: 100%; display: block; }
+
+/* ---- Status pills ---- */
+.status-pill {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 20px;
+  white-space: nowrap;
+  align-self: flex-start;
+}
+.pill-green { background: var(--green-bg); color: var(--green-fg); }
+.pill-yellow { background: var(--yellow-bg); color: var(--yellow-fg); }
+.pill-red { background: var(--red-bg); color: var(--red); }
+.pill-teal { background: var(--teal-tint); color: var(--accent-dark); }
+.pill-grey { background: var(--light-grey); color: var(--slate); }
+
+/* ---- Toolbar above a list: segmented tabs, filter chips, selects, a count ---- */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.toolbar-spacer { flex: 1; }
+.seg-tabs { display: flex; background: #F1F3F4; border-radius: 7px; padding: 3px; gap: 2px; }
+.seg-tab {
+  border: none;
+  background: transparent;
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 5px;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--slate);
+}
+.seg-tab:hover { background: transparent; }
+.seg-tab-count { color: var(--dim-grey); font-weight: 500; margin-left: 4px; }
+.seg-tab.active { background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.08); font-weight: 600; }
+.filter-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--teal);
+  background: var(--teal-tint);
+  color: var(--accent-dark);
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.filter-chip:hover { background: var(--teal-tint); }
+.filter-chip-x { font-weight: 400; }
+.filter-chip.warn { border-color: var(--yellow); background: var(--yellow-bg); color: var(--yellow-fg); }
+.filter-chip.warn.active { border-color: var(--red); background: var(--red-bg); color: var(--red); }
+.toolbar-select { width: auto; height: 28px; padding: 0 8px; font-size: 12px; }
+.list-meta { font-size: 12px; color: var(--text-dim); white-space: nowrap; }
+
+/* ---- Data table: dark header, sticky in its own scroller ---- */
+.table-container {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: auto;
+  max-height: 70vh;
+}
+table { border-collapse: collapse; width: 100%; }
+/* fixed layout keeps every column the same width row to row; give columns
+   widths with a <colgroup> */
+table.fixed { table-layout: fixed; }
+th, td {
+  text-align: left;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--divider);
+  white-space: nowrap;
+  background: #fff;
+  color: var(--charcoal);
+  vertical-align: middle;
+}
+th {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  color: #fff;
+  user-select: none;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--accent-dark);
+  border-bottom: none;
+}
+th.num, td.num { text-align: right; }
+th[data-sort] { cursor: pointer; }
+th[data-sort]:hover { background: var(--teal); }
+th[data-sort]:focus-visible { outline: 2px solid #fff; outline-offset: -2px; }
+.sort-arrow { display: inline-block; width: 1em; font-size: 10px; }
+tbody tr:nth-child(even) td { background: var(--lighter-grey); }
+tbody tr:hover td { background: var(--row-hover); }
+tr.clickable { cursor: pointer; }
+tr.clickable:focus { outline: none; }
+tr.clickable:focus-visible td:first-child { box-shadow: inset 2px 0 0 var(--accent); }
+td.wrap-cell { white-space: normal; }
+.cell-title { display: block; font-size: 13px; font-weight: 600; color: var(--text); }
+.cell-title.link-action { color: var(--accent-dark); font-size: 13px; font-weight: 600; text-align: left; }
+.cell-sub { display: block; font-size: 13px; color: var(--slate); white-space: normal; }
+/* money: mono, right aligned, optional native-currency line beneath */
+td.amt { text-align: right; }
+.amt-wrap { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.amt-value { font: 500 13px var(--font-mono); font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--text); }
+.amt-native { font: 400 11px var(--font-mono); color: var(--dim-grey); }
+td.row-actions { text-align: right; }
+.row-action-btn {
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--teal-tint-border);
+  background: var(--teal-tint);
+  color: var(--accent-dark);
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.row-action-btn:hover { background: var(--teal); color: #fff; border-color: var(--teal); }
+.row-done-label { font-size: 12px; color: var(--green-fg); font-weight: 500; white-space: nowrap; }
+.empty-state { padding: 40px; text-align: center; color: var(--text-dim); }
+
+/* ---- Step progress: a fixed workflow shown as segments ---- */
+.steps { display: flex; flex-direction: column; gap: 6px; }
+.steps-top { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+.steps-label { display: block; font-size: 12px; font-weight: 500; color: var(--text); white-space: normal; }
+.steps-count { font: 500 11px var(--font-mono); color: var(--dim-grey); }
+.step-segs { display: flex; gap: 2px; }
+.step-seg { flex: 1; height: 4px; border-radius: 2px; background: var(--border); min-width: 8px; }
+.step-seg.filled { background: var(--teal-dark); }
+.step-seg.done { background: var(--green); }
+/* the larger labelled track, e.g. in an "advance" dialog */
+.step-track { display: flex; gap: 3px; margin-bottom: 16px; }
+.step-track-seg { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+.step-track-bar { height: 6px; border-radius: 3px; background: var(--border); }
+.step-track-bar.done { background: var(--teal-dark); }
+.step-track-bar.target { background: var(--teal); outline: 1.5px solid var(--teal); outline-offset: 2px; }
+.step-track-label { font-size: 10px; line-height: 1.25; color: var(--text-dim); }
+.step-track-label.target { color: var(--accent-dark); font-weight: 600; }
+
+/* ---- Settings view: underline tabs, setting rows, grid lists ---- */
+.settings-header { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+.settings-header h2 { font-size: 20px; font-weight: 600; letter-spacing: -.01em; color: var(--heading); margin: 0; }
+.settings-nav { display: flex; gap: 22px; border-bottom: 1px solid var(--border); overflow-x: auto; }
+.settings-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  height: auto;
+  padding: 0 0 12px;
+  white-space: nowrap;
+}
+.settings-nav-item:hover { background: transparent; }
+.settings-nav-item:focus-visible { box-shadow: 0 0 0 1px var(--accent); }
+.settings-nav-item.active { border-color: var(--teal); }
+.settings-nav-label { font-size: 13px; color: var(--text-dim); }
+.settings-nav-item.active .settings-nav-label { font-weight: 600; color: var(--text); }
+.settings-nav-count { font: 500 11px var(--font-mono); color: var(--dim-grey); }
+.settings-content { max-width: 760px; padding: 20px 0 0; }
+.settings-content.wide { max-width: 900px; }
+.settings-panel-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+.settings-panel-head h3 { font-size: 16px; font-weight: 700; color: var(--heading); margin: 0; white-space: nowrap; }
+.settings-panel-head .hint { flex: 1 1 240px; margin: 0; }
+.settings-panel-head button { margin-left: auto; }
+/* label on the left, a content-sized control on the right */
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--divider);
+}
+.setting-row:last-of-type { border-bottom: none; }
+.setting-row-label { flex: 1 1 auto; min-width: 0; }
+.label-text { display: block; font-size: 13px; font-weight: 600; color: var(--text); }
+.label-hint { display: block; font-size: 11px; color: var(--text-dim); margin-top: 1px; }
+.setting-row-control { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; }
+.setting-row-control input, .setting-row-control select { width: auto; }
+.setting-row-control input[type="text"], .setting-row-control input[type="number"] { width: 160px; text-align: right; }
+.setting-row-control input[type="number"].narrow { width: 100px; }
+.setting-row-control select { min-width: 150px; }
+.unit-suffix { font-size: 12px; color: var(--text-dim); white-space: nowrap; }
+/* a light list for settings; set grid-template-columns per list. Each cell
+   carries data-label so it can stack on a phone */
+.settings-table { display: grid; width: 100%; font-size: 13px; }
+.settings-table-row { display: grid; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--divider); }
+.settings-table-row:last-child { border-bottom: none; }
+.settings-table-row.header {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  color: var(--text-dim);
+  border-bottom: 2px solid var(--border);
+  padding-bottom: 8px;
+}
+.settings-table-row .col-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.settings-table-row .col-actions { display: flex; justify-content: flex-end; gap: 4px; }
+.settings-empty-state { padding: 24px 10px; }
+.avatar-chip {
+  width: 30px;
+  height: 30px;
+  border-radius: 7px;
+  background: var(--light-grey);
+  color: var(--slate);
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+.entity { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.entity-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.entity-name { font-weight: 600; }
+.entity-sub { font: 400 11px var(--font-mono); color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ---- Modals ---- */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(20,26,28,.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 50;
+}
+.modal {
+  background: var(--panel);
+  border-radius: 14px;
+  box-shadow: 0 24px 60px rgba(0,0,0,.25);
+  padding: 22px 24px;
+  width: 100%;
+  max-width: 560px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+.modal:focus { outline: none; }
+.modal.modal-compact { max-width: 420px; }
+/* a dialog that holds a table, e.g. a review of imported rows */
+.modal.modal-wide { max-width: 980px; }
+.modal h2 { margin: 0 0 16px; font-size: 18px; font-weight: 600; color: var(--heading); }
+.modal-lead { margin: 0 0 14px; font-size: 14px; color: var(--text); }
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--divider);
+}
+.modal-actions.start { justify-content: flex-start; }
+.field { margin-bottom: 14px; }
+.field > label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px; color: var(--text); }
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.field-row-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.hint { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+.callout {
+  background: var(--teal-tint);
+  border-left: 3px solid var(--teal);
+  color: var(--text);
+  padding: 10px 14px;
+  border-radius: 6px;
+  font-size: 12px;
+  margin-bottom: 14px;
+}
+.callout.danger { background: var(--red-bg); border-left-color: var(--red); }
+.callout.warn { background: var(--yellow-bg); border-left-color: var(--yellow); }
+.callout.ok { background: var(--green-bg); border-left-color: var(--green); }
+
+/* ---- File drop zone (RK.upload adds .dragover while a file is over it) ---- */
+.upload-area {
+  border: 2px dashed var(--border-input);
+  border-radius: 10px;
+  padding: 24px 28px;
+  text-align: center;
+  cursor: pointer;
+  background: var(--lighter-grey);
+  transition: border-color .15s, background .15s;
+}
+.upload-area:hover, .upload-area.dragover { background: var(--teal-tint); border-color: var(--teal); }
+.upload-area:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+.upload-area .big { font-size: 14px; font-weight: 600; color: var(--text); }
+.upload-area .or { font-size: 12px; color: var(--text-dim); margin: 6px 0; }
+/* RK.xlsx.renderMapper labels each column select with a bare label.field */
+label.field { display: block; font-size: 12px; font-weight: 600; color: var(--text); }
+
+/* ---- Toast: a short confirmation at the foot of the screen (RK.toast) ---- */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  max-width: calc(100% - 32px);
+  background: var(--charcoal);
+  color: #fff;
+  padding: 9px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  box-shadow: 0 6px 20px rgba(0,0,0,.2);
+  z-index: 60;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .18s;
+}
+.toast.on { opacity: 1; }
+
+/* ---- Drawer: a full-height detail view from the right ---- */
+.modal-overlay.drawer-overlay { padding: 0; justify-content: flex-end; background: rgba(20,26,28,.42); }
+.modal.drawer {
+  width: 560px;
+  max-width: 100%;
+  height: 100%;
+  max-height: 100%;
+  border-radius: 0;
+  box-shadow: -12px 0 32px rgba(0,0,0,.18);
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+}
+.drawer-head { padding: 20px 24px 18px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 14px; flex: none; }
+.drawer-head-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.drawer-head-actions { display: flex; gap: 6px; }
+.drawer-title-sub { font-size: 12px; color: var(--text-dim); font-weight: 500; margin-bottom: 2px; }
+.modal h2.drawer-title, .drawer-title { margin: 0; font-size: 18px; font-weight: 600; letter-spacing: -.01em; line-height: 1.3; }
+.drawer-close { width: 30px; height: 30px; padding: 0; flex: none; }
+.drawer-body { flex: 1 1 auto; overflow-y: auto; padding: 16px 24px 24px; }
+.drawer-section { padding-bottom: 16px; margin-bottom: 16px; border-bottom: 1px solid var(--border); }
+.drawer-section-label { font-size: 11px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 12px; }
+.drawer-foot { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
+/* a strip of headline figures */
+.figure-strip { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid var(--border); border-radius: 8px; }
+.figure-box { padding: 10px 12px; display: flex; flex-direction: column; gap: 3px; border-right: 1px solid var(--border); min-width: 0; }
+.figure-box:last-child { border-right: none; }
+.figure-box .figure { font: 500 14px var(--font-mono); color: var(--text); }
+.detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; margin-bottom: 14px; }
+.detail-grid .full { grid-column: 1 / -1; }
+.detail-label { font-size: 11px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: .03em; margin-bottom: 2px; }
+.detail-value { font-size: 14px; color: var(--text); }
+/* a short ranked distribution, label | bar | count */
+.dist-row { display: flex; align-items: center; gap: 10px; padding: 5px 0; font-size: 12px; }
+.dist-label { flex: 0 0 150px; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dist-row .row-bar-track { flex: 1; }
+.dist-count { flex: 0 0 28px; text-align: right; font: 500 12px var(--font-mono); color: var(--text); }
+/* a compact clickable list inside a drawer */
+.list-row { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--divider); cursor: pointer; }
+.list-row:last-child { border-bottom: none; }
+.list-row:hover .list-row-title { text-decoration: underline; }
+.list-row-main { min-width: 0; }
+.list-row-title { font-size: 13px; font-weight: 500; display: block; }
+.list-row-sub { font-size: 11px; color: var(--text-dim); }
+.list-row-figure { font: 500 12px var(--font-mono); white-space: nowrap; text-align: right; }
+.muted-empty { padding: 10px; font-size: 12px; color: var(--text-dim); }
+
+/* ---- Activity timeline ---- */
+.tl-row { display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 12px; }
+.tl-rail { display: flex; flex-direction: column; align-items: center; }
+.tl-dot { width: 10px; height: 10px; margin-top: 4px; border-radius: 50%; background: var(--teal-dark); border: 2px solid var(--teal-tint-border); flex: none; }
+.tl-dot.note { background: #fff; border-color: var(--border); }
+.tl-line { flex: 1; width: 1px; background: var(--border); }
+.tl-body { padding-bottom: 16px; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.tl-body-top { display: flex; justify-content: space-between; gap: 8px; }
+.tl-title { font-size: 13px; font-weight: 600; }
+.tl-title.note-title { font-weight: 500; }
+.tl-time { font: 400 11px var(--font-mono); color: var(--dim-grey); white-space: nowrap; }
+.tl-text { font-size: 13px; color: var(--slate); line-height: 1.45; white-space: pre-wrap; }
+.tl-text.note-text { background: var(--light-grey); padding: 8px 10px; border-radius: 6px; }
+
+/* ---- Choice chips (RK.chipsFromSelect), presets, quick-fill ---- */
+.chip-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+.chip {
+  height: auto;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--slate);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 6px 10px;
+  border-radius: 6px;
+}
+.chip:hover { border-color: var(--accent); background: var(--panel); }
+.chip.active { border-color: var(--accent); background: var(--teal-tint); color: var(--accent-dark); font-weight: 600; }
+.preset-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.preset-chip {
+  height: auto;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 6px 11px;
+  border-radius: 20px;
+}
+.preset-chip:hover { border-color: var(--accent); background: var(--panel); }
+.preset-chip.active { background: var(--charcoal); border-color: var(--charcoal); color: #fff; font-weight: 600; }
+.quick-chip-row { display: flex; gap: 6px; margin: 8px 0 2px; }
+.quick-chip {
+  height: auto;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--slate);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 20px;
+}
+.quick-chip:hover { border-color: var(--accent); background: var(--panel); }
+
+/* ---- Amount input: currency tag (or in-box currency chips) + mono figure ---- */
+.amt-input-box {
+  display: flex;
+  height: 38px;
+  border: 1px solid var(--border-input);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--panel);
+}
+.amt-input-box:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--teal-tint); }
+.amt-input-tag {
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  background: var(--light-grey);
+  border-right: 1px solid var(--border);
+  font: 600 12px var(--font-mono);
+  color: var(--text-dim);
+}
+.amt-input-box .chip-row { gap: 2px; margin: 0; padding: 4px; background: var(--light-grey); border-right: 1px solid var(--border); flex: none; flex-wrap: nowrap; }
+.amt-input-box .chip { padding: 0 7px; font: 500 11px var(--font-mono); border: none; border-radius: 5px; background: transparent; color: var(--text-dim); }
+.amt-input-box .chip.active { background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.1); color: var(--text); font-weight: 600; }
+.amt-input-box input { flex: 1; min-width: 0; border: none; border-radius: 0; text-align: right; font: 500 15px var(--font-mono); }
+.amt-input-box input:focus { box-shadow: none; }
+
+/* ---- Impact preview: what a change does to a total, before saving ---- */
+.impact-box { background: var(--light-grey); border-radius: 10px; padding: 14px; }
+.impact-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 10px; }
+.impact-title { font-size: 12px; font-weight: 600; color: var(--text); }
+.impact-pct { font: 500 12px var(--font-mono); }
+.impact-box .bar-track { margin-bottom: 8px; }
+
+/* ---- Radio cards (e.g. export format) ---- */
+.option-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; width: 100%; }
+.option-card { position: relative; display: flex; flex-direction: column; gap: 3px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; }
+.option-card:hover { border-color: var(--accent); }
+.option-card input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.option-card-title { font: 600 13px var(--font-mono); color: var(--text); }
+.option-card-desc { font-size: 11px; color: var(--text-dim); }
+.option-card:has(input:checked) { border-color: var(--teal); background: var(--teal-tint); }
+.option-card:has(input:checked) .option-card-title { color: var(--accent-dark); }
+.option-card:has(input:checked)::after { content: "\2713"; position: absolute; top: 8px; right: 10px; font-size: 12px; font-weight: 700; color: var(--accent-dark); }
+.option-card:has(input:focus-visible) { box-shadow: 0 0 0 1px var(--accent); }
+.date-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; }
+
+/* ---- Responsive ----
+   Rather than let header items wrap wherever flex-wrap breaks them, each
+   breakpoint moves a whole group onto its own row in a fixed order:
+   logo + nav, then search, then actions. */
+@media (max-width: 900px) {
+  .app-header { padding: 10px 16px; }
+  .app-header-spacer { display: none; }
+  .app-search { order: 3; width: 100%; max-width: none; margin-top: 2px; }
+  .app-header > button { order: 4; }
+}
+@media (max-width: 700px) {
+  .field-row, .field-row-3 { grid-template-columns: 1fr; }
+  .settings-table-row { grid-template-columns: 1fr !important; gap: 3px; padding: 10px 0; }
+  .settings-table-row.header { display: none; }
+  .settings-table-row > [data-label] { text-align: left; }
+  .settings-table-row > [data-label]::before {
+    content: attr(data-label) ": ";
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .02em;
+    color: var(--text-dim);
+  }
+  .settings-table-row .col-actions { justify-content: flex-start; margin-top: 4px; }
+  .modal.drawer { width: 100%; }
+  .option-cards, .date-pair { grid-template-columns: 1fr; }
+}
+@media (max-width: 560px) {
+  .wrap { padding: 0 16px 60px; }
+  .app-header { margin: 0 -16px 16px; }
+  .app-nav { order: 2; width: 100%; margin-top: 2px; }
+  .page-summary-main { font-size: 18px; }
+  .stat-grid { grid-template-columns: 1fr; }
+  .toolbar { gap: 8px; }
+  .toolbar-select { flex: 1 1 auto; }
+  .list-meta { flex: 1 1 100%; text-align: left; order: 10; }
+}
+@media (max-width: 480px) {
+  .setting-row { flex-wrap: wrap; }
+  .setting-row-control { flex: 1 1 100%; justify-content: flex-end; }
+}
+@media print {
+  .app-header, .no-print { display: none !important; }
+  .table-container { max-height: none; overflow: visible; }
+  th { position: static; }
+}
+
+/* ---- UAT email builder (uem-*) ---- */
+.uem-panel { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; min-width: 0; }
+.uem-panel-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.uem-panel-head h3 { margin: 0; font-size: 16px; font-weight: 700; color: var(--heading); }
+.uem-panel-head .hint { margin: 0; }
+.uem-grid { display: grid; grid-template-columns: minmax(320px, 460px) minmax(0, 1fr); gap: 16px; align-items: start; }
+.uem-group { border-top: 1px solid var(--divider); padding-top: 14px; margin-top: 4px; }
+.uem-group > h4 { margin: 0 0 10px; font-size: 13px; font-weight: 700; color: var(--accent-dark); text-transform: uppercase; letter-spacing: .4px; }
+.uem-compose .field { margin-bottom: 12px; }
+.uem-compose textarea { min-height: 64px; }
+.uem-compose .chip-row { margin-bottom: 0; }
+.uem-compose input[type="number"] { text-align: right; }
+.uem-field-row-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.uem-derived { font-size: 12px; color: var(--slate); background: var(--light-grey); border-radius: 6px; padding: 6px 10px; margin: -2px 0 12px; }
+.uem-warn { color: var(--red); font-weight: 600; }
+.uem-muted { color: var(--text-dim); font-weight: 400; }
+.uem-sections { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; font-size: 13px; }
+.uem-sections label { display: flex; gap: 6px; align-items: center; cursor: pointer; }
+.uem-rows { display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; }
+.uem-row { position: relative; border: 1px solid var(--border); border-radius: 8px; padding: 10px 34px 4px 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 0 10px; background: var(--lighter-grey); }
+.uem-row .field { margin-bottom: 8px; }
+.uem-row .field > label { font-size: 11px; margin-bottom: 3px; }
+.uem-row .field.wide { grid-column: 1 / -1; }
+.uem-row input, .uem-row select { height: 30px; font-size: 13px; }
+.uem-row-x { position: absolute; top: 6px; right: 6px; width: 24px; height: 24px; padding: 0; line-height: 1; border: none; background: none; color: var(--text-dim); font-size: 18px; cursor: pointer; }
+.uem-row-x:hover { color: var(--red); }
+.uem-subject { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; }
+.uem-subject input { font-weight: 600; }
+.uem-preview { background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 20px 22px; overflow-x: auto; }
+/* undo the kit's app-table look inside the preview, so it shows what the inline styles paste as */
+.uem-preview table { width: auto; }
+.uem-preview th, .uem-preview td { white-space: normal; text-transform: none; letter-spacing: normal; font-size: inherit; position: static; user-select: auto; }
+.uem-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 12px 0; }
+.copy-fallback textarea { width: 100%; min-height: 180px; font: 12px var(--font-mono); }
+.copy-fallback p { margin: 0 0 6px; font-size: 12px; color: var(--text-dim); }
+.uem-intro { margin: -4px 0 14px; font-size: 13px; color: var(--slate); }
+/* side by side, Compose and Preview each scroll on their own inside the window
+   (sizeGrid sets the height); stacked on narrower screens, the page scrolls */
+@media (min-width: 1001px) {
+  .uem-grid { height: var(--uem-h, auto); align-items: stretch; }
+  .uem-col { min-height: 0; max-height: 100%; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
+}
+@media (max-width: 1000px) {
+  .uem-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 560px) {
+  .uem-sections, .uem-row { grid-template-columns: 1fr; }
+  .uem-field-row-4 { grid-template-columns: 1fr 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="app-header">
+    <div class="app-logo"><img class="app-logo-mark" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMiIgaGVpZ2h0PSIzMiIgdmlld0JveD0iMCAwIDMyIDMyIj48cmVjdCB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHJ4PSI3IiBmaWxsPSIjMDBBOUNFIi8+PHJlY3QgeD0iOSIgeT0iOCIgd2lkdGg9IjE0IiBoZWlnaHQ9IjE3IiByeD0iMiIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjIiLz48cmVjdCB4PSIxMi41IiB5PSI2IiB3aWR0aD0iNyIgaGVpZ2h0PSI0IiByeD0iMS4yIiBmaWxsPSIjZmZmIi8+PHBhdGggZD0iTTEyLjUgMTcuMmwyLjQgMi40TDE5LjggMTQuNiIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjIuMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+PC9zdmc+" alt="">UAT Email Builder</div>
+    <div class="app-header-spacer"></div>
+    <span class="app-version" id="appVersion"></span>
+    <button type="button" id="btnExample">Load example</button>
+    <button type="button" id="btnFresh">Start fresh</button>
+    <button type="button" class="primary" id="btnCopyEmail">Copy email</button>
+  </header>
+  <div id="headerCopyFallback"></div>
+
+  <p class="uem-intro">Type in this week's figures and status; the email builds itself in the same format as the UAT Sign-off Tracker. Everything is kept in this browser for next time.</p>
+
+  <div class="uem-grid" id="grid">
+    <div class="uem-panel uem-compose uem-col">
+      <div class="uem-panel-head"><h3>Compose</h3><span class="hint">Every figure and the status are yours to set.</span></div>
+
+      <div class="field">
+        <label>Email type</label>
+        <select id="emType" class="select-hidden-visually" aria-label="Email type" tabindex="-1" data-k="type">
+          <option value="update">Progress update</option>
+          <option value="request">Sign-off request</option>
+        </select>
+        <div class="chip-row" id="emTypeChips"></div>
+      </div>
+      <div class="field">
+        <label>Sections</label>
+        <div class="uem-sections" id="emSections"></div>
+        <div class="hint">Changing the email type picks a set; change any of them after.</div>
+      </div>
+
+      <div class="uem-group">
+        <h4>UAT</h4>
+        <div class="field"><label for="f_name">Name</label><input type="text" id="f_name" data-k="name" placeholder="Customer Portal R4.2 UAT"></div>
+        <div class="field-row">
+          <div class="field"><label for="f_build">Build</label><input type="text" id="f_build" data-k="build" placeholder="Optional"></div>
+          <div class="field"><label for="f_env">Environment</label><input type="text" id="f_env" data-k="environment" placeholder="Optional"></div>
+        </div>
+        <div class="field-row-3">
+          <div class="field"><label for="f_day">Day</label><input type="number" id="f_day" data-k="day" min="0" step="1"></div>
+          <div class="field"><label for="f_days">of (days)</label><input type="number" id="f_days" data-k="days" min="0" step="1"></div>
+          <div class="field"><label for="f_signoff">Sign-off due</label><input type="date" id="f_signoff" data-k="signoffDate"></div>
+        </div>
+      </div>
+
+      <div class="uem-group">
+        <h4>Status</h4>
+        <div class="field">
+          <select id="f_status" class="select-hidden-visually" aria-label="Status" tabindex="-1" data-k="status">
+            <option value="green">Green</option>
+            <option value="amber">Amber</option>
+            <option value="red">Red</option>
+            <option value="done">Signed off</option>
+            <option value="idle">Not started</option>
+          </select>
+          <div class="chip-row" id="statusChips"></div>
+        </div>
+        <div class="field">
+          <label for="f_reason">Why <span class="uem-muted">(for Amber or Red, goes in the headline)</span></label>
+          <input type="text" id="f_reason" data-k="reason" placeholder="1 critical and 2 high defects open">
+        </div>
+      </div>
+
+      <div class="uem-group">
+        <h4>Tests</h4>
+        <div class="uem-field-row-4">
+          <div class="field"><label for="f_scope">In scope</label><input type="number" id="f_scope" data-k="inScope" min="0" step="1"></div>
+          <div class="field"><label for="f_passed">Passed</label><input type="number" id="f_passed" data-k="passed" min="0" step="1"></div>
+          <div class="field"><label for="f_failed">Failed</label><input type="number" id="f_failed" data-k="failed" min="0" step="1"></div>
+          <div class="field"><label for="f_blocked">Blocked</label><input type="number" id="f_blocked" data-k="blocked" min="0" step="1"></div>
+        </div>
+        <div class="field">
+          <label for="f_plan">Planned executed by today <span class="uem-muted">(optional)</span></label>
+          <input type="number" id="f_plan" data-k="plan" min="0" step="1" style="max-width:120px">
+        </div>
+        <div class="uem-derived" id="testsDerived"></div>
+      </div>
+
+      <div class="uem-group">
+        <h4>Open defects</h4>
+        <div class="uem-field-row-4">
+          <div class="field"><label for="f_crit">Critical</label><input type="number" id="f_crit" data-k="critical" min="0" step="1"></div>
+          <div class="field"><label for="f_high">High</label><input type="number" id="f_high" data-k="high" min="0" step="1"></div>
+          <div class="field"><label for="f_med">Medium</label><input type="number" id="f_med" data-k="medium" min="0" step="1"></div>
+          <div class="field"><label for="f_low">Low</label><input type="number" id="f_low" data-k="low" min="0" step="1"></div>
+        </div>
+        <div class="field">
+          <label for="f_retest">Of which fixed and waiting for retest <span class="uem-muted">(optional)</span></label>
+          <input type="number" id="f_retest" data-k="retest" min="0" step="1" style="max-width:120px">
+        </div>
+        <div class="uem-derived" id="defectsDerived"></div>
+      </div>
+
+      <div class="uem-group">
+        <h4>Approvals</h4>
+        <div class="field-row">
+          <div class="field"><label for="f_approved">Approved</label><input type="number" id="f_approved" data-k="approved" min="0" step="1"></div>
+          <div class="field"><label for="f_approvers">of (approvers)</label><input type="number" id="f_approvers" data-k="approvers" min="0" step="1"></div>
+        </div>
+        <div class="uem-derived" id="approvalsDerived" hidden></div>
+      </div>
+
+      <div class="uem-group">
+        <h4>Words</h4>
+        <div class="field"><label for="f_greeting">Greeting</label><input type="text" id="f_greeting" data-k="greeting"></div>
+        <div class="field">
+          <label for="f_headline">Headline <span class="uem-muted">(bottom line first)</span></label>
+          <textarea id="f_headline" data-k="headline" rows="3"></textarea>
+          <div class="hint">Leave blank to use the suggestion shown. <button type="button" class="link-action" id="useSuggested">Copy the suggestion in to edit it</button></div>
+        </div>
+        <div class="field-row">
+          <div class="field"><label for="f_sinceDate">Last update sent</label><input type="date" id="f_sinceDate" data-k="sinceDate"></div>
+          <div class="field"><label for="f_since">What changed since</label><input type="text" id="f_since" data-k="since" placeholder="12 more tests executed, 3 defects closed"></div>
+        </div>
+        <div class="field"><label for="f_highlights">Highlights <span class="uem-muted">(one per line)</span></label><textarea id="f_highlights" data-k="highlights" rows="3"></textarea></div>
+        <div class="field"><label for="f_risks">Risks and issues <span class="uem-muted">(one per line)</span></label><textarea id="f_risks" data-k="risks" rows="3"></textarea></div>
+        <div class="field"><label for="f_asks">Decisions and help needed <span class="uem-muted">(one per line)</span></label><textarea id="f_asks" data-k="asks" rows="2"></textarea></div>
+        <div class="field"><label for="f_next">Next steps <span class="uem-muted">(one per line)</span></label><textarea id="f_next" data-k="nextSteps" rows="3"></textarea></div>
+        <div class="field-row">
+          <div class="field"><label for="f_nextUpdate">Next update</label><input type="date" id="f_nextUpdate" data-k="nextUpdate"></div>
+          <div class="field"><label for="f_signoffName">Sign off as</label><input type="text" id="f_signoffName" data-k="signoff" placeholder="Your name"></div>
+        </div>
+      </div>
+
+      <div class="uem-group">
+        <h4>Defects needing attention</h4>
+        <div class="hint" style="margin:-4px 0 8px">Optional. The defects to list in the email, usually the critical and high ones.</div>
+        <div class="uem-rows" id="rows-defects"></div>
+        <button type="button" class="small" data-add="defects">+ Add defect</button>
+      </div>
+
+      <div class="uem-group">
+        <h4>Known issues accepted</h4>
+        <div class="hint" style="margin:-4px 0 8px">Optional. Defects going live with a workaround or a decision to defer.</div>
+        <div class="uem-rows" id="rows-known"></div>
+        <button type="button" class="small" data-add="known">+ Add known issue</button>
+      </div>
+
+      <div class="uem-group">
+        <h4>Approvers</h4>
+        <div class="hint" style="margin:-4px 0 8px">Optional. Listed under Sign-off; the Approved figure above is what the email counts.</div>
+        <div class="uem-rows" id="rows-people"></div>
+        <button type="button" class="small" data-add="people">+ Add approver</button>
+      </div>
+
+      <div class="uem-group">
+        <h4>Exit criteria</h4>
+        <div class="hint" style="margin:-4px 0 10px">Met or Not met is worked out from the figures above. Leave a limit blank to drop that criterion.</div>
+        <div class="field-row">
+          <div class="field"><label for="t_exec">Tests executed, % of scope</label><input type="number" id="t_exec" data-t="execPct" min="0" max="100" step="1"></div>
+          <div class="field"><label for="t_pass">Tests passed, % of scope</label><input type="number" id="t_pass" data-t="passPct" min="0" max="100" step="1"></div>
+        </div>
+        <div class="field-row-3">
+          <div class="field"><label for="t_crit">Max open critical</label><input type="number" id="t_crit" data-t="maxCritical" min="0" step="1"></div>
+          <div class="field"><label for="t_high">Max open high</label><input type="number" id="t_high" data-t="maxHigh" min="0" step="1"></div>
+          <div class="field"><label for="t_blocked">Max blocked</label><input type="number" id="t_blocked" data-t="maxBlocked" min="0" step="1"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="uem-col">
+      <div class="uem-panel">
+        <div class="uem-panel-head"><h3>Preview</h3><span class="hint">This is what pastes into Outlook or Gmail.</span></div>
+        <label for="f_subject" class="detail-label">Subject</label>
+        <div class="uem-subject">
+          <input type="text" id="f_subject" data-k="subject" aria-describedby="subjectHint">
+          <button type="button" class="small" id="btnCopySubject">Copy</button>
+        </div>
+        <div class="hint" id="subjectHint" style="margin:-6px 0 12px">Leave blank to use the suggested subject.</div>
+        <div class="uem-preview" id="preview"></div>
+        <div class="uem-actions">
+          <button type="button" class="primary" id="btnCopyEmail2">Copy email</button>
+          <button type="button" id="btnCopyText">Copy as plain text</button>
+        </div>
+        <div id="copyFallback"></div>
+      </div>
+      <footer>
+        <div class="signoff">Dreamt up by Christian, built with Claude: a human and AI double act 🤝</div>
+        <div class="strapline">Single file, works offline. Your data never leaves this machine.</div>
+      </footer>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   Report Kit — shared runtime for the browser report tools
+   kit-version: 1.4.0
+   Exposes window.RK. Depends on window.XLSX (SheetJS) only for the
+   xlsx.* helpers; everything else is standalone. Inlined into each
+   report by framework/build.py so reports stay single-file/offline.
+
+   Compatibility policy (see framework/README.md):
+   - Staff IDs are matched case-insensitively (normalised to UPPERCASE).
+   - rules.parse retains unknown top-level and per-staff fields and
+     round-trips them through rules.serialise (forward compatibility).
+   - A newer schemaVersion loads with a warning instead of being
+     rejected (forward compatibility); v1 always loads (backward).
+   ============================================================ */
+window.RK = (function () {
+  "use strict";
+  var KIT_VERSION = "1.4.0";
+
+  /* ---------- dom / format helpers ---------- */
+  function $(id) { return document.getElementById(id); }
+  function esc(s) {
+    return String(s === null || s === undefined ? "" : s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  }
+  // Both the .hidden class (kit 1 CSS) and the hidden attribute (kit 2 CSS), so either
+  // stylesheet honours it.
+  function show(el) { if (el) { el.classList.remove("hidden"); el.hidden = false; } }
+  function hide(el) { if (el) { el.classList.add("hidden"); el.hidden = true; } }
+  // A lookup table with no prototype: keys from files ("__proto__", "constructor",
+  // "toString") are plain keys, never inherited members. Use it for any map keyed by
+  // data a user or a file supplied.
+  function dict() { return Object.create(null); }
+  function has(o, k) { return Object.prototype.hasOwnProperty.call(o, k); }
+  function round1(n) { return Math.round((n + Number.EPSILON) * 10) / 10; }
+  function round2(n) { return Math.round((n + Number.EPSILON) * 100) / 100; }
+  function fmtHrs(n) { return (Math.round(n * 10) / 10).toFixed(1); }
+  function nowIso() { try { return new Date().toISOString(); } catch (e) { return ""; } }
+
+  /* ---------- file download ---------- */
+  function download(filename, text, type) {
+    var blob = new Blob([text], { type: type || "application/octet-stream" });
+    var url = URL.createObjectURL(blob), a = document.createElement("a");
+    a.href = url; a.download = filename; document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  }
+
+  /* ---------- namespaced localStorage ---------- */
+  function store(key) {
+    return {
+      get: function () { try { var raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : null; } catch (e) { return null; } },
+      // returns false when the browser refused (quota, blocked storage), so callers can say so
+      set: function (obj) { try { localStorage.setItem(key, JSON.stringify(obj)); return true; } catch (e) { return false; } }
+    };
+  }
+
+  /* ---------- clipboard (rich HTML + plain-text fallback) ---------- */
+  var clipboard = {
+    // write({html, text}) -> Promise resolving to "html" | "text", rejecting if blocked
+    write: function (payload) {
+      var html = payload.html || "", text = payload.text || "";
+      if (window.ClipboardItem && navigator.clipboard && navigator.clipboard.write) {
+        var item = new ClipboardItem({
+          "text/html": new Blob([html], { type: "text/html" }),
+          "text/plain": new Blob([text], { type: "text/plain" })
+        });
+        return navigator.clipboard.write([item]).then(function () { return "html"; });
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        return navigator.clipboard.writeText(text).then(function () { return "text"; });
+      }
+      return Promise.reject(new Error("no-clipboard"));
+    },
+    // render a manual copy textarea into a container element
+    fallbackInto: function (el, text, label) {
+      el.innerHTML = '<div class="copy-fallback"><p class="sub" style="margin-bottom:.3rem;">' +
+        esc(label || "Copy blocked by the browser. Select all and copy from here:") +
+        '</p><textarea readonly aria-label="Content to copy"></textarea></div>';
+      var a = el.querySelector("textarea"); a.value = text; a.focus(); a.select();
+    },
+    clearFallback: function (el) { if (el) el.innerHTML = ""; }
+  };
+
+  /* ---------- upload wiring (drag/drop + browse + replace) ---------- */
+  // opts: { drop, fileInput, browseBtn, replaceBtn, onFile(arrayBuffer, filename), onError(msg) }
+  // The report controls the drop/loaded-bar visibility after a successful parse.
+  function upload(opts) {
+    var drop = opts.drop, input = opts.fileInput;
+    function read(file) {
+      var reader = new FileReader();
+      reader.onload = function () { opts.onFile(reader.result, file.name); };
+      reader.onerror = function () { if (opts.onError) opts.onError("Could not read the file. Previously loaded data is unchanged."); };
+      reader.readAsArrayBuffer(file);
+    }
+    if (drop) {
+      drop.addEventListener("dragover", function (e) { e.preventDefault(); drop.classList.add("dragover"); });
+      drop.addEventListener("dragleave", function () { drop.classList.remove("dragover"); });
+      drop.addEventListener("drop", function (e) { e.preventDefault(); drop.classList.remove("dragover"); var f = e.dataTransfer.files && e.dataTransfer.files[0]; if (f) read(f); });
+      drop.addEventListener("click", function () { input.click(); });
+      drop.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); input.click(); } });
+    }
+    if (opts.browseBtn) opts.browseBtn.addEventListener("click", function (e) { e.stopPropagation(); input.click(); });
+    if (opts.replaceBtn) opts.replaceBtn.addEventListener("click", function () { input.click(); });
+    input.addEventListener("change", function (ev) { var f = ev.target.files && ev.target.files[0]; if (f) read(f); ev.target.value = ""; });
+    return { read: read };
+  }
+
+  /* ---------- xlsx plumbing ---------- */
+  var xlsx = {
+    read: function (arrayBuffer) { return XLSX.read(arrayBuffer, { type: "array" }); },
+    // "Code - Description" -> [code, desc], split on the first " - "
+    splitCodeDesc: function (v) {
+      v = (v === null || v === undefined) ? "" : String(v);
+      var i = v.indexOf(" - ");
+      if (i < 0) return [v.trim(), ""];
+      return [v.slice(0, i).trim(), v.slice(i + 3).trim()];
+    },
+    // Wrap the first (or named) worksheet with header + cell accessors.
+    sheet: function (wb, name) {
+      if (!wb.SheetNames.length) throw new Error("The workbook contains no sheets.");
+      var sheetName = name || wb.SheetNames[0];
+      var ws = wb.Sheets[sheetName];
+      if (!ws || !ws["!ref"]) throw new Error('The worksheet "' + sheetName + '" is empty.');
+      var range = XLSX.utils.decode_range(ws["!ref"]);
+      function cell(r, c) { return ws[XLSX.utils.encode_cell({ r: r, c: c })]; }
+      function txt(r, c) { if (c === null || c === undefined) return ""; var cl = cell(r, c); if (!cl) return ""; return String(cl.w !== undefined && cl.w !== null ? cl.w : cl.v); }
+      function rawv(r, c) { if (c === null || c === undefined) return null; var cl = cell(r, c); return cl ? cl.v : null; }
+      var headers = [];
+      for (var c = range.s.c; c <= range.e.c; c++) headers.push({ index: c, name: txt(range.s.r, c).trim() });
+      return {
+        sheetName: sheetName, ws: ws, range: range, headers: headers, txt: txt, rawv: rawv,
+        findByName: function (nm) { for (var i = 0; i < headers.length; i++) if (headers[i].name === nm) return headers[i].index; return null; },
+        findByAliases: function (aliases) { for (var i = 0; i < headers.length; i++) if (aliases.indexOf(headers[i].name.toLowerCase()) !== -1) return headers[i].index; return null; }
+      };
+    },
+    // Resolve column indices for fieldSpecs against a sheet + optional explicit mapping.
+    // fieldSpecs: [{ field, canonical, required, aliases:[lowercase...] }]
+    // -> { resolved:{field:index}, missing:[{field,label}] }
+    resolve: function (sheet, fieldSpecs, mapping) {
+      mapping = mapping || {};
+      var resolved = {}, missing = [];
+      fieldSpecs.forEach(function (f) {
+        var idx = (mapping[f.field] !== undefined && mapping[f.field] !== null) ? mapping[f.field] : sheet.findByName(f.canonical);
+        if ((idx === null || idx === undefined) && f.aliases && f.aliases.length) idx = sheet.findByAliases(f.aliases);
+        if (idx !== null && idx !== undefined) resolved[f.field] = idx;
+        else if (f.required) missing.push({ field: f.field, label: f.canonical });
+      });
+      return { resolved: resolved, missing: missing };
+    },
+    // Render a "map the columns" fallback UI into a container.
+    // container: el for the selects; fieldSpecs as above; onConfirm(mapping).
+    renderMapper: function (opts) {
+      var headers = opts.headers, fieldSpecs = opts.fieldSpecs;
+      var rows = fieldSpecs.map(function (f) {
+        var guess = null;
+        for (var i = 0; i < headers.length; i++) if (headers[i].name === f.canonical) { guess = headers[i].index; break; }
+        var optsHtml = '<option value="">(not mapped)</option>' + headers.map(function (h) {
+          return '<option value="' + h.index + '"' + (guess === h.index ? " selected" : "") + ">" + esc(h.name || ("(column " + (h.index + 1) + ")")) + " [col " + (h.index + 1) + "]</option>";
+        }).join("");
+        var label = f.label || (f.canonical + (f.required ? "" : " (optional)"));
+        return '<div style="margin:.5rem 0;"><label class="field" style="margin:0 0 .2rem;">' + esc(label) + '</label><select data-field="' + f.field + '">' + optsHtml + "</select></div>";
+      }).join("");
+      opts.fieldsEl.innerHTML = rows;
+      var errEl = opts.errorEl;
+      if (errEl) hide(errEl);
+      opts.confirmBtn.onclick = function () {
+        var selects = opts.fieldsEl.querySelectorAll("select"), mapping = {}, missing = [];
+        Array.prototype.forEach.call(selects, function (s) {
+          var field = s.getAttribute("data-field"), v = s.value, spec = null;
+          for (var i = 0; i < fieldSpecs.length; i++) if (fieldSpecs[i].field === field) { spec = fieldSpecs[i]; break; }
+          if (v === "") { if (spec && spec.required) missing.push(field); return; }
+          mapping[field] = parseInt(v, 10);
+        });
+        if (missing.length) { if (errEl) { errEl.textContent = "Still unmapped: " + missing.join(", ") + "."; show(errEl); } return; }
+        opts.onConfirm(mapping);
+      };
+    }
+  };
+
+  /* ---------- rules JSON module (versioned, case-insensitive, forward-compatible) ---------- */
+  var SCHEMA_VERSION = 1;
+  function lineCol(str, pos) {
+    if (pos === null || pos === undefined || isNaN(pos)) return null;
+    var upto = str.slice(0, pos);
+    return { line: upto.split("\n").length, col: pos - upto.lastIndexOf("\n") };
+  }
+  function normId(id) { return String(id === null || id === undefined ? "" : id).trim().toUpperCase(); }
+  var KNOWN_TOP = dict(); ["schemaVersion", "generatedAt", "label", "staff"].forEach(function (k) { KNOWN_TOP[k] = 1; });
+  var KNOWN_STAFF = dict(); ["name", "approvedDemands"].forEach(function (k) { KNOWN_STAFF[k] = 1; });
+
+  var rules = {
+    SCHEMA_VERSION: SCHEMA_VERSION,
+    normId: normId,
+    // parse(jsonString) -> { schemaVersion, generatedAt, label, staff, names, demands, extraTop, warning }
+    // staff keyed by normId, each { name, approvedDemands, ...retained unknown fields }.
+    parse: function (jsonString) {
+      var data;
+      try { data = JSON.parse(jsonString); }
+      catch (e) {
+        var m = /position (\d+)/.exec(e.message);
+        var lc = m ? lineCol(jsonString, parseInt(m[1], 10)) : null;
+        throw new Error("Rules JSON did not parse: " + e.message + (lc ? " (line " + lc.line + ", column " + lc.col + ")" : "") + "\nCurrent rules left unchanged.");
+      }
+      if (typeof data !== "object" || data === null || Array.isArray(data)) throw new Error("Rules must be a JSON object. Current rules left unchanged.");
+      var warning = null, sv = data.schemaVersion;
+      if (typeof sv !== "number") throw new Error("Rules are missing a numeric schemaVersion. Current rules left unchanged.");
+      if (sv > SCHEMA_VERSION) warning = "This file uses schemaVersion " + sv + ", newer than this tool (v" + SCHEMA_VERSION + "). It was loaded, but fields this version doesn't understand are kept untouched.";
+      if (typeof data.staff !== "object" || data.staff === null || Array.isArray(data.staff)) throw new Error('"staff" must be an object. Current rules left unchanged.');
+      var problems = [], staff = {}, names = {}, demands = {};
+      Object.keys(data.staff).forEach(function (id) {
+        var e = data.staff[id];
+        if (typeof e !== "object" || e === null || Array.isArray(e)) { problems.push(id + ": entry must be an object."); return; }
+        if (e.name !== undefined && typeof e.name !== "string") problems.push(id + ': "name" must be a string.');
+        if (e.approvedDemands !== undefined) {
+          if (!Array.isArray(e.approvedDemands)) problems.push(id + ': "approvedDemands" must be an array.');
+          else if (!e.approvedDemands.every(function (x) { return typeof x === "string"; })) problems.push(id + ': "approvedDemands" must contain only strings.');
+        }
+        var key = normId(id);
+        var merged = {};
+        Object.keys(e).forEach(function (k) { merged[k] = e[k]; }); // retain unknown fields (forward compat)
+        merged.name = typeof e.name === "string" ? e.name : "";
+        merged.approvedDemands = Array.isArray(e.approvedDemands) ? e.approvedDemands.filter(function (x) { return typeof x === "string"; }) : [];
+        staff[key] = merged;
+        if (merged.name.trim() !== "") names[key] = merged.name.trim();
+        demands[key] = merged.approvedDemands;
+      });
+      if (problems.length) throw new Error("Rules validation failed:\n- " + problems.join("\n- ") + "\nCurrent rules left unchanged.");
+      var extraTop = {};
+      Object.keys(data).forEach(function (k) { if (!KNOWN_TOP[k]) extraTop[k] = data[k]; }); // retain unknown top-level (forward compat)
+      return {
+        schemaVersion: sv, generatedAt: typeof data.generatedAt === "string" ? data.generatedAt : null,
+        label: typeof data.label === "string" ? data.label : "",
+        staff: staff, names: names, demands: demands, extraTop: extraTop, warning: warning
+      };
+    },
+    // serialise(opts) -> JSON string in the shared schema.
+    // opts: { names:{id:name}, demands:{id:[...]}, staff:{id:{...}}, label, generatedAt, extraTop }
+    // When names (or demands) is passed it is the whole truth: an id missing from it has no
+    // name (no demands), so a name the user cleared stays cleared rather than coming back
+    // from staff. Keys are matched case-insensitively.
+    serialise: function (opts) {
+      opts = opts || {};
+      function norm(m) { var o = dict(); Object.keys(m || {}).forEach(function (id) { o[normId(id)] = m[id]; }); return o; }
+      var names = norm(opts.names), demands = norm(opts.demands), staffIn = norm(opts.staff);
+      var ids = dict();
+      [names, demands, staffIn].forEach(function (m) { Object.keys(m).forEach(function (id) { ids[id] = 1; }); });
+      var staffOut = {};
+      Object.keys(ids).sort().forEach(function (id) {
+        var base = (staffIn[id] && typeof staffIn[id] === "object") ? staffIn[id] : {};
+        var out = {};
+        Object.keys(base).forEach(function (k) { if (!KNOWN_STAFF[k]) out[k] = base[k]; }); // keep retained unknown fields
+        var name = opts.names ? (has(names, id) ? names[id] : "") : (typeof base.name === "string" ? base.name : "");
+        var dem = opts.demands ? (has(demands, id) ? demands[id] : []) : (Array.isArray(base.approvedDemands) ? base.approvedDemands : []);
+        name = typeof name === "string" ? name : "";
+        dem = Array.isArray(dem) ? dem.filter(function (x) { return typeof x === "string"; }).slice().sort() : [];
+        if (name === "" && dem.length === 0 && !Object.keys(out).length) return;
+        out.name = name; out.approvedDemands = dem;
+        staffOut[id] = out;
+      });
+      var envelope = { schemaVersion: SCHEMA_VERSION, generatedAt: opts.generatedAt || nowIso(), label: opts.label || "" };
+      var extraTop = opts.extraTop || {};
+      Object.keys(extraTop).forEach(function (k) { if (!KNOWN_TOP[k]) envelope[k] = extraTop[k]; });
+      envelope.staff = staffOut;
+      return JSON.stringify(envelope, null, 2);
+    }
+  };
+
+  /* ---------- staff-name editor component ----------
+     Renders a filterable Staff ID -> Name table into a container.
+     opts: {
+       wrap, hint, search, onlyMissing,   // elements
+       getStaff: () => ({ ID: exportName }),   // ids normId'd by the caller
+       nameMap,                                // mutable {ID: name}, written in place
+       onChange: () => {}                      // after any edit (persist + re-render summary)
+     }
+     Returns { render() }.  onlyMissing.checked is honoured as-is (set it in markup for the default). */
+  function NameEditor(opts) {
+    var wrap = opts.wrap, hint = opts.hint;
+    function render() {
+      var map = opts.getStaff() || {}, ids = Object.keys(map).sort();
+      if (!ids.length) { wrap.innerHTML = ""; if (hint) hint.textContent = "Load an export to edit names for its staff."; return; }
+      var missingCount = ids.filter(function (id) { return !(opts.nameMap[id] || map[id]); }).length;
+      if (hint) hint.innerHTML = ids.length + " staff in this export &middot; <strong>" + missingCount + "</strong> with no name (falling back to the Staff ID)." +
+        (missingCount ? " Tick &ldquo;Only missing names&rdquo; to focus on them." : "");
+      var onlyMissing = opts.onlyMissing && opts.onlyMissing.checked;
+      var f = (opts.search && opts.search.value ? opts.search.value : "").trim().toLowerCase();
+      var shown = ids.filter(function (id) {
+        var override = opts.nameMap[id] || "", exp = map[id] || "", missing = !(override || exp);
+        if (onlyMissing && !missing) return false;
+        if (f && (id + " " + override + " " + exp).toLowerCase().indexOf(f) === -1) return false;
+        return true;
+      });
+      if (!shown.length) { wrap.innerHTML = '<div class="empty">' + (onlyMissing ? "No staff are missing a name." : "No staff match your filter.") + "</div>"; return; }
+      wrap.innerHTML = '<table class="data"><thead><tr><th>Staff ID</th><th>Name</th></tr></thead><tbody>' +
+        shown.map(function (id) {
+          var override = opts.nameMap[id] || "", exp = map[id] || "", missing = !(override || exp);
+          var sub = exp ? '<span class="sid">export: ' + esc(exp) + "</span>" : "";
+          var ph = exp ? esc(exp) : "Add a name";
+          return '<tr' + (missing ? ' class="missing-row"' : "") + '><td class="staff-id">' + esc(id) + sub + "</td>" +
+            '<td><input type="text" class="name-input" data-sid="' + esc(id) + '" data-exp="' + esc(exp) + '" value="' + esc(override) + '" placeholder="' + ph + '" aria-label="Name for ' + esc(id) + '"></td></tr>';
+        }).join("") + "</tbody></table>";
+      wrap.querySelectorAll("input.name-input").forEach(function (inp) {
+        inp.addEventListener("input", function () {
+          var sid = inp.getAttribute("data-sid"), exp = inp.getAttribute("data-exp") || "", v = inp.value.trim();
+          if (v) opts.nameMap[sid] = v; else delete opts.nameMap[sid];
+          opts.onChange();
+          var tr = inp.closest("tr"); if (tr) tr.classList.toggle("missing-row", !(v || exp)); // keep focus: no full re-render
+        });
+      });
+    }
+    if (opts.search) opts.search.addEventListener("input", render);
+    if (opts.onlyMissing) opts.onlyMissing.addEventListener("change", render);
+    return { render: render };
+  }
+
+
+  /* ============================================================
+     Kit 2 runtime (added in 1.1.0). Pairs with report-kit-2.css;
+     the markup each helper expects is in framework/DESIGN.md.
+     Nothing above this line depends on it.
+     ============================================================ */
+
+  /* ---------- ids, dates, numbers ---------- */
+  function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+  // YYYY-MM-DD from the Date's LOCAL calendar fields (toISOString would give the UTC day)
+  function localDate(d) {
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  }
+  function today() { return localDate(new Date()); }
+  function fmtNum2(n) { return (Number(n) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+  function fmtWhole(n) { return Math.round(Number(n) || 0).toLocaleString(); }
+  // "AED 1,234.50"; whole=true drops the pence for headline figures
+  function fmtMoney(n, ccy, whole) { return (ccy ? ccy + " " : "") + (whole ? fmtWhole(n) : fmtNum2(n)); }
+
+  /* ---------- CSV ---------- */
+  var csv = {
+    // Excel needs a UTF-8 BOM to show non-ASCII characters (arrows, accents) correctly
+    BOM: "﻿",
+    escape: function (v) {
+      var s = v === null || v === undefined ? "" : String(v);
+      return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+    },
+    // stops a text cell starting with = + - @ being run as a formula; never use on numbers
+    safeText: function (v) {
+      var s = v === null || v === undefined ? "" : String(v);
+      return /^[=+\-@\t\r]/.test(s) ? "'" + s : s;
+    },
+    // rows: array of arrays (first row = headers), already safeText'd where needed
+    fromRows: function (rows) { return rows.map(function (r) { return r.map(csv.escape).join(","); }).join("\r\n"); }
+  };
+
+  /* ---------- modal / drawer ----------
+     modal(overlay, { onClose }) for a .modal-overlay holding a .modal (or .modal.drawer).
+     Adds role=dialog + aria-modal, moves focus into the dialog on open, Escape to close,
+     a Tab focus trap, focus back to the opener on close, and a dirty-form guard: a click
+     on the backdrop (including a text-selection drag that ends there) closes the dialog
+     only when nothing has been typed into it. onClose runs once per close.
+     Returns { open(opener?), close(), markClean(), isOpen() }. */
+  var FOCUSABLE = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+  function focusables(root) {
+    return Array.prototype.filter.call(root.querySelectorAll(FOCUSABLE), function (el) { return !el.disabled && el.offsetParent !== null; });
+  }
+  function modal(overlay, opts) {
+    opts = opts || {};
+    var box = overlay.querySelector(".modal");
+    box.setAttribute("role", "dialog");
+    box.setAttribute("aria-modal", "true");
+    if (!box.hasAttribute("tabindex")) box.setAttribute("tabindex", "-1");
+    var title = box.querySelector("h2");
+    if (title && !box.hasAttribute("aria-labelledby")) {
+      if (!title.id) title.id = "rk-dlg-" + uid();
+      box.setAttribute("aria-labelledby", title.id);
+    }
+    var dirty = false, opener = null, downOnBackdrop = false;
+    box.addEventListener("input", function () { dirty = true; });
+    box.addEventListener("change", function () { dirty = true; });
+    overlay.addEventListener("mousedown", function (e) {
+      downOnBackdrop = e.target === overlay;
+      // a press on the backdrop must not move focus to <body>, or Escape and the Tab
+      // trap (both listen on the overlay) stop working
+      if (downOnBackdrop) e.preventDefault();
+    });
+    overlay.addEventListener("mouseup", function (e) {
+      if (downOnBackdrop && e.target === overlay && !dirty) close();
+      downOnBackdrop = false;
+    });
+    overlay.addEventListener("keydown", function (e) {
+      if (overlay.hidden || (e.key !== "Escape" && e.key !== "Tab")) return;
+      if (e.key === "Escape") { e.stopPropagation(); close(); return; }
+      var f = focusables(box);
+      if (!f.length) { e.preventDefault(); return; }
+      var first = f[0], last = f[f.length - 1];
+      if (e.shiftKey && (document.activeElement === first || document.activeElement === box)) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    });
+    function close() {
+      if (overlay.hidden) return;
+      overlay.hidden = true;
+      dirty = false;
+      if (opts.onClose) opts.onClose();
+      if (opener && typeof opener.focus === "function" && document.contains(opener)) opener.focus();
+      opener = null;
+    }
+    return {
+      open: function (from) {
+        if (!overlay.hidden) return; // already open: keep the original opener for focus return
+        opener = from || document.activeElement;
+        dirty = false;
+        overlay.hidden = false;
+        // keyboard handling lives on the overlay, so focus must be inside it; callers
+        // that want a specific field focused can still .focus() it after open()
+        if (!box.contains(document.activeElement)) box.focus();
+      },
+      close: close,
+      markClean: function () { dirty = false; },
+      isOpen: function () { return !overlay.hidden; }
+    };
+  }
+
+  /* ---------- toast ----------
+     toast(message, ms?) shows a short status line (.toast, kit 2) and fades it
+     after ms (default 2600). One element, made on first use; a new message
+     replaces the one showing. Announced politely to screen readers. */
+  var toastEl = null, toastTimer = null;
+  function toast(message, ms) {
+    if (!toastEl) {
+      toastEl = document.createElement("div");
+      toastEl.className = "toast";
+      toastEl.setAttribute("role", "status");
+      toastEl.setAttribute("aria-live", "polite");
+      document.body.appendChild(toastEl);
+    }
+    toastEl.textContent = message;
+    toastEl.classList.add("on");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toastEl.classList.remove("on"); }, ms || 2600);
+  }
+
+  /* ---------- confirm dialog (in-page replacement for window.confirm) ----------
+     confirm(message, onConfirm, { okLabel, title, danger }). Builds its own markup on
+     first use. onConfirm runs only if the primary button is pressed. */
+  var confirmUi = null;
+  function confirmDialog(message, onConfirm, o) {
+    o = o || {};
+    if (!confirmUi) {
+      var ov = document.createElement("div");
+      ov.className = "modal-overlay"; ov.hidden = true;
+      ov.innerHTML = '<div class="modal modal-compact"><h2></h2><p class="modal-lead"></p>' +
+        '<div class="modal-actions"><button type="button" data-rk-cancel>Cancel</button><button type="button" class="primary" data-rk-ok>Continue</button></div></div>';
+      document.body.appendChild(ov);
+      var pending = null;
+      var ctl = modal(ov, { onClose: function () { pending = null; } });
+      ov.querySelector("[data-rk-cancel]").addEventListener("click", function () { ctl.close(); });
+      ov.querySelector("[data-rk-ok]").addEventListener("click", function () { var fn = pending; pending = null; ctl.close(); if (fn) fn(); });
+      confirmUi = { ov: ov, ctl: ctl, set: function (fn) { pending = fn; } };
+    }
+    var ok = confirmUi.ov.querySelector("[data-rk-ok]");
+    confirmUi.ov.querySelector("h2").textContent = o.title || "Are you sure?";
+    confirmUi.ov.querySelector(".modal-lead").textContent = message;
+    ok.textContent = o.okLabel || "Continue";
+    ok.className = "primary" + (o.danger ? " danger-fill" : "");
+    confirmUi.set(onConfirm);
+    confirmUi.ctl.open();
+    ok.focus();
+  }
+
+  /* ---------- choice chips that drive a hidden <select> ----------
+     One .chip button per <option>. Clicking sets the select and fires "change", so
+     listeners on the select keep working. Returns refresh(); call it after setting
+     the select's value in code. */
+  function chipsFromSelect(select, row, labelFor) {
+    var chips = [];
+    Array.prototype.forEach.call(select.options, function (opt) {
+      var b = document.createElement("button");
+      b.type = "button"; b.className = "chip";
+      b.setAttribute("data-chip-value", opt.value);
+      b.textContent = labelFor ? labelFor(opt.value, opt.textContent) : opt.textContent;
+      b.addEventListener("click", function () {
+        if (select.value === opt.value) return;
+        select.value = opt.value;
+        select.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+      row.appendChild(b);
+      chips.push({ value: opt.value, el: b });
+    });
+    function refresh() {
+      chips.forEach(function (c) {
+        var on = c.value === select.value;
+        c.el.classList.toggle("active", on);
+        c.el.setAttribute("aria-pressed", on ? "true" : "false");
+      });
+    }
+    select.addEventListener("change", refresh);
+    refresh();
+    return refresh;
+  }
+
+  /* ---------- sortable table headers ----------
+     sortable(table, state, onSort): every th[data-sort] toggles state.key / state.dir
+     (1 asc, -1 desc), keeps aria-sort and a .sort-arrow span in step, then onSort().
+     Returns update() to redraw the arrows after changing state in code. */
+  function sortable(table, state, onSort) {
+    if (table.__rkSortable) return table.__rkSortable; // bound already: a second set of listeners would flip twice
+    var ths = table.querySelectorAll("th[data-sort]");
+    function update() {
+      Array.prototype.forEach.call(ths, function (th) {
+        var on = th.getAttribute("data-sort") === state.key, arrow = th.querySelector(".sort-arrow");
+        th.setAttribute("aria-sort", on ? (state.dir === 1 ? "ascending" : "descending") : "none");
+        if (arrow) arrow.textContent = on ? (state.dir === 1 ? " ▲" : " ▼") : "";
+      });
+    }
+    function activate(th) {
+      var key = th.getAttribute("data-sort");
+      if (state.key === key) state.dir *= -1; else { state.key = key; state.dir = 1; }
+      update(); onSort();
+    }
+    Array.prototype.forEach.call(ths, function (th) {
+      if (!th.hasAttribute("tabindex")) th.setAttribute("tabindex", "0");
+      if (!th.querySelector(".sort-arrow")) th.insertAdjacentHTML("beforeend", '<span class="sort-arrow"></span>');
+      th.addEventListener("click", function () { activate(th); });
+      th.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); activate(th); } });
+    });
+    update();
+    table.__rkSortable = update;
+    return update;
+  }
+
+  /* ---------- step segments (.step-segs) ----------
+     stepSegs(total, index): segments filled up to index; all green once the last
+     step is reached. */
+  function stepSegs(total, index) {
+    var html = "", done = index === total - 1;
+    for (var i = 0; i < total; i++) html += '<span class="step-seg' + (done ? " done" : (i <= index ? " filled" : "")) + '"></span>';
+    return html;
+  }
+
+  /* ---------- "/" focuses the search box ----------
+     Only when nothing else is taking keystrokes (a field focused or a dialog open)
+     and isActive() (optional) says the view with the search box is showing. */
+  function searchShortcut(input, isActive) {
+    window.addEventListener("keydown", function (e) {
+      if (e.key !== "/" || e.ctrlKey || e.metaKey || e.altKey) return;
+      var tag = (document.activeElement && document.activeElement.tagName || "").toLowerCase();
+      if (tag === "input" || tag === "select" || tag === "textarea") return;
+      if (isActive && !isActive()) return;
+      if (document.querySelector(".modal-overlay:not([hidden])")) return;
+      e.preventDefault();
+      input.focus();
+    });
+  }
+
+  /* ---------- project files: the file is the document (1.4.0) ----------
+     fileDoc(opts) binds the page to one file on disk through the File System
+     Access API (Chrome; Edge unless blocked by policy) and writes every change
+     into it. Every file:// page shares one localStorage, so browser storage can
+     only ever hold one project; a file per project has no such limit and lives
+     wherever the project does. The full reasoning is in docs/storage-design.md;
+     this is that design, taken out of the project cost tracker so other tools
+     can share it.
+
+     opts:
+       app          names the IndexedDB database, the lock and the channel; also
+                    the prefix of the keys it keeps in localStorage and sessionStorage
+       label        what a file is called in the picker ("UAT tracker project")
+       serialise()  the text to write: the state on screen, now
+       load(text, how)  parse, validate and show text read from a file. Throw
+                    to refuse it, before anything on screen has changed.
+                    how.reload is true when it is the bound file read again
+                    (an undoable step for a page that keeps undo)
+       onBind(fromId, toId, kept)  the bound file changed. kept: what is on
+                    screen moved to the new file with it (save as), so history
+                    taken in the old one still applies; otherwise drop it
+       tabKey       sessionStorage key for this tab's file (default app + ":tab-file")
+       onChange(info)  redraw the save status (info() below)
+       onMessage(text) a short note for the user (a toast)
+       delay        ms between the last edit and the write (default 500)
+
+     Returns { available, info, status, touch, flush, create, open, openRecent,
+     recents, forgetRecents, reconnect, retry, useFile, keepMine, close, unblock, boot }.
+
+     Guarantees, all carried over from the cost tracker:
+       - one tab per file: a Web Lock named after the file (BroadcastChannel
+         where locks are missing), so a second tab never adopts a file in use
+       - one write at a time, in order; a queued write overtaken by a newer one
+         is skipped; each write keeps the file record it was made for, so
+         switching file mid-write cannot put one project into another's file
+       - write, then read back the size; a short write is not a save
+       - a file changed by something else is never overwritten: autosave stops
+         and useFile() / keepMine() decide
+       - a crash copy of every save in IndexedDB, so a lapsed permission or a
+         closed tab costs nothing; a newer copy than the file is offered back
+       - only NotAllowedError / SecurityError counts as a lost permission; any
+         other failed write keeps the file and offers retry()
+       - a browser that refuses the picker (an admin policy) is remembered and
+         the file buttons are withdrawn until unblock() */
+  function fileDoc(opts) {
+    var APP = opts.app, DELAY = opts.delay || 500;
+    var FS_OK = typeof window.showSaveFilePicker === "function" && typeof window.showOpenFilePicker === "function";
+    var BLOCK_KEY = APP + ":fs-blocked", TAB_KEY = opts.tabKey || APP + ":tab-file";
+    var TYPES = [{ description: opts.label || "Project file", accept: { "application/json": [".json"] } }];
+    var isEdge = /\bEdg\//.test(navigator.userAgent);
+    function blank() { return { id: null, handle: null, name: "", permission: "none", lastModified: 0, savedAt: 0, stale: false, loaded: false, lastJob: null }; }
+    var doc = blank(), stale = false, staleWhy = "", writeFailed = false, blockedBy = "";
+    var timer = null, dirty = false, editSeq = 0, pending = 0, chain = Promise.resolve(), SKIPPED = {};
+    function changed() { if (opts.onChange) opts.onChange(info()); }
+    function say(text) { if (opts.onMessage) opts.onMessage(text); }
+    function newId() { return uid() + uid(); }
+
+    /* IndexedDB: handles (the files picked, so they reopen in one click),
+       scratch (the last state saved for each file), session (the last file used) */
+    function idb() {
+      return new Promise(function (res, rej) {
+        var req = indexedDB.open(APP, 1);
+        req.onupgradeneeded = function () {
+          ["handles", "scratch", "session"].forEach(function (s) { if (!req.result.objectStoreNames.contains(s)) req.result.createObjectStore(s); });
+        };
+        req.onsuccess = function () { res(req.result); };
+        req.onerror = function () { rej(req.error); };
+      });
+    }
+    function idbDo(store, mode, fn) {
+      return idb().then(function (db) {
+        return new Promise(function (res, rej) {
+          var tx = db.transaction(store, mode), r = fn(tx.objectStore(store));
+          tx.oncomplete = function () { res(r && r.result !== undefined ? r.result : null); };
+          tx.onerror = function () { rej(tx.error); };
+        });
+      }).catch(function () { return null; });
+    }
+    function idbGet(s, k) { return idbDo(s, "readonly", function (o) { return o.get(k); }); }
+    function idbPut(s, k, v) { return idbDo(s, "readwrite", function (o) { return o.put(v, k); }); }
+    function idbDel(s, k) { return idbDo(s, "readwrite", function (o) { return o.delete(k); }); }
+    function idbAll(s) { return idbDo(s, "readonly", function (o) { return o.getAll(); }).then(function (r) { return r || []; }); }
+
+    /* one file, one editor */
+    var chan = window.BroadcastChannel ? new BroadcastChannel(APP) : null;
+    var claimed = null, held = dict();
+    if (chan) chan.addEventListener("message", function (e) {
+      var m = e.data || {};
+      if (m.type === "who-has" && claimed && m.id === claimed) chan.postMessage({ type: "have", id: claimed });
+    });
+    var LOCKS = !!(navigator.locks && typeof navigator.locks.request === "function");
+    function claim(id) {
+      if (has(held, id)) { claimed = id; return Promise.resolve(true); }
+      if (!LOCKS) return claimByMessage(id);
+      return new Promise(function (res) {
+        navigator.locks.request(APP + ":" + id, { ifAvailable: true }, function (lock) {
+          if (!lock) { res(false); return; }
+          claimed = id; res(true);
+          return new Promise(function (done) { held[id] = done; });   // held until release(id)
+        }).catch(function () { claimByMessage(id).then(res); });
+      });
+    }
+    function claimByMessage(id) {
+      if (!chan) { claimed = id; return Promise.resolve(true); }
+      return new Promise(function (res) {
+        var taken = false;
+        var onMsg = function (e) { if (e.data && e.data.type === "have" && e.data.id === id) taken = true; };
+        chan.addEventListener("message", onMsg);
+        chan.postMessage({ type: "who-has", id: id });
+        setTimeout(function () { chan.removeEventListener("message", onMsg); if (!taken) claimed = id; res(!taken); }, 180);
+      });
+    }
+    function release(id) {
+      Object.keys(held).forEach(function (k) { if (id === undefined || k === id) { var done = held[k]; delete held[k]; done(); } });
+      if (id === undefined || claimed === id) claimed = null;
+    }
+    function releaseOthers(id) { Object.keys(held).forEach(function (k) { if (k !== id) release(k); }); }
+    // a held lock goes with the document; dropping it here would let a page
+    // restored from the back/forward cache write unclaimed
+    window.addEventListener("pagehide", function () { if (!LOCKS) release(); });
+
+    /* state for the page */
+    function blockedName() { try { return localStorage.getItem(BLOCK_KEY) || ""; } catch (e) { return ""; } }
+    function info() {
+      return { available: FS_OK && !blockedName(), supported: FS_OK, blocked: blockedName(), isEdge: isEdge,
+        id: doc.id, bound: !!doc.handle, connected: !!doc.handle && doc.permission === "granted", name: doc.name, savedAt: doc.savedAt,
+        stale: stale, staleWhy: staleWhy, writeFailed: writeFailed, blockedBy: blockedBy, busy: pending > 0 || !!timer, dirty: dirty };
+    }
+    function hhmm(t) { var d = new Date(t); return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"); }
+    // one line for a header: { text, tone: "live" | "warn", action: "retry" | "reconnect" | "" }
+    function status() {
+      var i = info();
+      if (i.connected && i.writeFailed && !i.stale) return { text: "Could not write " + i.name + ", edits kept in this browser", tone: "warn", action: "retry" };
+      if (i.connected && i.stale) return { text: i.staleWhy ? "Unsaved edits for " + i.name : i.name + " changed on disk", tone: "warn", action: "" };
+      if (i.connected) return { text: (i.busy ? "Saving to " : "Saved to ") + i.name + (!i.busy && i.savedAt ? " · " + hhmm(i.savedAt) : ""), tone: "live", action: "" };
+      if (i.bound) return { text: "Not connected to " + i.name, tone: "warn", action: "reconnect" };
+      if (i.blockedBy) return { text: i.blockedBy + " is open in another tab", tone: "warn", action: "" };
+      return i.available ? { text: "In this browser only", tone: "warn", action: "" } : { text: "Saved in this browser", tone: "live", action: "" };
+    }
+
+    /* writes: one queue, in order */
+    function staleOf(d) { return d === doc ? stale : !!d.stale; }
+    function enqueue(job) {
+      pending++;
+      job.doc.lastJob = job;
+      var p = chain.then(function () { return runWrite(job); }).catch(function (e) { job.error = e; return settle(job, false); });
+      var drained = function () { pending--; if (job.doc === doc) changed(); };
+      chain = p.then(drained, drained);
+      job.done = p.then(function (r) { return r === SKIPPED ? job.doc.lastJob.done : r; });
+      return job.done;
+    }
+    function runWrite(job) {
+      var d = job.doc, h = job.handle, text = job.text;
+      if (!job.force && d.lastJob !== job) return Promise.resolve(SKIPPED);
+      if (!h || d.permission !== "granted") return Promise.resolve(settle(job, false));
+      // once stale, only keepMine() writes; stale when the save was made counts too
+      if ((job.stale || staleOf(d)) && !job.force) return Promise.resolve(settle(job, false));
+      return h.getFile().then(function (f) {
+        if (!job.force && d.lastModified && f.lastModified > d.lastModified + 1000) {
+          if (d === doc) stale = true; else d.stale = true;
+          return false;
+        }
+        return h.createWritable().then(function (w) {
+          return w.write(text).then(function () { return w.close(); });
+        }).then(function () { return h.getFile(); }).then(function (after) {
+          if (after.size < new Blob([text]).size) throw new Error("short write");
+          d.lastModified = after.lastModified;
+          d.savedAt = Date.now();
+          d.stale = false;
+          if (d === doc) { stale = false; staleWhy = ""; writeFailed = false; }
+          return true;
+        });
+      }).catch(function (e) { job.error = e; return false; })
+        .then(function (ok) { return settle(job, ok); });
+    }
+    function settle(job, ok) {
+      var d = job.doc, cur = d === doc;
+      if (ok) {
+        if (d.lastJob === job) { job.payload.fileModified = d.lastModified; idbPut("scratch", job.id, job.payload); }
+        if (cur && job.seq === editSeq) dirty = false;
+      } else if (!staleOf(d) && d.handle && d.permission === "granted") {
+        var n = job.error && job.error.name;
+        if (n === "NotAllowedError" || n === "SecurityError") d.permission = "prompt";
+        else if (cur) writeFailed = true;
+        if (!cur) say("Could not write " + d.name + ", its last edits are kept in this browser");
+      } else if (!cur && staleOf(d) && d.lastJob === job) {
+        say(d.name + " changed on disk, so its last edits were kept in this browser, not written");
+      }
+      if (cur) changed();
+      return ok;
+    }
+    function saveNow(force) {
+      clearTimeout(timer); timer = null;
+      dirty = true;
+      var seq = ++editSeq, text = opts.serialise();
+      var payload = { id: doc.id, text: text, savedAt: Date.now(), name: doc.name, fileModified: doc.lastModified };
+      idbPut("scratch", doc.id, payload);   // first: it is what survives a failed write
+      return enqueue({ doc: doc, handle: doc.handle, id: doc.id, text: text, payload: payload, seq: seq, force: !!force, stale: stale });
+    }
+    // an edit happened: write it soon. False when no file is bound, or when the
+    // bound file's content was never shown here (it could not be read at start):
+    // what is on screen is then the browser copy, so the page keeps the edit there,
+    // and neither the file nor its crash copy is touched.
+    function touch() {
+      if (!doc.handle || !doc.loaded) return false;
+      dirty = true; editSeq++;
+      clearTimeout(timer); timer = setTimeout(saveNow, DELAY);
+      changed();
+      return true;
+    }
+    // edits waiting on the delay are written to the file they were made in, and
+    // every queued write finishes
+    function flush() { if (timer) saveNow(); return chain; }
+    window.addEventListener("beforeunload", function (e) {
+      if (dirty || pending) { e.preventDefault(); e.returnValue = ""; }
+    });
+
+    /* binding a file */
+    function bind(handle, id, kept) {
+      var from = doc.id;
+      if (id !== from) { doc.stale = stale; doc = blank(); }
+      doc.handle = handle; doc.name = handle.name; doc.id = id; doc.permission = "granted"; doc.lastModified = 0; doc.loaded = true;
+      stale = false; staleWhy = ""; writeFailed = false;
+      chain.then(function () { releaseOthers(doc.id); });
+      if (id !== from && opts.onBind) opts.onBind(from, id, !!kept);
+    }
+    // crash copies are text; the cost tracker's own build kept the parsed object
+    function scratchText(sc) {
+      if (!sc) return null;
+      if (typeof sc.text === "string") return sc.text;
+      return sc.data && typeof sc.data === "object" ? JSON.stringify(sc.data, null, 2) : null;
+    }
+    function sameText(a, b) {
+      if (a === b) return true;
+      try { return JSON.stringify(JSON.parse(a)) === JSON.stringify(JSON.parse(b)); } catch (e) { return false; }
+    }
+    function remember() {
+      if (!doc.id || !doc.handle) return Promise.resolve();
+      try { sessionStorage.setItem(TAB_KEY, doc.id); } catch (e) { /* per tab is a nicety */ }
+      return idbPut("handles", doc.id, { id: doc.id, name: doc.name, handle: doc.handle, lastOpened: Date.now() })
+        .then(function () { return idbPut("session", "last", { id: doc.id }); });
+    }
+    // the same file must keep one id, or the one-editor claim would not hold
+    function idForHandle(h) {
+      return idbAll("handles").then(function (rows) {
+        var i = 0;
+        function step() {
+          if (i >= rows.length) return null;
+          var row = rows[i++];
+          if (!row.handle || typeof row.handle.isSameEntry !== "function") return step();
+          return row.handle.isSameEntry(h).then(function (same) { return same ? row.id : step(); }).catch(step);
+        }
+        return step();
+      });
+    }
+    function readFile(h) { return h.getFile().then(function (f) { return f.text().then(function (t) { return { f: f, t: t }; }); }); }
+    // load first (it throws before anything changes), then bind
+    function loadFrom(h, id, r, reload) {
+      if (timer) { if (id !== doc.id) saveNow(); else { clearTimeout(timer); timer = null; } }
+      opts.load(r.t, { reload: !!reload, name: h.name });
+      bind(h, id, false);
+      doc.lastModified = r.f.lastModified; doc.savedAt = r.f.lastModified;
+      dirty = false;
+      idbPut("scratch", doc.id, { id: doc.id, text: r.t, savedAt: r.f.lastModified, name: doc.name, fileModified: r.f.lastModified });
+      return remember();
+    }
+    function fileError(what, e) {
+      if (e && e.name === "AbortError") return false;
+      var name = (e && e.name) || "Error";
+      if (name === "SecurityError" || name === "NotAllowedError") {
+        try { localStorage.setItem(BLOCK_KEY, name); } catch (x) { /* still withdrawn for this visit */ }
+        say("This browser refused access to the file system");
+        changed();
+      } else say(what + " (" + name + (e && e.message ? ": " + String(e.message).slice(0, 100) : "") + ")");
+      try { console.warn("[" + APP + "] " + what, e); } catch (x) { /* no console */ }
+      return false;
+    }
+    function askPermission(h) {
+      return h.requestPermission ? h.requestPermission({ mode: "readwrite" }).catch(function () { return "denied"; }) : Promise.resolve("granted");
+    }
+    function checkPermission(h) {
+      return h.queryPermission ? h.queryPermission({ mode: "readwrite" }).catch(function () { return "denied"; }) : Promise.resolve("granted");
+    }
+    var ABORT = { name: "AbortError" };
+
+    // A new file. prepare() runs once the file is chosen and free, and may put a
+    // different project on screen (a new, empty one); what is on screen after it
+    // is what is written. Without prepare it is "save as".
+    function create(suggestedName, prepare) {
+      return window.showSaveFilePicker({ suggestedName: suggestedName, types: TYPES }).then(function (h) {
+        return flush().then(function () { return idForHandle(h); }).then(function (known) {
+          var id = known || newId();
+          return claim(id).then(function (free) {
+            if (!free) { say(h.name + " is open in another tab"); throw ABORT; }
+            blockedBy = "";
+            if (timer) saveNow();   // typed while the picker was open: the old file's
+            if (prepare) prepare();
+            bind(h, id, !prepare);
+            return saveNow();
+          });
+        });
+      }).then(function () { return remember(); }).then(function () {
+        changed(); say("Saving to " + doc.name); return true;
+      }).catch(function (e) { return fileError("Could not create that file", e); });
+    }
+    function adopt(h, id) {
+      return flush().then(function () { return claim(id); }).then(function (free) {
+        if (!free) { blockedBy = h.name; changed(); say(h.name + " is open in another tab"); return false; }
+        blockedBy = "";
+        var again = id === doc.id;
+        return readFile(h).then(function (r) { return loadFrom(h, id, r, again); }).then(function () {
+          changed(); say("Opened " + doc.name); return true;
+        }).catch(function (e) {   // a failed open must not hold its claim, nor drop the open file's
+          if (id !== doc.id) { release(id); claimed = doc.id; }
+          throw e;
+        });
+      });
+    }
+    function open() {
+      return window.showOpenFilePicker({ types: TYPES, multiple: false, mode: "readwrite" }).then(function (list) {
+        var h = list[0];
+        return checkPermission(h).then(function (p) { return p === "granted" ? p : askPermission(h); }).then(function (p) {
+          if (p !== "granted") { say("Permission refused, the file was not opened"); return false; }
+          return idForHandle(h).then(function (id) { return adopt(h, id || newId()); });
+        });
+      }).catch(function (e) { return fileError("That file could not be opened", e); });
+    }
+    function recents() {
+      if (!FS_OK) return Promise.resolve([]);
+      return idbAll("handles").then(function (rows) {
+        return rows.filter(function (r) { return r && r.id; }).sort(function (a, b) { return (b.lastOpened || 0) - (a.lastOpened || 0); })
+          .slice(0, 8).map(function (r) { return { id: r.id, name: r.name, lastOpened: r.lastOpened, open: r.id === doc.id }; });
+      });
+    }
+    function forgetRecents() {
+      return idbAll("handles").then(function (rows) {
+        return Promise.all(rows.filter(function (r) { return r.id !== doc.id; }).map(function (r) { return idbDel("handles", r.id); }));
+      });
+    }
+    // call straight from a click: the permission prompt needs the gesture
+    function openRecent(id) {
+      return idbGet("handles", id).then(function (row) {
+        if (!row || !row.handle) { say("That file is no longer remembered"); return idbDel("handles", id).then(function () { return false; }); }
+        return askPermission(row.handle).then(function (p) {
+          if (p !== "granted") { say("Permission refused, the file was not opened"); return false; }
+          return adopt(row.handle, row.id);
+        });
+      }).catch(function (e) { return fileError("Could not reopen that file", e); });
+    }
+    // permission does not survive a browser restart, so reconnecting is a click
+    function reconnect() {
+      if (!doc.handle) return Promise.resolve(false);
+      return askPermission(doc.handle).then(function (p) {
+        doc.permission = p;
+        if (p !== "granted") { say("Still not connected"); changed(); return false; }
+        writeFailed = false;
+        // nothing of this file was ever shown here (no crash copy): read it, never write over it
+        if (!doc.loaded) {
+          if (opts.onBind) opts.onBind(doc.id, doc.id, false);   // history taken here was not this file's
+          return readFile(doc.handle).then(function (r) { return loadFrom(doc.handle, doc.id, r, false); })
+            .then(function () { changed(); say("Reconnected to " + doc.name); return true; });
+        }
+        // doc.lastModified is the file as this page last wrote or read it, so a
+        // file changed meanwhile goes stale rather than being overwritten
+        return saveNow().then(function (ok) {
+          say(ok ? "Reconnected to " + doc.name : stale ? doc.name + " changed on disk, choose which version to keep" : "Could not write " + doc.name);
+          return ok;
+        });
+      }).catch(function (e) { return fileError("Could not reconnect", e); });
+    }
+    function retry() { writeFailed = false; return doc.handle ? saveNow() : Promise.resolve(false); }
+    // stale: take the file as it is now, dropping what is on screen
+    function useFile() {
+      if (!doc.handle) return Promise.resolve(false);
+      clearTimeout(timer); timer = null;
+      var d = doc;
+      return readFile(d.handle).then(function (r) {
+        if (d !== doc) return false;
+        stale = false; staleWhy = "";
+        return loadFrom(d.handle, d.id, r, true).then(function () { changed(); say("Loaded " + doc.name + " from disk"); return true; });
+      }).catch(function (e) { say("Could not read " + d.name); changed(); return false; });
+    }
+    // stale: write what is on screen over the file
+    function keepMine() {
+      if (!doc.handle) return Promise.resolve(false);
+      var d = doc;
+      return saveNow(true).then(function (ok) {
+        if (d !== doc) return ok;
+        if (!ok) stale = true;
+        changed(); say(ok ? "Overwrote " + d.name : "Could not write " + d.name);
+        return ok;
+      });
+    }
+    // stop editing the file (its pending edits are written first); the page then
+    // shows whatever it keeps in browser storage
+    function close() {
+      return flush().then(function () {
+        var id = doc.id;
+        doc = blank(); stale = false; staleWhy = ""; writeFailed = false; dirty = false; blockedBy = "";
+        if (id) release(id);
+        try { sessionStorage.removeItem(TAB_KEY); } catch (e) { /* per tab is a nicety */ }
+        return idbDel("session", "last");
+      }).then(changed);
+    }
+    function unblock() { try { localStorage.removeItem(BLOCK_KEY); } catch (e) { /* nothing kept */ } changed(); }
+
+    // Reopen this tab's file (or the last one used). onError(text) reports a
+    // file that could not be shown; it is let go, not overwritten.
+    function boot(onError) {
+      if (!FS_OK || blockedName()) { changed(); return Promise.resolve(); }
+      var tabId = null;
+      try { tabId = sessionStorage.getItem(TAB_KEY); } catch (e) { tabId = null; }
+      return Promise.resolve(tabId ? { id: tabId } : idbGet("session", "last")).then(function (sess) {
+        if (!sess || !sess.id) return;
+        return idbGet("handles", sess.id).then(function (row) {
+          if (!row || !row.handle || typeof row.handle.getFile !== "function") return;
+          return claim(row.id).then(function (free) {
+            if (!free) { blockedBy = row.name; return; }
+            doc.id = row.id; doc.handle = row.handle; doc.name = row.name;
+            return restore(row, onError);
+          });
+        });
+      }).catch(function (e) { try { console.warn("[" + APP + "] boot", e); } catch (x) { /* no console */ } })
+        .then(changed);
+    }
+    function letGo(row, why, onError) {
+      doc = blank(); release(row.id);
+      if (onError) onError(row.name + " could not be shown (" + why + "), so it was not opened and has not been changed.");
+    }
+    function restore(row, onError) {
+      return checkPermission(row.handle).then(function (p) {
+        doc.permission = p;
+        if (p === "granted") {
+          return readFile(row.handle).then(function (r) {
+            try { opts.load(r.t, { reload: false, name: row.name }); } catch (e) { letGo(row, e && e.message || String(e), onError); return; }
+            doc.loaded = true; doc.lastModified = r.f.lastModified; doc.savedAt = r.f.lastModified;
+            // the file wins, unless this browser holds newer edits that never reached it
+            return idbGet("scratch", row.id).then(function (sc) {
+              var st = scratchText(sc);
+              if (st === null || !(sc.savedAt > r.f.lastModified) || sameText(st, r.t)) return;
+              try { opts.load(st, { reload: false, name: row.name }); } catch (e) { return; }
+              stale = true; dirty = true;
+              staleWhy = "This browser holds edits to " + doc.name + " from " + hhmm(sc.savedAt) +
+                " that never reached the file. They are what is shown here; the file has not been changed.";
+            });
+          }, function () { doc.permission = "prompt"; });
+        }
+        // no permission until a click: show the newest copy we have of this file
+        return idbGet("scratch", row.id).then(function (sc) {
+          var st = scratchText(sc);
+          if (st === null) return;
+          if (sc.fileModified > 0) doc.lastModified = sc.fileModified;
+          try { opts.load(st, { reload: false, name: row.name }); doc.loaded = true; }
+          catch (e) { if (onError) onError("The copy of " + row.name + " kept in this browser could not be shown."); }
+        });
+      });
+    }
+
+    return { available: function () { return info().available; }, info: info, status: status, touch: touch, flush: flush,
+      create: create, open: open, openRecent: openRecent, recents: recents, forgetRecents: forgetRecents,
+      reconnect: reconnect, retry: retry, useFile: useFile, keepMine: keepMine, close: close, unblock: unblock, boot: boot };
+  }
+
+  return {
+    version: KIT_VERSION,
+    $: $, esc: esc, show: show, hide: hide,
+    round1: round1, round2: round2, fmtHrs: fmtHrs, nowIso: nowIso,
+    download: download, store: store, clipboard: clipboard,
+    upload: upload, xlsx: xlsx, rules: rules, NameEditor: NameEditor,
+    dict: dict, has: has,
+    // kit 2 (1.1.0)
+    uid: uid, localDate: localDate, today: today,
+    fmtNum2: fmtNum2, fmtWhole: fmtWhole, fmtMoney: fmtMoney, csv: csv,
+    modal: modal, confirm: confirmDialog, chipsFromSelect: chipsFromSelect,
+    sortable: sortable, stepSegs: stepSegs, searchShortcut: searchShortcut,
+    // 1.3.0
+    toast: toast,
+    // 1.4.0
+    fileDoc: fileDoc
+  };
+})();
+</script>
+<script>
+(function () {
+  "use strict";
+  // Semver: MAJOR for a stored-data change normalise() cannot migrate, MINOR for features, PATCH for fixes.
+  var APP_VERSION = "1.0.0";
+  var store = RK.store("uatEmailBuilder.v1");
+  var $ = RK.$, esc = RK.esc;
+
+  var SEVERITIES = ["Critical", "High", "Medium", "Low"];
+  var OPEN_STATUSES = ["New", "In fix", "Ready to retest"];
+  var DECISIONS = ["Pending", "Approved", "Approved with conditions", "Rejected"];
+  var STATUSES = ["green", "amber", "red", "done", "idle"];
+  var RAG_LABEL = { green: "Green", amber: "Amber", red: "Red", done: "Signed off", idle: "Not started" };
+  var SECTIONS = [
+    ["figures", "Key figures"], ["since", "Change since last update"], ["highlights", "Highlights"],
+    ["criteria", "Exit criteria"], ["defects", "Defects needing attention"], ["known", "Known issues accepted"],
+    ["risks", "Risks and issues"], ["asks", "Decisions and help needed"], ["approvals", "Sign-off status"], ["next", "Next steps"]
+  ];
+  // the three optional lists: field, label, input kind (options for a select), wide
+  var LISTS = {
+    defects: [["ref", "ID", "text"], ["severity", "Severity", SEVERITIES], ["title", "Defect", "text", true],
+      ["status", "Status", OPEN_STATUSES], ["owner", "Owner", "text"], ["eta", "Fix due", "date"]],
+    known: [["ref", "ID", "text"], ["severity", "Severity", SEVERITIES], ["title", "Defect", "text", true],
+      ["resolution", "Workaround or decision", "text", true]],
+    people: [["name", "Approver", "text"], ["role", "Role", "text"], ["scope", "Signs off", "text"],
+      ["status", "Decision", DECISIONS], ["date", "Date", "date"], ["note", "Conditions or comments", "text", true]]
+  };
+  var TEXT_KEYS = ["name", "build", "environment", "reason", "greeting", "headline", "since", "highlights", "risks", "asks", "nextSteps", "signoff", "subject"];
+  var NUM_KEYS = ["day", "days", "inScope", "passed", "failed", "blocked", "plan", "critical", "high", "medium", "low", "retest", "approved", "approvers"];
+  var DATE_KEYS = ["signoffDate", "sinceDate", "nextUpdate"];
+
+  /* ---------- helpers ---------- */
+  function isObj(x) { return x !== null && typeof x === "object" && !Array.isArray(x); }
+  function str(x) { return typeof x === "string" ? x : typeof x === "number" && isFinite(x) ? String(x) : ""; }
+  function oneOf(x, list, def) { return list.indexOf(x) !== -1 ? x : def; }
+  // a typed count: "" stays blank, anything else becomes a whole number of 0 or more
+  function countStr(x) {
+    if (x === "" || x === null || x === undefined) return "";
+    var n = Number(x);
+    return isFinite(n) ? String(Math.max(0, Math.floor(n))) : "";
+  }
+  function n(k) { var v = Number(state[k]); return isFinite(v) && v > 0 ? Math.floor(v) : 0; }
+  function plural(c, word, many) { return c + " " + (c === 1 ? word : (many || word + "s")); }
+  function floorPct(x) { return Math.floor(x + 1e-9) + "%"; }
+  function pct(a, b) { return b > 0 ? a / b * 100 : 0; }
+  function lc(s) { return String(s || "").toLowerCase(); }
+  function lines(s) {
+    return String(s || "").split(/\r?\n/).map(function (l) { return l.replace(/^\s*(?:[-*•·]|\d+[.)])\s+/, "").trim(); }).filter(Boolean);
+  }
+  function isDate(s) {
+    if (typeof s !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
+    var d = parseD(s);
+    return !isNaN(d) && RK.localDate(d) === s;
+  }
+  function parseD(s) { var p = s.split("-"); return new Date(+p[0], +p[1] - 1, +p[2]); }
+  function fmtDay(s) {
+    if (!isDate(s)) return "";
+    var d = parseD(s), o = { weekday: "short", day: "numeric", month: "short" };
+    if (s.slice(0, 4) !== RK.today().slice(0, 4)) o.year = "numeric";
+    return d.toLocaleDateString("en-GB", o);
+  }
+  function fmtShort(s) { return isDate(s) ? parseD(s).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : ""; }
+
+  /* ---------- state ---------- */
+  function presetSections(type) {
+    var on = type === "request"
+      ? ["figures", "criteria", "defects", "known", "risks", "approvals"]
+      : ["figures", "since", "highlights", "criteria", "defects", "risks", "asks", "approvals", "next"];
+    var out = {};
+    SECTIONS.forEach(function (s) { out[s[0]] = on.indexOf(s[0]) !== -1; });
+    return out;
+  }
+  function defaultTargets() { return { execPct: "100", passPct: "95", maxCritical: "0", maxHigh: "0", maxBlocked: "0" }; }
+  function blank() {
+    var s = { type: "update", status: "green", targets: defaultTargets(), sections: presetSections("update"), defects: [], known: [], people: [] };
+    TEXT_KEYS.forEach(function (k) { s[k] = ""; });
+    NUM_KEYS.forEach(function (k) { s[k] = ""; });
+    DATE_KEYS.forEach(function (k) { s[k] = ""; });
+    s.greeting = "Hi all,";
+    return s;
+  }
+  function normRow(list, r) {
+    var o = {};
+    LISTS[list].forEach(function (f) {
+      var v = str(r[f[0]]);
+      o[f[0]] = Array.isArray(f[2]) ? oneOf(v, f[2], f[2][0]) : f[2] === "date" ? (isDate(v) ? v : "") : v;
+    });
+    return o;
+  }
+  // Load, then commit: anything stored is checked field by field before use
+  function normalise(raw) {
+    var s = blank();
+    if (!isObj(raw)) return s;
+    s.type = oneOf(raw.type, ["update", "request"], "update");
+    s.status = oneOf(raw.status, STATUSES, "green");
+    TEXT_KEYS.forEach(function (k) { if (RK.has(raw, k)) s[k] = str(raw[k]); });
+    NUM_KEYS.forEach(function (k) { s[k] = countStr(raw[k]); });
+    DATE_KEYS.forEach(function (k) { s[k] = isDate(raw[k]) ? raw[k] : ""; });
+    if (isObj(raw.targets)) Object.keys(s.targets).forEach(function (k) {
+      if (RK.has(raw.targets, k)) s.targets[k] = countStr(raw.targets[k]);
+    });
+    s.sections = presetSections(s.type);
+    if (isObj(raw.sections)) SECTIONS.forEach(function (x) { if (RK.has(raw.sections, x[0])) s.sections[x[0]] = !!raw.sections[x[0]]; });
+    Object.keys(LISTS).forEach(function (l) {
+      s[l] = (Array.isArray(raw[l]) ? raw[l] : []).filter(isObj).slice(0, 100).map(function (r) { return normRow(l, r); });
+    });
+    return s;
+  }
+  var state = normalise(store.get());
+  var saveWarned = false;
+  function save() {
+    if (!store.set(state) && !saveWarned) { saveWarned = true; RK.toast("This browser would not save. Your email is fine on screen but will not be kept.", 5000); }
+  }
+
+  /* ---------- figures ---------- */
+  function limit(k) { var v = state.targets[k]; return v === "" ? null : Math.max(0, Math.floor(Number(v) || 0)); }
+  function limitText(x) { return x === 0 ? "None" : x + " or fewer"; }
+  function metrics() {
+    var m = { inScope: n("inScope"), passed: n("passed"), failed: n("failed"), blocked: n("blocked"), plan: state.plan === "" ? null : n("plan") };
+    m.executed = m.passed + m.failed;
+    m.rest = Math.max(0, m.inScope - m.executed - m.blocked);
+    m.over = m.executed + m.blocked > m.inScope;
+    m.execPct = pct(m.executed, m.inScope); m.passPct = pct(m.passed, m.inScope);
+    m.d = { sev: { Critical: n("critical"), High: n("high"), Medium: n("medium"), Low: n("low") }, retest: n("retest"), known: state.known.length };
+    m.d.open = m.d.sev.Critical + m.d.sev.High + m.d.sev.Medium + m.d.sev.Low;
+    m.a = { yes: n("approved"), total: n("approvers") };
+    m.day = n("day"); m.days = n("days");
+    m.rag = state.status;
+
+    var execT = Math.min(100, Number(state.targets.execPct === "" ? 100 : state.targets.execPct) || 0);
+    var passT = Math.min(100, Number(state.targets.passPct === "" ? 95 : state.targets.passPct) || 0);
+    var cr = [];
+    cr.push({ label: "Tests executed", target: execT >= 100 ? "All in scope" : execT + "% or more",
+      actual: floorPct(m.execPct) + " (" + m.executed + " of " + m.inScope + ")", met: m.inScope > 0 && m.execPct + 1e-9 >= execT });
+    cr.push({ label: "Tests passed", target: passT + "% or more",
+      actual: floorPct(m.passPct) + " (" + m.passed + " of " + m.inScope + ")", met: m.inScope > 0 && m.passPct + 1e-9 >= passT });
+    var mc = limit("maxCritical"), mh = limit("maxHigh"), mb = limit("maxBlocked");
+    if (mc !== null) cr.push({ label: "Open critical defects", target: limitText(mc), actual: String(m.d.sev.Critical), met: m.d.sev.Critical <= mc });
+    if (mh !== null) cr.push({ label: "Open high defects", target: limitText(mh), actual: String(m.d.sev.High), met: m.d.sev.High <= mh });
+    if (mb !== null) cr.push({ label: "Blocked tests", target: limitText(mb), actual: String(m.blocked), met: m.blocked <= mb });
+    m.criteria = cr;
+    m.criteriaMet = cr.filter(function (x) { return x.met; }).length;
+    m.ready = m.inScope > 0 && m.criteriaMet === cr.length;
+    return m;
+  }
+  function critHighText(m) {
+    var c = m.d.sev.Critical, h = m.d.sev.High;
+    if (!c && !h) return "";
+    if (c && h) return c + " critical and " + plural(h, "high defect") + " open";
+    return c ? plural(c, "critical defect") + " open" : plural(h, "high defect") + " open";
+  }
+  function inWindow(m) { return m.days > 0 && m.day > 0 && m.day <= m.days; }
+  function scheduleText(m) {
+    var bits = [];
+    if (inWindow(m)) bits.push("Day " + m.day + " of " + m.days);
+    else if (m.days > 0 && m.day > m.days) bits.push("Testing window ended");
+    if (isDate(state.signoffDate)) bits.push("sign-off due " + fmtDay(state.signoffDate));
+    return bits.join(", ");
+  }
+
+  /* ---------- email: one document model, rendered as HTML for pasting and as plain text
+     (the same blocks and styles as the UAT Sign-off Tracker, so the two emails match) ---------- */
+  function uatName() { return state.name.trim() || "UAT"; }
+  function autoHeadline(m) {
+    var due = isDate(state.signoffDate) ? " on " + fmtDay(state.signoffDate) : "";
+    if (m.rag === "done") return uatName() + " is signed off" + (m.a.total ? " by all " + plural(m.a.total, "approver") : "") + (m.d.known ? ", with " + plural(m.d.known, "known issue") + " accepted" : "") + ".";
+    if (m.rag === "idle") return m.inScope ? "Testing has not started yet; " + plural(m.inScope, "test") + (m.inScope === 1 ? " is" : " are") + " in scope." : "The UAT scope is being prepared.";
+    var lead, why = state.reason.trim().replace(/[.\s]+$/, "");
+    if (m.rag === "green") lead = m.ready ? "UAT has met all its exit criteria and is ready for sign-off" + (isDate(state.signoffDate) ? " by " + fmtDay(state.signoffDate) : "") + "." : "UAT is on track for sign-off" + due + ".";
+    else lead = "UAT is " + (m.rag === "red" ? "off track" : "at risk") + " for sign-off" + due + (why ? ": " + why : "") + ".";
+    if (!m.inScope) return lead;
+    return lead + " " + m.executed + " of " + plural(m.inScope, "test") + " executed (" + floorPct(m.execPct) + "), " +
+      m.passed + " passed, " + (m.d.open ? plural(m.d.open, "defect") : "no defects") + " open.";
+  }
+  function autoSubject(m) {
+    var tag = "[UAT] " + uatName();
+    if (state.type === "request") return tag + ": sign-off requested" + (isDate(state.signoffDate) ? " by " + fmtDay(state.signoffDate) : "");
+    var bits = [RAG_LABEL[m.rag].toUpperCase()];
+    if (inWindow(m)) bits.push("day " + m.day + " of " + m.days);
+    if (m.inScope && m.rag !== "done") bits.push(floorPct(m.execPct) + " executed");
+    var ch = critHighText(m);
+    if (m.rag !== "done") bits.push(ch || (m.d.open ? plural(m.d.open, "defect") + " open" : "no open defects"));
+    return tag + " update: " + bits.join(" | ");
+  }
+  var BADGE = { green: ["#2E7D32", "#ffffff"], amber: ["#E0A526", "#1A1A1A"], red: ["#B3261E", "#ffffff"], done: ["#2E7D32", "#ffffff"], idle: ["#6B6B6B", "#ffffff"] };
+  function buildDoc(m) {
+    var e = state, sec = e.sections, blocks = [], today = RK.today();
+    var meta = [scheduleText(m)].concat(e.build.trim() ? ["build " + e.build.trim()] : [], e.environment.trim() ? [e.environment.trim()] : []).filter(Boolean).join(" · ");
+    blocks.push({ k: "p", text: e.greeting });
+    blocks.push({ k: "status", rag: m.rag, title: uatName(), sub: meta });
+    blocks.push({ k: "p", text: e.headline.trim() || autoHeadline(m), strong: true });
+    if (e.type === "request") {
+      var unmet = m.criteria.filter(function (x) { return !x.met; });
+      blocks.push({ k: "p", text: (m.ready ? "UAT has met all " + plural(m.criteria.length, "exit criterion", "exit criteria") + ", so we are asking for your sign-off."
+        : m.criteriaMet + " of " + m.criteria.length + " exit criteria are met. The exceptions are below, and we are asking for your sign-off with them accepted.") +
+        " Please reply" + (isDate(e.signoffDate) ? " by " + fmtDay(e.signoffDate) : "") + " with one of: Approved; Approved with conditions (please state them); or Rejected (please give the reason)." });
+      if (unmet.length && !sec.criteria) blocks.push({ k: "list", items: unmet.map(function (x) { return x.label + ": " + x.actual + " (target " + lc(x.target) + ")"; }) });
+    }
+    if (sec.figures && m.inScope) {
+      blocks.push({ k: "figures", items: [
+        [m.executed + " / " + m.inScope, "Tests executed (" + floorPct(m.execPct) + ")"],
+        [String(m.passed), "Passed (" + floorPct(m.passPct) + " of scope)"],
+        [String(m.d.open), "Open defects" + (critHighText(m) ? " (" + m.d.sev.Critical + " critical, " + m.d.sev.High + " high)" : "")],
+        [m.a.yes + " / " + m.a.total, "Approvals"]
+      ] });
+      blocks.push({ k: "bar", total: m.inScope, segs: [[m.passed, "#3E9A40"], [m.failed, "#D9534F"], [m.blocked, "#E0A526"]],
+        note: "Passed " + m.passed + " · Failed " + m.failed + " · Blocked " + m.blocked + " · Not run or in progress " + m.rest +
+          (m.plan !== null && inWindow(m) && m.rag !== "done" ? " · Plan for today: " + m.plan + " executed (" + Math.round(pct(m.plan, m.inScope)) + "%)" : "") });
+    }
+    if (sec.since && e.since.trim()) {
+      var when = isDate(e.sinceDate) ? fmtDay(e.sinceDate) : "";
+      blocks.push({ k: "p", small: true, text: "Since the last update" + (when ? " (" + when + ")" : "") + ": " + e.since.trim().replace(/[.\s]+$/, "") + "." });
+    }
+    if (sec.highlights && lines(e.highlights).length) { blocks.push({ k: "h", text: "Highlights" }); blocks.push({ k: "list", items: lines(e.highlights) }); }
+    if (sec.criteria && m.criteria.length && m.inScope) {
+      blocks.push({ k: "h", text: "Exit criteria: " + m.criteriaMet + " of " + m.criteria.length + " met" });
+      blocks.push({ k: "table", head: ["Criterion", "Target", "Now", "Status"], rows: m.criteria.map(function (x) {
+        return [x.label, x.target, x.actual, { text: x.met ? "Met" : "Not met", color: x.met ? "#2E7D32" : "#B3261E", bold: true }];
+      }) });
+    }
+    if (sec.defects) {
+      var list = e.defects.filter(function (d) { return d.ref.trim() || d.title.trim(); });
+      blocks.push({ k: "h", text: "Defects needing attention" });
+      blocks.push({ k: "p", small: true, text: m.d.open ? "Open: " + m.d.sev.Critical + " critical, " + m.d.sev.High + " high, " + m.d.sev.Medium + " medium, " + m.d.sev.Low + " low" +
+        (m.d.retest ? "; " + m.d.retest + " fixed and waiting for retest" : "") + "." : "No defects are open." });
+      if (list.length) {
+        blocks.push({ k: "table", head: ["ID", "Defect", "Severity", "Status", "Owner", "Fix due"], rows: list.map(function (d) {
+          var overdue = d.eta && d.eta < today;
+          return [d.ref, d.title, { text: d.severity, color: d.severity === "Critical" ? "#B3261E" : null, bold: d.severity === "Critical" }, d.status, d.owner,
+            { text: fmtShort(d.eta) + (overdue ? " (overdue)" : ""), color: overdue ? "#B3261E" : null }];
+        }) });
+      }
+    }
+    if (sec.known) {
+      var known = e.known.filter(function (d) { return d.ref.trim() || d.title.trim(); });
+      if (known.length) {
+        blocks.push({ k: "h", text: "Known issues accepted" });
+        blocks.push({ k: "table", head: ["ID", "Defect", "Severity", "Workaround or decision"], rows: known.map(function (d) { return [d.ref, d.title, d.severity, d.resolution || "Not recorded"]; }) });
+      }
+    }
+    if (sec.risks && lines(e.risks).length) { blocks.push({ k: "h", text: "Risks and issues" }); blocks.push({ k: "list", items: lines(e.risks) }); }
+    if (sec.asks && lines(e.asks).length) { blocks.push({ k: "h", text: "Decisions and help needed" }); blocks.push({ k: "list", items: lines(e.asks) }); }
+    var people = e.people.filter(function (a) { return a.name.trim(); });
+    if (sec.approvals && (m.a.total || people.length)) {
+      blocks.push({ k: "h", text: "Sign-off: " + m.a.yes + " of " + m.a.total + " approved" });
+      if (people.length) blocks.push({ k: "table", head: ["Approver", "Role", "Signs off", "Decision", "Date", "Conditions or comments"], rows: people.map(function (a) {
+        var col = a.status === "Rejected" ? "#B3261E" : a.status === "Pending" ? "#6B6B6B" : "#2E7D32";
+        return [a.name, a.role, a.scope, { text: a.status, color: col, bold: true }, fmtShort(a.date), a.note];
+      }) });
+    }
+    if (sec.next && (lines(e.nextSteps).length || e.nextUpdate)) {
+      blocks.push({ k: "h", text: "Next steps" });
+      if (lines(e.nextSteps).length) blocks.push({ k: "list", items: lines(e.nextSteps) });
+      if (e.nextUpdate) blocks.push({ k: "p", text: "Next update: " + fmtDay(e.nextUpdate) + "." });
+    }
+    blocks.push({ k: "sign", lines: ["Thanks,"].concat(e.signoff.trim() ? [e.signoff.trim()] : []) });
+    return blocks;
+  }
+  var FONT = "font-family:Arial,Helvetica,sans-serif;";
+  function cellText(c) { return c && typeof c === "object" ? str(c.text) : str(c); }
+  function docHtml(blocks) {
+    var h = '<div style="' + FONT + 'font-size:14px;line-height:1.45;color:#1A1A1A">';
+    blocks.forEach(function (b) {
+      if (b.k === "p" && b.text) h += '<p style="margin:0 0 12px;' + (b.small ? "font-size:13px;color:#3D3D3D;" : "") + '">' + (b.strong ? "<b>" + esc(b.text) + "</b>" : esc(b.text)) + "</p>";
+      else if (b.k === "status") {
+        var bg = BADGE[b.rag];
+        h += '<table cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;margin:4px 0 12px"><tr>' +
+          '<td bgcolor="' + bg[0] + '" style="background:' + bg[0] + ";color:" + bg[1] + ";" + FONT + 'font-size:13px;font-weight:bold;padding:7px 12px;letter-spacing:.5px;white-space:nowrap">' + esc(RAG_LABEL[b.rag].toUpperCase()) + "</td>" +
+          '<td style="padding:0 0 0 12px;' + FONT + '"><span style="font-size:16px;font-weight:bold">' + esc(b.title) + "</span>" +
+          (b.sub ? '<br><span style="font-size:12px;color:#6B6B6B">' + esc(b.sub) + "</span>" : "") + "</td></tr></table>";
+      } else if (b.k === "figures") {
+        h += '<table cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;margin:0 0 8px"><tr>' + b.items.map(function (it) {
+          return '<td style="border:1px solid #D5DADD;padding:10px 16px;' + FONT + 'vertical-align:top"><span style="font-size:22px;font-weight:bold">' + esc(it[0]) +
+            '</span><br><span style="font-size:12px;color:#6B6B6B">' + esc(it[1]) + "</span></td>";
+        }).join("") + "</tr></table>";
+      } else if (b.k === "bar") {
+        var used = 0, cells = "";
+        b.segs.forEach(function (sg) {
+          if (sg[0] <= 0 || used >= 99.95) return;
+          var w = Math.min(sg[0] / Math.max(1, b.total) * 100, 100 - used); used += w;
+          cells += '<td width="' + w.toFixed(1) + '%" bgcolor="' + sg[1] + '" style="width:' + w.toFixed(1) + "%;background:" + sg[1] + ';height:10px;font-size:1px;line-height:1px">&nbsp;</td>';
+        });
+        if (used < 99.95) cells += '<td width="' + (100 - used).toFixed(1) + '%" bgcolor="#E9ECEE" style="width:' + (100 - used).toFixed(1) + '%;background:#E9ECEE;height:10px;font-size:1px;line-height:1px">&nbsp;</td>';
+        h += '<table width="560" cellpadding="0" cellspacing="0" border="0" style="width:560px;max-width:100%;border-collapse:collapse;margin:4px 0 4px"><tr>' + cells + "</tr></table>" +
+          '<p style="margin:0 0 12px;font-size:12px;color:#6B6B6B">' + esc(b.note) + "</p>";
+      } else if (b.k === "h") h += '<p style="margin:18px 0 6px;font-size:15px;font-weight:bold;color:#007A99">' + esc(b.text) + "</p>";
+      else if (b.k === "list") h += '<ul style="margin:0 0 12px;padding-left:22px">' + b.items.map(function (i) { return '<li style="margin:0 0 4px">' + esc(i) + "</li>"; }).join("") + "</ul>";
+      else if (b.k === "table") {
+        h += '<table cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;' + FONT + 'font-size:13px;margin:0 0 12px"><tr>' +
+          b.head.map(function (x) {
+            return '<th bgcolor="#007A99" style="background:#007A99;color:#ffffff;border:1px solid #007A99;padding:6px 10px;font-weight:bold;text-align:left">' + esc(x) + "</th>";
+          }).join("") + "</tr>" +
+          b.rows.map(function (r, ri) {
+            return "<tr>" + r.map(function (cell) {
+              var o = cell && typeof cell === "object" ? cell : null;
+              return '<td style="border:1px solid #D5DADD;padding:6px 10px;vertical-align:top;' + (ri % 2 ? "background:#FAFBFB;" : "") +
+                (o && o.color ? "color:" + o.color + ";" : "") + (o && o.bold ? "font-weight:bold;" : "") + '">' + esc(cellText(cell)) + "</td>";
+            }).join("") + "</tr>";
+          }).join("") + "</table>";
+      } else if (b.k === "sign") h += '<p style="margin:18px 0 0">' + b.lines.map(esc).join("<br>") + "</p>";
+    });
+    return h + "</div>";
+  }
+  function pad(s, w) { s = String(s); while (s.length < w) s += " "; return s; }
+  function docText(blocks) {
+    var out = [];
+    blocks.forEach(function (b) {
+      if (b.k === "p" && b.text) out.push(b.text, "");
+      else if (b.k === "status") out.push("STATUS: " + RAG_LABEL[b.rag].toUpperCase() + " | " + b.title + (b.sub ? "\n" + b.sub : ""), "");
+      else if (b.k === "figures") { b.items.forEach(function (it) { out.push(it[1] + ": " + it[0]); }); }
+      else if (b.k === "bar") out.push(b.note, "");
+      else if (b.k === "h") out.push(b.text.toUpperCase(), new Array(Math.min(60, b.text.length) + 1).join("-"));
+      else if (b.k === "list") { b.items.forEach(function (i) { out.push("- " + i); }); out.push(""); }
+      else if (b.k === "table") {
+        var rows = [b.head].concat(b.rows.map(function (r) { return r.map(cellText); }));
+        var w = b.head.map(function (_, i) { return Math.min(48, Math.max.apply(null, rows.map(function (r) { return String(r[i]).length; }))); });
+        rows.forEach(function (r, ri) {
+          out.push(r.map(function (cell, i) { var s = String(cell); if (s.length > w[i]) s = s.slice(0, w[i] - 1) + "…"; return pad(s, w[i]); }).join("  ").replace(/\s+$/, ""));
+          if (ri === 0) out.push(w.map(function (x) { return new Array(x + 1).join("-"); }).join("  "));
+        });
+        out.push("");
+      } else if (b.k === "sign") out.push(b.lines.join("\n"));
+    });
+    return out.join("\n").replace(/\n{3,}/g, "\n\n").trim() + "\n";
+  }
+  function payload() {
+    var m = metrics(), blocks = buildDoc(m);
+    return { subject: state.subject.trim() || autoSubject(m), html: docHtml(blocks), text: docText(blocks), m: m };
+  }
+
+  /* ---------- compose form ---------- */
+  var typeRefresh = null, statusRefresh = null;
+  function fillForm() {
+    document.querySelectorAll("[data-k]").forEach(function (el) { el.value = state[el.getAttribute("data-k")] || ""; });
+    document.querySelectorAll("[data-t]").forEach(function (el) { el.value = state.targets[el.getAttribute("data-t")]; });
+    $("emType").value = state.type; $("f_status").value = state.status;
+    if (typeRefresh) typeRefresh();
+    if (statusRefresh) statusRefresh();
+    renderSections();
+    Object.keys(LISTS).forEach(renderRows);
+  }
+  function renderSections() {
+    $("emSections").innerHTML = SECTIONS.map(function (s) {
+      return '<label><input type="checkbox" data-sec="' + s[0] + '"' + (state.sections[s[0]] ? " checked" : "") + ">" + esc(s[1]) + "</label>";
+    }).join("");
+  }
+  function renderRows(list) {
+    var fields = LISTS[list];
+    $("rows-" + list).innerHTML = state[list].map(function (r, i) {
+      return '<div class="uem-row">' + fields.map(function (f) {
+        var id = "r_" + list + "_" + i + "_" + f[0], attrs = ' id="' + id + '" data-list="' + list + '" data-i="' + i + '" data-f="' + f[0] + '"', input;
+        if (Array.isArray(f[2])) input = "<select" + attrs + ">" + f[2].map(function (o) { return "<option" + (r[f[0]] === o ? " selected" : "") + ">" + esc(o) + "</option>"; }).join("") + "</select>";
+        else input = '<input type="' + f[2] + '"' + attrs + ' value="' + esc(r[f[0]]) + '">';
+        return '<div class="field' + (f[3] ? " wide" : "") + '"><label for="' + id + '">' + esc(f[1]) + "</label>" + input + "</div>";
+      }).join("") + '<button type="button" class="uem-row-x" data-remove="' + list + '" data-i="' + i + '" aria-label="Remove">×</button></div>';
+    }).join("");
+  }
+
+  function render() {
+    var p = payload(), m = p.m;
+    $("preview").innerHTML = p.html;
+    $("f_subject").placeholder = autoSubject(m);
+    $("f_headline").placeholder = autoHeadline(m);
+    $("testsDerived").innerHTML = m.inScope
+      ? "Executed " + m.executed + " of " + m.inScope + " (" + floorPct(m.execPct) + "), passed " + floorPct(m.passPct) + " of scope, not run or in progress " + m.rest + "." +
+        (m.over ? ' <span class="uem-warn">Passed, failed and blocked add up to more than in scope.</span>' : "")
+      : "Enter the tests in scope to show the key figures.";
+    $("defectsDerived").textContent = m.d.open ? plural(m.d.open, "defect") + " open in total." : "No open defects.";
+    var apOver = m.a.yes > m.a.total;
+    $("approvalsDerived").hidden = !apOver;
+    $("approvalsDerived").innerHTML = apOver ? '<span class="uem-warn">Approved is more than the number of approvers.</span>' : "";
+  }
+
+  /* ---------- copy ---------- */
+  function writeText(t) {
+    return navigator.clipboard && navigator.clipboard.writeText ? navigator.clipboard.writeText(t) : Promise.reject(new Error("no-clipboard"));
+  }
+  function clearFallbacks() { RK.clipboard.clearFallback($("copyFallback")); RK.clipboard.clearFallback($("headerCopyFallback")); }
+  function copyEmail(fallbackEl) {
+    var p = payload();
+    clearFallbacks();
+    RK.clipboard.write({ html: p.html, text: p.text }).then(function (kind) {
+      RK.toast(kind === "html" ? "Email copied. Paste it into a new message, then copy the subject." : "Copied as plain text (this browser could not copy formatting).", 3600);
+    }).catch(function () {
+      RK.clipboard.fallbackInto(fallbackEl, "Subject: " + p.subject + "\n\n" + p.text, "The browser blocked the copy. Select all and copy from here:");
+    });
+  }
+
+  /* ---------- example ---------- */
+  function addDays(n) { var d = new Date(); d.setDate(d.getDate() + n); return RK.localDate(d); }
+  function example() {
+    var s = blank();
+    s.name = "Customer Portal R4.2 UAT"; s.build = "4.2.0-rc3"; s.environment = "UAT2";
+    s.status = "amber"; s.reason = "1 critical and 2 high defects open";
+    s.day = "8"; s.days = "11"; s.signoffDate = addDays(5);
+    s.inScope = "120"; s.passed = "83"; s.failed = "11"; s.blocked = "6"; s.plan = "87";
+    s.critical = "1"; s.high = "2"; s.medium = "4"; s.low = "3"; s.retest = "2";
+    s.approved = "1"; s.approvers = "4";
+    s.sinceDate = addDays(-2); s.since = "14 more tests executed, 12 more passed, 3 defects closed";
+    s.highlights = "Payments and refunds passed end to end\nAccessibility retest complete";
+    s.risks = "Critical defect CP-212 blocks card refunds; fix due " + fmtShort(addDays(1));
+    s.asks = "Finance to confirm the refund workaround is acceptable if CP-212 slips";
+    s.nextSteps = "Retest CP-212 and CP-219 once deployed\nFinish the reporting scripts";
+    s.nextUpdate = addDays(2); s.signoff = "Sam Taylor";
+    s.defects = [
+      { ref: "CP-212", severity: "Critical", title: "Card refunds fail for partial amounts", status: "In fix", owner: "Payments team", eta: addDays(1) },
+      { ref: "CP-219", severity: "High", title: "Statement PDF misses the last page", status: "Ready to retest", owner: "Docs team", eta: addDays(-1) },
+      { ref: "CP-224", severity: "High", title: "Session times out during long uploads", status: "New", owner: "Platform", eta: "" }
+    ];
+    s.known = [{ ref: "CP-190", severity: "Low", title: "Date picker starts on Sunday", resolution: "Fix in R4.3; no business impact" }];
+    s.people = [
+      { name: "Alex Morgan", role: "Product owner", scope: "Customer journeys", status: "Approved", date: addDays(-1), note: "" },
+      { name: "Priya Shah", role: "Finance lead", scope: "Payments and refunds", status: "Pending", date: "", note: "" },
+      { name: "Jordan Lee", role: "Operations", scope: "Support processes", status: "Pending", date: "", note: "" },
+      { name: "Chris Wong", role: "IT service owner", scope: "Go-live readiness", status: "Pending", date: "", note: "" }
+    ];
+    return s;
+  }
+  function hasContent() {
+    var b = blank();
+    return TEXT_KEYS.concat(NUM_KEYS, DATE_KEYS).some(function (k) { return state[k] !== b[k]; }) ||
+      Object.keys(LISTS).some(function (l) { return state[l].length; });
+  }
+  function replaceAll(next, msg) {
+    var go = function () { state = next; save(); fillForm(); render(); clearFallbacks(); };
+    if (hasContent()) RK.confirm(msg, go, { okLabel: "Replace" }); else go();
+  }
+
+  /* ---------- events ---------- */
+  function onField(e) {
+    var el = e.target, k = el.getAttribute("data-k"), t = el.getAttribute("data-t"), list = el.getAttribute("data-list");
+    if (k && k !== "type" && k !== "status") state[k] = NUM_KEYS.indexOf(k) !== -1 ? countStr(el.value) : el.value;
+    else if (t) state.targets[t] = countStr(el.value);
+    else if (list) state[list][+el.getAttribute("data-i")][el.getAttribute("data-f")] = el.value;
+    else return;
+    save(); render();
+  }
+  document.addEventListener("input", onField);
+  document.addEventListener("change", function (e) {
+    var sec = e.target.getAttribute("data-sec");
+    if (sec) { state.sections[sec] = e.target.checked; save(); render(); }
+  });
+  $("emType").addEventListener("change", function () { state.type = this.value; state.sections = presetSections(state.type); renderSections(); save(); render(); });
+  $("f_status").addEventListener("change", function () { state.status = this.value; save(); render(); });
+  typeRefresh = RK.chipsFromSelect($("emType"), $("emTypeChips"));
+  statusRefresh = RK.chipsFromSelect($("f_status"), $("statusChips"));
+
+  document.querySelectorAll("[data-add]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      var list = b.getAttribute("data-add");
+      state[list].push(normRow(list, {}));
+      save(); renderRows(list); render();
+      var rows = $("rows-" + list).querySelectorAll(".uem-row");
+      var first = rows[rows.length - 1].querySelector("input");
+      if (first) first.focus();
+    });
+  });
+  document.addEventListener("click", function (e) {
+    var x = e.target.closest("[data-remove]");
+    if (!x) return;
+    var list = x.getAttribute("data-remove");
+    state[list].splice(+x.getAttribute("data-i"), 1);
+    save(); renderRows(list); render();
+  });
+  $("useSuggested").addEventListener("click", function () {
+    state.headline = autoHeadline(metrics()); $("f_headline").value = state.headline; save(); render(); $("f_headline").focus();
+  });
+  $("btnCopyEmail").addEventListener("click", function () { copyEmail($("headerCopyFallback")); });
+  $("btnCopyEmail2").addEventListener("click", function () { copyEmail($("copyFallback")); });
+  $("btnCopyText").addEventListener("click", function () {
+    var p = payload();
+    clearFallbacks();
+    writeText(p.text).then(function () { RK.toast("Plain text copied"); }).catch(function () { RK.clipboard.fallbackInto($("copyFallback"), p.text); });
+  });
+  $("btnCopySubject").addEventListener("click", function () {
+    var s = payload().subject;
+    clearFallbacks();
+    writeText(s).then(function () { RK.toast("Subject copied"); }).catch(function () { RK.clipboard.fallbackInto($("copyFallback"), s); });
+  });
+  $("btnExample").addEventListener("click", function () { replaceAll(example(), "Replace what you have typed with the example?"); });
+  $("btnFresh").addEventListener("click", function () {
+    var next = blank();
+    // keep who it is from and how it is set up; clear the week's figures and words
+    ["name", "build", "environment", "greeting", "signoff"].forEach(function (k) { next[k] = state[k]; });
+    next.type = state.type; next.targets = state.targets; next.sections = state.sections; next.people = state.people;
+    replaceAll(next, "Clear the figures, words and defect lists? The UAT name, approvers, sign-off name, exit criteria and sections are kept.");
+  });
+
+  // the two columns fill the window below the intro, so each scrolls alone
+  function sizeGrid() {
+    var g = $("grid"), top = g.getBoundingClientRect().top + window.scrollY;
+    g.style.setProperty("--uem-h", Math.max(380, window.innerHeight - top - 16) + "px");
+  }
+  window.addEventListener("resize", sizeGrid);
+
+  $("appVersion").textContent = "v" + APP_VERSION;
+  fillForm();
+  render();
+  sizeGrid();
+})();
+</script>
+</body>
+</html>

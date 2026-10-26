@@ -473,3 +473,41 @@ that storage, so it holds one project per browser. **Save backup** writes
 every cycle to a JSON file (the same format as a project file), and **Load
 backup** adds its cycles or replaces everything (the replaced data is kept
 under a backup key). Tests and defects export to CSV for Excel. Add `?selftest=1` to the URL to run the built-in checks in the console.
+
+## `uat-email-builder.html`
+
+The simple, manual way to send a UAT update: no test or defect lists to keep,
+just this week's figures and status typed in, and the email built in the same
+format as the [UAT Sign-off Tracker](#uat-signoff-trackerhtml)'s (status badge, bottom-line headline, key
+figures with a progress bar, exit criteria, defects, sign-off and next steps).
+
+**Compose.** Pick **Progress update** or **Sign-off request**; each switches on
+a set of sections you can then change. Fill in:
+
+- **UAT**: name, build, environment, day *n* of *m* and the sign-off date.
+- **Status**: Green, Amber, Red, Signed off or Not started, set by you, plus a
+  one-line **Why** that goes into the headline for Amber and Red.
+- **Tests**: in scope, passed, failed and blocked (executed is passed plus
+  failed; the rest count as not run or in progress), and optionally how many
+  the plan says should be executed by today.
+- **Open defects** by severity, and how many are fixed and waiting for retest.
+- **Approvals**: approved of how many approvers.
+- **Words**: greeting, headline (blank uses the suggestion), what changed since
+  the last update, highlights, risks, asks, next steps, next update date and
+  your name.
+- Optional lists of **defects needing attention**, **known issues accepted**
+  and **approvers**, shown as tables in the email.
+- **Exit criteria** targets (executed and passed %, maximum open critical, high
+  and blocked). Met or Not met is worked out from the figures; blank a limit to
+  drop it.
+
+**Preview and copy.** The subject is suggested from the status and figures
+(`[UAT] Customer Portal R4.2 UAT update: AMBER | day 8 of 11 | 78% executed |
+1 critical and 2 high defects open`); type over it to replace it. **Copy
+email** puts Outlook-safe HTML on the clipboard with a plain text version
+alongside; **Copy as plain text** and **Copy** (subject) do what they say.
+
+**Saving.** Everything autosaves in the browser, so next week you only change
+what moved. **Start fresh** clears the figures, words and defect lists but
+keeps the UAT name, approvers, your name, exit criteria and sections. **Load
+example** fills in a worked example.
