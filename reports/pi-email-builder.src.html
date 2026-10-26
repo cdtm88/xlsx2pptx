@@ -1,0 +1,1484 @@
+<!-- @out: pi-email-builder.html -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<!-- Offline by policy: nothing may load from or send to the network (framework/DESIGN.md). -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; connect-src 'none'; form-action 'none'; base-uri 'none'">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light only">
+<title>Quarterly Planning Email Builder</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMiIgaGVpZ2h0PSIzMiIgdmlld0JveD0iMCAwIDMyIDMyIj48cmVjdCB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHJ4PSI3IiBmaWxsPSIjMDBBOUNFIi8+PHJlY3QgeD0iNi41IiB5PSI5LjUiIHdpZHRoPSIxOSIgaGVpZ2h0PSIxNCIgcng9IjIiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLXdpZHRoPSIyIi8+PHBhdGggZD0iTTcuNSAxMWw4LjUgNi41IDguNS02LjUiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz48L3N2Zz4=">
+<style>
+/*@include framework/report-kit-2.css@*/
+
+/* ---- Quarterly planning email builder (pem-*) ---- */
+.pem-wrap { padding-bottom: 16px; }
+.pem-panel { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; min-width: 0; }
+.pem-panel-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.pem-panel-head h3 { margin: 0; font-size: 16px; font-weight: 700; color: var(--heading); }
+.pem-panel-head .hint { margin: 0; }
+.pem-grid { display: grid; grid-template-columns: minmax(320px, 400px) minmax(0, 1fr); gap: 16px; align-items: start; }
+.pem-group { border-top: 1px solid var(--divider); padding-top: 14px; margin-top: 4px; }
+.pem-group:first-child { border-top: 0; padding-top: 0; margin-top: 0; }
+.pem-group > h4, .pem-more > summary { margin: 0 0 10px; font-size: 13px; font-weight: 700; color: var(--accent-dark); text-transform: uppercase; letter-spacing: .4px; }
+.pem-more > summary { cursor: pointer; margin: 2px 0 10px; }
+.pem-more > summary .pem-muted { text-transform: none; letter-spacing: 0; }
+.pem-more[open] > summary { margin-bottom: 8px; }
+.pem-compose .field { margin-bottom: 12px; }
+.pem-compose textarea { min-height: 64px; }
+.pem-compose .chip-row { margin-bottom: 0; }
+.pem-compose input[type="number"] { text-align: right; font-family: var(--font-mono); }
+.pem-muted { color: var(--text-dim); font-weight: 400; }
+.pem-checks { display: flex; flex-direction: column; gap: 6px; font-size: 13px; margin-bottom: 12px; }
+.pem-checks label { display: flex; gap: 8px; align-items: center; cursor: pointer; }
+.pem-colour { display: flex; gap: 12px; align-items: center; }
+.pem-colour input[type="color"] { width: 44px; height: 32px; padding: 2px; cursor: pointer; }
+.pem-file { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; margin-bottom: 10px; font-size: 13px; }
+.pem-file b { font-weight: 600; }
+.pem-drop { padding: 14px 16px; margin-bottom: 10px; }
+.pem-paste > summary { text-transform: none; letter-spacing: 0; font-size: 12px; font-weight: 500; }
+.pem-paste textarea { min-height: 90px; font: 12px var(--font-mono); margin-bottom: 8px; }
+.pem-callouts .callout ul { margin: 6px 0 0; padding-left: 18px; }
+.pem-callouts .callout li { margin: 0 0 2px; }
+.pem-subject { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
+.pem-subject input { font-weight: 600; }
+.pem-tips { display: flex; justify-content: space-between; align-items: center; gap: 6px 16px; flex-wrap: wrap; margin: 0 0 10px; font-size: 12px; color: var(--text-dim); }
+.pem-tips b { color: var(--text); font-weight: 600; }
+.pem-tiplinks { display: flex; gap: 6px 14px; align-items: center; flex-wrap: wrap; }
+.pem-tiplinks > span { white-space: nowrap; color: var(--yellow-fg); }
+.pem-hidden-item { white-space: nowrap; margin-right: 8px; }
+.pem-frame { background: var(--light-grey); border: 1px solid var(--border); border-radius: 8px; padding: 16px; overflow-x: auto; }
+.pem-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 12px 0 0; }
+.copy-fallback textarea { width: 100%; min-height: 180px; font: 12px var(--font-mono); }
+.copy-fallback p { margin: 12px 0 6px; font-size: 12px; color: var(--text-dim); }
+.pem-empty { max-width: 640px; margin: 48px auto 0; }
+.pem-empty .pem-panel { padding: 24px 26px; }
+.pem-empty h2 { margin: 0 0 6px; font-size: 20px; font-weight: 600; }
+.pem-empty .upload-area { padding: 48px 24px; }
+.pem-alt { display: flex; justify-content: center; align-items: center; gap: 12px; margin: 14px 0 0; flex-wrap: wrap; }
+.pem-alt .link-action { font-size: 13px; }
+.pem-dot { width: 4px; height: 4px; border-radius: 2px; background: var(--border-input); }
+.pem-empty .pem-paste { margin-top: 14px; }
+.pem-empty .callout { margin: 14px 0 0; }
+.pem-legend .legend-swatch { border-radius: 2px; }
+.modal-actions .pem-left { margin-right: auto; }
+.pem-spill { display: flex; gap: 8px; align-items: center; font-size: 13px; cursor: pointer; margin: 2px 0 10px; }
+
+/* The preview shows the email exactly as it pastes: undo the kit's bare table
+   look, so only the email's own inline styles apply. */
+#preview { width: 900px; margin: 0 auto; padding: 28px 32px; box-sizing: content-box; background: #fff; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,.05), 0 8px 28px rgba(0,0,0,.07); }
+#preview * { box-sizing: inherit; }
+#preview table { width: auto; border-collapse: collapse; }
+#preview table[width="100%"] { width: 100%; }
+#preview td, #preview th { padding: 0; border: 0; white-space: normal; background-color: transparent; color: inherit; vertical-align: middle; text-align: left; position: relative; font-size: inherit; font-weight: inherit; text-transform: none; letter-spacing: normal; user-select: auto; }
+#preview td[valign="top"] { vertical-align: top; }
+#preview td[align="right"] { text-align: right; }
+/* editing affordances, never copied: data attributes are stripped from the email */
+#preview [data-f], #preview [data-edit], #preview [data-gname], #preview [data-lbl] { cursor: pointer; }
+#preview [data-edit]:hover, #preview [data-gname]:hover, #preview [data-lbl]:hover,
+#preview [data-edit]:focus-visible, #preview [data-gname]:focus-visible, #preview [data-lbl]:focus-visible { background: var(--teal-tint); border-radius: 3px; box-shadow: 0 0 0 2px var(--teal-tint); outline: none; }
+#preview [data-f]:hover, #preview [data-f]:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+#preview [data-ov] { outline: 2px dashed var(--accent); outline-offset: 1px; }
+#preview .pem-movable { cursor: grab; }
+#preview .pem-movable.dragging { opacity: .45; }
+#preview .pem-mv { position: absolute; right: 4px; top: 6px; display: none; gap: 2px; }
+#preview .pem-gmv { top: auto; bottom: 6px; }
+#preview .pem-movable:hover > tbody > tr > td > .pem-mv, #preview tr.pem-movable:hover > td > .pem-mv,
+#preview .pem-movable:focus-within > tbody > tr > td > .pem-mv, #preview tr.pem-movable:focus-within > td > .pem-mv { display: inline-flex; }
+#preview .pem-mv button { height: auto; min-height: 0; padding: 1px 7px; font-size: 12px; line-height: 18px; border-radius: 5px; background: #fff; border: 1px solid var(--border-input); color: var(--text); }
+#preview .pem-mv button:hover { border-color: var(--accent); }
+#preview .pem-mv button.pem-del { color: var(--red); border-color: var(--red-bg); }
+#preview .pem-gh { display: inline-block; color: var(--dim-grey); font-size: 14px; letter-spacing: -3px; margin: 0 10px 0 -2px; cursor: grab; user-select: none; vertical-align: 1px; }
+#preview tr.drop-before > td { box-shadow: inset 0 3px 0 var(--accent); }
+#preview tr.drop-after > td { box-shadow: inset 0 -3px 0 var(--accent); }
+#preview table.drop-before { box-shadow: 0 -3px 0 var(--accent); }
+#preview table.drop-after { box-shadow: 0 3px 0 var(--accent); }
+
+/* side by side, Compose and Preview each scroll on their own inside the window
+   (sizeGrid sets the height); stacked on narrower screens, the page scrolls */
+@media (min-width: 1001px) {
+  .pem-grid { height: var(--pem-h, auto); align-items: stretch; }
+  .pem-col { min-height: 0; max-height: 100%; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
+}
+@media (max-width: 1000px) {
+  .pem-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 560px) {
+  .pem-frame { padding: 8px; }
+  .pem-empty { margin-top: 16px; }
+  .pem-empty .upload-area { padding: 32px 16px; }
+}
+</style>
+</head>
+<body>
+<div class="wrap pem-wrap">
+
+  <header class="app-header">
+    <div class="app-logo"><img class="app-logo-mark" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMiIgaGVpZ2h0PSIzMiIgdmlld0JveD0iMCAwIDMyIDMyIj48cmVjdCB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHJ4PSI3IiBmaWxsPSIjMDBBOUNFIi8+PHJlY3QgeD0iNi41IiB5PSI5LjUiIHdpZHRoPSIxOSIgaGVpZ2h0PSIxNCIgcng9IjIiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLXdpZHRoPSIyIi8+PHBhdGggZD0iTTcuNSAxMWw4LjUgNi41IDguNS02LjUiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz48L3N2Zz4=" alt="">Quarterly Planning Email Builder</div>
+    <div class="app-header-spacer"></div>
+    <span class="app-version" id="appVersion"></span>
+    <button type="button" id="btnSample">Load sample</button>
+    <button type="button" id="btnClear" hidden>Clear data</button>
+    <button type="button" class="primary" id="btnCopyEmail">Copy email</button>
+  </header>
+  <div id="headerCopyFallback"></div>
+
+  <!-- nothing loaded yet: the drop zone is the whole page -->
+  <div class="pem-empty" id="emptyView">
+    <div class="pem-panel">
+      <h2>Start with the Airtable export</h2>
+      <p class="modal-lead">Export the Airtable view as CSV and drop it in, pick the quarter, then copy a finished email straight into Outlook.</p>
+      <div class="upload-area" id="dropBig" tabindex="0" role="button" aria-label="Choose a CSV file">
+        <div class="big">Drop the Airtable CSV here</div>
+        <div class="or">or click to choose a file</div>
+      </div>
+      <input type="file" id="fileBig" accept=".csv,.txt,.tsv,text/csv" hidden>
+      <div class="pem-alt">
+        <button type="button" class="link-action" id="emptySample">Try it with sample data</button>
+        <span class="pem-dot" aria-hidden="true"></span>
+        <button type="button" class="link-action" id="emptyPaste" aria-expanded="false" aria-controls="emptyPasteBox">Paste CSV text instead</button>
+      </div>
+      <div class="pem-paste" id="emptyPasteBox" hidden>
+        <textarea id="emptyPasteText" aria-label="CSV text" placeholder="Projects Name,Area,Type,Priority,..."></textarea>
+        <button type="button" id="emptyPasteGo">Use pasted text</button>
+      </div>
+      <div id="emptyStatus"></div>
+    </div>
+  </div>
+
+  <div id="mainView" hidden>
+    <div class="page-summary">
+      <div class="page-summary-text">
+        <span class="page-summary-sub" id="summarySub"></span>
+        <span class="page-summary-main" id="summaryMain"></span>
+      </div>
+      <div class="legend pem-legend" id="legend"></div>
+    </div>
+
+    <div class="pem-grid" id="grid">
+      <div class="pem-panel pem-compose pem-col">
+        <div class="pem-group">
+          <h4>Data</h4>
+          <div class="pem-file"><b id="fileName"></b><span class="pem-muted" id="fileMeta"></span></div>
+          <div class="upload-area pem-drop" id="dropSmall" tabindex="0" role="button" aria-label="Choose a newer CSV file">
+            <div class="big">Drop a newer export here</div>
+            <div class="or">or click to choose a file</div>
+          </div>
+          <input type="file" id="fileSmall" accept=".csv,.txt,.tsv,text/csv" hidden>
+          <details class="pem-more pem-paste">
+            <summary>Paste CSV text instead</summary>
+            <textarea id="pasteText" aria-label="CSV text" placeholder="Projects Name,Area,Type,Priority,..."></textarea>
+            <button type="button" class="small" id="pasteGo">Use pasted text</button>
+          </details>
+          <div class="pem-callouts"><div id="loadStatus"></div><div id="checks"></div></div>
+        </div>
+
+        <div class="pem-group">
+          <h4>Message</h4>
+          <div class="field">
+            <label for="f_filter">Quarter</label>
+            <select id="f_filter"></select>
+          </div>
+          <div class="field-row">
+            <div class="field"><label for="f_headline">Subject prefix <span class="pem-muted">(optional)</span></label><input type="text" id="f_headline" data-k="headline" placeholder="e.g. [Action needed]"></div>
+            <div class="field"><label for="f_title">Subject title</label><input type="text" id="f_title" data-k="title"></div>
+          </div>
+          <div class="field"><label for="f_team">Team or programme</label><input type="text" id="f_team" data-k="team" placeholder="e.g. Travel Technology Delivery"></div>
+          <div class="field"><label for="f_intro">Opening message</label><textarea id="f_intro" data-k="intro" rows="4"></textarea></div>
+          <div class="field">
+            <label for="f_high">Key highlights <span class="pem-muted">(one per line, optional)</span></label>
+            <textarea id="f_high" data-k="highlights" rows="3" placeholder="Digital invoicing tax engine lands this quarter&#10;Single sign-on rollout starts across two products"></textarea>
+          </div>
+          <details class="pem-more" id="lqBox">
+            <summary>Since last quarter <span class="pem-muted">(optional)</span></summary>
+            <div class="hint" style="margin:0 0 10px">Filled in by hand. Anything left blank is left out. Clear it when you start next quarter's email.</div>
+            <div class="field-row">
+              <div class="field"><label for="f_lqDone">Commitments delivered</label><input type="number" id="f_lqDone" data-k="lqDone" min="0" step="1" inputmode="numeric" placeholder="e.g. 11"></div>
+              <div class="field"><label for="f_lqTotal">Out of</label><input type="number" id="f_lqTotal" data-k="lqTotal" min="0" step="1" inputmode="numeric" placeholder="e.g. 14"></div>
+            </div>
+            <div class="field"><label for="f_lqDel">Delivered <span class="pem-muted">(one per line)</span></label><textarea id="f_lqDel" data-k="lqDelivered" rows="3" placeholder="Revenue Dashboard&#10;Hotel Supplier Integration"></textarea></div>
+            <div class="field"><label for="f_lqSlip">Slipped or dropped <span class="pem-muted">(one per line)</span></label><textarea id="f_lqSlip" data-k="lqSlipped" rows="2" placeholder="Partner Rate API, moved to Q4 (supplier delay)"></textarea></div>
+            <div class="field"><label for="f_lqNew">New this quarter <span class="pem-muted">(one per line)</span></label><textarea id="f_lqNew" data-k="lqNew" rows="2" placeholder="Single Sign-On Rollout"></textarea></div>
+            <div class="field"><button type="button" class="link-action" id="lqClear">Clear this section</button></div>
+          </details>
+          <div class="field"><label for="f_sign">Closing message <span class="pem-muted">(optional)</span></label><textarea id="f_sign" data-k="signoff" rows="2" placeholder="Any questions or corrections, reply to this email and I'll pick them up."></textarea></div>
+        </div>
+
+        <div class="pem-group">
+          <h4>Layout</h4>
+          <div class="field">
+            <label for="f_group">Group projects by</label>
+            <select id="f_group" data-k="groupBy">
+              <option value="app">Application</option>
+              <option value="outcome">Delivery this quarter</option>
+              <option value="priority">Priority</option>
+              <option value="status">Status</option>
+              <option value="type">Type</option>
+              <option value="area">Area</option>
+              <option value="none">No grouping</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Project style</label>
+            <select id="f_layout" class="select-hidden-visually" aria-label="Project style" tabindex="-1" data-k="layout">
+              <option value="table">Table</option>
+              <option value="cards">Cards</option>
+            </select>
+            <div class="chip-row" id="layoutChips"></div>
+          </div>
+          <div class="pem-checks">
+            <label><input type="checkbox" data-k="showTiles"> Summary numbers</label>
+            <label><input type="checkbox" data-k="showChart"> Breakdown by application chart</label>
+            <label><input type="checkbox" data-k="showArea"> Show area on each project</label>
+          </div>
+          <div class="field">
+            <label for="f_jira">Jira base URL <span class="pem-muted">(optional)</span></label>
+            <input type="text" id="f_jira" data-k="jiraBase" inputmode="url" placeholder="https://yourcompany.atlassian.net">
+            <div class="hint">Only needed if the JIRA ID column holds bare keys. Full URLs are linked as they are.</div>
+          </div>
+          <div class="field">
+            <label for="f_accent">Accent colour</label>
+            <div class="pem-colour"><input type="color" id="f_accent" data-k="accent"><button type="button" class="link-action" id="resetColour">Reset colour</button></div>
+            <div class="hint">Used for group headings and Jira links in the email.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pem-col">
+        <div class="pem-panel">
+          <div class="pem-panel-head"><h3>Preview</h3><span class="hint">This is what pastes into Outlook.</span></div>
+          <label for="f_subject" class="detail-label">Subject</label>
+          <div class="pem-subject">
+            <input type="text" id="f_subject" aria-describedby="subjectHint">
+            <button type="button" class="small" id="btnCopySubject">Copy</button>
+          </div>
+          <div class="hint" id="subjectHint" style="margin:-4px 0 12px">Type over it to change it; the quarter in it follows the quarter you pick. Clear it to go back to the suggestion.</div>
+          <div class="pem-tips">
+            <span><b>Edit in the preview:</b> drag rows or group handles to reorder &middot; click a chip or any text to edit &middot; &#10005; removes a project</span>
+            <span class="pem-tiplinks">
+              <span id="wordInfo" hidden><span></span> <button type="button" class="link-action" id="resetWording">Reset wording</button></span>
+              <span id="ovInfo" hidden><span></span> <button type="button" class="link-action" id="clearOv">Clear all changes</button></span>
+              <button type="button" class="link-action" id="resetOrder">Reset order</button>
+            </span>
+          </div>
+          <div class="callout warn" id="hidInfo" hidden></div>
+          <div class="pem-frame"><div id="preview"></div></div>
+          <div class="pem-actions">
+            <button type="button" class="primary" id="btnCopyEmail2">Copy email</button>
+            <button type="button" id="btnCopyText">Copy as plain text</button>
+            <button type="button" id="btnCopyHtml">Copy HTML code</button>
+          </div>
+          <div id="copyFallback"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer id="footer">
+    <!--@include framework/signoff.html@-->
+    <div class="strapline">Single file, works offline. Your data never leaves this machine.</div>
+  </footer>
+</div>
+
+<!-- edit one thing in the preview: a chip, a name or a heading -->
+<div class="modal-overlay" id="editOverlay" hidden>
+  <div class="modal modal-compact">
+    <h2 id="ed_title"></h2>
+    <form id="editForm" novalidate>
+      <p class="modal-lead" id="ed_sub"></p>
+      <div id="ed_body"></div>
+      <div class="hint" id="ed_note"></div>
+      <div class="modal-actions">
+        <button type="button" class="pem-left" id="ed_reset"></button>
+        <button type="button" data-cancel>Cancel</button>
+        <button type="submit" class="primary">Apply</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+/*@include framework/report-kit.js@*/
+</script>
+<script>
+(function () {
+  "use strict";
+  // Semver: MAJOR for a stored-data change normalise() cannot migrate, MINOR for features, PATCH for fixes.
+  var APP_VERSION = "1.0.0";
+  var $ = RK.$, esc = RK.esc;
+  var store = RK.store("piEmailBuilder.v1"), dataStore = RK.store("piEmailBuilder.csv.v1");
+  // the stand-alone builder this replaces kept its settings and last import under these keys
+  var LEGACY_SETTINGS = "piEmail.settings.v2", LEGACY_CSV = "piEmail.csv.v2";
+
+  /* ---------- email palette (inline styles that survive a paste into Outlook) ---------- */
+  var FONT = "font-family:'Segoe UI',-apple-system,BlinkMacSystemFont,Helvetica,Arial,sans-serif;";
+  var INK = "#1A1A1A", MUTED = "#6B6B6B", RULE = "#E3E6E8", SOFT = "#F6F7F7";
+  // fills for bars, tile rules and card edges; FG is the same colour readable as text
+  var SOLID = { green: "#2E7D32", amber: "#E0A526", blue: "#007A99", red: "#B3261E" };
+  var FG = { green: "#2E7D32", amber: "#8A6400", blue: "#007A99", red: "#B3261E" };
+  var PILL = {
+    green: { bg: "#EAF7EB", fg: "#2B6E2D" }, amber: { bg: "#FDF3D9", fg: "#8A6400" }, red: { bg: "#FBE6E4", fg: "#B3261E" },
+    blue: { bg: "#E6F6FA", fg: "#007A99" }, grey: { bg: "#F1F2F3", fg: "#3D3D3D" }, slate: { bg: "#E6E9EF", fg: "#3E4A5C" },
+    sky: { bg: "#E2F0F9", fg: "#1E5E86" }, teal: { bg: "#DDF2EF", fg: "#0F6A60" }
+  };
+
+  var FIELDS = {
+    name: ["projectsname", "projectname", "project", "projects", "name"], area: ["area"], type: ["type"], priority: ["priority"],
+    status: ["status"], application: ["application", "applications", "app"], jira: ["jiraid", "jira", "jirakey", "jiralink", "jiraticket"],
+    qStart: ["quarterstart"], qPlanned: ["quarterplanned"],
+    qDelivery: ["quarterdeliverycommitment", "quarterdelivery", "deliverycommitment", "deliveryquarter", "commitment"],
+    goLive: ["golivequarter", "golive"]
+  };
+  var LABELS = { name: "Projects Name", area: "Area", type: "Type", priority: "Priority", status: "Status", application: "Application",
+    jira: "JIRA ID", qStart: "Quarter Start", qPlanned: "Quarter Planned", qDelivery: "Quarter Delivery Commitment", goLive: "Go-Live Quarter" };
+  var DEFAULTS = {
+    lqDone: "", lqTotal: "", lqDelivered: "", lqSlipped: "", lqNew: "", headline: "", title: "Quarterly Planning Commitments", team: "",
+    intro: "Hi all,\n\nHere are the commitments agreed at Quarterly Planning for the coming quarter. Thank you to everyone who contributed to the sessions.",
+    highlights: "", signoff: "", jiraBase: "", groupBy: "app", layout: "table", showChart: true, showTiles: true, showArea: false,
+    filter: "", accent: "#007A99", subject: "", subjectTpl: ""
+  };
+  var TEXT_KEYS = ["lqDone", "lqTotal", "lqDelivered", "lqSlipped", "lqNew", "headline", "title", "team", "intro", "highlights", "signoff", "jiraBase", "filter", "subject", "subjectTpl"];
+  var BOOL_KEYS = ["showChart", "showTiles", "showArea"];
+  var LQ_KEYS = ["lqDone", "lqTotal", "lqDelivered", "lqSlipped", "lqNew"];
+  var GROUP_KEYS = ["app", "outcome", "priority", "status", "type", "area", "none"];
+
+  /* ---------- helpers ---------- */
+  function isObj(x) { return x !== null && typeof x === "object" && !Array.isArray(x); }
+  function str(x) { return typeof x === "string" ? x : typeof x === "number" && isFinite(x) ? String(x) : ""; }
+  function oneOf(x, list, def) { return list.indexOf(x) !== -1 ? x : def; }
+  function norm(s) { return String(s || "").toLowerCase().replace(/[^a-z0-9]/g, ""); }
+  function plural(n, word, many) { return n + " " + (n === 1 ? word : (many || word + "s")); }
+  function lines(v) { return String(v || "").split("\n").map(function (x) { return x.replace(/^[\s\-*•]+/, "").trim(); }).filter(Boolean); }
+  function strList(a) { return Array.isArray(a) ? a.filter(function (x) { return typeof x === "string"; }).slice(0, 5000) : []; }
+  // a lookup keyed by stored data, rebuilt as RK.dict so a key like "__proto__" stays data
+  function dictOf(raw, fn) {
+    var d = RK.dict();
+    if (isObj(raw)) Object.keys(raw).forEach(function (k) { var v = fn(raw[k]); if (v !== undefined) d[k] = v; });
+    return d;
+  }
+  function maxOf(a) { return Math.max.apply(null, a); }
+  function minOf(a) { return Math.min.apply(null, a); }
+  function range(a, b) { var o = []; for (var i = a; i <= b; i++) o.push(i); return o; }
+
+  /* ---------- quarters (PIs) ---------- */
+  // number -> { q: "Q3", months: "Oct-Dec", fy: "26/27" }, read from the export's quarter cells
+  var PI_INFO = RK.dict();
+  var PI_RE = /(Q[1-4])\s*:\s*([A-Za-z]{3}\s*-\s*[A-Za-z]{3})\s*,?\s*(\d{2}\/\d{2})?\s*\(\s*PI\s*(\d+)\s*\)/gi;
+  function parsePIs(cell, info) {
+    var out = [], txt = String(cell || ""), m;
+    PI_RE.lastIndex = 0;
+    while ((m = PI_RE.exec(txt))) {
+      var pi = +m[4]; out.push(pi);
+      info[pi] = { q: m[1].toUpperCase(), months: m[2].replace(/\s/g, ""), fy: m[3] || "" };
+    }
+    if (!out.length) (txt.match(/\bPI\s*\d+/gi) || []).forEach(function (x) { out.push(+x.replace(/\D/g, "")); });
+    return out.filter(function (x, i) { return out.indexOf(x) === i; }).sort(function (a, b) { return a - b; });
+  }
+  // "Q3" for the email, with the FY only when it differs from the selected quarter's
+  function qn(pi, sel) {
+    var i = PI_INFO[pi]; if (!i) return "PI" + pi;
+    var si = PI_INFO[sel];
+    return (si && si.fy === i.fy) || !i.fy ? i.q : i.q + " " + i.fy;
+  }
+  function piLabel(pi) { var i = PI_INFO[pi]; return i ? i.q + " " + i.months + (i.fy ? ", FY " + i.fy : "") : ""; }
+  // FY "26/27" starts April 2026; Q1 Apr, Q2 Jul, Q3 Oct, Q4 Jan of the following year
+  function piStart(pi) {
+    var i = PI_INFO[pi]; if (!i || !i.fy) return null;
+    var y = 2000 + parseInt(i.fy, 10), q = +i.q.slice(1);
+    return q === 4 ? new Date(y + 1, 0, 1) : new Date(y, [3, 6, 9][q - 1], 1);
+  }
+  // the quarter being planned: the next to start, or one that started in the last 6 weeks
+  function planningPI(pis) {
+    var now = Date.now(), grace = 42 * 864e5;
+    var cand = pis.map(function (p) { return { p: p, d: piStart(p) }; }).filter(function (x) { return x.d && x.d.getTime() >= now - grace; })
+      .sort(function (a, b) { return a.d - b.d; })[0];
+    if (cand) return cand.p;
+    return pis.length ? maxOf(pis) : 0;
+  }
+
+  /* ---------- sample data (fictional, the same format as the Airtable export) ---------- */
+  var SAMPLE_PI = { 28: "Q3: Oct-Dec, 25/26", 29: "Q4: Jan-Mar, 25/26", 30: "Q1: Apr-Jun, 26/27", 31: "Q2: Jul-Sep, 26/27", 32: "Q3: Oct-Dec, 26/27" };
+  var SAMPLE_ROWS = [
+    ["Digital Invoicing - Data Model", "All", "Group Initiative", "P1", "UAT", "Booking Portal,Partner API", "", [28], range(30, 32), [30], []],
+    ["Digital Invoicing - Tax Engine", "All", "Group Initiative", "P1", "In Implementation", "Booking Portal,Partner API", "PLAT-1401", [31], range(31, 32), [32], []],
+    ["Digital Invoicing - Finance Sync", "All", "Group Initiative", "P1", "In Implementation", "Booking Portal,Partner API", "PLAT-1402", [30], range(31, 32), [32], []],
+    ["Digital Invoicing - Card Payments", "All", "Group Initiative", "P1", "In IT Analysis", "Booking Portal,Partner API", "", [31], [], "TBC", []],
+    ["Regional Tax Rules", "Corporate", "Enhancements", "P1", "Initiative - Not Yet Planned", "Partner API", "TRV-2104", [], [32], "TBC", []],
+    ["Partner Rate API", "Corporate", "Project", "P2", "Blocked", "Partner API", "TRV-2082", [30], [32], "TBC", []],
+    ["Quote Report", "Corporate", "Enhancements", "P1", "In IT Analysis", "Partner API", "TRV-2152", [31], range(31, 32), "TBC", []],
+    ["API Gateway Upgrade", "Corporate", "Tech Debt / Compliance", "P2", "In Implementation", "Partner API", "OPS-562", [], [32], [32], []],
+    ["Revenue Dashboard", "Leisure", "Enhancements", "P1", "UAT", "Booking Portal", "TRV-2081", [29], range(31, 32), [31], []],
+    ["Hotel Supplier Integration", "Leisure", "Project", "P1", "UAT", "Booking Portal", "TRV-2090", [28], range(30, 32), [30], [31]],
+    ["New Brand Onboarding", "Leisure", "Project", "P1", "UAT", "Booking Portal", "TRV-2083", [30], [32], [32], []],
+    ["Agent Account Management", "Leisure", "Enhancements", "P1", "In IT Analysis", "Booking Portal", "TRV-2122", [29], range(31, 32), [32], []],
+    ["Offline Sales Reporting", "Leisure", "Enhancements", "P1", "In IT Analysis", "Booking Portal", "TRV-2121", [29], range(31, 32), [32], []],
+    ["VAT Calculation Update", "Leisure", "Enhancements", "P1", "In IT Analysis", "Booking Portal", "TRV-2123", [31], range(31, 32), [32], []],
+    ["API Gateway Upgrade", "Leisure", "Tech Debt / Compliance", "P2", "In IT Analysis", "Booking Portal", "OPS-562", [], [32], [32], []],
+    ["Finance Reverse Sync", "Leisure", "Enhancements", "P3", "In IT Analysis", "Booking Portal", "", [31], range(31, 32), "TBC", []],
+    ["Hotel Content Mapping", "Leisure", "Enhancements", "P4", "In Discovery with PS / SPO", "Booking Portal", "TRV-2080", [32], [32], "TBC", []],
+    ["Legacy Back Office Retirement", "Leisure", "Tech Debt / Compliance", "P1", "In IT Analysis", "Back Office", "TRV-2130", [31], range(31, 32), [32], []],
+    ["Single Sign-On Rollout", "Leisure", "Tech Debt / Compliance", "P1", "In IT Analysis", "Customer Care", "", [32], [32], [32], []],
+    ["Technology Roadmap Review", "Leisure", "Project", "P1", "In Discovery with PS / SPO", "New Product", "TRV-2085", [31], range(31, 32), "TBC", []],
+    ["Visa Services - RFI", "Corporate", "RFI/RFT", "P3", "In Discovery with PS / SPO", "New Product", "TRV-2084", [31], range(31, 32), "TBC", []],
+    ["Checkout Replatform", "Leisure", "Project", "P1", "In Implementation", "Consumer Website", "TRV-2091", [29], range(30, 32), [30], []],
+    ["Single Sign-On - Staff Travel", "Leisure", "Tech Debt / Compliance", "P1", "In IT Analysis", "Consumer Website", "TRV-2106", [32], [32], [32], [32]],
+    ["New Market Launch Site", "Leisure", "Strategic", "P2", "In Implementation", "Consumer Website", "TRV-2156", [31], range(31, 32), [32], []],
+    ["Card BIN Detection", "Leisure", "Enhancements", "P3", "In IT Analysis", "Consumer Website", "TRV-2153", [31], range(31, 32), "TBC", []],
+    ["Contact Form Fix", "Leisure", "Enhancements", "P4", "In IT Analysis", "Consumer Website", "", [], [32], [], []],
+    ["Biometric Login", "Leisure", "Enhancements", "P4", "In Discovery with PS / SPO", "Mobile App", "", [], [32], [], []]
+  ];
+  function sampleCsv() {
+    function piCell(list) { return list.map(function (p) { return '"' + SAMPLE_PI[p] + " (PI" + p + ')"'; }).join(","); }
+    function jira(k) { return k ? "https://jira.example.com/browse/" + k : ""; }
+    return "Projects Name,Area,Type,Priority,Status,Application,JIRA ID,Quarter Start,Quarter Planned,Quarter Delivery Commitment,Go-Live Quarter\n" +
+      SAMPLE_ROWS.map(function (r) {
+        return [r[0], r[1], r[2], r[3], r[4], r[5], jira(r[6]), piCell(r[7]), piCell(r[8]), r[9] === "TBC" ? "TBC" : piCell(r[9]), piCell(r[10])]
+          .map(RK.csv.escape).join(",");
+      }).join("\n");
+  }
+
+  /* ---------- state ---------- */
+  function defaults() {
+    var s = {};
+    Object.keys(DEFAULTS).forEach(function (k) { s[k] = DEFAULTS[k]; });
+    s.order = []; s.groupOrder = RK.dict(); s.hiddenByPI = RK.dict(); s.ovByPI = RK.dict();
+    s.wording = { items: RK.dict(), groups: RK.dict(), labels: RK.dict() };
+    return s;
+  }
+  function normOv(o) {
+    if (!isObj(o)) return undefined;
+    var r = {};
+    if (typeof o.priority === "string") r.priority = o.priority;
+    if (typeof o.status === "string") r.status = o.status;
+    if (o.delivery === "TBC" || /^\d+$/.test(str(o.delivery))) r.delivery = str(o.delivery);
+    if (typeof o.spill === "boolean") r.spill = o.spill;
+    return Object.keys(r).length ? r : undefined;
+  }
+  function textOrSkip(x) { return typeof x === "string" && x ? x : undefined; }
+  // Load, then commit: anything stored is checked field by field before use
+  function normalise(raw) {
+    var s = defaults();
+    if (!isObj(raw)) return s;
+    TEXT_KEYS.forEach(function (k) { if (RK.has(raw, k)) s[k] = str(raw[k]); });
+    BOOL_KEYS.forEach(function (k) { if (RK.has(raw, k)) s[k] = !!raw[k]; });
+    s.groupBy = oneOf(raw.groupBy, GROUP_KEYS, DEFAULTS.groupBy);
+    s.layout = oneOf(raw.layout, ["table", "cards"], DEFAULTS.layout);
+    s.accent = /^#[0-9a-f]{6}$/i.test(str(raw.accent)) ? raw.accent : DEFAULTS.accent;
+    s.order = strList(raw.order);
+    s.groupOrder = dictOf(raw.groupOrder, function (v) { return Array.isArray(v) ? strList(v) : undefined; });
+    s.hiddenByPI = dictOf(raw.hiddenByPI, function (v) { return Array.isArray(v) ? strList(v) : undefined; });
+    s.ovByPI = dictOf(raw.ovByPI, function (v) { return isObj(v) ? dictOf(v, normOv) : undefined; });
+    var w = isObj(raw.wording) ? raw.wording : {};
+    s.wording.items = dictOf(w.items, function (v) {
+      if (!isObj(v)) return undefined;
+      var o = {}; if (textOrSkip(v.name)) o.name = v.name; if (textOrSkip(v.type)) o.type = v.type;
+      return Object.keys(o).length ? o : undefined;
+    });
+    s.wording.groups = dictOf(w.groups, function (v) { return isObj(v) ? dictOf(v, textOrSkip) : undefined; });
+    s.wording.labels = dictOf(w.labels, textOrSkip);
+    return s;
+  }
+  // the old builder's settings: same fields, plus the clean-ups it ran on start
+  function fromLegacy(old) {
+    if (!isObj(old)) return null;
+    var s = normalise(old);
+    if (!old.subjV2) { if (old.title === "PI Planning commitments") s.title = DEFAULTS.title; s.subject = ""; s.subjectTpl = ""; }
+    if (!old.closingV2) s.signoff = "";
+    if (!old.introV2) s.intro = s.intro.replace(/\bPI Planning\b/g, "Quarterly Planning");
+    // its oldest builds kept one set of changes for whichever quarter was showing
+    if (isObj(old.ov) && s.filter) {
+      var cur = s.ovByPI[s.filter] || (s.ovByPI[s.filter] = RK.dict());
+      Object.keys(old.ov).forEach(function (id) { var o = normOv(old.ov[id]); if (o && !RK.has(cur, id)) cur[id] = o; });
+    }
+    return s;
+  }
+  function legacyRaw(key) { try { return localStorage.getItem(key); } catch (e) { return null; } }
+  function loadSettings() {
+    var cur = store.get();
+    if (cur) return normalise(cur);
+    var old = null;
+    try { old = JSON.parse(legacyRaw(LEGACY_SETTINGS) || "null"); } catch (e) { old = null; }
+    return fromLegacy(old) || defaults();
+  }
+  var S = loadSettings();
+  var saveWarned = false;
+  function save() {
+    if (!store.set(S) && !saveWarned) { saveWarned = true; RK.toast("This browser would not save. Your email is fine on screen but will not be kept.", 5000); }
+  }
+
+  var rows = [], current = null, source = "";
+
+  /* ---------- CSV ---------- */
+  function parseCSV(text) {
+    text = String(text).replace(/^﻿/, "");
+    var first = text.split(/\r?\n/).filter(function (l) { return l.trim(); })[0] || "";
+    var delim = ",", best = -1;
+    [",", "|", "\t", ";"].forEach(function (c) { var n = first.split(c).length - 1; if (n > best) { best = n; delim = c; } });
+    var out = [], row = [], f = "", q = false;
+    for (var i = 0; i < text.length; i++) {
+      var ch = text[i];
+      if (q) { if (ch === '"') { if (text[i + 1] === '"') { f += '"'; i++; } else q = false; } else f += ch; }
+      else if (ch === '"' && f.trim() === "") { q = true; f = ""; }
+      else if (ch === delim) { row.push(f); f = ""; }
+      else if (ch === "\n" || ch === "\r") {
+        if (ch === "\r" && text[i + 1] === "\n") i++;
+        row.push(f); f = "";
+        if (row.some(function (v) { return v.trim() !== ""; })) out.push(row);
+        row = [];
+      } else f += ch;
+    }
+    row.push(f); if (row.some(function (v) { return v.trim() !== ""; })) out.push(row);
+    return out;
+  }
+  function toRecords(table, info) {
+    if (table.length < 2) throw new Error("The file needs a header row and at least one project row.");
+    var hdr = table[0].map(norm), idx = {}, missing = [];
+    Object.keys(FIELDS).forEach(function (k) {
+      var i = -1;
+      hdr.some(function (h, j) { if (FIELDS[k].indexOf(h) !== -1) { i = j; return true; } return false; });
+      if (i < 0 && k === "qDelivery") hdr.some(function (h, j) { if (h.indexOf("quarterdelivery") === 0) { i = j; return true; } return false; });
+      idx[k] = i; if (i < 0) missing.push(k);
+    });
+    if (idx.name < 0) throw new Error('No "Projects Name" column found. Check the first row of the export.');
+    var recs = table.slice(1).map(function (r) {
+      var o = {};
+      Object.keys(idx).forEach(function (k) { o[k] = idx[k] >= 0 ? String(r[idx[k]] || "").trim() : ""; });
+      o.apps = o.application.split(/[,;]+/).map(function (x) { return x.trim(); }).filter(Boolean);
+      if (!o.apps.length) o.apps = ["Not set"];
+      o.jiraUrl = (o.jira.match(/https?:\/\/\S+/) || [])[0] || "";
+      o.jiraKey = (o.jira.match(/[A-Z][A-Z0-9]+-\d+/) || [])[0] || "";
+      o.startPIs = parsePIs(o.qStart, info); o.plannedPIs = parsePIs(o.qPlanned, info);
+      o.deliveryPIs = parsePIs(o.qDelivery, info); o.goLivePIs = parsePIs(o.goLive, info);
+      return o;
+    }).filter(function (o) { return o.name; });
+    if (!recs.length) throw new Error("The header was found but there are no project rows under it.");
+    return { recs: recs, missing: missing };
+  }
+  function dataChecks(recs) {
+    var w = [], byKey = new Map();
+    recs.forEach(function (r) {
+      if (!r.jiraKey) return;
+      if (!byKey.has(r.jiraKey)) byKey.set(r.jiraKey, []);
+      var n = byKey.get(r.jiraKey); if (n.indexOf(r.name) === -1) n.push(r.name);
+    });
+    byKey.forEach(function (names, k) { if (names.length > 1) w.push(k + " is linked to " + names.join(" and ") + ". One of these is probably the wrong ticket."); });
+    var noJ = recs.filter(function (r) { return !r.jiraKey; }).length;
+    if (noJ) w.push(noJ + " " + (noJ === 1 ? "project has" : "projects have") + " no JIRA ID.");
+    var noP = recs.filter(function (r) { return !r.plannedPIs.length; });
+    if (noP.length) w.push(noP.map(function (r) { return r.name; }).join(", ") + " " + (noP.length === 1 ? "has" : "have") + " no Quarter Planned, so " + (noP.length === 1 ? "it is" : "they are") + " left out of every quarter.");
+    var unk = [];
+    recs.forEach(function (r) { if (!statusKnown(r.status) && unk.indexOf(r.status) === -1) unk.push(r.status); });
+    if (unk.length) w.push("Unrecognised " + (unk.length === 1 ? "status" : "statuses") + " shown in grey: " + unk.join(", ") + ".");
+    var noD = recs.filter(function (r) { return !r.deliveryPIs.length && !/tbc/i.test(r.qDelivery); }).length;
+    if (noD) w.push(noD + " " + (noD === 1 ? "project has" : "projects have") + " a blank delivery commitment. These show as TBC.");
+    return w;
+  }
+
+  /* ---------- classification ---------- */
+  var RED_RE = /\b(blocked|blocker|block|on hold|hold|at risk|risk|delayed|delay)\b/;
+  var GREY_RE = /not yet planned|not started|backlog|\bto do\b/;
+  var GREEN_RE = /\b(done|completed?|closed|released|delivered|live)\b/;
+  var TEAL_RE = /\b(uat|testing|test|qa|sit)\b/;
+  var BLUE_RE = /\b(implementation|implementing|build|building|development|developing|in progress|in delivery)\b/;
+  var SKY_RE = /\b(analysis|design|refinement|refining)\b/;
+  var SLATE_RE = /\b(discovery|rfi|rft)\b/;
+  function statusKind(v) {
+    v = String(v || "").toLowerCase();
+    if (RED_RE.test(v)) return "red";
+    if (GREY_RE.test(v)) return "grey";
+    if (GREEN_RE.test(v)) return "green";
+    if (TEAL_RE.test(v)) return "teal";
+    if (BLUE_RE.test(v)) return "blue";
+    if (SKY_RE.test(v)) return "sky";
+    if (SLATE_RE.test(v)) return "slate";
+    return "grey";
+  }
+  function statusKnown(v) {
+    v = String(v || "").toLowerCase();
+    return !v || [RED_RE, GREY_RE, GREEN_RE, TEAL_RE, BLUE_RE, SKY_RE, SLATE_RE].some(function (re) { return re.test(v); });
+  }
+  var STAGE = { grey: 0, slate: 1, sky: 2, blue: 3, teal: 4, green: 5, red: 6 };
+  function prioRank(v) {
+    v = String(v || "").toLowerCase().trim();
+    var m = v.match(/p\s*(\d)/) || v.match(/^(\d)/); if (m) return +m[1];
+    if (/critical|blocker|highest|urgent/.test(v)) return 0;
+    if (/must|high/.test(v)) return 1;
+    if (/should|med/.test(v)) return 2;
+    if (/could|low/.test(v)) return 3;
+    return 9;
+  }
+  function prioStyle(v) {
+    var r = prioRank(v);
+    if (r <= 1) return { bg: "#D5DADD", fg: INK };
+    if (r === 2) return { bg: "#E9ECEE", fg: INK };
+    return { bg: "#F1F2F3", fg: MUTED };
+  }
+  var OUT_ORDER = ["deliver", "later", "tbc", "rolled"];
+  var OUT_KIND = { deliver: "green", later: "blue", rolled: "red", tbc: "amber" };
+  /* Delivery for the selected quarter p. committed is the Airtable delivery commitment.
+     If it is before p, the project is an unplanned spill over and its new delivery
+     quarter is the last quarter it is planned in (from p on). Overrides: ov.delivery
+     sets the delivery quarter shown (or "TBC"); ov.spill forces the spill-over flag. */
+  function autoDelivery(r, p) {
+    var committed = r.deliveryPIs.length ? maxOf(r.deliveryPIs) : null;
+    var spill = committed !== null && committed < p, q = committed;
+    if (spill) { var later = r.plannedPIs.filter(function (x) { return x >= p; }); q = later.length ? maxOf(later) : p; }
+    return { committed: committed, spill: spill, q: q };
+  }
+  function outcome(r, p) {
+    var a = autoDelivery(r, p), ov = r._ov || {};
+    var q = ov.delivery !== undefined ? (ov.delivery === "TBC" ? null : +ov.delivery) : a.q;
+    var spill = ov.spill !== undefined ? !!ov.spill : a.spill;
+    var qk = q === null ? "tbc" : q === p ? "deliver" : q > p ? "later" : "rolled";
+    // k is the delivery bucket; spill over is a separate flag, so spill-overs still count as delivering this quarter
+    return { k: qk, qk: qk, q: q, label: q === null ? "TBC" : qn(q, p), spill: spill || qk === "rolled", was: a.committed };
+  }
+  function outName(k, p) {
+    return { deliver: "Delivering in " + qn(p, p), later: "Delivering in a later quarter", rolled: "Overdue", tbc: "Delivery TBC" }[k];
+  }
+
+  /* ---------- email building blocks ---------- */
+  function edAttrs(ed) { return ed ? ' data-f="' + ed.f + '" data-erid="' + esc(ed.rid) + '"' + (ed.ov ? ' data-ov="1"' : "") : ""; }
+  function pill(text, st, ed) {
+    if (!text) return "<span" + edAttrs(ed) + ' style="' + FONT + 'font-size:12px;color:#8C8C8C;">Not set</span>';
+    // a table cell with bgcolor survives a paste into Outlook; styled spans do not
+    return '<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;"><tr><td' + edAttrs(ed) +
+      ' bgcolor="' + st.bg + '" style="background-color:' + st.bg + ";padding:3px 9px;" + FONT + "font-size:12px;font-weight:bold;line-height:16px;color:" + st.fg +
+      ';mso-line-height-rule:exactly;"><font color="' + st.fg + '">' + esc(text) + "</font></td></tr></table>";
+  }
+  function pillRow(items) {
+    return '<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;"><tr>' + items.map(function (h, i) {
+      return (i ? '<td width="6" style="font-size:0;line-height:0;">&nbsp;</td>' : "") + '<td valign="top">' + h + "</td>";
+    }).join("") + "</tr></table>";
+  }
+  var Q_KIND = { deliver: "green", later: "blue", tbc: "amber", rolled: "red" };
+  function deliveryCell(o, p, ed, long) {
+    var qText = long ? (o.q === null ? "Delivery TBC" : o.qk === "deliver" ? "Delivering " + o.label : "Delivery " + o.label) : o.label;
+    if (!o.spill) return pill(qText, PILL[OUT_KIND[o.k]], ed);
+    return pillRow([pill(qText, PILL[Q_KIND[o.qk]], ed), pill("Spill over", PILL.red, ed)]);
+  }
+  /* Outlook's paste engine drops styles on <div>s and styled text in cells. Every div
+     becomes a one-cell table, and plain text inside gets a styled span plus a <font>
+     tag so size, weight and colour survive the paste. */
+  function pasteSafe(html) {
+    return html.replace(/<div style="([^"]*)">([\s\S]*?)<\/div>/g, function (m, st, content) {
+      var col = (st.match(/(?:^|;)\s*color:\s*([^;]+)/) || [])[1];
+      var fs = (st.match(/font-size:\s*([^;]+)/) || [])[1];
+      var fw = (st.match(/font-weight:\s*([^;]+)/) || [])[1];
+      var lh = (st.match(/line-height:\s*([^;]+)/) || [])[1];
+      var inner = content;
+      if (!/<table/i.test(content)) {
+        var sp = FONT + (fs ? "font-size:" + fs + ";" : "") + (fw ? "font-weight:" + fw + ";" : "") + (lh ? "line-height:" + lh + ";" : "") + (col ? "color:" + col + ";" : "");
+        var px = parseFloat(fs) || 14;
+        var fsize = px >= 36 ? 7 : px >= 26 ? 6 : px >= 19 ? 5 : px >= 16 ? 4 : px >= 14 ? 3 : 2;
+        var bold = fw && /bold|[6-9]00/.test(fw);
+        inner = '<font face="Segoe UI, Arial, sans-serif" size="' + fsize + '"' + (col ? ' color="' + col + '"' : "") + ">" + (bold ? "<b>" : "") +
+          '<span style="' + sp + '">' + content + "</span>" + (bold ? "</b>" : "") + "</font>";
+      }
+      return '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;"><tr><td style="' + FONT + st + '">' + inner + "</td></tr></table>";
+    });
+  }
+  function jiraLink(r, s, accent) {
+    var key = r.jiraKey || r.jira; if (!key) return "";
+    var url = r.jiraUrl;
+    if (!url && r.jiraKey && s.jiraBase) {
+      var b = String(s.jiraBase).trim().replace(/\/+$/, "");
+      if (!/^[a-z][a-z0-9+.-]*:/i.test(b)) b = "https://" + b; // a bare host such as yourcompany.atlassian.net
+      if (/^https?:\/\/[^\s/]/i.test(b)) url = /\/browse$/.test(b) ? b + "/" + r.jiraKey : b + "/browse/" + r.jiraKey;
+    }
+    return url ? '<a href="' + esc(url) + '" style="font-weight:600;color:' + accent + ';text-decoration:none;"><span style="color:' + accent + ';text-decoration:none;">' + esc(key) + "</span></a>"
+      : '<span style="font-weight:600;color:' + accent + ';">' + esc(key) + "</span>";
+  }
+  function paras(text, style) {
+    return String(text || "").trim().split(/\n\s*\n/).filter(Boolean).map(function (p) {
+      return '<div style="padding-bottom:14px;' + style + '">' + esc(p).replace(/\n/g, "<br>") + "</div>";
+    }).join("");
+  }
+  function bulletList(items, size, lh, indent, gap, fsize, top) {
+    // a real list: Outlook turns it into its own native bullets, so they match the rest of the message
+    return '<ul style="margin:' + (top || 0) + (top ? "px" : "") + " 0 0 " + indent + "px;padding:0;" + FONT + "font-size:" + size + "px;line-height:" + lh + "px;color:" + INK + ';">' + items.map(function (l) {
+      return '<li style="margin:0 0 ' + gap + "px;padding-left:" + (indent > 18 ? 4 : 2) + "px;" + FONT + "font-size:" + size + "px;line-height:" + lh + "px;color:" + INK + ';">' +
+        '<font face="Segoe UI, Arial, sans-serif" size="' + fsize + '" color="' + INK + '"><span style="' + FONT + "font-size:" + size + "px;line-height:" + lh + "px;color:" + INK + ';">' + esc(l) + "</span></font></li>";
+    }).join("") + "</ul>";
+  }
+
+  /* ---------- grouping and order ---------- */
+  function groupKey(r, key, p) { return key === "outcome" ? outName(outcome(r, p).k, p) : r[key] || "Not set"; }
+  function applyGroupOrder(g, key) {
+    var go = S.groupOrder[key] || [];
+    if (!go.length) return g;
+    var base = new Map(g.map(function (x, i) { return [x[0], i]; }));
+    function pos(n) { var i = go.indexOf(n); return i < 0 ? 1e6 + base.get(n) : i; }
+    return g.slice().sort(function (a, b) { return pos(a[0]) - pos(b[0]); });
+  }
+  function groupRows(list, key, p) {
+    if (key === "none") return [["All commitments", list]];
+    var m = new Map();
+    list.forEach(function (r) {
+      (key === "app" ? r.apps : [groupKey(r, key, p)]).forEach(function (k) { if (!m.has(k)) m.set(k, []); m.get(k).push(r); });
+    });
+    var g = Array.from(m.entries());
+    if (key === "priority") g.sort(function (a, b) { return prioRank(a[0]) - prioRank(b[0]); });
+    else if (key === "status") g.sort(function (a, b) { return STAGE[statusKind(b[0])] - STAGE[statusKind(a[0])]; });
+    else if (key === "outcome") {
+      var o = function (k) { return OUT_ORDER.map(function (x) { return outName(x, p); }).indexOf(k); };
+      g.sort(function (a, b) { return o(a[0]) - o(b[0]); });
+    } else g.sort(function (a, b) { return (a[0] === "Not set") - (b[0] === "Not set") || b[1].length - a[1].length || a[0].localeCompare(b[0]); });
+    return applyGroupOrder(g, key);
+  }
+  // a project's id: the same recipe as the old builder, so saved order and edits carry over
+  function rid(r) { return r._rid || (norm(r.name) + "-" + (r.jiraKey || "") + "-" + norm(r.area)); }
+  function sortRows(list, p) {
+    var o = { rolled: 0, deliver: 1, later: 2, tbc: 3 }, ord = S.order;
+    function pos(r) { var i = ord.indexOf(rid(r)); return i < 0 ? 1e6 : i; }
+    return list.slice().sort(function (a, b) {
+      return prioRank(a.priority) - prioRank(b.priority) || pos(a) - pos(b) || o[outcome(a, p).k] - o[outcome(b, p).k] || a.name.localeCompare(b.name);
+    });
+  }
+
+  /* ---------- subject ---------- */
+  function subjectTokens(p) { var i = PI_INFO[p] || {}; return { PI: "PI" + p, Q: i.q || "", MONTHS: i.months || "", FY: i.fy || "" }; }
+  // a typed subject is stored with its quarter as tokens, so next quarter it updates itself
+  function toTemplate(v, p) {
+    var t = subjectTokens(p), out = v;
+    if (t.FY) out = out.split(t.FY).join("{FY}");
+    if (t.MONTHS) out = out.split(t.MONTHS).join("{MONTHS}");
+    out = out.replace(new RegExp("\\b" + t.PI + "\\b", "g"), "{PI}");
+    if (t.Q) out = out.replace(new RegExp("\\b" + t.Q + "\\b", "g"), "{Q}");
+    return out;
+  }
+  function fromTemplate(tpl, p) { var t = subjectTokens(p); return tpl.replace(/\{(PI|Q|MONTHS|FY)\}/g, function (m, k) { return t[k]; }); }
+  function subjectAuto(s, p) {
+    var q = (s.headline || "").trim(), i = PI_INFO[p] || {};
+    var lbl = [i.fy ? "FY" + i.fy : "", i.q || ""].filter(Boolean).join(" ");
+    return (q ? q + " " : "") + (s.title || DEFAULTS.title) + (lbl ? " | " + lbl : "") + (s.team ? " | " + s.team : "");
+  }
+  function subjectFor(s, p) {
+    if (s.subject && !s.subjectTpl) { s.subjectTpl = toTemplate(s.subject, p); s.subject = ""; save(); }
+    return s.subjectTpl ? fromTemplate(s.subjectTpl, p) : subjectAuto(s, p);
+  }
+
+  /* ---------- editable wording: quarter names inside a saved label are kept as {Q} ---------- */
+  function L(key, def, p) { return RK.has(S.wording.labels, key) ? S.wording.labels[key].replace(/\{Q\}/g, qn(p, p)) : def; }
+  function gLabel(g, key) { var m = S.wording.groups[key]; return m && RK.has(m, g) ? m[g] : g; }
+  function labelSpan(key, def, text) {
+    return '<span data-lbl="' + key + '" data-def="' + esc(def) + '"' + (RK.has(S.wording.labels, key) ? ' data-ov="1"' : "") + ">" + esc(text) + "</span>";
+  }
+  function groupSpan(g, key) {
+    var m = S.wording.groups[key];
+    return '<span data-gname="' + esc(g) + '" data-gkey="' + key + '"' + (m && RK.has(m, g) ? ' data-ov="1"' : "") + ">" + esc(gLabel(g, key)) + "</span>";
+  }
+  function itemSpan(r, f) {
+    return '<span data-edit="' + f + '" data-erid="' + esc(rid(r)) + '"' + (r._w && r._w[f] ? ' data-ov="1"' : "") + ">" + esc(r[f]) + "</span>";
+  }
+
+  function lastQuarter(s, p) {
+    var prev = PI_INFO[p - 1] ? qn(p - 1, p) : "last quarter";
+    var done = parseInt(s.lqDone, 10), tot = parseInt(s.lqTotal, 10), stat = null;
+    if (done >= 0 && tot > 0) {
+      // coloured by delivery rate: 85%+ green, 65-84% amber, under 65% red
+      var rate = done / tot, c = rate >= 0.85 ? FG.green : rate >= 0.65 ? FG.amber : FG.red;
+      stat = { n: done + " of " + tot, l: prev + " commitments delivered", pct: done <= tot ? " (" + Math.round(rate * 100) + "%)" : "", c: c };
+    }
+    var cols = [
+      { k: "lq_del", l: "Delivered", c: FG.green, items: lines(s.lqDelivered) },
+      { k: "lq_slip", l: "Slipped or dropped", c: FG.red, items: lines(s.lqSlipped) },
+      { k: "lq_new", l: "New this quarter", c: FG.blue, items: lines(s.lqNew) }
+    ].filter(function (c) { return c.items.length; });
+    return { stat: stat, cols: cols, title: prev.charAt(0).toUpperCase() + prev.slice(1) + " in review" };
+  }
+  function spacerCell() { return '<td width="8" bgcolor="#FFFFFF" style="width:8px;min-width:8px;background-color:#FFFFFF;font-size:0;line-height:0;">&nbsp;</td>'; }
+
+  /* ---------- the email ---------- */
+  function buildEmail(list, s, p) {
+    var F = FONT, accent = s.accent || DEFAULTS.accent, total = list.length;
+    var body = "", introHtml = null;
+    function section(key, title, sub) {
+      var t = L(key, title, p), st = sub === undefined ? "" : L(key + "_sub", sub, p);
+      var top = !body ? "0" : body === introHtml ? "16px" : "30px";
+      return '<tr><td style="padding-top:' + top + ";padding-bottom:12px;" + F + '"><div style="font-size:17px;line-height:22px;font-weight:700;color:' + INK + ';">' + labelSpan(key, title, t) + "</div>" +
+        (st ? '<div style="font-size:13px;line-height:18px;color:' + MUTED + ';padding-top:2px;">' + labelSpan(key + "_sub", sub, st) + "</div>" : "") + "</td></tr>";
+    }
+    var outs = list.map(function (r) { return outcome(r, p); });
+    var oc = { deliver: 0, later: 0, tbc: 0, rolled: 0 };
+    outs.forEach(function (o) { oc[o.k]++; });
+    var spills = outs.filter(function (o) { return o.spill; });
+    var later = outs.filter(function (o) { return o.k === "later"; });
+    var laterLbl = later.length && later.every(function (o) { return o.q === p + 1; }) && PI_INFO[p + 1] ? "Delivering in " + qn(p + 1, p) : "Delivering later";
+    var spillNote = spills.length ? "incl. " + spills.length + " spill over" : "";
+
+    if ((s.intro || "").trim()) {
+      body += '<tr><td style="padding-top:0;' + F + '">' + paras(s.intro, "font-size:15px;line-height:23px;color:" + INK + ";" + F) + "</td></tr>";
+      introHtml = body;
+    }
+
+    var hlLines = lines(s.highlights);
+    if (hlLines.length) {
+      body += section("hl", "Key highlights");
+      body += '<tr><td style="' + F + '">' + bulletList(hlLines, 15, 22, 20, 6, 3) + "</td></tr>";
+    }
+
+    // Since last quarter: typed by hand, shown only when something is filled in
+    var lq = lastQuarter(s, p);
+    if (lq.stat || lq.cols.length) {
+      body += section("lq", lq.title);
+      if (lq.stat) {
+        body += '<tr><td style="padding-bottom:' + (lq.cols.length ? "12px" : "0") + ';"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;"><tr>' +
+          '<td bgcolor="' + SOFT + '" style="background-color:' + SOFT + ";border-left:4px solid " + lq.stat.c + ";padding:14px 16px;" + F + '">' +
+          '<div style="font-size:26px;line-height:30px;font-weight:700;color:' + lq.stat.c + ';">' + esc(lq.stat.n) + "</div>" +
+          '<div style="font-size:13px;line-height:18px;color:' + MUTED + ';padding-top:3px;">' + labelSpan("lq_stat", lq.stat.l, L("lq_stat", lq.stat.l, p)) + lq.stat.pct + "</div></td></tr></table></td></tr>";
+      }
+      if (lq.cols.length) {
+        var cw = Math.floor((100 - lq.cols.length) / lq.cols.length);
+        body += '<tr><td><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;"><tr>' + lq.cols.map(function (c, i) {
+          return (i ? spacerCell() : "") + '<td width="' + cw + '%" valign="top" bgcolor="' + SOFT + '" style="background-color:' + SOFT + ";border-top:3px solid " + c.c + ";padding:12px 14px 8px;" + F + '">' +
+            '<div style="font-size:13px;line-height:18px;font-weight:700;color:' + c.c + ';">' + labelSpan(c.k, c.l, L(c.k, c.l, p)) + " (" + c.items.length + ")</div>" +
+            bulletList(c.items, 13, 19, 18, 5, 2, 8) + "</td>";
+        }).join("") + "</tr></table></td></tr>";
+      }
+    }
+
+    if (s.showTiles) {
+      body += section("glance", "At a glance");
+      var tiles = [
+        { k: "t_total", n: total, l: "Committed for " + qn(p, p), bar: INK, fg: INK, note: spillNote },
+        { k: "t_deliver", n: oc.deliver, l: outName("deliver", p), bar: SOLID.green, fg: FG.green },
+        { k: "t_later", n: oc.later, l: laterLbl, bar: SOLID.blue, fg: FG.blue },
+        { k: "t_tbc", n: oc.tbc, l: outName("tbc", p), bar: SOLID.amber, fg: FG.amber }
+      ].filter(function (t) { return t.n || t.k === "t_total" || t.k === "t_deliver"; });
+      if (oc.rolled) tiles.push({ k: "t_rolled", n: oc.rolled, l: outName("rolled", p), bar: SOLID.red, fg: FG.red });
+      var tw = Math.floor((100 - tiles.length) / tiles.length);
+      // colour sits on the row's own cells, so every tile stretches to the tallest; gaps are spacer cells
+      body += '<tr><td style="padding-top:0;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;"><tr>' + tiles.map(function (t, i) {
+        return (i ? spacerCell() : "") + '<td width="' + tw + '%" valign="top" bgcolor="' + SOFT + '" style="background-color:' + SOFT + ";border-top:3px solid " + t.bar + ";padding:14px 14px 13px;" + F + '">' +
+          '<div style="font-size:30px;line-height:34px;font-weight:700;color:' + t.fg + ';">' + t.n + "</div>" +
+          '<div style="font-size:12px;line-height:16px;color:' + MUTED + ';padding-top:4px;">' + labelSpan(t.k, t.l, L(t.k, t.l, p)) + "</div>" +
+          (t.note ? '<div style="font-size:12px;line-height:16px;font-weight:700;color:' + FG.red + ';padding-top:3px;white-space:nowrap;">' + esc(t.note) + "</div>" : "") + "</td>";
+      }).join("") + "</tr></table></td></tr>";
+    }
+
+    if (s.showChart) {
+      var appCount = new Map();
+      list.forEach(function (r) { r.apps.forEach(function (a) { appCount.set(a, (appCount.get(a) || 0) + 1); }); });
+      var apps = applyGroupOrder(Array.from(appCount.entries()).sort(function (a, b) { return b[1] - a[1] || a[0].localeCompare(b[0]); }), "app");
+      if (apps.length > 1) {
+        var max = maxOf(apps.map(function (a) { return a[1]; }));
+        body += section("chart", "Where the work sits", "Commitments by application, split by " + qn(p, p) + " delivery. Shared commitments count in each application.");
+        var chart = '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">';
+        apps.forEach(function (an) {
+          var app = an[0], n = an[1];
+          var inApp = list.filter(function (r) { return r.apps.indexOf(app) !== -1; });
+          var segs = OUT_ORDER.map(function (k) { return { k: k, v: inApp.filter(function (r) { return outcome(r, p).k === k; }).length }; }).filter(function (x) { return x.v; });
+          var acc = 0;
+          segs.forEach(function (sg, i) { sg.w = i === segs.length - 1 ? Math.max(1, 100 - acc) : Math.round(sg.v / n * 100); acc += sg.w; });
+          var bw = Math.max(6, Math.round(n / max * 100));
+          chart += '<tr><td width="30%" style="padding:6px 12px 6px 0;' + F + "font-size:13px;line-height:18px;color:" + INK + ';">' + groupSpan(app, "app") + "</td>" +
+            '<td style="padding:6px 0;"><table role="presentation" width="' + bw + '%" cellpadding="0" cellspacing="0" border="0" style="width:' + bw + '%;"><tr>' + segs.map(function (sg) {
+              var c = SOLID[OUT_KIND[sg.k]];
+              return '<td width="' + sg.w + '%" bgcolor="' + c + '" style="background-color:' + c + ';height:14px;line-height:14px;font-size:1px;">&nbsp;</td>';
+            }).join("") + "</tr></table></td>" +
+            '<td width="34" align="right" style="padding:6px 0 6px 10px;' + F + "font-size:13px;font-weight:700;color:" + INK + ';">' + n + "</td></tr>";
+        });
+        chart += "</table>";
+        var legend = '<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>' + OUT_ORDER.filter(function (k) { return oc[k]; }).map(function (k) {
+          var c = SOLID[OUT_KIND[k]];
+          return '<td valign="middle" width="10"><table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td width="10" height="10" bgcolor="' + c + '" style="background-color:' + c + ';width:10px;height:10px;font-size:0;line-height:0;">&nbsp;</td></tr></table></td>' +
+            '<td style="padding:0 16px 0 6px;' + F + "font-size:12px;line-height:18px;color:" + MUTED + ';white-space:nowrap;">' + esc(k === "later" ? laterLbl : outName(k, p)) + "</td>";
+        }).join("") + "</tr></table>";
+        body += "<tr><td>" + chart + '<div style="' + F + "font-size:12px;line-height:20px;color:" + MUTED + ';padding-top:10px;">' + legend + "</div></td></tr>";
+      }
+    }
+
+    var gName = { app: "application", outcome: "delivery", priority: "priority", status: "status", type: "type", area: "area" }[s.groupBy];
+    body += section("detail", "Commitments in detail", s.groupBy === "none" ? "Sorted by priority" : "Grouped by " + gName + ", sorted by priority");
+    var sep = '<span style="color:#8C8C8C;">&nbsp;&nbsp;|&nbsp;&nbsp;</span>';
+    var groups = groupRows(list, s.groupBy, p);
+    function metaFor(r, withJira) {
+      var st = r.startPIs.length ? minOf(r.startPIs) : null;
+      return [withJira && jiraLink(r, s, accent), s.groupBy !== "app" && esc(r.apps.join(", ")), r.type && s.groupBy !== "type" && itemSpan(r, "type"),
+        s.showArea && r.area && s.groupBy !== "area" && esc(r.area), st && st < p && "Started " + qn(st, p)].filter(Boolean).join(sep);
+    }
+    var det = "";
+    groups.forEach(function (gi_g, gi) {
+      var g = gi_g[0], items = gi_g[1], sorted = sortRows(items, p);
+      if (s.groupBy !== "none") {
+        det += '<table data-grp="' + esc(g) + '" role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="padding:' + (gi ? "24px" : "4px") + " 0 8px;border-bottom:2px solid " + accent + ";" + F + '">' +
+          '<span style="font-size:15px;line-height:20px;font-weight:700;color:' + INK + ';">' + (s.groupBy === "app" || s.groupBy === "type" || s.groupBy === "area" ? groupSpan(g, s.groupBy) : esc(g)) + "</span>" +
+          '<span style="font-size:13px;color:' + MUTED + ';">&nbsp;&nbsp;' + plural(items.length, "commitment") + "</span></td></tr></table>";
+      }
+      if (s.layout === "cards") {
+        sorted.forEach(function (r) {
+          var o = outcome(r, p), meta = metaFor(r, false);
+          det += '<table data-rid="' + esc(rid(r)) + '" data-pr="' + prioRank(r.priority) + '" data-g="' + gi + '" role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:10px;"><tr>' +
+            '<td style="border:1px solid ' + RULE + ";border-left:4px solid " + (o.spill ? SOLID.red : SOLID[OUT_KIND[o.k]]) + ";padding:13px 15px;" + F + '">\n' +
+            '<div style="font-size:15px;line-height:20px;font-weight:700;color:' + INK + ';">' + itemSpan(r, "name") +
+            (r.jiraKey || r.jira ? '<span style="font-size:12px;font-weight:400;">&nbsp;&nbsp;' + jiraLink(r, s, accent) + "</span>" : "") + "</div>\n" +
+            '<div style="padding-top:8px;">' + pillRow([pill(r.priority, prioStyle(r.priority), ED(r, "priority")), pill(r.status, PILL[statusKind(r.status)], ED(r, "status")), deliveryCell(o, p, ED(r, "delivery"), true)]) + "</div>\n" +
+            (meta ? '<div style="font-size:12px;line-height:18px;color:' + MUTED + ';padding-top:6px;">' + meta + "</div>\n" : "") + "</td></tr></table>";
+        });
+      } else {
+        var th = function (t, w) {
+          return "<td" + (w ? ' width="' + w + '"' : "") + ' align="left" bgcolor="' + SOFT + '" style="background-color:' + SOFT + ";padding:8px 8px;" + F + "font-size:12px;line-height:16px;font-weight:600;color:" + MUTED + ';">' + t + "</td>";
+        };
+        det += '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;margin-top:' + (s.groupBy === "none" ? "4px" : "0") + ';"><tr>' +
+          th("Commitment", "48%") + th("Priority", "8%") + th("Status", "22%") + th("Delivery", "22%") + "</tr>";
+        sorted.forEach(function (r) {
+          var o = outcome(r, p), meta = metaFor(r, true);
+          var td = 'style="padding:11px 8px;border-bottom:1px solid ' + RULE + ";vertical-align:top;" + F + '"';
+          det += '<tr data-rid="' + esc(rid(r)) + '" data-pr="' + prioRank(r.priority) + '" data-g="' + gi + '">\n' +
+            "<td " + td + '><div style="font-size:14px;line-height:19px;font-weight:600;color:' + INK + ';">' + itemSpan(r, "name") + "</div>" +
+            (meta ? '<div style="font-size:12px;line-height:17px;color:' + MUTED + ';padding-top:3px;">' + meta + "</div>" : "") + "</td>\n" +
+            "<td " + td + ">" + pill(r.priority, prioStyle(r.priority), ED(r, "priority")) + "</td>\n" +
+            "<td " + td + ">" + pill(r.status, PILL[statusKind(r.status)], ED(r, "status")) + "</td>\n" +
+            "<td " + td + ">" + deliveryCell(o, p, ED(r, "delivery"), false) + "</td>\n</tr>";
+        });
+        det += "</table>";
+      }
+    });
+    body += "<tr><td>" + det + "</td></tr>";
+
+    var closing = String(s.signoff || "").trim();
+    if (closing) body += '<tr><td style="padding-top:28px;padding-bottom:8px;' + F + '">' + paras(closing, "font-size:15px;line-height:23px;color:" + INK + ";" + F) + "</td></tr>";
+    else body += '<tr><td style="padding-bottom:16px;font-size:0;line-height:0;">&nbsp;</td></tr>';
+
+    var previewBody = pasteSafe(body);
+    // the editing hooks stay in the preview only
+    var mailBody = previewBody.replace(/ data-(rid|pr|g|f|erid|ov|grp|lbl|def|gname|gkey|edit)="[^"]*"/g, "");
+    function wrap(b) { return '<table role="presentation" width="900" cellpadding="0" cellspacing="0" border="0" style="width:900px;border-collapse:collapse;">\n' + b + '\n</table><p style="margin:0;">&nbsp;</p>'; }
+    var inner = wrap(mailBody);
+
+    var subj = subjectFor(s, p);
+    var pre = total + " commitments for " + qn(p, p) + (spills.length ? " (" + spills.length + " spill over)" : "") + ", " + oc.deliver + " delivering this quarter.";
+    var full = '<!doctype html>\n<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light only"><meta name="supported-color-schemes" content="light"><title>' + esc(subj) + "</title></head>\n" +
+      '<body style="margin:0;padding:16px;background:#FFFFFF;">\n<div style="display:none;max-height:0;overflow:hidden;opacity:0;mso-hide:all;">' + esc(pre) + "</div>\n" + inner + "\n</body></html>";
+
+    var txt = (s.intro || "").trim() ? s.intro.trim() + "\n\n" : "";
+    if (hlLines.length) txt += "Key highlights\n" + hlLines.map(function (l) { return "- " + l; }).join("\n") + "\n\n";
+    if (lq.stat || lq.cols.length) {
+      txt += L("lq", lq.title, p) + "\n";
+      if (lq.stat) txt += lq.stat.n + " " + L("lq_stat", lq.stat.l, p) + lq.stat.pct + "\n";
+      lq.cols.forEach(function (c) { txt += L(c.k, c.l, p) + "\n" + c.items.map(function (l) { return "- " + l; }).join("\n") + "\n"; });
+      txt += "\n";
+    }
+    groups.forEach(function (gi_g) {
+      var g = gi_g[0], items = gi_g[1];
+      if (s.groupBy !== "none") txt += gLabel(g, s.groupBy) + " (" + items.length + ")\n";
+      sortRows(items, p).forEach(function (r) {
+        var o = outcome(r, p);
+        txt += "- " + r.name + (r.jiraKey ? " [" + r.jiraKey + "]" : "") + ": " +
+          [r.priority, r.status, (o.q === null ? "Delivery TBC" : "Delivery " + o.label) + (o.spill ? " (spill over)" : "")].filter(Boolean).join(", ") + "\n";
+      });
+      txt += "\n";
+    });
+    if (closing) txt += closing + "\n";
+    return { inner: inner, full: full, text: txt.trim() + "\n", previewInner: wrap(previewBody), subject: subj, total: total, oc: oc, spills: spills.length };
+  }
+
+  /* ---------- manual changes: they belong to one quarter, so a change never leaks into the next ---------- */
+  function OV() {
+    var p = currentPI(); if (!p) return RK.dict();
+    return S.ovByPI[p] || (S.ovByPI[p] = RK.dict());
+  }
+  function ED(r, f) { var o = r._ov || {}; return { f: f, rid: rid(r), ov: o[f] !== undefined || (f === "delivery" && o.spill !== undefined) }; }
+  function applyOv(r) {
+    var id = rid(r), all = OV(), o = RK.has(all, id) ? all[id] : null, w = RK.has(S.wording.items, id) ? S.wording.items[id] : null;
+    if (!o && !w) return r;
+    var c = Object.assign({}, r, { _rid: id, _ov: o, _w: w, _orig: r });
+    if (w && w.name) c.name = w.name;
+    if (w && w.type) c.type = w.type;
+    if (o && o.priority !== undefined) c.priority = o.priority;
+    if (o && o.status !== undefined) c.status = o.status;
+    return c;
+  }
+  function setOv(id, vals) {
+    var all = OV(), o = Object.assign({}, RK.has(all, id) ? all[id] : {});
+    Object.keys(vals).forEach(function (f) { if (vals[f] === undefined) delete o[f]; else o[f] = vals[f]; });
+    if (Object.keys(o).length) all[id] = o; else delete all[id];
+    save(); render();
+  }
+  function countEdits() {
+    var w = S.wording, n = Object.keys(w.labels).length;
+    Object.keys(w.items).forEach(function (k) { n += Object.keys(w.items[k]).length; });
+    Object.keys(w.groups).forEach(function (k) { n += Object.keys(w.groups[k]).length; });
+    return n;
+  }
+  function updateCounts() {
+    var n = countEdits(), p = currentPI();
+    $("wordInfo").hidden = !n;
+    $("wordInfo").firstChild.textContent = n + " wording " + (n === 1 ? "edit" : "edits") + ".";
+    var all = OV(), c = 0;
+    Object.keys(all).forEach(function (id) { c += Object.keys(all[id]).length; });
+    $("ovInfo").hidden = !c;
+    $("ovInfo").firstChild.textContent = c + " manual " + (c === 1 ? "change" : "changes") + " applied to " + qn(p, p) + ".";
+  }
+  function piOptions() {
+    var all = [];
+    rows.forEach(function (r) { r.startPIs.concat(r.plannedPIs, r.deliveryPIs, r.goLivePIs).forEach(function (p) { if (all.indexOf(p) === -1) all.push(p); }); });
+    var max = maxOf(all);
+    // the next four quarters too, so a later delivery can be chosen
+    for (var k = 1; k <= 4; k++) {
+      var n = max + k;
+      if (!PI_INFO[n] && PI_INFO[n - 1]) {
+        var pv = PI_INFO[n - 1], q = +pv.q.slice(1), nq = q === 4 ? 1 : q + 1;
+        var fy = q === 4 && pv.fy ? pv.fy.split("/").map(function (x) { return String(+x + 1).padStart(2, "0"); }).join("/") : pv.fy;
+        PI_INFO[n] = { q: "Q" + nq, months: ["Apr-Jun", "Jul-Sep", "Oct-Dec", "Jan-Mar"][nq - 1], fy: fy };
+      }
+      all.push(n);
+    }
+    return all.sort(function (a, b) { return a - b; });
+  }
+
+  /* ---------- the edit dialog: one dialog, filled for whatever was clicked ---------- */
+  var editDlg = RK.modal($("editOverlay"));
+  var editing = null, editFrom = "";
+  // the preview is redrawn on every change, so focus goes back to the same item in the new one
+  function sameItem(el) {
+    var sel = "";
+    ["data-f", "data-edit", "data-erid", "data-lbl", "data-gname", "data-gkey"].forEach(function (a) {
+      if (el.hasAttribute(a)) sel += "[" + a + '="' + el.getAttribute(a).replace(/["\\]/g, "\\$&") + '"]';
+    });
+    return sel;
+  }
+  function refocus() {
+    var el = editFrom && $("preview").querySelector(editFrom);
+    editFrom = "";
+    if (el) el.focus();
+  }
+  function openEdit(from, cfg) {
+    editing = cfg; editFrom = sameItem(from);
+    $("ed_title").textContent = cfg.title;
+    $("ed_sub").textContent = cfg.sub || ""; $("ed_sub").hidden = !cfg.sub;
+    $("ed_body").innerHTML = cfg.body;
+    $("ed_note").textContent = cfg.note || ""; $("ed_note").hidden = !cfg.note;
+    $("ed_reset").textContent = cfg.resetLabel || ""; $("ed_reset").hidden = !cfg.onReset;
+    editDlg.open(from);
+    var first = $("ed_body").querySelector("input, select");
+    if (first) { first.focus(); if (first.select) first.select(); }
+  }
+  $("editForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+    if (!editing) return;
+    var cfg = editing;
+    if (cfg.onApply() === false) return;
+    editing = null; editDlg.close(); refocus();
+  });
+  $("ed_reset").addEventListener("click", function () { var cfg = editing; editing = null; editDlg.close(); if (cfg && cfg.onReset) cfg.onReset(); refocus(); });
+  $("editOverlay").querySelector("[data-cancel]").addEventListener("click", function () { editing = null; editDlg.close(); });
+  function field(id, label, input) { return '<div class="field"><label for="' + id + '">' + esc(label) + "</label>" + input + "</div>"; }
+
+  function editChip(el) {
+    var id = el.getAttribute("data-erid"), f = el.getAttribute("data-f"), p = currentPI();
+    var base = rows.find(function (r) { return rid(r) === id; }); if (!base) return;
+    var cur = applyOv(base);
+    if (f === "delivery") return editDelivery(el, id, base, cur, p);
+    var opts = f === "priority" ? ["P1", "P2", "P3", "P4"] : [];
+    rows.forEach(function (r) { var v = r[f]; if (v && opts.indexOf(v) === -1) opts.push(v); });
+    openEdit(el, {
+      title: f === "priority" ? "Priority" : "Status", sub: base.name,
+      body: field("ed_in", f === "priority" ? "Priority" : "Status", '<input type="text" id="ed_in" list="ed_list" value="' + esc(cur[f]) + '">' +
+        '<datalist id="ed_list">' + opts.map(function (o) { return '<option value="' + esc(o) + '">'; }).join("") + "</datalist>"),
+      note: "Airtable value: " + (base[f] || "Not set") + ". Applies to " + qn(p, p) + " only.",
+      resetLabel: "Use Airtable value",
+      onReset: cur._ov && cur._ov[f] !== undefined ? function () { setOv(id, mk(f, undefined)); RK.toast("Back to the Airtable value."); } : null,
+      onApply: function () {
+        var v = $("ed_in").value.trim();
+        if (!v) { RK.toast("Enter a value, or use the Airtable value."); return false; }
+        var same = v === base[f];
+        setOv(id, mk(f, same ? undefined : v)); RK.toast(same ? "Back to the Airtable value." : "Change applied.");
+      }
+    });
+  }
+  function mk(k, v) { var o = {}; o[k] = v; return o; }
+  function editDelivery(el, id, base, cur, p) {
+    var a = autoDelivery(base, p), o = outcome(cur, p);
+    var curV = o.q === null ? "TBC" : String(o.q), autoV = a.q === null ? "TBC" : String(a.q);
+    var floor = Math.min(p, a.committed === null ? p : a.committed);
+    var opts = piOptions().filter(function (n) { return n >= floor; });
+    var airtable = "Airtable: committed " + (a.committed === null ? "TBC" : qn(a.committed, p)) + (a.spill ? ", spill over, now planned to " + (a.q === null ? "TBC" : qn(a.q, p)) : "") + ".";
+    openEdit(el, {
+      title: "Delivery", sub: base.name,
+      body: field("ed_in", "Delivery quarter", '<select id="ed_in">' + opts.map(function (n) {
+        return '<option value="' + n + '"' + (String(n) === curV ? " selected" : "") + ">" + esc(qn(n, p)) + (PI_INFO[n] ? " (" + esc(PI_INFO[n].months) + ", PI" + n + ")" : "") + "</option>";
+      }).join("") + '<option value="TBC"' + (curV === "TBC" ? " selected" : "") + ">TBC</option></select>") +
+        '<label class="pem-spill"><input type="checkbox" id="ed_spill"' + (o.spill ? " checked" : "") + "> Flag as spill over</label>",
+      note: airtable + " Applies to " + qn(p, p) + " only.",
+      resetLabel: "Use Airtable value",
+      onReset: cur._ov && (cur._ov.delivery !== undefined || cur._ov.spill !== undefined) ? function () { setOv(id, { delivery: undefined, spill: undefined }); RK.toast("Back to the Airtable value."); } : null,
+      onApply: function () {
+        var v = $("ed_in").value, sp = $("ed_spill").checked;
+        var vals = { delivery: v === autoV ? undefined : v, spill: sp === a.spill ? undefined : sp };
+        setOv(id, vals);
+        RK.toast(vals.delivery === undefined && vals.spill === undefined ? "Back to the Airtable value." : "Change applied.");
+      }
+    });
+  }
+  function editText(el) {
+    var p = currentPI(), title, cur, orig, commit, hint;
+    if (el.hasAttribute("data-edit")) {
+      var id = el.getAttribute("data-erid"), f = el.getAttribute("data-edit");
+      var base = rows.find(function (r) { return rid(r) === id; }); if (!base) return;
+      var w = RK.has(S.wording.items, id) ? S.wording.items[id] : {};
+      title = f === "name" ? "Project name" : "Type"; orig = base[f] || ""; cur = w[f] || orig; hint = "Kept for this project in every quarter.";
+      commit = function (v) {
+        var n = Object.assign({}, RK.has(S.wording.items, id) ? S.wording.items[id] : {});
+        if (!v || v === orig) delete n[f]; else n[f] = v;
+        if (Object.keys(n).length) S.wording.items[id] = n; else delete S.wording.items[id];
+      };
+    } else if (el.hasAttribute("data-gname")) {
+      var g = el.getAttribute("data-gname"), k = el.getAttribute("data-gkey");
+      var m = S.wording.groups[k] || (S.wording.groups[k] = RK.dict());
+      title = "Group name"; orig = g; cur = RK.has(m, g) ? m[g] : g; hint = "Shown in the group heading and the chart. The data is unchanged.";
+      commit = function (v) { if (!v || v === g) delete m[g]; else m[g] = v; };
+    } else {
+      var key = el.getAttribute("data-lbl");
+      title = "Text"; orig = el.getAttribute("data-def"); cur = el.textContent; hint = "The quarter name updates itself next quarter.";
+      commit = function (v) { if (!v || v === orig) delete S.wording.labels[key]; else S.wording.labels[key] = v.split(qn(p, p)).join("{Q}"); };
+    }
+    openEdit(el, {
+      title: title, sub: "Original: " + (orig || "blank"),
+      body: field("ed_in", title, '<input type="text" id="ed_in" value="' + esc(cur) + '">'),
+      note: hint, resetLabel: "Use original",
+      onReset: cur !== orig ? function () { commit(""); save(); render(); } : null,
+      onApply: function () { commit($("ed_in").value.trim()); save(); render(); }
+    });
+  }
+  var EDITABLE = "[data-f], [data-edit], [data-gname], [data-lbl]";
+  function openEditorFor(el) { if (el.hasAttribute("data-f")) editChip(el); else editText(el); }
+  $("preview").addEventListener("click", function (e) {
+    if (e.target.closest("a")) e.preventDefault(); // a Jira link in the preview must not leave the page
+    var el = e.target.closest(EDITABLE);
+    if (!el || e.target.closest(".pem-mv")) return;
+    e.preventDefault(); openEditorFor(el);
+  });
+  $("preview").addEventListener("keydown", function (e) {
+    var el = e.target.closest && e.target.closest(EDITABLE);
+    if (el && e.target === el && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); openEditorFor(el); }
+  });
+
+  /* ---------- projects removed from one quarter's email ---------- */
+  function hidden(p) { return S.hiddenByPI[p] || []; }
+  function hideRow(id) {
+    var p = currentPI(), h = S.hiddenByPI[p] || (S.hiddenByPI[p] = []);
+    if (h.indexOf(id) === -1) h.push(id);
+    save(); render();
+    var r = rows.find(function (x) { return rid(x) === id; });
+    RK.toast("Removed " + (r ? r.name : "project") + " from this email.");
+  }
+  function updateHidden() {
+    var el = $("hidInfo"), p = currentPI();
+    var h = hidden(p).filter(function (id) { return rows.some(function (r) { return rid(r) === id; }); });
+    el.hidden = !h.length;
+    if (!h.length) { el.innerHTML = ""; return; }
+    el.innerHTML = h.length + " removed from " + esc(qn(p, p)) + ": " + h.map(function (id) {
+      var r = rows.find(function (x) { return rid(x) === id; });
+      return '<span class="pem-hidden-item">' + esc(r.name) + (r.area ? ' <span class="pem-muted">(' + esc(r.area) + ")</span>" : "") +
+        ' <button type="button" class="link-action" data-restore="' + esc(id) + '">Restore</button></span>';
+    }).join(" ") + ' <button type="button" class="link-action" data-restore-all>Restore all</button>';
+  }
+  $("hidInfo").addEventListener("click", function (e) {
+    var b = e.target.closest("[data-restore], [data-restore-all]"); if (!b) return;
+    var p = currentPI();
+    if (b.hasAttribute("data-restore-all")) S.hiddenByPI[p] = [];
+    else { var id = b.getAttribute("data-restore"); S.hiddenByPI[p] = hidden(p).filter(function (x) { return x !== id; }); }
+    save(); render();
+  });
+
+  /* ---------- reordering in the preview: rows within their priority, and whole groups ---------- */
+  var drag = null, gdrag = null;
+  function siblings(g, pr) { return Array.prototype.slice.call($("preview").querySelectorAll('[data-g="' + g + '"][data-pr="' + pr + '"]')); }
+  function commitOrder(ids) { S.order = ids.concat(S.order.filter(function (x) { return ids.indexOf(x) === -1; })); save(); render(); }
+  function clearMarks() { $("preview").querySelectorAll(".drop-before, .drop-after").forEach(function (x) { x.classList.remove("drop-before", "drop-after"); }); }
+  function moveBy(el, delta) {
+    var sib = siblings(el.getAttribute("data-g"), el.getAttribute("data-pr")), ids = sib.map(function (x) { return x.getAttribute("data-rid"); });
+    var i = sib.indexOf(el), j = i + delta;
+    if (j < 0 || j >= ids.length) { RK.toast("Already at the " + (delta < 0 ? "top" : "bottom") + " of this priority."); return; }
+    var t = ids[i]; ids[i] = ids[j]; ids[j] = t;
+    commitOrder(ids);
+  }
+  function groupNames() { return Array.prototype.map.call($("preview").querySelectorAll("[data-grp]"), function (x) { return x.getAttribute("data-grp"); }); }
+  function commitGroups(names) { S.groupOrder[S.groupBy] = names; save(); render(); }
+  function mvBox(cls, buttons) {
+    var box = document.createElement("span");
+    box.className = "pem-mv" + (cls ? " " + cls : "");
+    box.innerHTML = buttons.map(function (b) { return '<button type="button"' + (b[2] ? ' class="' + b[2] + '"' : "") + ' aria-label="' + b[1] + '" title="' + b[1] + '">' + b[0] + "</button>"; }).join("");
+    return box;
+  }
+  function dropSide(el, e) { var r = el.getBoundingClientRect(); return e.clientY > r.top + r.height / 2 ? "drop-after" : "drop-before"; }
+  function wireGroups() {
+    $("preview").querySelectorAll("[data-grp]").forEach(function (el) {
+      el.setAttribute("draggable", "true"); el.classList.add("pem-movable");
+      var cell = el.querySelector("td");
+      var h = document.createElement("span"); h.className = "pem-gh"; h.title = "Drag to reorder groups"; h.textContent = "⠇⠇"; h.setAttribute("aria-hidden", "true");
+      cell.insertBefore(h, cell.firstChild);
+      var box = mvBox("pem-gmv", [["&#8593;", "Move group up"], ["&#8595;", "Move group down"]]);
+      function mv(d) {
+        var n = groupNames(), i = n.indexOf(el.getAttribute("data-grp")), j = i + d;
+        if (j < 0 || j >= n.length) { RK.toast("Already the " + (d < 0 ? "first" : "last") + " group."); return; }
+        var t = n[i]; n[i] = n[j]; n[j] = t; commitGroups(n);
+      }
+      box.children[0].addEventListener("click", function (e) { e.stopPropagation(); mv(-1); });
+      box.children[1].addEventListener("click", function (e) { e.stopPropagation(); mv(1); });
+      cell.appendChild(box);
+      el.addEventListener("dragstart", function (e) { if (drag) return; gdrag = el; el.classList.add("dragging"); e.dataTransfer.effectAllowed = "move"; try { e.dataTransfer.setData("text/plain", el.getAttribute("data-grp")); } catch (_) { /* some browsers refuse */ } });
+      el.addEventListener("dragend", function () { el.classList.remove("dragging"); clearMarks(); gdrag = null; });
+      el.addEventListener("dragover", function (e) { if (!gdrag || gdrag === el) return; e.preventDefault(); clearMarks(); el.classList.add(dropSide(el, e)); });
+      el.addEventListener("drop", function (e) {
+        e.preventDefault(); if (!gdrag || gdrag === el) return;
+        var after = el.classList.contains("drop-after"), name = gdrag.getAttribute("data-grp");
+        var n = groupNames().filter(function (x) { return x !== name; }), k = n.indexOf(el.getAttribute("data-grp"));
+        if (after) k++;
+        n.splice(k, 0, name);
+        gdrag = null; // the redraw removes the dragged element, so its dragend may never arrive
+        commitGroups(n);
+      });
+    });
+  }
+  function wireReorder() {
+    wireGroups();
+    $("preview").querySelectorAll("[data-rid]").forEach(function (el) {
+      el.setAttribute("draggable", "true"); el.classList.add("pem-movable");
+      var cell = el.querySelector("td");
+      var box = mvBox("", [["&#8593;", "Move up"], ["&#8595;", "Move down"], ["&#10005;", "Remove from this email", "pem-del"]]);
+      box.children[0].addEventListener("click", function (e) { e.stopPropagation(); moveBy(el, -1); });
+      box.children[1].addEventListener("click", function (e) { e.stopPropagation(); moveBy(el, 1); });
+      box.children[2].addEventListener("click", function (e) { e.stopPropagation(); hideRow(el.getAttribute("data-rid")); });
+      cell.appendChild(box);
+      el.addEventListener("dragstart", function (e) {
+        e.stopPropagation(); drag = { el: el, g: el.getAttribute("data-g"), pr: el.getAttribute("data-pr") };
+        el.classList.add("dragging"); e.dataTransfer.effectAllowed = "move";
+        try { e.dataTransfer.setData("text/plain", el.getAttribute("data-rid")); } catch (_) { /* some browsers refuse */ }
+      });
+      el.addEventListener("dragend", function () { el.classList.remove("dragging"); clearMarks(); drag = null; });
+      el.addEventListener("dragover", function (e) {
+        if (!drag || gdrag || el.getAttribute("data-g") !== drag.g || el.getAttribute("data-pr") !== drag.pr) return;
+        e.preventDefault(); clearMarks(); el.classList.add(dropSide(el, e));
+      });
+      el.addEventListener("drop", function (e) {
+        e.preventDefault(); if (!drag || gdrag) return;
+        if (el.getAttribute("data-g") !== drag.g || el.getAttribute("data-pr") !== drag.pr) { RK.toast("Projects can only move within the same priority."); return; }
+        var after = el.classList.contains("drop-after"), mine = drag.el.getAttribute("data-rid");
+        var ids = siblings(drag.g, drag.pr).map(function (x) { return x.getAttribute("data-rid"); }).filter(function (x) { return x !== mine; });
+        var k = ids.indexOf(el.getAttribute("data-rid")); if (k < 0) return;
+        if (after) k++;
+        ids.splice(k, 0, mine);
+        drag = null; // as above
+        commitOrder(ids);
+      });
+    });
+    // every editable bit of the email works from the keyboard too
+    $("preview").querySelectorAll(EDITABLE).forEach(function (el) {
+      el.setAttribute("tabindex", "0"); el.setAttribute("role", "button");
+      if (!el.hasAttribute("aria-label")) el.setAttribute("aria-label", "Edit " + (el.textContent.trim() || "value"));
+    });
+  }
+
+  // the email is 900px wide: shrink the preview to fit a narrower column
+  function fitPreview() {
+    var pv = $("preview"), fr = pv.parentElement;
+    if ($("mainView").hidden) { pv.style.zoom = ""; return; }
+    var cs = getComputedStyle(fr), avail = fr.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    var need = pv.offsetWidth / (parseFloat(pv.style.zoom) || 1);
+    pv.style.zoom = avail < need ? Math.max(0.6, avail / need).toFixed(3) : "";
+  }
+
+  /* ---------- quarter picker ---------- */
+  function currentPI() { return +S.filter || 0; }
+  function populateFilter(fresh) {
+    var counts = new Map();
+    rows.forEach(function (r) { r.plannedPIs.forEach(function (p) { counts.set(p, (counts.get(p) || 0) + 1); }); });
+    var pis = Array.from(counts.keys()).sort(function (a, b) { return b - a; });
+    $("f_filter").innerHTML = pis.map(function (p) {
+      return '<option value="' + p + '">' + (piLabel(p) ? esc(piLabel(p)) + " (PI" + p + ")" : "PI" + p) + " · " + plural(counts.get(p), "project") + "</option>";
+    }).join("");
+    if (fresh || pis.indexOf(+S.filter) === -1) { S.filter = String(planningPI(pis)); save(); }
+    $("f_filter").value = S.filter;
+  }
+
+  /* ---------- page ---------- */
+  function callout(kind, html) { return '<div class="callout ' + kind + '">' + html + "</div>"; }
+  var lastStatus = "";
+  function setStatus(kind, msg) {
+    lastStatus = msg ? callout(kind, esc(msg)) : "";
+    $("loadStatus").innerHTML = lastStatus;
+    $("emptyStatus").innerHTML = lastStatus;
+  }
+  function setChecks(list) {
+    $("checks").innerHTML = list.length ? callout("warn", "<b>Data checks</b> (not shown in the email)<ul>" + list.map(function (x) { return "<li>" + esc(x) + "</li>"; }).join("") + "</ul>") : "";
+  }
+  function renderLegend() {
+    $("legend").innerHTML = OUT_ORDER.map(function (k) {
+      var lbl = { deliver: "Delivering this quarter", later: "Later", tbc: "TBC", rolled: "Overdue" }[k];
+      return '<span class="legend-item"><span class="legend-swatch" style="background:' + SOLID[OUT_KIND[k]] + '"></span>' + lbl + "</span>";
+    }).join("");
+  }
+  function render() {
+    var p = currentPI(), has = rows.length && p;
+    $("emptyView").hidden = !!has;
+    $("mainView").hidden = !has;
+    $("btnClear").hidden = !rows.length;
+    if (!has) { current = null; return; }
+    var hid = hidden(p);
+    var list = rows.filter(function (r) { return r.plannedPIs.indexOf(p) !== -1 && hid.indexOf(rid(r)) === -1; }).map(applyOv);
+    updateHidden();
+    updateCounts();
+    current = buildEmail(list, S, p);
+    $("preview").innerHTML = current.previewInner;
+    wireReorder();
+    if (document.activeElement !== $("f_subject")) $("f_subject").value = current.subject;
+    $("summarySub").textContent = (piLabel(p) || "PI" + p) + " · PI" + p + " · from " + source;
+    $("summaryMain").textContent = plural(current.total, "commitment") + " for " + qn(p, p) + ", " + current.oc.deliver + " delivering this quarter" +
+      (current.spills ? ", " + current.spills + " spill over" : "") + (current.oc.rolled ? ", " + current.oc.rolled + " overdue" : "");
+    sizeGrid();
+    fitPreview();
+  }
+  var renderTimer = null;
+  function schedule() { clearTimeout(renderTimer); renderTimer = setTimeout(render, 120); }
+
+  /* ---------- loading: parse and check first, then replace what is on screen ---------- */
+  function loadCSV(text, label, fresh) {
+    try {
+      var info = RK.dict(), parsed = toRecords(parseCSV(text), info);
+      if (!parsed.recs.some(function (r) { return r.plannedPIs.length; })) throw new Error('No quarters found in Quarter Planned. Values should look like "Q3: Oct-Dec, 26/27 (PI32)".');
+      PI_INFO = info; rows = parsed.recs; source = label;
+      if (!dataStore.set({ text: String(text), label: label === "your last import" ? "" : label })) RK.toast("This browser would not keep the file, so you will need to load it again next time.", 5000);
+      populateFilter(fresh);
+      $("fileName").textContent = label;
+      $("fileMeta").textContent = plural(rows.length, "row") + ", " + plural(Object.keys(PI_INFO).length, "quarter");
+      var miss = parsed.missing.length ? " Missing columns: " + parsed.missing.map(function (k) { return LABELS[k]; }).join(", ") + "." : "";
+      setStatus(parsed.missing.length ? "warn" : "ok", rows.length + " rows loaded from " + label + "." + miss);
+      setChecks(dataChecks(rows));
+      render();
+      return true;
+    } catch (e) {
+      setStatus("danger", e.message);
+      if (!rows.length) { setChecks([]); render(); }
+      else RK.toast("That file was not loaded. The data on screen is unchanged.", 4000);
+      return false;
+    }
+  }
+  function decode(buf) { try { return new TextDecoder("utf-8").decode(buf); } catch (e) { return ""; } }
+  [["dropBig", "fileBig"], ["dropSmall", "fileSmall"]].forEach(function (z) {
+    RK.upload({
+      drop: $(z[0]), fileInput: $(z[1]),
+      onFile: function (buf, name) { loadCSV(decode(buf), name, true); },
+      onError: function (msg) { setStatus("danger", "That file could not be read. Try exporting it again."); RK.toast(msg); }
+    });
+  });
+  function loadSample() { loadCSV(sampleCsv(), "sample data", true); }
+  function usePasted(el) {
+    var t = el.value;
+    if (!t.trim()) { setStatus("danger", "Paste the CSV text first."); return; }
+    if (loadCSV(t, "pasted text", true)) el.value = "";
+  }
+  $("emptySample").addEventListener("click", loadSample);
+  $("btnSample").addEventListener("click", function () {
+    if (rows.length && source !== "sample data") RK.confirm("Replace " + source + " with the sample data? Your message, edits and order are kept.", loadSample, { okLabel: "Load sample" });
+    else loadSample();
+  });
+  $("emptyPaste").addEventListener("click", function () {
+    var b = $("emptyPasteBox"); b.hidden = !b.hidden;
+    this.setAttribute("aria-expanded", b.hidden ? "false" : "true");
+    if (!b.hidden) $("emptyPasteText").focus();
+  });
+  $("emptyPasteGo").addEventListener("click", function () { usePasted($("emptyPasteText")); });
+  $("pasteGo").addEventListener("click", function () { usePasted($("pasteText")); });
+  $("btnClear").addEventListener("click", function () {
+    RK.confirm("Clear the loaded data? Your message, edits and order are kept.", function () {
+      rows = []; source = ""; S.filter = ""; save();
+      try { localStorage.removeItem("piEmailBuilder.csv.v1"); } catch (e) { /* storage blocked */ }
+      $("f_filter").innerHTML = "";
+      setStatus("ok", "Data cleared. Your message settings are kept.");
+      setChecks([]); render();
+    }, { okLabel: "Clear data", danger: true });
+  });
+
+  /* ---------- compose fields ---------- */
+  var layoutRefresh = null;
+  function fillForm() {
+    document.querySelectorAll("[data-k]").forEach(function (el) {
+      var k = el.getAttribute("data-k");
+      if (el.type === "checkbox") el.checked = !!S[k]; else el.value = S[k] == null ? "" : S[k];
+    });
+    if (layoutRefresh) layoutRefresh();
+    $("lqBox").open = LQ_KEYS.some(function (k) { return String(S[k] || "").trim(); });
+  }
+  document.querySelectorAll("[data-k]").forEach(function (el) {
+    var k = el.getAttribute("data-k");
+    function h() {
+      S[k] = el.type === "checkbox" ? el.checked : el.value;
+      if (k === "accent" && !/^#[0-9a-f]{6}$/i.test(S[k])) S[k] = DEFAULTS.accent;
+      save(); schedule();
+    }
+    el.addEventListener("input", h); el.addEventListener("change", h);
+  });
+  layoutRefresh = RK.chipsFromSelect($("f_layout"), $("layoutChips"));
+  $("f_filter").addEventListener("change", function () { S.filter = this.value; save(); render(); });
+  $("lqClear").addEventListener("click", function () {
+    LQ_KEYS.forEach(function (k) { S[k] = ""; var el = document.querySelector('[data-k="' + k + '"]'); if (el) el.value = ""; });
+    save(); render(); RK.toast("Since last quarter cleared.");
+  });
+  $("resetColour").addEventListener("click", function () { S.accent = DEFAULTS.accent; $("f_accent").value = S.accent; save(); render(); });
+  $("resetWording").addEventListener("click", function () {
+    RK.confirm("Put every renamed project, group and heading back to its original wording?", function () {
+      S.wording = { items: RK.dict(), groups: RK.dict(), labels: RK.dict() }; save(); render(); RK.toast("Wording reset to the original.");
+    }, { okLabel: "Reset wording" });
+  });
+  $("clearOv").addEventListener("click", function () {
+    var p = currentPI();
+    RK.confirm("Clear every manual priority, status and delivery change for " + qn(p, p) + "?", function () {
+      S.ovByPI[p] = RK.dict(); save(); render(); RK.toast("All manual changes cleared.");
+    }, { okLabel: "Clear changes" });
+  });
+  $("resetOrder").addEventListener("click", function () { S.order = []; delete S.groupOrder[S.groupBy]; save(); render(); RK.toast("Project and group order reset."); });
+
+  $("f_subject").addEventListener("input", function () {
+    var v = this.value, p = currentPI();
+    S.subject = ""; S.subjectTpl = !v.trim() || v === subjectAuto(S, p) ? "" : toTemplate(v, p); save();
+  });
+  $("f_subject").addEventListener("blur", function () { if (!this.value.trim()) { S.subject = ""; S.subjectTpl = ""; save(); render(); } });
+
+  /* ---------- copy ---------- */
+  function writeText(t) { return navigator.clipboard && navigator.clipboard.writeText ? navigator.clipboard.writeText(t) : Promise.reject(new Error("no-clipboard")); }
+  function clearFallbacks() { RK.clipboard.clearFallback($("copyFallback")); RK.clipboard.clearFallback($("headerCopyFallback")); }
+  function copyEmail(fallbackEl) {
+    if (!current) { RK.toast("Load the CSV first."); return; }
+    var c = current;
+    clearFallbacks();
+    RK.clipboard.write({ html: c.inner, text: c.text }).then(function (kind) {
+      RK.toast(kind === "html" ? "Email copied. Paste it into a new Outlook message." : "Copied as plain text (this browser could not copy formatting).", 3600);
+    }).catch(function () {
+      RK.clipboard.fallbackInto(fallbackEl, "Subject: " + $("f_subject").value + "\n\n" + c.text, "The browser blocked the copy. Select all and copy from here:");
+    });
+  }
+  function copyPlain(text, done) {
+    clearFallbacks();
+    writeText(text).then(function () { RK.toast(done); }).catch(function () { RK.clipboard.fallbackInto($("copyFallback"), text); });
+  }
+  $("btnCopyEmail").addEventListener("click", function () { copyEmail($("headerCopyFallback")); });
+  $("btnCopyEmail2").addEventListener("click", function () { copyEmail($("copyFallback")); });
+  $("btnCopyText").addEventListener("click", function () { if (current) copyPlain(current.text, "Plain text copied"); });
+  $("btnCopyHtml").addEventListener("click", function () { if (current) copyPlain(current.full, "HTML code copied"); });
+  $("btnCopySubject").addEventListener("click", function () { copyPlain($("f_subject").value, "Subject copied"); });
+
+  // the two columns fill the window above the footer, so each scrolls alone
+  function sizeGrid() {
+    var g = $("grid"); if ($("mainView").hidden) return;
+    var top = g.getBoundingClientRect().top + window.scrollY, foot = $("footer").offsetHeight + 24;
+    g.style.setProperty("--pem-h", Math.max(420, window.innerHeight - top - foot - 16) + "px");
+  }
+  var resizeTimer = null;
+  window.addEventListener("resize", function () { clearTimeout(resizeTimer); resizeTimer = setTimeout(function () { sizeGrid(); fitPreview(); }, 80); });
+
+  /* ---------- start ---------- */
+  $("appVersion").textContent = "v" + APP_VERSION;
+  renderLegend();
+  fillForm();
+  var saved = dataStore.get(), text = saved && typeof saved.text === "string" ? saved.text : legacyRaw(LEGACY_CSV);
+  if (text) {
+    if (!loadCSV(text, saved && saved.label ? saved.label : "your last import", false)) setStatus("", "");
+  } else render();
+})();
+</script>
+</body>
+</html>
