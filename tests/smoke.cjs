@@ -288,6 +288,147 @@ async function deliveryRegressions(browser) {
   });
 }
 
+
+/* ---------- UAT tracker: project files (BACKLOG-style regressions) ---------- */
+// The real file picker cannot be driven headless, and the browser's private file
+// system is refused on file://, so these run against a File System Access double:
+// files live in localStorage (so they outlast a reload), and handles read back
+// from IndexedDB get their methods again, as real handles would.
+function fakeFs() {
+  const PFX = "__fakefs:";
+  const read = (n) => { const r = localStorage.getItem(PFX + n); return r ? JSON.parse(r) : null; };
+  const write = (n, text) => localStorage.setItem(PFX + n, JSON.stringify({ text, lastModified: Date.now() }));
+  class FakeHandle {
+    constructor(n) { this.__fakeFile = n; this.kind = "file"; this.name = n; }
+    async getFile() { const r = read(this.__fakeFile) || { text: "", lastModified: 0 }; return new File([r.text], this.name, { lastModified: r.lastModified }); }
+    async createWritable() { const n = this.__fakeFile; let buf = ""; return { write: async (t) => { buf += t; }, close: async () => write(n, buf) }; }
+    async queryPermission() { return localStorage.getItem(PFX + "perm") || "granted"; }
+    async requestPermission() { localStorage.setItem(PFX + "perm", "granted"); return "granted"; }
+    async isSameEntry(o) { return !!o && o.__fakeFile === this.__fakeFile; }
+  }
+  window.__fakefs = { next: null, read, write };
+  window.showSaveFilePicker = async (o) => {
+    const n = window.__fakefs.next || (o && o.suggestedName) || "file.json"; window.__fakefs.next = null;
+    if (!read(n)) write(n, ""); return new FakeHandle(n);
+  };
+  window.showOpenFilePicker = async () => {
+    const n = window.__fakefs.next; window.__fakefs.next = null;
+    if (!n) throw new DOMException("cancelled", "AbortError"); return [new FakeHandle(n)];
+  };
+  const desc = Object.getOwnPropertyDescriptor(IDBRequest.prototype, "result");
+  const hydrate = (v, d) => {
+    if (!v || typeof v !== "object" || d > 3) return;
+    if (v.__fakeFile && !(v instanceof FakeHandle)) Object.setPrototypeOf(v, FakeHandle.prototype);
+    for (const k in v) hydrate(v[k], d + 1);
+  };
+  Object.defineProperty(IDBRequest.prototype, "result", { get() { const r = desc.get.call(this); hydrate(r, 0); return r; } });
+}
+
+async function uatFileRegressions(browser) {
+  console.log("uat-signoff-tracker.html: project files");
+  const url = "file://" + path.join(ROOT, "uat-signoff-tracker.html");
+  const t = (n, c, w) => check("uat files: " + n, c, w);
+  const ctx = await browser.newContext();
+  await ctx.addInitScript(fakeFs);
+  const errors = [];
+  const open = async () => {
+    const p = await ctx.newPage();
+    p.on("pageerror", (e) => errors.push(e.message));
+    p.on("dialog", (d) => d.accept());
+    await p.goto(url); await p.waitForTimeout(400);
+    return p;
+  };
+  const file = (p, n) => p.evaluate((n) => { const r = window.__fakefs.read(n); return r && r.text ? JSON.parse(r.text) : null; }, n);
+  const status = (p) => p.textContent("#saveText");
+  const settle = (p) => p.waitForTimeout(900);
+  const nextFile = (p, n) => p.evaluate((n) => { window.__fakefs.next = n; }, n);
+  const setName = async (p, name) => {
+    await p.click('.app-nav-item[data-view="settings"]'); await p.click('.settings-nav-item[data-tab="cycle"]');
+    await p.fill('[data-cy="name"]', name); await p.press('[data-cy="name"]', "Tab");
+  };
+  try {
+    const a = await open();
+    t("starts in this browser only, offering a file", /In this browser only/.test(await status(a)) && /Save to a project file/.test(await a.textContent("#saveAction")));
+    await a.click("#btnDemoOnboard"); await a.waitForTimeout(200);
+    await nextFile(a, "alpha.json"); await a.click("#saveAction"); await settle(a);
+    let f = await file(a, "alpha.json");
+    t("save to a file writes the project", !!f && f.cycles.some((c) => c.name === "Customer Portal R4.2 UAT"));
+    t("the bar names the file", /Saved to alpha\.json/.test(await status(a)), await status(a));
+
+    await setName(a, "Alpha cycle"); await settle(a);
+    f = await file(a, "alpha.json");
+    t("an edit is written into the file", f.cycles.some((c) => c.name === "Alpha cycle"));
+    t("the browser copy is left alone", await a.evaluate(() => !/Alpha cycle/.test(localStorage.getItem("uatSignoffTracker.v1") || "")));
+
+    await a.reload(); await a.waitForTimeout(600);
+    t("a reload reopens the file", /Saved to alpha\.json/.test(await status(a)) && /Alpha cycle/.test(await a.textContent("#cycleSelect")));
+
+    const b = await open(); await b.waitForTimeout(300);
+    t("a second tab does not take a file in use", /alpha\.json is open in another tab/.test(await status(b)), await status(b));
+    t("and does not show its project", !/Alpha cycle/.test(await b.textContent("#cycleSelect")));
+    await b.close();
+
+    // something else changes the file: autosave stops, nothing is overwritten
+    await a.waitForTimeout(1100);
+    await a.evaluate(() => { const r = JSON.parse(window.__fakefs.read("alpha.json").text); r.cycles[0].name = "Changed elsewhere"; window.__fakefs.write("alpha.json", JSON.stringify(r)); });
+    await setName(a, "Mine"); await settle(a);
+    f = await file(a, "alpha.json");
+    t("a file changed on disk is not overwritten", f.cycles[0].name === "Changed elsewhere" && /changed on disk/.test(await status(a)), await status(a));
+    t("the bar offers the choice", (await a.textContent("#saveAction")) === "Choose which to keep");
+    await a.click("#saveAction");
+    await a.click('[data-file-act="usefile"]'); await settle(a);
+    t("load the file takes the disk version", /Changed elsewhere/.test(await a.textContent("#cycleSelect")) && /Saved to alpha\.json/.test(await status(a)));
+
+    // a new project gets its own file and leaves the first alone
+    await nextFile(a, "beta.json");
+    await a.click('[data-file-act="new"]'); await settle(a);
+    await setName(a, "Beta cycle"); await settle(a);
+    const fa = await file(a, "alpha.json"), fb = await file(a, "beta.json");
+    t("new project file starts empty in its own file", fb && fb.cycles.length === 1 && fb.cycles[0].name === "Beta cycle" && fb.cycles[0].tests.length === 0);
+    t("the first project's file is untouched", fa.cycles[0].name === "Changed elsewhere" && !fa.cycles.some((c) => c.name === "Beta cycle"));
+
+    // permission lapses (a browser restart): edits wait for Reconnect
+    await a.evaluate(() => localStorage.setItem("__fakefs:perm", "prompt"));
+    await a.reload(); await a.waitForTimeout(600);
+    t("after a restart it asks to reconnect", /Not connected to beta\.json/.test(await status(a)) && (await a.textContent("#saveAction")) === "Reconnect", await status(a));
+    await setName(a, "Beta offline"); await settle(a);
+    t("nothing is written until reconnected", (await file(a, "beta.json")).cycles[0].name === "Beta cycle");
+    await a.click("#saveAction"); await settle(a);
+    t("reconnect writes the waiting edits", (await file(a, "beta.json")).cycles[0].name === "Beta offline" && /Saved to beta\.json/.test(await status(a)));
+
+    // recents switch between projects; close returns to the browser copy
+    await a.click('.app-nav-item[data-view="settings"]'); await a.click('.settings-nav-item[data-tab="data"]');
+    await a.waitForTimeout(200);
+    const recent = await a.$$eval("#recentFiles [data-recent]", (bs) => bs.map((x) => x.textContent));
+    t("recent files lists both projects", recent.some((x) => /alpha\.json/.test(x)) && recent.some((x) => /beta\.json/.test(x)), recent.join(", "));
+    await a.click('#recentFiles [data-recent]:not([disabled])'); await settle(a);
+    t("a recent file opens its project", /Saved to alpha\.json/.test(await status(a)) && /Changed elsewhere/.test(await a.textContent("#cycleSelect")));
+    await a.click('[data-file-act="close"]'); await settle(a);
+    t("close goes back to the browser copy", /In this browser only/.test(await status(a)) && /Customer Portal R4\.2 UAT/.test(await a.textContent("#cycleSelect")));
+
+    // edits that never reached the file come back after a reload, and Keep mine writes them
+    await a.click('#recentFiles [data-recent]'); await settle(a);
+    await a.waitForTimeout(1100);
+    await a.evaluate(() => { const r = JSON.parse(window.__fakefs.read("alpha.json").text); r.cycles[0].name = "Disk again"; window.__fakefs.write("alpha.json", JSON.stringify(r)); });
+    await setName(a, "Mine again"); await settle(a);
+    await a.reload(); await a.waitForTimeout(600);
+    t("unsent edits are offered back after a reload", /Unsaved edits for alpha\.json/.test(await status(a)) && /Mine again/.test(await a.textContent("#cycleSelect")), await status(a));
+    await a.click("#saveAction"); await a.click('[data-file-act="keepmine"]');
+    await a.click(".modal-overlay:not([hidden]) [data-rk-ok]"); await settle(a);
+    t("keep mine overwrites the file", (await file(a, "alpha.json")).cycles[0].name === "Mine again" && /Saved to alpha\.json/.test(await status(a)));
+
+    // a picker refused by policy is remembered and the file buttons withdrawn
+    await a.click('[data-file-act="close"]'); await settle(a);
+    await a.evaluate(() => { window.showSaveFilePicker = async () => { throw new DOMException("blocked", "NotAllowedError"); }; });
+    await a.click("#saveAction"); await a.waitForTimeout(300);
+    t("a blocked picker is explained and its buttons withdrawn", (await a.isVisible("#fsBlocked")) && !(await a.isVisible("#fileActions")) && (await a.isHidden("#saveAction")));
+    await a.click('[data-file-act="unblock"]'); await a.waitForTimeout(200);
+    t("try again brings file saving back", (await a.isVisible("#fileActions")) && /Save to a project file/.test(await a.textContent("#saveAction")));
+  } catch (e) { t("flow", false, e.message.split("\n")[0]); }
+  t("no page errors", errors.length === 0, errors.slice(0, 3).join(" | "));
+  await ctx.close();
+}
+
 (async () => {
   kitUnits();
   const browser = await chromium.launch();
@@ -298,6 +439,7 @@ async function deliveryRegressions(browser) {
   }
   check("every tool has a main flow in this test", tools.every((t) => FLOWS[t]), tools.filter((t) => !FLOWS[t]).join(", "));
   await deliveryRegressions(browser);
+  await uatFileRegressions(browser);
   // the starter is never shipped, but new tools are copied from it: it must build and run clean
   console.log("framework/starter.src.html");
   const tmp = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "rk-starter-")), "starter.html");

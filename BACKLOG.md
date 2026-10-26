@@ -29,6 +29,7 @@ Tool codes:
 | WQ | Waqti exceptions | `reports/waqti-exceptions.src.html` |
 | DS | Waqti demand summary | `reports/waqti-demand-summary.src.html` |
 | VS | Vendor spend tracker | `reports/vendor-spend-tracker.src.html` |
+| UT | UAT sign-off tracker | `reports/uat-signoff-tracker.src.html` |
 | KIT | Report Kit | `framework/report-kit.js`, `framework/*.css` |
 | BLD | Build | `framework/build.py` |
 | CI | Tests and CI | `tests/smoke.cjs`, `.github/workflows/check.yml` |
@@ -127,7 +128,7 @@ would close or make easy.
 
 | ID | Refactor | Closes | Effort |
 |---|---|---|---|
-| ARCH-1 | **A persistence module for the cost tracker.** A single serialised write queue that captures `{file handle, id, text}` when a save starts; explicit states instead of the loose `dirty`/`writing`/`stale`/`writeFailed`/`claimed` flags mutated across awaits; switching file flushes first. Test it with OPFS handles and slow or failing writes. | CT-01, CT-10 (CT-R2, CT-02 and CT-03 were fixed with a write queue in PR #24; this finishes the job) | L |
+| ARCH-1 | **Move the cost tracker onto `RK.fileDoc`.** The cost tracker's file binding (write queue, locks, crash copy, stale handling) now lives in the kit as `RK.fileDoc` (kit 1.4.0), used by the UAT tracker and tested in `tests/smoke.cjs` against a File System Access double. The cost tracker still has its own copy; port it (its undo tagging and the shared `piCapacity` half stay in the report) and delete the duplicate. Explicit states instead of the loose flags would still be worth doing inside the module. | CT-01, CT-10 (CT-R2, CT-02 and CT-03 were fixed with a write queue in PR #24; this finishes the job) | L |
 | ARCH-2 | **One model for the file shared by the cost tracker and PI capacity.** Each tool should own only its half: keep only your own key in the browser copy, re-read the file before a combined save, and use one filename. Put the envelope (own key + foreign keys, safe copying) in the kit. | PI-01 | L |
 | ARCH-3 | **A regression suite, `tests/regress.cjs`.** Two-tab and OPFS scenarios, header variants and the real legacy template, time zones, quota failures, prototype keys and the rules round trip, plus a `python -m unittest` for `build.py`. Move the delivery plan's pure parsing functions (`parseDate`, header matching, `buildWeeks`, window logic) somewhere Node can test them. Most P0 items would have been caught. | future regressions (delivery-plan header and window checks are already in `tests/smoke.cjs`) | M |
 | ARCH-4 | **A kit storage module, `RK.persist`.** Versioned envelope, a per-save token for cross-tab detection, a rolling N-slot backup with quota-checked writes, and per-entity versions for sync. Replaces the raw `localStorage` code in PI, CT, VS and WQ. | VS-01, VS-05 | L |

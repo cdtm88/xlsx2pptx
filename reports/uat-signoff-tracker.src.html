@@ -75,6 +75,16 @@ td.uat-cb input, th.uat-cb input { margin: 0; vertical-align: middle; }
 .copy-fallback textarea { width: 100%; min-height: 180px; font: 12px var(--font-mono); }
 .copy-fallback p { margin: 0 0 6px; font-size: 12px; color: var(--text-dim); }
 .uat-sent { margin-top: 16px; }
+.uat-filebar { display: flex; align-items: center; gap: 8px; margin: -8px 0 14px; font-size: 12px; color: var(--text-dim); min-height: 20px; }
+.uat-filebar #saveText { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.uat-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border-input); flex: none; }
+.uat-dot.live { background: var(--green); }
+.uat-dot.warn { background: var(--yellow); }
+.uat-file-actions { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0 4px; }
+.uat-file-state { font-size: 13px; color: var(--slate); margin: 0; line-height: 1.5; }
+.uat-recents { margin-top: 14px; }
+.uat-recents-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 6px; }
+.uat-divider { border-top: 1px solid var(--divider); margin: 22px 0 18px; }
 .uat-sent-row { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--divider); font-size: 12px; }
 .uat-sent-row:last-child { border-bottom: none; }
 .uat-sent-main { min-width: 0; }
@@ -135,6 +145,10 @@ td.uat-cb input, th.uat-cb input { margin: 0; vertical-align: middle; }
     <button type="button" class="primary" id="btnCopyEmail">Copy email update</button>
   </header>
 
+  <div class="uat-filebar no-print" id="fileBar">
+    <span class="uat-dot" id="saveDot"></span><span id="saveText" role="status">Starting up</span>
+    <button type="button" class="link-action" id="saveAction" hidden></button>
+  </div>
   <div class="callout warn" id="storageBanner" role="status" hidden></div>
   <div id="headerCopyFallback"></div>
 
@@ -159,6 +173,7 @@ td.uat-cb input, th.uat-cb input { margin: 0; vertical-align: middle; }
         <li>Add the test scripts: one at a time, or paste them from Excel with <button type="button" class="link-action" data-import="tests">Import tests</button>.</li>
         <li>Add the people who must sign UAT off on the <button type="button" class="link-action" data-goto="signoff">Sign-off</button> tab.</li>
         <li>Record results and defects as testing runs, then copy the email update.</li>
+        <li data-file-only hidden>Keep each project in its own file: <button type="button" class="link-action" data-file-act="saveto">save this one to a project file</button>, and every change is written to it as you work.</li>
       </ol>
       <div class="uat-actions">
         <button type="button" data-goto="settings">Set up the cycle</button>
@@ -426,7 +441,28 @@ td.uat-cb input, th.uat-cb input { margin: 0; vertical-align: middle; }
     </div>
 
     <div class="settings-content" data-panel="data" hidden>
-      <div class="settings-panel-head"><h3>Saving &amp; data</h3><span class="hint">Everything saves in this browser as you type. Keep a backup file too: browser storage can be cleared.</span></div>
+      <div id="filePanel" hidden>
+        <div class="settings-panel-head"><h3>Project file</h3><span class="hint">One file per project, holding all its UAT cycles. Every change is written to it as you type.</span></div>
+        <p class="uat-file-state" id="fileState"></p>
+        <div class="uat-file-actions" id="fileActions">
+          <button type="button" class="primary" data-file-act="saveto" id="fileSaveTo">Save to a project file…</button>
+          <button type="button" data-file-act="new">New project file…</button>
+          <button type="button" data-file-act="open">Open project file…</button>
+          <button type="button" data-file-act="saveas" id="fileSaveAs" hidden>Save as…</button>
+          <button type="button" data-file-act="close" id="fileClose" hidden>Close file</button>
+        </div>
+        <div class="callout warn" id="staleBox" style="margin:12px 0 0" hidden>
+          <span id="staleMsg"></span>
+          <div class="uat-file-actions" style="margin-bottom:0">
+            <button type="button" class="small" data-file-act="usefile">Load the file, discard mine</button>
+            <button type="button" class="small" data-file-act="keepmine">Keep mine, overwrite the file</button>
+          </div>
+        </div>
+        <div class="uat-recents" id="recentFiles"></div>
+        <div class="callout warn" id="fsBlocked" style="margin:12px 0 0" hidden></div>
+        <div class="uat-divider"></div>
+      </div>
+      <div class="settings-panel-head"><h3>Backups and exports</h3><span class="hint" id="dataHint">Everything saves in this browser as you type. Keep a backup file too: browser storage can be cleared.</span></div>
       <div class="setting-row"><div class="setting-row-label"><span class="label-text">Save a backup file</span><span class="label-hint">Every cycle, as JSON. Use it to move to another machine or hand over.</span></div>
         <div class="setting-row-control"><button type="button" id="btnSaveJson">Save backup</button></div></div>
       <div class="setting-row"><div class="setting-row-label"><span class="label-text">Load a backup file</span><span class="label-hint">Add its cycles, or replace everything here</span></div>
@@ -970,10 +1006,36 @@ td.uat-cb input, th.uat-cb input { margin: 0; vertical-align: middle; }
     state.activeId = cur.id;
     try { sessionStorage.setItem(TAB_KEY, cur.id); } catch (e) { /* per-tab memory is a nicety */ }
   }
+  // With a project file bound, every save goes into it (RK.fileDoc). Without
+  // one, the project lives in localStorage, which every copy of this page on
+  // the machine shares: that is the "In this browser only" project.
+  var files = RK.fileDoc({
+    app: "uat-signoff-tracker", label: "UAT tracker project",
+    serialise: function () { return JSON.stringify(state, null, 2); },
+    load: loadProjectText,
+    onChange: renderFileState,
+    onMessage: function (t) { RK.toast(t, 3400); }
+  });
+  // A project file read from disk: parsed, checked and drawn before it replaces
+  // anything; if drawing fails the project on screen stays.
+  function loadProjectText(text) {
+    var n = normaliseState(JSON.parse(text));
+    if (!n) throw new Error("it is not a UAT tracker project");
+    var prev = state, prevCur = cur, tabId = null;
+    try { tabId = sessionStorage.getItem(TAB_KEY); } catch (e) { tabId = null; }
+    state = n;
+    try { setCurrent(cycleById(tabId) ? tabId : n.activeId); resetFilters(); fillCompose(); fillSettings(); renderAll(); }
+    catch (e) {
+      state = prev; cur = prevCur;
+      try { fillCompose(); fillSettings(); renderAll(); } catch (x) { /* the error below says enough */ }
+      throw e;
+    }
+  }
   function save() {
     recordSnapshot(cur);
     state.rev = (Number(state.rev) || 0) + 1;
     state.activeId = cur.id;
+    if (files.touch()) return;
     try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
     catch (e) { banner("Could not save to browser storage, so recent changes may be lost. Save a backup file from Settings now."); }
   }
@@ -1981,10 +2043,13 @@ td.uat-cb input, th.uat-cb input { margin: 0; vertical-align: middle; }
     uniqueIds(c.approvers); c.approvers.forEach(function (a) { a.id = RK.uid(); });
     return c;
   }
-  function switchCycle(id) {
-    setCurrent(id);
+  function resetFilters() {
     selected = dict(); testTab = "all"; defTab = "open";
     $("testArea").value = ""; $("testTester").value = ""; $("defSeverity").value = ""; $("defArea").value = "";
+  }
+  function switchCycle(id) {
+    setCurrent(id);
+    resetFilters();
     save();
     fillCompose(); fillSettings(); renderAll();
   }
@@ -2171,6 +2236,14 @@ td.uat-cb input, th.uat-cb input { margin: 0; vertical-align: middle; }
     $("burnup").addEventListener("mousemove", function (e) { if (e.target.id === "chartHit" || e.target.closest("svg")) chartHover(e); });
     $("burnup").addEventListener("mouseleave", chartLeave);
     $("btnDemoOnboard").addEventListener("click", loadDemo);
+    // file actions call the picker or permission prompt straight from the click
+    document.addEventListener("click", function (e) {
+      var b = e.target.closest("[data-file-act]");
+      // the recents list is written after the file is bound, so redraw it once done
+      if (b && b.getAttribute("data-file-act")) { Promise.resolve(fileAction(b.getAttribute("data-file-act"))).then(renderRecents); return; }
+      var r = e.target.closest("[data-recent]");
+      if (r && !r.disabled) files.openRecent(r.getAttribute("data-recent")).then(renderRecents);
+    });
 
     // tests list
     $("testTabs").addEventListener("click", function (e) { var b = e.target.closest("[data-tab]"); if (b) { testTab = b.getAttribute("data-tab"); renderAll(); } });
@@ -2449,7 +2522,7 @@ td.uat-cb input, th.uat-cb input { margin: 0; vertical-align: middle; }
 
     // another tab saved: take its data, keep this tab's cycle open
     window.addEventListener("storage", function (e) {
-      if (e.key !== STORE_KEY || !e.newValue) return;
+      if (e.key !== STORE_KEY || !e.newValue || files.info().bound) return;
       var n = null;
       try { n = normaliseState(JSON.parse(e.newValue)); } catch (err) { n = null; }
       if (!n) return;
@@ -2491,6 +2564,13 @@ td.uat-cb input, th.uat-cb input { margin: 0; vertical-align: middle; }
     }, { okLabel: "Delete cycle", danger: true });
   }
   function loadDemo() {
+    var i = files.info();
+    if (i.bound) {
+      RK.confirm("It is added to " + i.name + " as a new cycle. Delete it from Settings when you are done.", addDemo,
+        { title: "Add the demo to this project file?", okLabel: "Add demo" });
+    } else addDemo();
+  }
+  function addDemo() {
     var c = demoCycle();
     // an untouched empty cycle is replaced rather than left lying around
     if (state.cycles.length === 1 && !cur.tests.length && !cur.defects.length && !cur.approvers.length && cur.name === "New UAT cycle") state.cycles = [];
@@ -2498,6 +2578,77 @@ td.uat-cb input, th.uat-cb input { margin: 0; vertical-align: middle; }
     switchCycle(c.id);
     show("overview");
     RK.toast("Demo cycle loaded. Delete it from Settings when you are done.");
+  }
+
+  /* ---------- project files ---------- */
+  var recentsKey = null;
+  function renderFileState() {
+    var i = files.info(), st = files.status(), act = $("saveAction");
+    $("saveDot").className = "uat-dot " + st.tone;
+    $("saveText").textContent = st.text;
+    var a = st.action || (i.stale ? "resolve" : !i.bound && i.available ? "saveto" : "");
+    act.hidden = !a;
+    act.setAttribute("data-file-act", a);
+    act.textContent = { reconnect: "Reconnect", retry: "Retry", resolve: "Choose which to keep", saveto: "Save to a project file…" }[a] || "";
+    document.querySelectorAll("[data-file-only]").forEach(function (el) { el.hidden = !(i.available && !i.bound); });
+    $("filePanel").hidden = !i.supported;
+    $("dataHint").textContent = i.bound ? "Copies and exports of the project open now. The project file itself is saved as you type." :
+      "Everything saves in this browser as you type. Keep a backup file too: browser storage can be cleared.";
+    if (!i.supported) return;
+    $("fileActions").hidden = !!i.blocked;
+    $("fileSaveTo").hidden = i.bound; $("fileSaveAs").hidden = !i.bound; $("fileClose").hidden = !i.bound;
+    $("fileState").textContent = i.bound
+      ? (i.connected ? "This project is " + i.name + ". Every change is written straight to it, so keep it with the project's documents."
+        : "This project is " + i.name + ", but the browser needs your say-so to write to it again. Press Reconnect; your edits are kept in this browser until then.")
+      : i.blockedBy ? i.blockedBy + " is already open in another tab, so it was not opened here. Close it there, or open a different file."
+        : "This project is kept in this browser only, and every copy of this page on the machine shares that space. Save it to a file to keep each project apart.";
+    $("staleBox").hidden = !i.stale;
+    $("staleMsg").textContent = i.staleWhy || (i.name + " was changed by something else since this page last wrote it. Nothing has been overwritten.");
+    var fb = $("fsBlocked");
+    fb.hidden = !i.blocked;
+    if (i.blocked) {
+      fb.innerHTML = "<b>This browser will not let the tracker save to a file.</b> " +
+        (i.isEdge ? "Edge on this machine blocks it by administrator policy. The same file works in Chrome: right-click it and choose Open with, then Chrome." :
+          "The file picker was refused (" + esc(i.blocked) + "), which on a managed laptop is usually an administrator policy.") +
+        " Here the project is kept in this browser; use Save backup to keep a copy." +
+        '<div class="uat-file-actions" style="margin-bottom:0"><button type="button" class="small" data-file-act="unblock">Try file saving again</button></div>';
+    }
+    var key = i.bound + "|" + i.name + "|" + i.blocked;
+    if (key !== recentsKey) { recentsKey = key; renderRecents(); }
+  }
+  function renderRecents() {
+    files.recents().then(function (rows) {
+      $("recentFiles").innerHTML = rows.length ? '<div class="detail-label">Recent project files</div><div class="uat-recents-row">' +
+        rows.map(function (r) {
+          return '<button type="button" class="small" data-recent="' + esc(r.id) + '"' + (r.open ? ' disabled title="Open now"' : "") + ">" +
+            esc(r.name) + (r.open ? " · open" : "") + "</button>";
+        }).join("") + '<button type="button" class="link-action" data-file-act="forget">Clear list</button></div>' : "";
+    });
+  }
+  function freshState() {
+    var c = newCycle();
+    return { schemaVersion: SCHEMA_VERSION, app: "uat-signoff-tracker", rev: 0, activeId: c.id, cycles: [c] };
+  }
+  function redraw() { resetFilters(); fillCompose(); fillSettings(); renderAll(); }
+  function fileAction(a) {
+    if (a === "saveto" || a === "saveas") return files.create(slug(cur.project || cur.name) + ".json");
+    if (a === "new") return files.create("uat-project.json", function () { state = freshState(); setCurrent(state.activeId); redraw(); })
+      .then(function (ok) { if (ok) show("settings", "cycle"); });
+    if (a === "open") return files.open();
+    if (a === "reconnect") return files.reconnect();
+    if (a === "retry") return files.retry();
+    if (a === "resolve") return show("settings", "data");
+    if (a === "usefile") return files.useFile();
+    if (a === "keepmine") {
+      var name = files.info().name;
+      return RK.confirm("Whatever changed " + name + " since it was loaded will be lost.", function () { files.keepMine(); },
+        { title: "Overwrite " + name + " with what is on screen?", okLabel: "Overwrite file", danger: true });
+    }
+    if (a === "close") return files.close().then(function () {
+      state = null; load(); redraw(); RK.toast("Showing the project kept in this browser");
+    });
+    if (a === "forget") return files.forgetRecents().then(renderRecents);
+    if (a === "unblock") { files.unblock(); RK.toast("File saving switched back on. Try Save to a project file."); }
   }
 
   /* ---------- self tests (?selftest=1) ---------- */
@@ -2589,10 +2740,10 @@ td.uat-cb input, th.uat-cb input { margin: 0; vertical-align: middle; }
   load();
   wire();
   if (storageWarning) banner(storageWarning);
-  // one chart point for each day the tracker is opened, even with no edits
-  if (cur.tests.length && (!cur.history.length || cur.history[cur.history.length - 1].date !== RK.today())) save();
   fillCompose(); fillSettings();
   show("overview");
+  if (files.info().supported && !files.info().blocked) $("saveText").textContent = "Opening your project…";
+  files.boot(function (msg) { banner(msg); });
   if (new URLSearchParams(location.search).get("selftest") === "1") runSelfTests();
 })();
 </script>

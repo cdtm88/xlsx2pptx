@@ -442,13 +442,32 @@ used before anything changes. **Update and add** matches rows to existing
 records by ID and changes only the imported columns, so a results-only export
 updates statuses without touching testers or notes.
 
-**Cycles and saving.** Each UAT phase or release is a **cycle** with its own
-tests, defects, approvers and update history; switch between them in the
-header. A new cycle can carry over the exit criteria, rules and approvers, and
+**Cycles.** Each UAT phase or release is a **cycle** with its own tests,
+defects, approvers and update history; switch between them in the header. A
+new cycle can carry over the exit criteria, rules and approvers, and
 optionally the tests reset to Not run, for a retest or regression round.
-Everything autosaves in the browser (`localStorage`) and two open tabs stay in
-step, each keeping its own cycle open. As with the other trackers, every
-`file://` page shares that storage: **Save backup** writes every cycle to a
-JSON file, and **Load backup** adds its cycles or replaces everything (the
-replaced data is kept under a backup key). Tests and defects export to CSV for
-Excel. Add `?selftest=1` to the URL to run the built-in checks in the console.
+
+**One file per project.** In Chrome (and Edge where policy allows), a project
+saves to its own `.json` file holding all its cycles. **Save to a project
+file** (in the bar under the header, or Settings, Saving & data) writes the
+project on screen to a file you choose; from then on every change is written
+straight into it, with no save step. **New project file** starts an empty
+project in a new file, **Open project file** opens one, **Save as** copies to
+a new file, and **Recent project files** switches in one click. The bar under
+the header always says where the work is: `Saved to customer-portal.json ·
+14:32`, `Not connected to customer-portal.json` with **Reconnect** after a
+browser restart (edits are held in the browser until then), or `In this
+browser only`. A file can be open in one tab at a time; a second tab says so
+rather than taking it. If something else changes the file, autosave stops and
+offers **Load the file, discard mine** or **Keep mine, overwrite the file**;
+edits that never reached the file (a stale or failed write, then the tab
+closed) are offered back the next time it opens. **Close file** returns to the
+project kept in the browser. A browser that blocks the picker by policy is
+detected and remembered, and says to use Chrome.
+
+Without a file (or in Firefox and Safari) the project autosaves in the browser
+(`localStorage`), and two open tabs stay in step. Every `file://` page shares
+that storage, so it holds one project per browser. **Save backup** writes
+every cycle to a JSON file (the same format as a project file), and **Load
+backup** adds its cycles or replaces everything (the replaced data is kept
+under a backup key). Tests and defects export to CSV for Excel. Add `?selftest=1` to the URL to run the built-in checks in the console.
