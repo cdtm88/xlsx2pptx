@@ -371,11 +371,114 @@ vendor and budget. Add `?selftest=1` to the URL to run the built-in checks in
 the console.
 
 
+## `uat-signoff-tracker.html`
+
+Track a UAT cycle from first test to sign-off, and send stakeholders a clear
+update without building it by hand. Everything is edited in the tool: tests,
+results, defects, approvers, exit criteria, status rules and the words of the
+email. Why it reports what it reports is in
+[`uat-reporting.md`](uat-reporting.md).
+
+**Overview.** The page opens on the answer: the cycle, the day of testing
+("Day 8 of 11") and the sign-off date, then one line ("78% executed, 69%
+passed, 1 critical and 2 high defects open") and the **Green / Amber / Red**
+status with the reasons that set it. Four cards follow (execution with a mark
+at today's plan, pass rate, open defects by severity, approvals), the **exit
+criteria** with Met or Not met against each target, a chart of executed and
+passed tests against the plan line (one point per day the tracker is used;
+hover for the figures, or open them as a table), and a table **by area**.
+Select a card or an area to jump to the list behind it.
+
+**Tests.** One row per test script: ID, test, area, tester, priority, status,
+linked defects. Change a status straight from the row; tick rows to set many
+at once. Tabs count each status (Not run, In progress, Passed, Failed, Blocked,
+Out of scope); filter by area or tester, search with `/`. Executed means Passed
+plus Failed; Out of scope is left out of every figure. Open a row to edit it,
+and **Save and raise defect** logs a defect already linked to the test.
+
+**Defects.** Severity (Critical, High, Medium, Low, defined in business terms
+under Settings), status (New, In fix, Ready to retest, Closed, Deferred,
+Rejected), owner, area, raised and fix-due dates, linked tests, and a
+workaround or decision. New, In fix and Ready to retest count as open. Deferred
+means accepted for go-live: it shows in the email under **Known issues
+accepted** with its workaround. Rejected (not a defect) is left out of the
+counts. Age and an overdue fix date are flagged in the list.
+
+**Sign-off.** Says whether the exit criteria are met and lists what is still
+open. Approvers each have a role, what they sign off, a decision (Pending,
+Approved, Approved with conditions, Rejected), a date and their conditions.
+**Draft sign-off request** switches the email to the request template.
+
+**Email update.** On a wide screen, Compose and the preview sit side by side
+and each scrolls on its own, so you can edit near the bottom of one while
+reading any part of the other. Two templates: **Progress update** and **Sign-off request**,
+each for a **Leadership summary** or **Full detail** audience, which pick a set
+of sections you can then switch on or off: key figures with a progress bar,
+change since the last update, highlights, exit criteria, progress by area,
+defects needing attention (critical and high for leaders, every open defect for
+the full version), known issues accepted, risks and issues, decisions and help
+needed, sign-off status, next steps and the next update date. The headline and
+subject are suggested from the figures (for example
+`[UAT] Customer Portal R4.2 UAT update: AMBER | day 8 of 11 | 78% executed | 1 critical and 2 high defects open`);
+type over either to replace it. **Copy email** puts formatted HTML on the
+clipboard (inline styles and plain tables, so it survives Outlook) with a plain
+text version alongside; **Copy as plain text** gives text with aligned columns.
+**Mark as sent** records the figures, so the next update can say what changed
+since.
+
+**Status rules.** Red when an approver rejects, the sign-off date passes, the
+executed share is 20 or more points behind the plan line, or critical defects
+are open within 3 working days of sign-off. Amber when 10 or more points
+behind, critical or high defects are open above the exit criteria, blocked
+tests reach 10% of scope, or the pass rate on tests run is below target (once
+five have run). Signed off when every approver has approved. The thresholds are
+editable, and the status can be set by hand with a reason; the Overview then
+still shows what the rules would say.
+
+**Import.** Paste rows from Excel (with the header row) or drop an `.xlsx` or
+`.csv`. Columns are found by name, so most test-management and Jira exports
+work as they are: `Test Case ID`, `Scenario`, `Module`, `Result`, `Key`,
+`Summary`, `Assignee`, `Created` and similar, with Pass, Fail, N/A, P1, Sev 2,
+Resolved or Won't Fix read as you would expect. A preview shows the columns
+used before anything changes. **Update and add** matches rows to existing
+records by ID and changes only the imported columns, so a results-only export
+updates statuses without touching testers or notes.
+
+**Cycles.** Each UAT phase or release is a **cycle** with its own tests,
+defects, approvers and update history; switch between them in the header. A
+new cycle can carry over the exit criteria, rules and approvers, and
+optionally the tests reset to Not run, for a retest or regression round.
+
+**One file per project.** In Chrome (and Edge where policy allows), a project
+saves to its own `.json` file holding all its cycles. **Save to a project
+file** (in the bar under the header, or Settings, Saving & data) writes the
+project on screen to a file you choose; from then on every change is written
+straight into it, with no save step. **New project file** starts an empty
+project in a new file, **Open project file** opens one, **Save as** copies to
+a new file, and **Recent project files** switches in one click. The bar under
+the header always says where the work is: `Saved to customer-portal.json ·
+14:32`, `Not connected to customer-portal.json` with **Reconnect** after a
+browser restart (edits are held in the browser until then), or `In this
+browser only`. A file can be open in one tab at a time; a second tab says so
+rather than taking it. If something else changes the file, autosave stops and
+offers **Load the file, discard mine** or **Keep mine, overwrite the file**;
+edits that never reached the file (a stale or failed write, then the tab
+closed) are offered back the next time it opens. **Close file** returns to the
+project kept in the browser. A browser that blocks the picker by policy is
+detected and remembered, and says to use Chrome.
+
+Without a file (or in Firefox and Safari) the project autosaves in the browser
+(`localStorage`), and two open tabs stay in step. Every `file://` page shares
+that storage, so it holds one project per browser. **Save backup** writes
+every cycle to a JSON file (the same format as a project file), and **Load
+backup** adds its cycles or replaces everything (the replaced data is kept
+under a backup key). Tests and defects export to CSV for Excel. Add `?selftest=1` to the URL to run the built-in checks in the console.
+
 ## `uat-email-builder.html`
 
 The simple, manual way to send a UAT update: no test or defect lists to keep,
 just this week's figures and status typed in, and the email built in the same
-format as the UAT Sign-off Tracker's (status badge, bottom-line headline, key
+format as the [UAT Sign-off Tracker](#uat-signoff-trackerhtml)'s (status badge, bottom-line headline, key
 figures with a progress bar, exit criteria, defects, sign-off and next steps).
 
 **Compose.** Pick **Progress update** or **Sign-off request**; each switches on
