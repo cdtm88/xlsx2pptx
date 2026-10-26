@@ -48,6 +48,13 @@ function kitUnits() {
     out.staff.S1.name === "" && out.staff.S1.approvedDemands[0] === "D1" && out.staff.S1.extra === true && out.future === 1);
   const newer = RK.rules.parse(JSON.stringify({ schemaVersion: 99, staff: {} }));
   check("rules.parse loads a newer schema with a warning", !!newer.warning);
+  const blocks = [{ k: "status", rag: "amber", label: "Amber", title: "<b>X</b>" }, { k: "bar", total: 4, segs: [[3, "#3E9A40"], [3, "#D9534F"]], note: "n" },
+    { k: "table", head: ["ID", "Count"], num: [1], rows: [["A-1", { text: "12", bold: true }]] }];
+  const mail = RK.email.html(blocks), mailText = RK.email.text(blocks);
+  check("email.html escapes text and colours the badge", mail.indexOf("<b>X</b>") === -1 && mail.indexOf("&lt;b&gt;X&lt;/b&gt;") !== -1 && /bgcolor="#E0A526"[^>]*>AMBER</.test(mail));
+  check("email.html cuts an over-full bar at 100%", (mail.match(/width="(\d+\.\d)%"/g) || []).map((w) => parseFloat(w.slice(7))).reduce((a, b) => a + b, 0) === 100);
+  check("email.html right-aligns num columns", /text-align:right;font-weight:bold;">12</.test(mail));
+  check("email.text draws a table with a rule under the header", /STATUS: AMBER \| <b>X<\/b>/.test(mailText) && /\nID\s+Count\n-+\s+-+\nA-1\s+12\n/.test(mailText), mailText);
   check("localDate uses the local calendar day", RK.localDate(new Date(2024, 0, 15, 0, 30)) === "2024-01-15");
 }
 
