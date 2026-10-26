@@ -23,6 +23,8 @@ const FIX = path.join(__dirname, "fixtures");
 // The one policy every tool must carry, exactly as the starter has it.
 const CSP = (/<meta http-equiv="Content-Security-Policy" content="([^"]+)">/.exec(
   fs.readFileSync(path.join(ROOT, "framework/starter.src.html"), "utf8")) || [])[1];
+// The line every tool ends with (framework/DESIGN.md, principle 9).
+const SIGNOFF = (/<div class="signoff">([^<]+)<\/div>/.exec(fs.readFileSync(path.join(ROOT, "framework/signoff.html"), "utf8")) || [])[1];
 const failures = [];
 const ok = (name) => console.log("  ok   " + name);
 const fail = (name, why) => { failures.push(name + ": " + why); console.log("  FAIL " + name + ": " + why); };
@@ -202,6 +204,8 @@ async function openTool(browser, file, flow) {
   // exactly the starter's policy, and straight after the charset so it governs every script
   const head = await page.evaluate(() => [...document.head.children].slice(0, 2).map((e) => e.outerHTML));
   const csp = await page.$eval('meta[http-equiv="Content-Security-Policy"]', (m) => m.content).catch(() => "");
+  const signoff = await page.$eval("footer .signoff", (e) => e.textContent.trim()).catch(() => "");
+  check(name + ": footer carries the sign-off line", !!SIGNOFF && signoff === SIGNOFF, signoff || "no footer .signoff (include framework/signoff.html)");
   check(name + ": offline CSP present, unchanged and first", !!CSP && csp === CSP && /^<meta charset/i.test(head[0] || "") &&
     /Content-Security-Policy/.test(head[1] || ""), "policy differs from the starter's or is not first: " + (csp || "none"));
   if (flow) {

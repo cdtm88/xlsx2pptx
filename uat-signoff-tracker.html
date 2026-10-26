@@ -936,6 +936,12 @@ td.uat-cb input, th.uat-cb input { margin: 0; vertical-align: middle; }
 /* six views plus a cycle switch: keep the header on one row on a laptop */
 #cycleSelect { max-width: 190px; }
 .app-header .app-search { width: 210px; }
+/* side by side, Compose and Preview each scroll on their own inside the window
+   (sizeEmail sets the height); stacked on narrower screens, the page scrolls */
+@media (min-width: 1001px) {
+  .uat-email-grid { height: var(--uat-email-h, auto); align-items: stretch; }
+  .uat-email-col { min-height: 0; max-height: 100%; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
+}
 @media (max-width: 1000px) {
   .uat-two, .uat-email-grid { grid-template-columns: 1fr; }
 }
@@ -1042,7 +1048,6 @@ td.uat-cb input, th.uat-cb input { margin: 0; vertical-align: middle; }
         </table>
       </div>
     </div>
-    <footer><div class="strapline">Single file, works offline. Your data never leaves this machine.</div></footer>
   </section>
 
   <!-- ================= Tests ================= -->
@@ -1123,8 +1128,8 @@ td.uat-cb input, th.uat-cb input { margin: 0; vertical-align: middle; }
 
   <!-- ================= Email update ================= -->
   <section id="view-email" hidden>
-    <div class="uat-email-grid">
-      <div class="uat-panel uat-compose">
+    <div class="uat-email-grid" id="emailGrid">
+      <div class="uat-panel uat-compose uat-email-col">
         <div class="uat-panel-head"><h3>Compose</h3><span class="hint">Figures come from the tracker. The words are yours.</span></div>
         <div class="field">
           <label>Email type</label>
@@ -1163,7 +1168,7 @@ td.uat-cb input, th.uat-cb input { margin: 0; vertical-align: middle; }
         </div>
       </div>
 
-      <div>
+      <div class="uat-email-col">
         <div class="uat-panel">
           <div class="uat-panel-head"><h3>Preview</h3><span class="hint">This is what pastes into Outlook or Gmail.</span></div>
           <label for="emSubject" class="detail-label">Subject</label>
@@ -1303,6 +1308,11 @@ td.uat-cb input, th.uat-cb input { margin: 0; vertical-align: middle; }
         <div class="setting-row-control"><button type="button" class="danger" id="btnDeleteCycle">Delete cycle…</button></div></div>
     </div>
   </section>
+
+  <footer>
+    <div class="signoff">Dreamt up by Christian, built with Claude: a human and AI double act 🤝</div>
+    <div class="strapline">Single file, works offline. Your data never leaves this machine.</div>
+  </footer>
 </div>
 
 <datalist id="dlAreas"></datalist>
@@ -2908,7 +2918,7 @@ window.RK = (function () {
     catch (e) { banner("Could not save to browser storage, so recent changes may be lost. Save a backup file from Settings now."); }
   }
   function commit() { save(); renderAll(); }
-  function banner(text) { var b = $("storageBanner"); b.textContent = text; b.hidden = !text; }
+  function banner(text) { var b = $("storageBanner"); b.textContent = text; b.hidden = !text; sizeEmail(); }
 
   /* ---------- views ---------- */
   var view = "overview", settingsTab = "cycle";
@@ -2924,7 +2934,16 @@ window.RK = (function () {
     if (v === "email") fillCompose();
     renderAll();
     window.scrollTo(0, 0);
+    sizeEmail();
   }
+  // the two email columns fill the window below the header, so each scrolls alone
+  function sizeEmail() {
+    var g = $("emailGrid");
+    if (view !== "email") return;
+    var top = g.getBoundingClientRect().top + window.scrollY;
+    g.style.setProperty("--uat-email-h", Math.max(380, window.innerHeight - top - 16) + "px");
+  }
+  window.addEventListener("resize", sizeEmail);
   function showSettingsTab(t) {
     settingsTab = t;
     document.querySelectorAll(".settings-nav-item").forEach(function (b) { b.classList.toggle("active", b.getAttribute("data-tab") === t); });

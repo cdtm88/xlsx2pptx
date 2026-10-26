@@ -409,7 +409,9 @@ open. Approvers each have a role, what they sign off, a decision (Pending,
 Approved, Approved with conditions, Rejected), a date and their conditions.
 **Draft sign-off request** switches the email to the request template.
 
-**Email update.** Two templates: **Progress update** and **Sign-off request**,
+**Email update.** On a wide screen, Compose and the preview sit side by side
+and each scrolls on its own, so you can edit near the bottom of one while
+reading any part of the other. Two templates: **Progress update** and **Sign-off request**,
 each for a **Leadership summary** or **Full detail** audience, which pick a set
 of sections you can then switch on or off: key figures with a progress bar,
 change since the last update, highlights, exit criteria, progress by area,
