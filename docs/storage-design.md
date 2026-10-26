@@ -340,3 +340,22 @@ what it can and cannot do — but it is not the supported path.
 - IndexedDB is still evictable on `file://`. It is only ever a buffer here, so
   the cost of losing it is the edits since the last file write, not the
   project.
+
+## 9. In the kit
+
+The design above now also lives in the Report Kit as `RK.fileDoc` (kit
+1.4.0), so a tool gets one-file-per-project saving by supplying `serialise()`
+and `load(text)` and drawing the status it reports. The UAT sign-off tracker
+was the first tool on it: a file there holds a whole project (all its UAT
+cycles) in the same JSON as its backup. Two additions over the cost tracker:
+**Close file** returns to the project kept in the browser, and Reconnect never
+writes over a file whose content this browser has never shown (no crash copy),
+it reads it instead. The flows are tested in `tests/smoke.cjs` against a File
+System Access double whose handles survive IndexedDB and a reload. The cost
+tracker now runs on it too, so there is one copy of this code. Its undo
+history stays in the report: steps are tagged with the file they were taken
+in, emptied when another file opens, retagged on a save as, and re-reading the
+bound file is an undoable step (the module reports both through `onBind` and
+`load(text, { reload })`). It keeps the same IndexedDB database, lock names and
+blocked-browser key as before, and the module reads the older crash-copy
+format, so files and crash copies saved by the earlier build still open.

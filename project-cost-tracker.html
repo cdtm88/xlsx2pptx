@@ -1354,7 +1354,7 @@ td.money,td.foot-num,.pct-ledger td.num,.pct-drivers td.num{font-family:var(--fo
   </div>
 
   <footer>
-    Dreamt up by Christian, built with Claude: a human and AI double act 🤝
+    <div class="signoff">Dreamt up by Christian, built with Claude: a human and AI double act 🤝</div>
     <div class="strapline">Single file, works offline. Your data never leaves this machine.</div>
   </footer>
 </div>
@@ -1491,7 +1491,7 @@ parse_Primary(n.content)}catch(l){}a="/EncryptionInfo";n=Qe.find(e,a);if(!n||!n.
 <script>
 /* ============================================================
    Report Kit — shared runtime for the browser report tools
-   kit-version: 1.3.0
+   kit-version: 1.4.0
    Exposes window.RK. Depends on window.XLSX (SheetJS) only for the
    xlsx.* helpers; everything else is standalone. Inlined into each
    report by framework/build.py so reports stay single-file/offline.
@@ -1505,7 +1505,7 @@ parse_Primary(n.content)}catch(l){}a="/EncryptionInfo";n=Qe.find(e,a);if(!n||!n.
    ============================================================ */
 window.RK = (function () {
   "use strict";
-  var KIT_VERSION = "1.3.0";
+  var KIT_VERSION = "1.4.0";
 
   /* ---------- dom / format helpers ---------- */
   function $(id) { return document.getElementById(id); }
@@ -2039,6 +2039,469 @@ window.RK = (function () {
     });
   }
 
+  /* ---------- project files: the file is the document (1.4.0) ----------
+     fileDoc(opts) binds the page to one file on disk through the File System
+     Access API (Chrome; Edge unless blocked by policy) and writes every change
+     into it. Every file:// page shares one localStorage, so browser storage can
+     only ever hold one project; a file per project has no such limit and lives
+     wherever the project does. The full reasoning is in docs/storage-design.md;
+     this is that design, taken out of the project cost tracker so other tools
+     can share it.
+
+     opts:
+       app          names the IndexedDB database, the lock and the channel; also
+                    the prefix of the keys it keeps in localStorage and sessionStorage
+       label        what a file is called in the picker ("UAT tracker project")
+       serialise()  the text to write: the state on screen, now
+       load(text, how)  parse, validate and show text read from a file. Throw
+                    to refuse it, before anything on screen has changed.
+                    how.reload is true when it is the bound file read again
+                    (an undoable step for a page that keeps undo)
+       onBind(fromId, toId, kept)  the bound file changed. kept: what is on
+                    screen moved to the new file with it (save as), so history
+                    taken in the old one still applies; otherwise drop it
+       tabKey       sessionStorage key for this tab's file (default app + ":tab-file")
+       onChange(info)  redraw the save status (info() below)
+       onMessage(text) a short note for the user (a toast)
+       delay        ms between the last edit and the write (default 500)
+
+     Returns { available, info, status, touch, flush, create, open, openRecent,
+     recents, forgetRecents, reconnect, retry, useFile, keepMine, close, unblock, boot }.
+
+     Guarantees, all carried over from the cost tracker:
+       - one tab per file: a Web Lock named after the file (BroadcastChannel
+         where locks are missing), so a second tab never adopts a file in use
+       - one write at a time, in order; a queued write overtaken by a newer one
+         is skipped; each write keeps the file record it was made for, so
+         switching file mid-write cannot put one project into another's file
+       - write, then read back the size; a short write is not a save
+       - a file changed by something else is never overwritten: autosave stops
+         and useFile() / keepMine() decide
+       - a crash copy of every save in IndexedDB, so a lapsed permission or a
+         closed tab costs nothing; a newer copy than the file is offered back
+       - only NotAllowedError / SecurityError counts as a lost permission; any
+         other failed write keeps the file and offers retry()
+       - a browser that refuses the picker (an admin policy) is remembered and
+         the file buttons are withdrawn until unblock() */
+  function fileDoc(opts) {
+    var APP = opts.app, DELAY = opts.delay || 500;
+    var FS_OK = typeof window.showSaveFilePicker === "function" && typeof window.showOpenFilePicker === "function";
+    var BLOCK_KEY = APP + ":fs-blocked", TAB_KEY = opts.tabKey || APP + ":tab-file";
+    var TYPES = [{ description: opts.label || "Project file", accept: { "application/json": [".json"] } }];
+    var isEdge = /\bEdg\//.test(navigator.userAgent);
+    function blank() { return { id: null, handle: null, name: "", permission: "none", lastModified: 0, savedAt: 0, stale: false, loaded: false, lastJob: null }; }
+    var doc = blank(), stale = false, staleWhy = "", writeFailed = false, blockedBy = "";
+    var timer = null, dirty = false, editSeq = 0, pending = 0, chain = Promise.resolve(), SKIPPED = {};
+    function changed() { if (opts.onChange) opts.onChange(info()); }
+    function say(text) { if (opts.onMessage) opts.onMessage(text); }
+    function newId() { return uid() + uid(); }
+
+    /* IndexedDB: handles (the files picked, so they reopen in one click),
+       scratch (the last state saved for each file), session (the last file used) */
+    function idb() {
+      return new Promise(function (res, rej) {
+        var req = indexedDB.open(APP, 1);
+        req.onupgradeneeded = function () {
+          ["handles", "scratch", "session"].forEach(function (s) { if (!req.result.objectStoreNames.contains(s)) req.result.createObjectStore(s); });
+        };
+        req.onsuccess = function () { res(req.result); };
+        req.onerror = function () { rej(req.error); };
+      });
+    }
+    function idbDo(store, mode, fn) {
+      return idb().then(function (db) {
+        return new Promise(function (res, rej) {
+          var tx = db.transaction(store, mode), r = fn(tx.objectStore(store));
+          tx.oncomplete = function () { res(r && r.result !== undefined ? r.result : null); };
+          tx.onerror = function () { rej(tx.error); };
+        });
+      }).catch(function () { return null; });
+    }
+    function idbGet(s, k) { return idbDo(s, "readonly", function (o) { return o.get(k); }); }
+    function idbPut(s, k, v) { return idbDo(s, "readwrite", function (o) { return o.put(v, k); }); }
+    function idbDel(s, k) { return idbDo(s, "readwrite", function (o) { return o.delete(k); }); }
+    function idbAll(s) { return idbDo(s, "readonly", function (o) { return o.getAll(); }).then(function (r) { return r || []; }); }
+
+    /* one file, one editor */
+    var chan = window.BroadcastChannel ? new BroadcastChannel(APP) : null;
+    var claimed = null, held = dict();
+    if (chan) chan.addEventListener("message", function (e) {
+      var m = e.data || {};
+      if (m.type === "who-has" && claimed && m.id === claimed) chan.postMessage({ type: "have", id: claimed });
+    });
+    var LOCKS = !!(navigator.locks && typeof navigator.locks.request === "function");
+    function claim(id) {
+      if (has(held, id)) { claimed = id; return Promise.resolve(true); }
+      if (!LOCKS) return claimByMessage(id);
+      return new Promise(function (res) {
+        navigator.locks.request(APP + ":" + id, { ifAvailable: true }, function (lock) {
+          if (!lock) { res(false); return; }
+          claimed = id; res(true);
+          return new Promise(function (done) { held[id] = done; });   // held until release(id)
+        }).catch(function () { claimByMessage(id).then(res); });
+      });
+    }
+    function claimByMessage(id) {
+      if (!chan) { claimed = id; return Promise.resolve(true); }
+      return new Promise(function (res) {
+        var taken = false;
+        var onMsg = function (e) { if (e.data && e.data.type === "have" && e.data.id === id) taken = true; };
+        chan.addEventListener("message", onMsg);
+        chan.postMessage({ type: "who-has", id: id });
+        setTimeout(function () { chan.removeEventListener("message", onMsg); if (!taken) claimed = id; res(!taken); }, 180);
+      });
+    }
+    function release(id) {
+      Object.keys(held).forEach(function (k) { if (id === undefined || k === id) { var done = held[k]; delete held[k]; done(); } });
+      if (id === undefined || claimed === id) claimed = null;
+    }
+    function releaseOthers(id) { Object.keys(held).forEach(function (k) { if (k !== id) release(k); }); }
+    // a held lock goes with the document; dropping it here would let a page
+    // restored from the back/forward cache write unclaimed
+    window.addEventListener("pagehide", function () { if (!LOCKS) release(); });
+
+    /* state for the page */
+    function blockedName() { try { return localStorage.getItem(BLOCK_KEY) || ""; } catch (e) { return ""; } }
+    function info() {
+      return { available: FS_OK && !blockedName(), supported: FS_OK, blocked: blockedName(), isEdge: isEdge,
+        id: doc.id, bound: !!doc.handle, connected: !!doc.handle && doc.permission === "granted", name: doc.name, savedAt: doc.savedAt,
+        stale: stale, staleWhy: staleWhy, writeFailed: writeFailed, blockedBy: blockedBy, busy: pending > 0 || !!timer, dirty: dirty };
+    }
+    function hhmm(t) { var d = new Date(t); return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"); }
+    // one line for a header: { text, tone: "live" | "warn", action: "retry" | "reconnect" | "" }
+    function status() {
+      var i = info();
+      if (i.connected && i.writeFailed && !i.stale) return { text: "Could not write " + i.name + ", edits kept in this browser", tone: "warn", action: "retry" };
+      if (i.connected && i.stale) return { text: i.staleWhy ? "Unsaved edits for " + i.name : i.name + " changed on disk", tone: "warn", action: "" };
+      if (i.connected) return { text: (i.busy ? "Saving to " : "Saved to ") + i.name + (!i.busy && i.savedAt ? " · " + hhmm(i.savedAt) : ""), tone: "live", action: "" };
+      if (i.bound) return { text: "Not connected to " + i.name, tone: "warn", action: "reconnect" };
+      if (i.blockedBy) return { text: i.blockedBy + " is open in another tab", tone: "warn", action: "" };
+      return i.available ? { text: "In this browser only", tone: "warn", action: "" } : { text: "Saved in this browser", tone: "live", action: "" };
+    }
+
+    /* writes: one queue, in order */
+    function staleOf(d) { return d === doc ? stale : !!d.stale; }
+    function enqueue(job) {
+      pending++;
+      job.doc.lastJob = job;
+      var p = chain.then(function () { return runWrite(job); }).catch(function (e) { job.error = e; return settle(job, false); });
+      var drained = function () { pending--; if (job.doc === doc) changed(); };
+      chain = p.then(drained, drained);
+      job.done = p.then(function (r) { return r === SKIPPED ? job.doc.lastJob.done : r; });
+      return job.done;
+    }
+    function runWrite(job) {
+      var d = job.doc, h = job.handle, text = job.text;
+      if (!job.force && d.lastJob !== job) return Promise.resolve(SKIPPED);
+      if (!h || d.permission !== "granted") return Promise.resolve(settle(job, false));
+      // once stale, only keepMine() writes; stale when the save was made counts too
+      if ((job.stale || staleOf(d)) && !job.force) return Promise.resolve(settle(job, false));
+      return h.getFile().then(function (f) {
+        if (!job.force && d.lastModified && f.lastModified > d.lastModified + 1000) {
+          if (d === doc) stale = true; else d.stale = true;
+          return false;
+        }
+        return h.createWritable().then(function (w) {
+          return w.write(text).then(function () { return w.close(); });
+        }).then(function () { return h.getFile(); }).then(function (after) {
+          if (after.size < new Blob([text]).size) throw new Error("short write");
+          d.lastModified = after.lastModified;
+          d.savedAt = Date.now();
+          d.stale = false;
+          if (d === doc) { stale = false; staleWhy = ""; writeFailed = false; }
+          return true;
+        });
+      }).catch(function (e) { job.error = e; return false; })
+        .then(function (ok) { return settle(job, ok); });
+    }
+    function settle(job, ok) {
+      var d = job.doc, cur = d === doc;
+      if (ok) {
+        if (d.lastJob === job) { job.payload.fileModified = d.lastModified; idbPut("scratch", job.id, job.payload); }
+        if (cur && job.seq === editSeq) dirty = false;
+      } else if (!staleOf(d) && d.handle && d.permission === "granted") {
+        var n = job.error && job.error.name;
+        if (n === "NotAllowedError" || n === "SecurityError") d.permission = "prompt";
+        else if (cur) writeFailed = true;
+        if (!cur) say("Could not write " + d.name + ", its last edits are kept in this browser");
+      } else if (!cur && staleOf(d) && d.lastJob === job) {
+        say(d.name + " changed on disk, so its last edits were kept in this browser, not written");
+      }
+      if (cur) changed();
+      return ok;
+    }
+    function saveNow(force) {
+      clearTimeout(timer); timer = null;
+      dirty = true;
+      var seq = ++editSeq, text = opts.serialise();
+      var payload = { id: doc.id, text: text, savedAt: Date.now(), name: doc.name, fileModified: doc.lastModified };
+      idbPut("scratch", doc.id, payload);   // first: it is what survives a failed write
+      return enqueue({ doc: doc, handle: doc.handle, id: doc.id, text: text, payload: payload, seq: seq, force: !!force, stale: stale });
+    }
+    // an edit happened: write it soon. False when no file is bound, or when the
+    // bound file's content was never shown here (it could not be read at start):
+    // what is on screen is then the browser copy, so the page keeps the edit there,
+    // and neither the file nor its crash copy is touched.
+    function touch() {
+      if (!doc.handle || !doc.loaded) return false;
+      dirty = true; editSeq++;
+      clearTimeout(timer); timer = setTimeout(saveNow, DELAY);
+      changed();
+      return true;
+    }
+    // edits waiting on the delay are written to the file they were made in, and
+    // every queued write finishes
+    function flush() { if (timer) saveNow(); return chain; }
+    window.addEventListener("beforeunload", function (e) {
+      if (dirty || pending) { e.preventDefault(); e.returnValue = ""; }
+    });
+
+    /* binding a file */
+    function bind(handle, id, kept) {
+      var from = doc.id;
+      if (id !== from) { doc.stale = stale; doc = blank(); }
+      doc.handle = handle; doc.name = handle.name; doc.id = id; doc.permission = "granted"; doc.lastModified = 0; doc.loaded = true;
+      stale = false; staleWhy = ""; writeFailed = false;
+      chain.then(function () { releaseOthers(doc.id); });
+      if (id !== from && opts.onBind) opts.onBind(from, id, !!kept);
+    }
+    // crash copies are text; the cost tracker's own build kept the parsed object
+    function scratchText(sc) {
+      if (!sc) return null;
+      if (typeof sc.text === "string") return sc.text;
+      return sc.data && typeof sc.data === "object" ? JSON.stringify(sc.data, null, 2) : null;
+    }
+    function sameText(a, b) {
+      if (a === b) return true;
+      try { return JSON.stringify(JSON.parse(a)) === JSON.stringify(JSON.parse(b)); } catch (e) { return false; }
+    }
+    function remember() {
+      if (!doc.id || !doc.handle) return Promise.resolve();
+      try { sessionStorage.setItem(TAB_KEY, doc.id); } catch (e) { /* per tab is a nicety */ }
+      return idbPut("handles", doc.id, { id: doc.id, name: doc.name, handle: doc.handle, lastOpened: Date.now() })
+        .then(function () { return idbPut("session", "last", { id: doc.id }); });
+    }
+    // the same file must keep one id, or the one-editor claim would not hold
+    function idForHandle(h) {
+      return idbAll("handles").then(function (rows) {
+        var i = 0;
+        function step() {
+          if (i >= rows.length) return null;
+          var row = rows[i++];
+          if (!row.handle || typeof row.handle.isSameEntry !== "function") return step();
+          return row.handle.isSameEntry(h).then(function (same) { return same ? row.id : step(); }).catch(step);
+        }
+        return step();
+      });
+    }
+    function readFile(h) { return h.getFile().then(function (f) { return f.text().then(function (t) { return { f: f, t: t }; }); }); }
+    // load first (it throws before anything changes), then bind
+    function loadFrom(h, id, r, reload) {
+      if (timer) { if (id !== doc.id) saveNow(); else { clearTimeout(timer); timer = null; } }
+      opts.load(r.t, { reload: !!reload, name: h.name });
+      bind(h, id, false);
+      doc.lastModified = r.f.lastModified; doc.savedAt = r.f.lastModified;
+      dirty = false;
+      idbPut("scratch", doc.id, { id: doc.id, text: r.t, savedAt: r.f.lastModified, name: doc.name, fileModified: r.f.lastModified });
+      return remember();
+    }
+    function fileError(what, e) {
+      if (e && e.name === "AbortError") return false;
+      var name = (e && e.name) || "Error";
+      if (name === "SecurityError" || name === "NotAllowedError") {
+        try { localStorage.setItem(BLOCK_KEY, name); } catch (x) { /* still withdrawn for this visit */ }
+        say("This browser refused access to the file system");
+        changed();
+      } else say(what + " (" + name + (e && e.message ? ": " + String(e.message).slice(0, 100) : "") + ")");
+      try { console.warn("[" + APP + "] " + what, e); } catch (x) { /* no console */ }
+      return false;
+    }
+    function askPermission(h) {
+      return h.requestPermission ? h.requestPermission({ mode: "readwrite" }).catch(function () { return "denied"; }) : Promise.resolve("granted");
+    }
+    function checkPermission(h) {
+      return h.queryPermission ? h.queryPermission({ mode: "readwrite" }).catch(function () { return "denied"; }) : Promise.resolve("granted");
+    }
+    var ABORT = { name: "AbortError" };
+
+    // A new file. prepare() runs once the file is chosen and free, and may put a
+    // different project on screen (a new, empty one); what is on screen after it
+    // is what is written. Without prepare it is "save as".
+    function create(suggestedName, prepare) {
+      return window.showSaveFilePicker({ suggestedName: suggestedName, types: TYPES }).then(function (h) {
+        return flush().then(function () { return idForHandle(h); }).then(function (known) {
+          var id = known || newId();
+          return claim(id).then(function (free) {
+            if (!free) { say(h.name + " is open in another tab"); throw ABORT; }
+            blockedBy = "";
+            if (timer) saveNow();   // typed while the picker was open: the old file's
+            if (prepare) prepare();
+            bind(h, id, !prepare);
+            return saveNow();
+          });
+        });
+      }).then(function () { return remember(); }).then(function () {
+        changed(); say("Saving to " + doc.name); return true;
+      }).catch(function (e) { return fileError("Could not create that file", e); });
+    }
+    function adopt(h, id) {
+      return flush().then(function () { return claim(id); }).then(function (free) {
+        if (!free) { blockedBy = h.name; changed(); say(h.name + " is open in another tab"); return false; }
+        blockedBy = "";
+        var again = id === doc.id;
+        return readFile(h).then(function (r) { return loadFrom(h, id, r, again); }).then(function () {
+          changed(); say("Opened " + doc.name); return true;
+        }).catch(function (e) {   // a failed open must not hold its claim, nor drop the open file's
+          if (id !== doc.id) { release(id); claimed = doc.id; }
+          throw e;
+        });
+      });
+    }
+    function open() {
+      return window.showOpenFilePicker({ types: TYPES, multiple: false, mode: "readwrite" }).then(function (list) {
+        var h = list[0];
+        return checkPermission(h).then(function (p) { return p === "granted" ? p : askPermission(h); }).then(function (p) {
+          if (p !== "granted") { say("Permission refused, the file was not opened"); return false; }
+          return idForHandle(h).then(function (id) { return adopt(h, id || newId()); });
+        });
+      }).catch(function (e) { return fileError("That file could not be opened", e); });
+    }
+    function recents() {
+      if (!FS_OK) return Promise.resolve([]);
+      return idbAll("handles").then(function (rows) {
+        return rows.filter(function (r) { return r && r.id; }).sort(function (a, b) { return (b.lastOpened || 0) - (a.lastOpened || 0); })
+          .slice(0, 8).map(function (r) { return { id: r.id, name: r.name, lastOpened: r.lastOpened, open: r.id === doc.id }; });
+      });
+    }
+    function forgetRecents() {
+      return idbAll("handles").then(function (rows) {
+        return Promise.all(rows.filter(function (r) { return r.id !== doc.id; }).map(function (r) { return idbDel("handles", r.id); }));
+      });
+    }
+    // call straight from a click: the permission prompt needs the gesture
+    function openRecent(id) {
+      return idbGet("handles", id).then(function (row) {
+        if (!row || !row.handle) { say("That file is no longer remembered"); return idbDel("handles", id).then(function () { return false; }); }
+        return askPermission(row.handle).then(function (p) {
+          if (p !== "granted") { say("Permission refused, the file was not opened"); return false; }
+          return adopt(row.handle, row.id);
+        });
+      }).catch(function (e) { return fileError("Could not reopen that file", e); });
+    }
+    // permission does not survive a browser restart, so reconnecting is a click
+    function reconnect() {
+      if (!doc.handle) return Promise.resolve(false);
+      return askPermission(doc.handle).then(function (p) {
+        doc.permission = p;
+        if (p !== "granted") { say("Still not connected"); changed(); return false; }
+        writeFailed = false;
+        // nothing of this file was ever shown here (no crash copy): read it, never write over it
+        if (!doc.loaded) {
+          if (opts.onBind) opts.onBind(doc.id, doc.id, false);   // history taken here was not this file's
+          return readFile(doc.handle).then(function (r) { return loadFrom(doc.handle, doc.id, r, false); })
+            .then(function () { changed(); say("Reconnected to " + doc.name); return true; });
+        }
+        // doc.lastModified is the file as this page last wrote or read it, so a
+        // file changed meanwhile goes stale rather than being overwritten
+        return saveNow().then(function (ok) {
+          say(ok ? "Reconnected to " + doc.name : stale ? doc.name + " changed on disk, choose which version to keep" : "Could not write " + doc.name);
+          return ok;
+        });
+      }).catch(function (e) { return fileError("Could not reconnect", e); });
+    }
+    function retry() { writeFailed = false; return doc.handle ? saveNow() : Promise.resolve(false); }
+    // stale: take the file as it is now, dropping what is on screen
+    function useFile() {
+      if (!doc.handle) return Promise.resolve(false);
+      clearTimeout(timer); timer = null;
+      var d = doc;
+      return readFile(d.handle).then(function (r) {
+        if (d !== doc) return false;
+        stale = false; staleWhy = "";
+        return loadFrom(d.handle, d.id, r, true).then(function () { changed(); say("Loaded " + doc.name + " from disk"); return true; });
+      }).catch(function (e) { say("Could not read " + d.name); changed(); return false; });
+    }
+    // stale: write what is on screen over the file
+    function keepMine() {
+      if (!doc.handle) return Promise.resolve(false);
+      var d = doc;
+      return saveNow(true).then(function (ok) {
+        if (d !== doc) return ok;
+        if (!ok) stale = true;
+        changed(); say(ok ? "Overwrote " + d.name : "Could not write " + d.name);
+        return ok;
+      });
+    }
+    // stop editing the file (its pending edits are written first); the page then
+    // shows whatever it keeps in browser storage
+    function close() {
+      return flush().then(function () {
+        var id = doc.id;
+        doc = blank(); stale = false; staleWhy = ""; writeFailed = false; dirty = false; blockedBy = "";
+        if (id) release(id);
+        try { sessionStorage.removeItem(TAB_KEY); } catch (e) { /* per tab is a nicety */ }
+        return idbDel("session", "last");
+      }).then(changed);
+    }
+    function unblock() { try { localStorage.removeItem(BLOCK_KEY); } catch (e) { /* nothing kept */ } changed(); }
+
+    // Reopen this tab's file (or the last one used). onError(text) reports a
+    // file that could not be shown; it is let go, not overwritten.
+    function boot(onError) {
+      if (!FS_OK || blockedName()) { changed(); return Promise.resolve(); }
+      var tabId = null;
+      try { tabId = sessionStorage.getItem(TAB_KEY); } catch (e) { tabId = null; }
+      return Promise.resolve(tabId ? { id: tabId } : idbGet("session", "last")).then(function (sess) {
+        if (!sess || !sess.id) return;
+        return idbGet("handles", sess.id).then(function (row) {
+          if (!row || !row.handle || typeof row.handle.getFile !== "function") return;
+          return claim(row.id).then(function (free) {
+            if (!free) { blockedBy = row.name; return; }
+            doc.id = row.id; doc.handle = row.handle; doc.name = row.name;
+            return restore(row, onError);
+          });
+        });
+      }).catch(function (e) { try { console.warn("[" + APP + "] boot", e); } catch (x) { /* no console */ } })
+        .then(changed);
+    }
+    function letGo(row, why, onError) {
+      doc = blank(); release(row.id);
+      if (onError) onError(row.name + " could not be shown (" + why + "), so it was not opened and has not been changed.");
+    }
+    function restore(row, onError) {
+      return checkPermission(row.handle).then(function (p) {
+        doc.permission = p;
+        if (p === "granted") {
+          return readFile(row.handle).then(function (r) {
+            try { opts.load(r.t, { reload: false, name: row.name }); } catch (e) { letGo(row, e && e.message || String(e), onError); return; }
+            doc.loaded = true; doc.lastModified = r.f.lastModified; doc.savedAt = r.f.lastModified;
+            // the file wins, unless this browser holds newer edits that never reached it
+            return idbGet("scratch", row.id).then(function (sc) {
+              var st = scratchText(sc);
+              if (st === null || !(sc.savedAt > r.f.lastModified) || sameText(st, r.t)) return;
+              try { opts.load(st, { reload: false, name: row.name }); } catch (e) { return; }
+              stale = true; dirty = true;
+              staleWhy = "This browser holds edits to " + doc.name + " from " + hhmm(sc.savedAt) +
+                " that never reached the file. They are what is shown here; the file has not been changed.";
+            });
+          }, function () { doc.permission = "prompt"; });
+        }
+        // no permission until a click: show the newest copy we have of this file
+        return idbGet("scratch", row.id).then(function (sc) {
+          var st = scratchText(sc);
+          if (st === null) return;
+          if (sc.fileModified > 0) doc.lastModified = sc.fileModified;
+          try { opts.load(st, { reload: false, name: row.name }); doc.loaded = true; }
+          catch (e) { if (onError) onError("The copy of " + row.name + " kept in this browser could not be shown."); }
+        });
+      });
+    }
+
+    return { available: function () { return info().available; }, info: info, status: status, touch: touch, flush: flush,
+      create: create, open: open, openRecent: openRecent, recents: recents, forgetRecents: forgetRecents,
+      reconnect: reconnect, retry: retry, useFile: useFile, keepMine: keepMine, close: close, unblock: unblock, boot: boot };
+  }
+
   return {
     version: KIT_VERSION,
     $: $, esc: esc, show: show, hide: hide,
@@ -2052,7 +2515,9 @@ window.RK = (function () {
     modal: modal, confirm: confirmDialog, chipsFromSelect: chipsFromSelect,
     sortable: sortable, stepSegs: stepSegs, searchShortcut: searchShortcut,
     // 1.3.0
-    toast: toast
+    toast: toast,
+    // 1.4.0
+    fileDoc: fileDoc
   };
 })();
 </script>
@@ -3502,10 +3967,10 @@ window.RK = (function () {
   function snapshot(label, coalesceMs, state, key) {
     var t = Date.now();
     var top = undoStack[undoStack.length - 1];
-    if (coalesceMs && top && top.key && top.key === key && top.doc === doc.id && t - lastSnapAt < coalesceMs) { lastSnapAt = t; return; }
+    if (coalesceMs && top && top.key && top.key === key && top.doc === docId() && t - lastSnapAt < coalesceMs) { lastSnapAt = t; return; }
     var json;
     try { json = JSON.stringify(state || S); } catch (e) { return; }
-    undoStack.push({ label: label, json: json, doc: doc.id, key: coalesceMs ? key : null });
+    undoStack.push({ label: label, json: json, doc: docId(), key: coalesceMs ? key : null });
     if (undoStack.length > UNDO_MAX) undoStack.shift();
     lastSnapAt = t;
     renderUndo();
@@ -3899,526 +4364,114 @@ window.RK = (function () {
      The project file is the document; this page is an editor for it. Every
      `file://` page on a machine shares one origin and therefore one
      localStorage, so browser storage cannot hold more than one project —
-     two copies of this tool would silently overwrite each other. A file
-     handle has none of that problem: one file per project, kept wherever
-     the project lives.
-
-     Browser storage still earns its place, but only as a safety net:
-       handles  the file you picked, so it reopens in one click
-       scratch  the last state written, so a crash or a lapsed permission
-                cannot cost you the edits since the last successful write
-       session  which project this tool had open last
+     two copies of this tool would silently overwrite each other. RK.fileDoc
+     binds the page to one file per project and writes every change into it:
+     one write queue, verify after write, one tab per file, a crash copy in
+     IndexedDB and no overwriting a file changed elsewhere (the full design is
+     in docs/storage-design.md). Without a file, or in a browser without the
+     picker, the project autosaves to localStorage.
      ============================================================ */
-  var DB_NAME = "project-cost-tracker", DB_VERSION = 1;
-  var FS_OK = typeof window.showSaveFilePicker === "function";
-  var doc = { id: null, handle: null, name: "", permission: "none", lastModified: 0, savedAt: 0 };
-  var saveTimer = null, dirty = false, writing = false, stale = false;
-  // editSeq counts changes, so a write only clears `dirty` if nothing changed while
-  // it was in flight. writeFailed: the last write failed for a reason other than
-  // permission (the file is still ours, the bytes just did not land). staleWhy
-  // overrides the stale message when the newer side is this browser's buffer.
-  var editSeq = 0, writeFailed = false, staleWhy = "";
+  var lsTimer = null, lsFailed = false;
+  var files = RK.fileDoc({
+    app: "project-cost-tracker", label: "Project cost tracker", tabKey: "project-cost-tracker:tab", delay: 600,
+    serialise: function () { return JSON.stringify(S, null, 2); },
+    // Re-reading the bound file is an undoable step; opening another file is
+    // not, and onBind empties the stack for it.
+    load: function (text, how) {
+      var prev = S, next = migrate(JSON.parse(text));   // throws before anything has changed
+      replaceState(next);
+      if (how && how.reload) snapshot("load " + how.name, 0, prev);
+    },
+    // Undo steps belong to the file they were taken in. Replaying one after a
+    // switch would write the old project into the new file; after a Save as
+    // they are the new file's history, so they are retagged rather than dropped.
+    onBind: function (from, to, kept) {
+      if (kept) undoStack.forEach(function (u) { if (u.doc === from) u.doc = to; });
+      else clearUndo();
+    },
+    onChange: renderDocState,
+    onMessage: toast
+  });
+  function docId() { return files.info().id; }
 
-  function idb() {
-    return new Promise(function (res, rej) {
-      var req = indexedDB.open(DB_NAME, DB_VERSION);
-      req.onupgradeneeded = function () {
-        var db = req.result;
-        ["handles", "scratch", "session"].forEach(function (s) {
-          if (!db.objectStoreNames.contains(s)) db.createObjectStore(s);
-        });
-      };
-      req.onsuccess = function () { res(req.result); };
-      req.onerror = function () { rej(req.error); };
-    });
+  function saveLocal() {
+    clearTimeout(lsTimer); lsTimer = null;
+    try { localStorage.setItem(LS_KEY, JSON.stringify(S)); lsFailed = false; } catch (e) { lsFailed = true; }
+    renderDocState();
+    return !lsFailed;
   }
-  function idbDo(store, mode, fn) {
-    return idb().then(function (db) {
-      return new Promise(function (res, rej) {
-        var tx = db.transaction(store, mode), r = fn(tx.objectStore(store));
-        tx.oncomplete = function () { res(r && r.result !== undefined ? r.result : null); };
-        tx.onerror = function () { rej(tx.error); };
-      });
-    }).catch(function () { return null; });
+  // a discrete change: written now, to the file when one is bound
+  function saveNow() {
+    if (files.touch()) return files.flush();
+    return Promise.resolve(saveLocal());
   }
-  function idbGet(s, k) { return idbDo(s, "readonly", function (o) { return o.get(k); }); }
-  function idbPut(s, k, v) { return idbDo(s, "readwrite", function (o) { return o.put(v, k); }); }
-  function idbDel(s, k) { return idbDo(s, "readwrite", function (o) { return o.delete(k); }); }
-  function idbAll(s) {
-    return idb().then(function (db) {
-      return new Promise(function (res) {
-        var req = db.transaction(s, "readonly").objectStore(s).getAll();
-        req.onsuccess = function () { res(req.result || []); };
-        req.onerror = function () { res([]); };
-      });
-    }).catch(function () { return []; });
+  // typing: written once it pauses
+  function queueSave() {
+    if (files.touch()) return;
+    clearTimeout(lsTimer); lsTimer = setTimeout(saveLocal, 600);
   }
+  // a pause not yet written to the browser copy is written as the page goes
+  window.addEventListener("pagehide", function () { if (lsTimer) saveLocal(); });
 
-  /* One file, one editor. Every tab shares this origin, so without a claim a
-     second tab would adopt the last-used file and start writing to it — and the
-     first tab would only find out when its own next write was refused, if then.
-     Tabs answer for the file they hold; silence means it is free.
-
-     Where the browser has the Web Locks API the claim is a lock named after the
-     file: taking it is atomic, so two tabs booting together cannot both get it,
-     and the browser drops it when the tab goes. The BroadcastChannel answer is
-     kept for browsers without locks (and for older copies of this page). */
-  var chan = window.BroadcastChannel ? new BroadcastChannel("project-cost-tracker") : null;
-  var claimed = null, blockedBy = "", recentRows = [], held = RK.dict();
-  if (chan) {
-    chan.addEventListener("message", function (e) {
-      var m = e.data || {};
-      if (m.type === "who-has" && claimed && m.id === claimed) chan.postMessage({ type: "have", id: claimed });
-    });
-  }
-  var LOCKS = !!(navigator.locks && typeof navigator.locks.request === "function");
-  function claim(id) {
-    if (RK.has(held, id)) { claimed = id; return Promise.resolve(true); }
-    if (!LOCKS) return claimByMessage(id);
-    return new Promise(function (res) {
-      navigator.locks.request("project-cost-tracker:" + id, { ifAvailable: true }, function (lock) {
-        if (!lock) { res(false); return; }
-        claimed = id;
-        res(true);
-        return new Promise(function (done) { held[id] = done; });   // held until release(id)
-      }).catch(function () { claimByMessage(id).then(res); });
-    });
-  }
-  function claimByMessage(id) {
-    if (!chan) { claimed = id; return Promise.resolve(true); }
-    return new Promise(function (res) {
-      var taken = false;
-      var onMsg = function (e) { if (e.data && e.data.type === "have" && e.data.id === id) taken = true; };
-      chan.addEventListener("message", onMsg);
-      chan.postMessage({ type: "who-has", id: id });
-      setTimeout(function () {
-        chan.removeEventListener("message", onMsg);
-        if (!taken) claimed = id;
-        res(!taken);
-      }, 180);
-    });
-  }
-  // release(id) lets one file go; release() with no id lets every file go.
-  function release(id) {
-    Object.keys(held).forEach(function (k) {
-      if (id === undefined || k === id) { var done = held[k]; delete held[k]; done(); }
-    });
-    if (id === undefined || claimed === id) claimed = null;
-  }
-  // Keep only the claim on the file now bound; the one switched away from is free.
-  function releaseOthers(id) {
-    Object.keys(held).forEach(function (k) { if (k !== id) release(k); });
-  }
-  // A held lock is freed by the browser when the document goes; dropping it
-  // here would let a page restored from the back/forward cache write unclaimed.
-  window.addEventListener("pagehide", function () { if (!LOCKS) release(); });
-
-  function stamp(t) {
-    t = t ? new Date(t) : new Date();
-    return String(t.getHours()).padStart(2, "0") + ":" + String(t.getMinutes()).padStart(2, "0");
-  }
   function status(text, cls) {
     $("saveState").innerHTML = '<span class="pct-dot ' + (cls || "") + '"></span>' + esc(text);
   }
-
+  var recentsKey = null;
   function renderDocState() {
-    var rec = $("reconnectBtn");
-    if (doc.handle && doc.permission === "granted" && writeFailed && !stale) {
-      // still ours, the write just did not land: say so, and offer to try again
-      status("Could not write " + doc.name + ", edits kept in this browser", "warn");
-      rec.textContent = "Retry";
-      show(rec);
-    } else if (doc.handle && doc.permission === "granted") {
-      status(stale ? (staleWhy ? "Unsaved edits for " + doc.name : doc.name + " changed on disk") :
-        "Saved to " + doc.name + (doc.savedAt ? " · " + stamp(doc.savedAt) : ""),
-        stale ? "warn" : "live");
-      hide(rec);
-    } else if (doc.handle) {
-      status("Not connected to " + doc.name, "warn");
-      rec.textContent = "Reconnect";
-      show(rec);
-    } else if (blockedBy) {
-      status(blockedBy + " is open in another tab", "warn");
-      hide(rec);
-    } else {
-      status(FS_OK ? "In this browser only" : "Autosaved to this browser", FS_OK ? "warn" : "live");
-      hide(rec);
-    }
-    $("dataSub").textContent = doc.handle && doc.permission === "granted"
-      ? "Writing straight into " + doc.name
-      : "Autosaves to this browser as you type";
-    if (stale) {
+    var i = files.info(), st = files.status(), rec = $("reconnectBtn");
+    if (!i.bound && lsFailed) status("Not autosaved here, use Save JSON", "warn");
+    else if (!i.bound && !i.available && !i.blockedBy) status("Autosaved to this browser", "live");
+    else status(st.text, st.tone);
+    rec.textContent = st.action === "retry" ? "Retry" : "Reconnect";
+    rec.setAttribute("data-act", st.action);
+    if (st.action) show(rec); else hide(rec);
+    $("dataSub").textContent = i.connected ? "Writing straight into " + i.name : "Autosaves to this browser as you type";
+    if (i.stale) {
       show($("staleRow"));
-      $("staleMsg").textContent = staleWhy ||
-        (doc.name + " was changed by something else since this page last wrote it. Nothing has been overwritten.");
+      $("staleMsg").textContent = i.staleWhy ||
+        (i.name + " was changed by something else since this page last wrote it. Nothing has been overwritten.");
     } else hide($("staleRow"));
-    $("fileState").textContent = doc.handle
-      ? (doc.permission === "granted"
-          ? "Editing " + doc.name + ". Every change is written straight to it."
-          : "Reconnect to " + doc.name + " to start saving again.")
-      : blockedBy
-        ? blockedBy + " is already open in another tab, so it was not opened here. Close it there, or open a different file."
+    $("fileState").textContent = i.blocked ? "" : i.bound
+      ? (i.connected ? "Editing " + i.name + ". Every change is written straight to it."
+          : "Reconnect to " + i.name + " to start saving again.")
+      : i.blockedBy
+        ? i.blockedBy + " is already open in another tab, so it was not opened here. Close it there, or open a different file."
         : "No project file yet. Everything is held in this browser, which every copy of this tool shares — save to a file to keep projects apart.";
-  }
-
-  /* Writes go through one queue, one at a time, in the order the saves were
-     made, so a slow write that started first can never land after a newer one;
-     a queued write that a newer one for the same file has overtaken is
-     skipped, so the newest state wins. Each save captures, when it is made, the
-     file record (`doc` — bind() starts a fresh one for another file), its
-     handle, id and the bytes, and after every await uses only those: opening
-     another file while a write is in flight cannot send one project's bytes, or
-     its crash copy, to the other file. `writing` holds until the queue
-     drains, and only the write of the newest edit clears `dirty`. */
-  var saveChain = Promise.resolve(), pendingWrites = 0, SKIPPED = {};
-  function staleOf(d) { return d === doc ? stale : !!d.stale; }
-  function enqueue(job) {
-    pendingWrites++; writing = true;
-    job.doc.lastJob = job;
-    var p = saveChain.then(function () { return runWrite(job); })
-      .catch(function (e) { job.error = e; return settle(job, false); });
-    var drained = function () { if (--pendingWrites === 0) writing = false; };
-    saveChain = p.then(drained, drained);
-    // a skipped write answers with the outcome of the one that overtook it
-    job.done = p.then(function (r) { return r === SKIPPED ? job.doc.lastJob.done : r; });
-    return job.done;
-  }
-  // Never truncate before a good write: build the bytes, write, then read back
-  // the length. Anything short of that is not a save.
-  function runWrite(job) {
-    var d = job.doc, h = job.handle, text = job.text;
-    if (!job.force && d.lastJob !== job) return Promise.resolve(SKIPPED);
-    if (!h || d.permission !== "granted") return Promise.resolve(settle(job, false));
-    // once stale, only an explicit "Keep mine" writes: the next keystroke must not
-    // quietly settle which side wins. Stale when the save was made counts too, so
-    // a write queued before "Load the file" cleared the flag cannot follow it.
-    if ((job.stale || staleOf(d)) && !job.force) return Promise.resolve(settle(job, false));
-    return h.getFile().then(function (f) {
-      // something else edited it since our last write — stop rather than clobber
-      if (!job.force && d.lastModified && f.lastModified > d.lastModified + 1000) {
-        if (d === doc) stale = true; else d.stale = true;
-        return false;
-      }
-      return h.createWritable().then(function (w) {
-        return w.write(text).then(function () { return w.close(); });
-      }).then(function () {
-        return h.getFile();
-      }).then(function (after) {
-        if (after.size < new Blob([text]).size) throw new Error("short write");
-        d.lastModified = after.lastModified;
-        d.savedAt = Date.now();
-        d.stale = false;
-        if (d === doc) { stale = false; staleWhy = ""; writeFailed = false; }
-        return true;
-      });
-    }).catch(function (e) { job.error = e; return false; })
-      .then(function (ok) { return settle(job, ok); });
-  }
-  // What a finished write means, for the file it was made for. Only the file on
-  // screen touches the page's flags; a file already switched away from only gets
-  // its crash copy refreshed, or a toast if its last edits did not land.
-  function settle(job, ok) {
-    var d = job.doc, cur = d === doc;
-    if (ok) {
-      if (d.lastJob === job) {   // a newer save owns the crash copy otherwise
-        job.payload.fileModified = d.lastModified;
-        idbPut("scratch", job.id, job.payload);
-      }
-      if (cur && job.seq === editSeq) dirty = false;
-    } else if (!staleOf(d) && d.handle && d.permission === "granted") {
-      // only a refusal means the permission has gone; anything else (a locked
-      // file, a full disk, a short write) leaves it ours, with a Retry
-      var n = job.error && job.error.name;
-      if (n === "NotAllowedError" || n === "SecurityError") d.permission = "prompt";
-      else if (cur) writeFailed = true;
-      if (!cur) toast("Could not write " + d.name + ", its last edits are kept in this browser");
-    } else if (!cur && staleOf(d) && d.lastJob === job) {
-      toast(d.name + " changed on disk, so its last edits were kept in this browser, not written");
-    }
-    if (cur) renderDocState();
-    return ok;
-  }
-
-  // `dirty` stays set until the edits are somewhere durable: the file when one
-  // is bound (a stale or refused write is not a save, even though the crash
-  // buffer has them), browser storage otherwise. That is what the close-tab
-  // warning reads. force: "Keep mine", the one write allowed over a stale file.
-  function saveNow(force) {
-    clearTimeout(saveTimer); saveTimer = null;
-    dirty = true;
-    var seq = ++editSeq;
-    if (doc.handle) {
-      var text = JSON.stringify(S, null, 2);
-      // fileModified: the file's timestamp as this tab last wrote or read it, so a
-      // reconnect after a browser restart can still tell whether it changed since.
-      // data is a copy: S itself may have moved on (or be another file's) by the
-      // time the write lands.
-      var payload = { id: doc.id, data: JSON.parse(text), savedAt: Date.now(), name: doc.name, fileModified: doc.lastModified };
-      // scratch first: it is the thing that survives a failed or blocked file write
-      idbPut("scratch", doc.id, payload);
-      return enqueue({ doc: doc, handle: doc.handle, id: doc.id, text: text, payload: payload, seq: seq, force: !!force, stale: stale });
-    }
-    if (doc.id) idbPut("scratch", doc.id, { id: doc.id, data: JSON.parse(JSON.stringify(S)), savedAt: Date.now(), name: doc.name, fileModified: doc.lastModified });
-    var ok = true;
-    try { localStorage.setItem(LS_KEY, JSON.stringify(S)); } catch (e) { ok = false; }
-    if (ok && seq === editSeq) dirty = false;
-    renderDocState();
-    if (!ok) status("Not autosaved here, use Save JSON", "warn");
-    return Promise.resolve(ok);
-  }
-  function queueSave() { dirty = true; editSeq++; clearTimeout(saveTimer); saveTimer = setTimeout(saveNow, 600); }
-  // Before another file is bound: an edit still waiting on the debounce is
-  // written to the file it was typed into, and every queued write finishes,
-  // while the old file is still the one on screen.
-  function flushSave() {
-    if (saveTimer) saveNow();
-    if (pendingWrites && doc.name) status("Finishing the save to " + doc.name + "…", "warn");
-    return saveChain;
-  }
-  window.addEventListener("beforeunload", function (e) {
-    if (dirty || writing) { e.preventDefault(); e.returnValue = ""; }
-  });
-
-  /* ---------- project files ---------- */
-  // Which project this *tab* has open is per-tab (sessionStorage survives a
-  // reload but not a new tab); "last used anywhere" is the fallback a brand new
-  // tab gets. Without the split, opening a second project in another tab would
-  // move the first tab's project out from under it on its next reload.
-  var TAB_KEY = "project-cost-tracker:tab";
-  function rememberHandle() {
-    if (!doc.id || !doc.handle) return Promise.resolve();
-    try { sessionStorage.setItem(TAB_KEY, doc.id); } catch (e) { }
-    return idbPut("handles", doc.id, { id: doc.id, name: doc.name, handle: doc.handle, lastOpened: Date.now() })
-      .then(function () { return idbPut("session", "last", { id: doc.id }); })
-      .then(renderRecents);
-  }
-  // keepUndo: the state about to be written to `handle` is the one on screen
-  // ("Save as", the first "New project file"), so its undo steps move with it.
-  function bind(handle, id, keepUndo) {
-    id = id || uid() + uid();
-    var from = doc.id;
-    if (id !== from) {
-      // Undo steps belong to the file they were taken in. Replaying one after a
-      // switch would write the old project into the new file; after a Save as
-      // they are the new file's history, so they are retagged rather than dropped.
-      if (keepUndo) undoStack.forEach(function (u) { if (u.doc === from) u.doc = id; });
-      else clearUndo();
-      // A write still queued for the old file holds on to its own record.
-      doc.stale = stale;
-      doc = { id: null, handle: null, name: "", permission: "none", lastModified: 0, savedAt: 0 };
-    }
-    doc.handle = handle;
-    doc.name = handle.name;
-    doc.id = id;
-    doc.permission = "granted";
-    doc.lastModified = 0;
-    stale = false; staleWhy = ""; writeFailed = false;
-    // the claim on the old file goes once nothing is left to write to it
-    saveChain.then(function () { releaseOthers(doc.id); });
-  }
-  // A silent catch-all here is worse than useless: the browser's own error name
-  // is the only clue to whether this was a cancel, a refusal, or a block.
-  function fileError(what, e) {
-    if (e && e.name === "AbortError") return;                       // user cancelled
-    var name = (e && e.name) || "Error";
-    var msg;
-    if (name === "SecurityError" || name === "NotAllowedError") {
-      // On a managed device this is almost always an admin policy rather than
-      // anything the user did — say so, and stop offering a button that cannot work.
-      msg = "Your browser refused access to the file system";
-      blockFileMode(name);
-    } else {
-      msg = what + " — " + name + (e && e.message ? ": " + String(e.message).slice(0, 120) : "");
-    }
-    toast(msg);
-    try { console.error("[project cost tracker] " + what, e); } catch (x) { }
+    renderBlocked(i);
+    var key = i.bound + "|" + i.name + "|" + i.blocked;
+    if (i.supported && key !== recentsKey) { recentsKey = key; renderRecents(); }
   }
 
   /* The file picker can be switched off by enterprise policy — on this estate
-     Edge ships DefaultFileSystemWriteGuardSetting=2 while Chrome does not. The
-     block is per browser and permanent until IT changes it, so remember it
-     (each browser has its own storage) and stop offering buttons that cannot
-     work. The useful advice is not "check a policy page", it is "open this in
-     Chrome". */
-  var FS_BLOCKED_KEY = "project-cost-tracker:fs-blocked";
-  var isEdge = /\bEdg\//.test(navigator.userAgent);
-  function blockFileMode(name, quiet) {
-    try { localStorage.setItem(FS_BLOCKED_KEY, name || "1"); } catch (e) { }
+     Edge ships DefaultFileSystemWriteGuardSetting=2 while Chrome does not.
+     RK.fileDoc remembers the refusal per browser; the useful advice is not
+     "check a policy page", it is "open this in Chrome". */
+  function renderBlocked(i) {
     var el = $("fsBlocked");
+    if (!i.supported) return;
+    if (!i.blocked) { hide(el); show($("newProject")); show($("openProject")); return; }
     el.innerHTML = "<strong>This browser will not let the tracker save to a file.</strong> " +
-      (isEdge
+      (i.isEdge
         ? "Edge on this machine blocks it by administrator policy (<code>DefaultFileSystemWriteGuardSetting</code>). " +
           "<strong>The same file works in Chrome</strong> — right-click it and choose <em>Open with &rarr; Chrome</em>, " +
           "or set Chrome as the default for <code>.html</code> so double-clicking works."
-        : "The file picker was refused" + (name ? " (" + esc(name) + ")" : "") +
-          ". On a managed laptop that is usually an administrator policy — check " +
+        : "The file picker was refused (" + esc(i.blocked) + "). On a managed laptop that is usually an administrator policy — check " +
           "<code>chrome://policy</code> for <code>DefaultFileSystemWriteGuardSetting</code>.") +
       " Here, the tracker keeps your project in this browser, which holds <strong>one project at a time</strong> — " +
       "use <strong>Save JSON</strong> before starting or opening another project. " +
       '<br><button type="button" class="small" id="fsRetry" style="margin-top:8px;">Try file saving again</button>';
     show(el);
     hide($("newProject")); hide($("openProject")); hide($("saveAsProject"));
-    $("fileState").textContent = "";
-    var retry = $("fsRetry");
-    if (retry) retry.addEventListener("click", function () {
-      try { localStorage.removeItem(FS_BLOCKED_KEY); } catch (e) { }
-      hide(el); show($("newProject")); show($("openProject"));
-      renderDocState();
-      toast("File saving re-enabled — try New project file");
-    });
-    renderDocState();
-  }
-  function fsBlockedBefore() {
-    try { return !!localStorage.getItem(FS_BLOCKED_KEY); } catch (e) { return false; }
-  }
-
-  function askPermission(handle, mode) {
-    if (!handle.requestPermission) return Promise.resolve("granted");
-    return handle.requestPermission({ mode: mode || "readwrite" }).catch(function () { return "denied"; });
-  }
-  function checkPermission(handle, mode) {
-    if (!handle.queryPermission) return Promise.resolve("granted");
-    return handle.queryPermission({ mode: mode || "readwrite" }).catch(function () { return "denied"; });
-  }
-
-  function newProjectFile() {
-    return window.showSaveFilePicker({
-      suggestedName: slug(S.name) + ".json",
-      types: [{ description: "Project cost tracker", accept: { "application/json": [".json"] } }]
-    }).then(function (h) {
-      // edits still on their way to the open file land there first
-      return flushSave().then(function () { return idForHandle(h); }).then(function (id) {
-        return claim(id || (uid() + uid())).then(function (free) {
-          if (!free) { toast(h.name + " is open in another tab"); throw { name: "AbortError" }; }
-          blockedBy = "";
-          if (saveTimer) saveNow();   // typed while the file was being chosen: the old file's too
-          bind(h, claimed, true);
-          return saveNow();
-        });
-      });
-    }).then(function () {
-      return rememberHandle();
-    }).then(function () {
-      renderDocState();
-      toast("Saving to " + doc.name);
-    }).catch(function (e) { fileError("Could not create that file", e); });
-  }
-
-  function loadFromHandle(h, id) {
-    return h.getFile().then(function (f) {
-      return f.text().then(function (t) {
-        // Re-reading the bound file is an undoable step; opening another file is
-        // not, and bind() empties the stack for it.
-        var same = !!id && id === doc.id, prev = S, next = migrate(JSON.parse(t));   // throws before anything has changed
-        // An edit typed while the file was being read belongs to the project on
-        // screen: written to its own file before another is bound, dropped when
-        // the same file is re-read (that is what re-reading means; Undo has it).
-        if (saveTimer) { if (same) { clearTimeout(saveTimer); saveTimer = null; } else saveNow(); }
-        replaceState(next);
-        if (same) snapshot("load " + h.name, 0, prev);
-        bind(h, id);
-        doc.lastModified = f.lastModified;
-        doc.savedAt = f.lastModified;
-        // what is on screen is now exactly the file: nothing unsaved, and the
-        // buffer must not offer the discarded edits back on the next boot
-        dirty = false;
-        idbPut("scratch", doc.id, { id: doc.id, data: S, savedAt: f.lastModified, name: doc.name, fileModified: f.lastModified });
-        return rememberHandle();
-      });
-    }).then(function () {
-      renderDocState();
-      toast("Opened " + doc.name);
-    });
-  }
-
-  // Opening a file we already know about must reuse its id, or the same file
-  // would end up with two identities and the one-editor claim would not hold.
-  function idForHandle(h) {
-    return idbAll("handles").then(function (rows) {
-      var i = 0;
-      function step() {
-        if (i >= rows.length) return null;
-        var row = rows[i++];
-        if (!row.handle || !row.handle.isSameEntry) return step();
-        return row.handle.isSameEntry(h).then(function (same) { return same ? row.id : step(); }).catch(step);
-      }
-      return step();
-    }).catch(function () { return null; });
-  }
-
-  function adopt(h, id) {
-    // edits still on their way to the open file land there before anything else
-    return flushSave().then(function () { return claim(id); }).then(function (free) {
-      if (!free) { blockedBy = h.name; renderDocState(); toast(h.name + " is open in another tab"); return false; }
-      blockedBy = "";
-      return loadFromHandle(h, id).then(function () { return true; })
-        .catch(function (e) {   // a failed open must not hold the claim, nor drop the one on the open file
-          if (id !== doc.id) { release(id); claimed = doc.id; }
-          throw e;
-        });
-    });
-  }
-
-  function openProjectFile() {
-    // mode:"readwrite" up front, so there is no second prompt needing a gesture
-    // that the picker has already consumed
-    return window.showOpenFilePicker({
-      types: [{ description: "Project cost tracker", accept: { "application/json": [".json"] } }],
-      multiple: false, mode: "readwrite"
-    }).then(function (list) {
-      var h = list[0];
-      return checkPermission(h).then(function (p) {
-        return p === "granted" ? p : askPermission(h);
-      }).then(function (p) {
-        if (p !== "granted") { toast("Permission refused"); return; }
-        return idForHandle(h).then(function (id) { return adopt(h, id || (uid() + uid())); });
-      });
-    }).catch(function (e) { fileError("That file could not be opened", e); });
   }
 
   function renderRecents() {
-    if (!FS_OK) return Promise.resolve();
-    return idbAll("handles").then(function (rows) {
-      rows.sort(function (a, b) { return (b.lastOpened || 0) - (a.lastOpened || 0); });
-      rows = rows.slice(0, 6);
-      recentRows = rows;
+    return files.recents().then(function (rows) {
       if (!rows.length) { $("recents").innerHTML = ""; return; }
       $("recents").innerHTML = '<div class="pct-recents-label">Recent project files</div>' +
         '<div class="pct-btn-row" style="margin-top:0;">' + rows.map(function (r) {
-          var open = doc.id === r.id;
           return '<button type="button" class="small" data-recent="' + esc(r.id) + '"' +
-            (open ? ' disabled title="Open now"' : "") + ">" + esc(r.name) + (open ? " ·  open" : "") + "</button>";
+            (r.open ? ' disabled title="Open now"' : "") + ">" + esc(r.name) + (r.open ? " ·  open" : "") + "</button>";
         }).join("") + '<button type="button" class="small link-action" id="forgetRecents">Clear list</button></div>';
-    });
-  }
-
-  function openRecent(id) {
-    var row = null;
-    for (var i = 0; i < recentRows.length; i++) if (recentRows[i].id === id) row = recentRows[i];
-    if (!row || !row.handle) { toast("That file is no longer remembered"); return idbDel("handles", id).then(renderRecents); }
-    // requestPermission synchronously, while the click still counts as a gesture
-    return askPermission(row.handle).then(function (p) {
-      if (p !== "granted") { toast("Permission refused — the file was not opened"); return; }
-      return adopt(row.handle, row.id);
-    }).catch(function (e) { fileError("Could not reopen that file", e); });
-  }
-
-  // A handle survives a browser restart but its permission does not, so the
-  // reconnect has to be driven by a click.
-  function reconnect() {
-    if (!doc.handle) return;
-    askPermission(doc.handle).then(function (p) {
-      doc.permission = p;
-      if (p !== "granted") { toast("Still not connected"); renderDocState(); return; }
-      // doc.lastModified is the file as this tab last wrote or read it. saveNow()
-      // checks it before writing, so a file changed meanwhile goes stale rather
-      // than being overwritten with what is on screen.
-      writeFailed = false;
-      return saveNow().then(function (ok) {
-        if (ok) toast("Reconnected to " + doc.name);
-        else if (stale) { openPanel("data"); toast(doc.name + " changed on disk, choose which version to keep"); }
-        else toast("Could not write " + doc.name);
-      });
     });
   }
 
@@ -4441,10 +4494,10 @@ window.RK = (function () {
   on("undoBtn", "click", function () {
     var now = JSON.stringify(S), last = undoStack.pop();
     // an entry identical to the screen (a field set back to what it was) is no step
-    while (last && last.json === now && last.doc === doc.id) last = undoStack.pop();
+    while (last && last.json === now && last.doc === docId()) last = undoStack.pop();
     lastSnapAt = 0;
     if (!last) { renderUndo(); return; }
-    if (last.doc !== doc.id) { clearUndo(); toast("Nothing to undo in " + (doc.name || "this project")); return; }
+    if (last.doc !== docId()) { clearUndo(); toast("Nothing to undo in " + (files.info().name || "this project")); return; }
     try { replaceState(migrate(JSON.parse(last.json))); }
     catch (e) { renderUndo(); toast("Could not undo that"); return; }
     renderUndo(); saveNow();
@@ -5062,41 +5115,37 @@ window.RK = (function () {
     }, { title: "Clear everything?", okLabel: "Clear everything", danger: true });
   });
 
-  on("reconnectBtn", "click", reconnect);
-  if (FS_OK) {
+  // Reconnect asks for permission, so it runs straight from the click
+  on("reconnectBtn", "click", function () {
+    var go = this.getAttribute("data-act") === "retry" ? files.retry() : files.reconnect();
+    go.then(function () { if (files.info().stale) openPanel("data"); });
+  });
+  if (files.info().supported) {
     show($("fileRow"));
-    on("newProject", "click", newProjectFile);
-    on("openProject", "click", openProjectFile);
-    on("saveAsProject", "click", newProjectFile);
+    // with a project on screen, a new file is that project saved to it
+    var toNewFile = function () { files.create(slug(S.name) + ".json").then(renderRecents); };
+    on("newProject", "click", toNewFile);
+    on("saveAsProject", "click", toNewFile);
+    on("openProject", "click", function () { files.open().then(renderRecents); });
     // a stale file is a dead end unless you can say which side wins
-    on("useDisk", "click", function () {
-      if (!doc.handle) return;
-      stale = false;
-      clearTimeout(saveTimer); saveTimer = null;   // mine is being discarded: no write of it may follow
-      loadFromHandle(doc.handle, doc.id).catch(function () { toast("Could not read the file"); });
-    });
+    on("useDisk", "click", function () { files.useFile(); });
     on("overwriteFile", "click", function () {
-      if (!doc.handle) return;
-      var d = doc;
-      RK.confirm("Whatever changed " + d.name + " since it was loaded will be lost.", function () {
-        if (d !== doc) return;   // another file was opened while the dialog was up
-        saveNow(true).then(function (ok) {
-          if (d !== doc) return;
-          if (!ok) stale = true;
-          renderDocState();
-          toast(ok ? "Overwrote " + doc.name : "Could not write the file");
-        });
-      }, { title: "Overwrite " + d.name + " with what is on screen?", okLabel: "Overwrite file", danger: true });
+      var i = files.info();
+      if (!i.bound) return;
+      RK.confirm("Whatever changed " + i.name + " since it was loaded will be lost.", function () {
+        if (files.info().id !== i.id) return;   // another file was opened while the dialog was up
+        files.keepMine();
+      }, { title: "Overwrite " + i.name + " with what is on screen?", okLabel: "Overwrite file", danger: true });
     });
     $("recents").addEventListener("click", function (e) {
-      if (e.target.id === "forgetRecents") {
-        idbAll("handles").then(function (rows) {
-          return Promise.all(rows.map(function (r) { return idbDel("handles", r.id); }));
-        }).then(renderRecents);
-        return;
-      }
+      if (e.target.id === "forgetRecents") { files.forgetRecents().then(renderRecents); return; }
       var id = e.target.getAttribute("data-recent");
-      if (id) openRecent(id);
+      if (id) files.openRecent(id).then(renderRecents);
+    });
+    $("fsBlocked").addEventListener("click", function (e) {
+      if (e.target.id !== "fsRetry") return;
+      files.unblock();
+      toast("File saving re-enabled — try New project file");
     });
   }
 
@@ -5190,70 +5239,10 @@ window.RK = (function () {
         "Nothing is overwritten until you change something. Use Load data or Open project file to carry on.");
     }
     renderDocState();
-    if (!FS_OK) { status("Autosaved to this browser", "live"); return; }
-
-    if (fsBlockedBefore()) { blockFileMode(null, true); return; }
-    renderRecents();
-    var tabId = null;
-    try { tabId = sessionStorage.getItem(TAB_KEY); } catch (e) { }
-    Promise.resolve(tabId ? { id: tabId } : idbGet("session", "last")).then(function (sess) {
-      if (!sess || !sess.id) return;
-      return idbGet("handles", sess.id).then(function (row) {
-        if (!row || !row.handle) return;
-        // Do not adopt a file another tab is editing. This is the path that
-        // would otherwise hand a second tab the first tab's project.
-        return claim(row.id).then(function (free) {
-          if (!free) { blockedBy = row.name; return; }
-          doc.id = row.id; doc.handle = row.handle; doc.name = row.name;
-          return restoreDoc(row);
-        });
-      });
-    }).then(renderDocState).then(renderRecents);
-  }
-
-  // The file that will not display is let go rather than kept bound: autosave
-  // would otherwise write whatever is on screen over it.
-  function unbindUnreadable(row, e) {
-    doc.id = null; doc.handle = null; doc.name = ""; doc.permission = "none"; doc.lastModified = 0;
-    release(row.id);
-    bootError(row.name + " could not be read (" + errText(e) + "), so it was not opened and has not been changed.");
-  }
-
-  function restoreDoc(row) {
-    return checkPermission(row.handle).then(function (p) {
-      doc.permission = p;
-      if (p === "granted") {
-        return row.handle.getFile().then(function (f) {
-          return f.text().then(function (t) { return { f: f, t: t }; });
-        }).then(function (r) {
-          var f = r.f, fromFile;
-          try { fromFile = JSON.parse(r.t); replaceState(migrate(fromFile)); }
-          catch (e) { unbindUnreadable(row, e); return; }
-          doc.lastModified = f.lastModified;
-          doc.savedAt = f.lastModified;
-          // The file wins on load, unless this browser holds edits for it that are
-          // newer than the file and never reached it (a stale or failed write, then
-          // the tab closed). Those are shown, and the choice is offered exactly as
-          // when a save finds the file changed.
-          return idbGet("scratch", row.id).then(function (sc) {
-            if (!sc || !isObj(sc.data) || !(num(sc.savedAt) > f.lastModified)) return;
-            if (JSON.stringify(sc.data) === JSON.stringify(fromFile)) return;
-            try { replaceState(migrate(sc.data)); } catch (e) { return; }
-            stale = true; dirty = true;
-            staleWhy = "This browser holds edits to " + doc.name + " from " + stamp(sc.savedAt) +
-              " that never reached the file. They are what is shown here; the file has not been changed.";
-            openPanel("data");
-          });
-        }, function () { doc.permission = "prompt"; });
-      }
-      // no permission yet: fall back to the scratch we wrote for this file,
-      // so what is on screen is the newest we have, not the oldest. Its note of
-      // the file's timestamp lets Reconnect tell if the file changed meanwhile.
-      return idbGet("scratch", row.id).then(function (sc) {
-        if (!sc) return;
-        if (num(sc.fileModified) > 0) doc.lastModified = num(sc.fileModified);
-        if (sc.data) { try { replaceState(migrate(sc.data)); } catch (e) { bootError("The copy of " + row.name + " kept in this browser could not be displayed (" + errText(e) + ")."); } }
-      });
+    // the file this tab had open (or the last one used), unless another tab has it;
+    // a file that cannot be shown is let go and reported, never written over
+    files.boot(bootError).then(function () {
+      if (files.info().stale) openPanel("data");
     });
   }
   boot();

@@ -46,6 +46,13 @@ keep their look. Do not include both stylesheets in one page: kit 2 styles bare
    beacons), so keep it in every tool. It cannot stop the page navigating away, and
    it allows inline script, so escaping text with `RK.esc` stays the real defence
    against injected markup.
+9. **Signed off.** Every tool ends with the same sign-off line in its footer,
+   "Dreamt up by Christian, built with Claude: a human and AI double act 🤝".
+   It lives once, in [`signoff.html`](signoff.html), and a page pulls it in with
+   `<!--@include framework/signoff.html@-->` inside its `footer`, so changing it
+   there changes every tool on the next build. The starter already has it; keep
+   it in one footer that shows on every view. `tests/smoke.cjs` fails any built
+   tool without it.
 
 ## Tokens
 
@@ -104,9 +111,9 @@ Type scale (px): 22 page headline, 20 settings title, 18 dialog/drawer title,
 | `.date-pair` | two date fields side by side |
 | `.upload-area` (+ `.dragover`), `.big`, `.or`, `label.field` | file drop zone for `RK.upload`; `label.field` is what `RK.xlsx.renderMapper` emits |
 | `.toast` (+ `.on`) | short confirmation at the foot of the screen, made by `RK.toast` |
-| `footer`, `.strapline`, `.app-version` | footer line, version in mono |
+| `footer`, `.signoff`, `.strapline`, `.app-version` | footer: the shared sign-off line (`framework/signoff.html`, principle 9), the offline strapline, and the version in mono |
 
-## Runtime (`window.RK`, kit 1.3.0)
+## Runtime (`window.RK`, kit 1.4.0)
 
 | Helper | Does |
 |---|---|
@@ -121,6 +128,7 @@ Type scale (px): 22 page headline, 20 settings title, 18 dialog/drawer title,
 | `RK.csv.escape`, `.safeText`, `.fromRows`, `.BOM` | CSV that opens cleanly in Excel; `safeText` stops a text cell starting `=` `+` `-` `@`, tab or CR running as a formula |
 | `RK.dict()`, `RK.has(o, k)` | a lookup with no prototype, and an own-key test: use them for anything keyed by file or user data |
 | `RK.toast(message, ms?)` | shows a `.toast` and fades it after `ms` (default 2600); a new message replaces the one showing |
+| `RK.fileDoc(opts)` | binds the page to one project file on disk (File System Access API) and writes every change into it: create, open, recent files, reconnect after a restart, one tab per file, stale-file and crash-copy handling, policy-block detection. The page supplies `serialise()` and `load(text)` and draws `status()` / `info()`; see the comment above it in `report-kit.js` and [`docs/storage-design.md`](../docs/storage-design.md). The UAT sign-off tracker and the project cost tracker use it; the UAT tracker is the simpler reference |
 | `RK.download(filename, text, type)`, `RK.store(key)`, `RK.esc` | from kit 1, unchanged |
 
 ## Checklist for a new tool
@@ -138,5 +146,6 @@ Type scale (px): 22 page headline, 20 settings title, 18 dialog/drawer title,
 - [ ] Everything clickable works with Enter and Space; icon buttons have `aria-label`
 - [ ] Empty states say why they are empty (nothing yet vs. filtered out)
 - [ ] Works at phone width (header groups wrap in order, grids stack)
+- [ ] Footer includes `framework/signoff.html` (the sign-off line) and shows on every view
 - [ ] Version shown in Settings (`.app-version`), semver, bumped on release
 - [ ] Report-specific CSS is short and prefixed; anything reusable goes into the kit instead
