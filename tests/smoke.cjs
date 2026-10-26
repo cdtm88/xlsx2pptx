@@ -83,6 +83,76 @@ const FLOWS = {
     await page.click(".modal-overlay:not([hidden]) [data-rk-ok]");
     t("the example replaces it after asking", /Customer Portal R4\.2 UAT/.test(await preview()) && /CP-212/.test(await preview()));
   },
+  "pi-email-builder.html": async (page, t) => {
+    const preview = () => page.textContent("#preview");
+    const names = () => page.$$eval("#preview tr[data-rid]", (r) => r.map((x) => x.querySelector("[data-edit=name]").textContent));
+    t("opens on the drop zone", await page.isVisible("#dropBig") && await page.isHidden("#mainView"));
+    await page.click("#emptySample");
+    t("the sample picks the quarter being planned and builds the email", /26 commitments for Q3, 16 delivering this quarter, 4 spill over/.test(await page.textContent("#summaryMain")) &&
+      /Booking Portal\s*12 commitments/.test(await preview()), await page.textContent("#summaryMain"));
+    t("subject is suggested from the quarter", (await page.inputValue("#f_subject")) === "Quarterly Planning Commitments | FY26/27 Q3");
+    t("data checks list what needs fixing", /6 projects have no JIRA ID/.test(await page.textContent("#checks")));
+
+    // chips open a dialog; the change is kept for this quarter only
+    await page.click('#preview tr[data-rid^="agentaccountmanagement"] [data-f=status]');
+    await page.fill("#ed_in", "Blocked"); await page.click("#editForm button[type=submit]");
+    t("a status edited in the preview shows in the email", /Agent Account Management[\s\S]{0,200}Blocked/.test(await preview()) && /1 manual change applied to Q3/.test(await page.textContent("#ovInfo")));
+    await page.click('#preview tr[data-rid^="agentaccountmanagement"] [data-f=delivery]');
+    await page.selectOption("#ed_in", "TBC"); await page.click("#editForm button[type=submit]");
+    const cell = await page.$eval('#preview tr[data-rid^="agentaccountmanagement"]', (r) => r.cells[3].textContent.trim());
+    t("delivery can be moved to TBC", cell === "TBC", cell);
+    await page.click('#preview [data-gname="Booking Portal"][data-gkey=app] >> nth=-1');
+    await page.fill("#ed_in", "Booking Site"); await page.click("#editForm button[type=submit]");
+    t("a group renamed in the preview", /Booking Site\s*12 commitments/.test(await preview()) && /1 wording edit/.test(await page.textContent("#wordInfo")));
+
+    // order and removal
+    const first = (await names())[0], second = (await names())[1];
+    await page.hover("#preview tr[data-rid] >> nth=1");
+    await page.click('#preview tr[data-rid] >> nth=1 >> [aria-label="Move up"]');
+    t("move up swaps a row with the one above", (await names())[0] === second && (await names())[1] === first);
+    await page.hover("#preview tr[data-rid] >> nth=0");
+    await page.click('#preview tr[data-rid] >> nth=0 >> [aria-label="Remove from this email"]');
+    t("a removed project leaves the email and can be restored", /1 removed from Q3/.test(await page.textContent("#hidInfo")) && /25 commitments/.test(await page.textContent("#summaryMain")));
+    await page.click("#hidInfo [data-restore-all]");
+    t("restore all brings it back", await page.isHidden("#hidInfo") && /26 commitments/.test(await page.textContent("#summaryMain")));
+
+    // a typed subject keeps following the quarter
+    await page.fill("#f_subject", "Commitments for Q3 FY26/27"); await page.locator("#f_subject").blur();
+    await page.selectOption("#f_filter", "31"); await page.waitForTimeout(50);
+    t("a typed subject follows the quarter picked", (await page.inputValue("#f_subject")) === "Commitments for Q2 FY26/27", await page.inputValue("#f_subject"));
+    t("changes made for one quarter stay with it", !/manual change/.test(await page.textContent("#ovInfo")) || await page.isHidden("#ovInfo"));
+    await page.selectOption("#f_filter", "32");
+    await page.$eval("#lqBox", (d) => { d.open = true; });
+    await page.fill("#f_lqDone", "11"); await page.fill("#f_lqTotal", "14"); await page.fill("#f_lqSlip", "Partner Rate API");
+    await page.waitForTimeout(200);
+    t("since last quarter shows the delivery rate", /Q2 in review[\s\S]*11 of 14[\s\S]*\(79%\)[\s\S]*Slipped or dropped \(1\)/.test(await preview()));
+    await page.click('#layoutChips [data-chip-value="cards"]');
+    await page.waitForTimeout(200);
+    t("cards layout", (await page.$$("#preview table[data-rid]")).length > 10);
+
+    await page.reload(); await page.waitForTimeout(300);
+    t("the data, edits and words are kept for next time", /Booking Site/.test(await preview()) && /Blocked/.test(await preview()) &&
+      (await page.inputValue("#f_lqDone")) === "11" && (await page.$$("#preview table[data-rid]")).length > 10);
+
+    // the copied email has no editing hooks left in it
+    await page.evaluate(() => { window.__copied = null; navigator.clipboard.write = async (items) => { window.__copied = await (await items[0].getType("text/html")).text(); }; });
+    await page.click("#btnCopyEmail"); await page.waitForTimeout(200);
+    const html = await page.evaluate(() => window.__copied || "");
+    t("the copied email is clean HTML", html.length > 5000 && !/data-(rid|f|erid|lbl|gname|edit|ov)=|pem-|tabindex/.test(html) && /Booking Site/.test(html));
+
+    // settings saved by the stand-alone builder this replaced carry over
+    await page.evaluate(() => {
+      localStorage.clear();
+      localStorage.setItem("piEmail.settings.v2", JSON.stringify({ title: "PI Planning commitments", team: "Old team", groupBy: "priority", subjV2: false, introV2: false, intro: "Hi,\n\nPI Planning outcomes." }));
+    });
+    await page.reload(); await page.click("#emptySample");
+    t("the old builder's settings are migrated", (await page.inputValue("#f_team")) === "Old team" && (await page.inputValue("#f_title")) === "Quarterly Planning Commitments" &&
+      /Quarterly Planning outcomes/.test(await preview()) && /Grouped by priority/.test(await preview()));
+
+    await page.click("#btnClear"); await page.click(".modal-overlay:not([hidden]) [data-rk-ok]");
+    await page.click("#emptyPaste"); await page.fill("#emptyPasteText", "Name,Status\nOnly,UAT"); await page.click("#emptyPasteGo");
+    t("a file without quarters is refused with a reason", /No quarters found in Quarter Planned/.test(await page.textContent("#emptyStatus")) && await page.isVisible("#dropBig"));
+  },
   "waqti-exceptions.html": async (page, t) => {
     await page.setInputFiles("#fileInput", path.join(FIX, "waqti-export.xlsx"));
     await page.waitForFunction(() => /waqti-export/.test(document.getElementById("fileNameSub").textContent), null, { timeout: 5000 });

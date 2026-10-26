@@ -511,3 +511,51 @@ alongside; **Copy as plain text** and **Copy** (subject) do what they say.
 what moved. **Start fresh** clears the figures, words and defect lists but
 keeps the UAT name, approvers, your name, exit criteria and sections. **Load
 example** fills in a worked example.
+
+## `pi-email-builder.html`
+
+Turns the Airtable export of planning commitments into the stakeholder email
+for one quarter: what was committed, what delivers this quarter, what spills
+over, and where the work sits.
+
+**Data.** Export the Airtable view as CSV and drop it in (or paste the text).
+Columns are matched by name, ignoring case and punctuation: Projects Name,
+Area, Type, Priority, Status, Application, JIRA ID, Quarter Start, Quarter
+Planned, Quarter Delivery Commitment and Go-Live Quarter. Quarter cells look
+like `Q3: Oct-Dec, 26/27 (PI32)`; a bare `PI32` also works. Only Projects Name
+is required, and at least one row needs a Quarter Planned. The file is checked
+before it replaces what is on screen, and **Data checks** (not shown in the
+email) list duplicate Jira keys, projects with no Jira ID, no Quarter Planned
+or a blank delivery commitment, and statuses the tool does not recognise.
+
+**Quarter.** The tool picks the quarter being planned: the next to start, or
+one that started in the last six weeks. A project is in the email when its
+Quarter Planned includes that quarter. Its delivery is its delivery
+commitment; if that is before the quarter, it is a **spill over** and moves to
+the last quarter it is planned in.
+
+**Message and layout.** Subject prefix and title, team, opening message, key
+highlights, an optional **Since last quarter** review (delivered of total,
+coloured by rate: 85% and over green, 65% to 84% amber, under that red, plus
+delivered, slipped and new lists), and a closing message. Group projects by
+application, delivery, priority, status, type, area or not at all; show them
+as a table or as cards; switch the summary numbers, the application chart and
+the area on or off; set a Jira base URL for bare keys and an accent colour.
+
+**Edit in the preview.** Click a priority, status or delivery chip to change
+it for this quarter only (delivery can also be flagged or unflagged as a spill
+over). Click a project name, type, group name or any heading to reword it;
+project wording is kept for every quarter, and a quarter name in a heading
+follows the quarter. Drag rows (within their priority) and group headings to
+reorder, or use the arrow buttons; ✕ removes a project from this quarter's
+email, with Restore above the preview. Everything works from the keyboard.
+
+**Copy.** The subject is suggested from the title, quarter and team; a subject
+you type keeps its quarter as a token, so it updates when you pick the next
+quarter. **Copy email** puts Outlook-safe HTML on the clipboard with a plain
+text version; **Copy as plain text** and **Copy HTML code** (a full HTML
+document with a preheader) do what they say.
+
+**Saving.** The last import and every setting autosave in the browser.
+Settings from the stand-alone builder this replaced are picked up on first
+open. **Clear data** removes the import and keeps the message, edits and order.

@@ -47,6 +47,7 @@ Single-file browser tools for delivery work. No server, no install, no data leav
 | 🧾 | [**Vendor Spend Tracker**](vendor-spend-tracker.html) | Tracks vendor estimates, POs and invoices against annual budgets. |
 | ✅ | [**UAT Sign-off Tracker**](uat-signoff-tracker.html) | Tracks UAT results, defects and approvals to sign-off, and drafts the stakeholder update email. |
 | ✉️ | [**UAT Email Builder**](uat-email-builder.html) | Builds the UAT stakeholder update or sign-off request from figures and a status you type in. |
+| 📬 | [**Quarterly Planning Email Builder**](pi-email-builder.html) | Turns the Airtable commitments export into the quarter's planning email, ready for Outlook. |
 
 > [!TIP]
 > Every option, rule and edge case for each tool is covered in [`docs/tools.md`](docs/tools.md).
