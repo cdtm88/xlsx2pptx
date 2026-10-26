@@ -45,6 +45,7 @@ Single-file browser tools for delivery work. No server, no install, no data leav
 | 💷 | [**Project Cost Tracker**](project-cost-tracker.html) | Tracks a project's spend, burn-up and forecast against its estimate. |
 | 🗓️ | [**PI Planning Capacity**](pi-planning-capacity.html) | Works out each team's real sprint capacity for a PI after leave and holidays. |
 | 🧾 | [**Vendor Spend Tracker**](vendor-spend-tracker.html) | Tracks vendor estimates, POs and invoices against annual budgets. |
+| ✅ | [**UAT Sign-off Tracker**](uat-signoff-tracker.html) | Tracks UAT results, defects and approvals to sign-off, and drafts the stakeholder update email. |
 
 > [!TIP]
 > Every option, rule and edge case for each tool is covered in [`docs/tools.md`](docs/tools.md).

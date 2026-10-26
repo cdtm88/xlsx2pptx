@@ -129,6 +129,49 @@ const FLOWS = {
     const csv = fs.readFileSync(await (await dl).path(), "utf8");
     t("loads the demo and exports the people CSV", csv.split("\n").length > 3);
   },
+  "uat-signoff-tracker.html": async (page, t, ctx) => {
+    const lines = [];
+    page.on("console", (m) => lines.push(m.text()));
+    await page.goto(ctx.url + "?selftest=1");
+    await page.waitForTimeout(300);
+    const summary = lines.find((l) => /^Self tests: /.test(l)) || "";
+    const m = /(\d+)\/(\d+) passed/.exec(summary);
+    t("built-in self tests pass (" + (m ? m[0] : "none ran") + ")", !!m && m[1] === m[2] && Number(m[2]) > 0,
+      lines.filter((l) => /^FAIL/.test(l)).join("; ") || summary);
+
+    // demo: amber, with its reasons, and an email that leads with the status
+    await page.click("#btnDemoOnboard");
+    await page.waitForTimeout(200);
+    t("the demo opens amber with its reasons", /Amber/.test(await page.textContent("#ragPill")) && /critical defect open/.test(await page.textContent("#ragWhy")));
+    await page.click('.app-nav-item[data-view="email"]');
+    const preview = await page.textContent("#emPreview");
+    t("the email leads with the status and has the exit criteria", /AMBER/.test(preview) && /Exit criteria: \d+ of \d+ met/.test(preview));
+    t("the suggested subject carries the status", /^\[UAT\] .* update: AMBER/.test(await page.getAttribute("#emSubject", "placeholder")));
+
+    // a status changed in the list moves the figures
+    await page.click('.app-nav-item[data-view="tests"]');
+    const passedTab = async () => Number(await page.textContent('#testTabs [data-tab="Passed"] .seg-tab-count'));
+    const before = await passedTab();
+    const notRun = page.locator('#testBody select[data-inline="test"]', { has: page.locator('option:checked', { hasText: /^Not run$/ }) }).first();
+    await notRun.selectOption("Passed");
+    t("an in-row status change updates the counts", (await passedTab()) === before + 1);
+
+    // paste from Excel: a new test is added, an existing one is updated by ID
+    const count = async () => Number(await page.textContent('#testTabs [data-tab="all"] .seg-tab-count'));
+    const n0 = await count();
+    await page.click('#view-tests [data-import="tests"]');
+    await page.fill("#importPaste", "Test Case ID\tScenario\tModule\tResult\nUAT-001\tRegister a new customer account\tAccounts and login\tFail\nNEW-1\tPasted test\tImports\tPass");
+    await page.waitForSelector("#importOk:not([disabled])", { timeout: 2000 });
+    await page.click("#importOk");
+    await page.waitForTimeout(200);
+    const row1 = await page.$eval("#testBody", (b) => [...b.rows].find((r) => /UAT-001/.test(r.textContent)).querySelector("select").value);
+    t("a pasted import adds new rows and updates by ID", (await count()) === n0 + 1 && row1 === "Failed", (await count()) + " " + row1);
+
+    // copying never throws: either it reaches the clipboard or the manual box appears
+    await page.click("#btnCopyEmail");
+    await page.waitForTimeout(300);
+    t("copy email reaches the clipboard or offers the text", (await page.isVisible(".toast.on")) || (await page.isVisible("#headerCopyFallback textarea")));
+  },
   "vendor-spend-tracker.html": async (page, t, ctx) => {
     const lines = [];
     page.on("console", (m) => lines.push(m.text()));

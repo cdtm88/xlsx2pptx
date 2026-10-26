@@ -1,0 +1,2600 @@
+<!-- @out: uat-signoff-tracker.html -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<!-- Offline by policy: nothing may load from or send to the network (framework/DESIGN.md). -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; connect-src 'none'; form-action 'none'; base-uri 'none'">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light only">
+<title>UAT Sign-off Tracker</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMiIgaGVpZ2h0PSIzMiIgdmlld0JveD0iMCAwIDMyIDMyIj48cmVjdCB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHJ4PSI3IiBmaWxsPSIjMDBBOUNFIi8+PHJlY3QgeD0iOSIgeT0iOCIgd2lkdGg9IjE0IiBoZWlnaHQ9IjE3IiByeD0iMiIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjIiLz48cmVjdCB4PSIxMi41IiB5PSI2IiB3aWR0aD0iNyIgaGVpZ2h0PSI0IiByeD0iMS4yIiBmaWxsPSIjZmZmIi8+PHBhdGggZD0iTTEyLjUgMTcuMmwyLjQgMi40TDE5LjggMTQuNiIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjIuMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+PC9zdmc+">
+<style>
+/*@include framework/report-kit-2.css@*/
+
+/* ---- UAT sign-off tracker (uat-*) ---- */
+.uat-panel { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; min-width: 0; }
+.uat-panel-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.uat-panel-head h3, .uat-section-head h3 { margin: 0; font-size: 16px; font-weight: 700; color: var(--heading); }
+.uat-panel-head .hint { margin: 0; }
+.uat-spacer { flex: 1; }
+.uat-two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 12px; margin-bottom: 20px; }
+.uat-section-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin: 0 0 10px; }
+.uat-summary-side { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.uat-rag-big { font-size: 13px; padding: 5px 12px; }
+.uat-why { margin: 0 0 16px; }
+.uat-why ul { margin: 4px 0 0; padding-left: 18px; }
+.uat-why li { margin: 2px 0; }
+.uat-crit-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 12px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--divider); font-size: 13px; }
+.uat-crit-row:last-child { border-bottom: none; }
+.uat-crit-label { min-width: 0; }
+.uat-crit-target { display: block; font-size: 11px; color: var(--text-dim); margin-top: 1px; }
+.uat-crit-actual { font: 500 12px var(--font-mono); color: var(--slate); text-align: right; white-space: nowrap; }
+.uat-crit-row input[type="checkbox"] { margin-right: 6px; vertical-align: -2px; }
+.uat-plan-mark { position: absolute; top: -5px; bottom: -5px; width: 2px; margin-left: -1px; background: var(--charcoal); border-radius: 1px; }
+.uat-chart { position: relative; }
+.uat-chart svg { width: 100%; height: auto; display: block; }
+.uat-chart text { font-family: var(--font-ui); }
+.uat-tip { position: absolute; pointer-events: none; background: #fff; border: 1px solid var(--border); border-radius: 6px; box-shadow: 0 4px 14px rgba(0,0,0,.12); padding: 7px 10px; font-size: 12px; line-height: 1.5; white-space: nowrap; z-index: 2; }
+.uat-tip b { font-weight: 600; }
+.uat-tip .mono { font-size: 12px; }
+.uat-key { display: inline-block; width: 12px; height: 2px; vertical-align: middle; margin-right: 6px; }
+.uat-key.dash { background: repeating-linear-gradient(90deg, var(--dim-grey) 0 4px, transparent 4px 7px); }
+.uat-chart-data { margin-top: 8px; font-size: 12px; }
+.uat-chart-data summary { cursor: pointer; color: var(--accent-dark); }
+.uat-chart-data table { margin-top: 6px; }
+.uat-chart-data th, .uat-chart-data td { padding: 5px 10px; font-size: 12px; }
+.uat-inline { height: 28px; padding: 0 6px; font-size: 12px; font-weight: 600; width: auto; min-width: 132px; }
+.uat-inline[data-tone="green"] { background: var(--green-bg); color: var(--green-fg); border-color: #cfe9d0; }
+.uat-inline[data-tone="red"] { background: var(--red-bg); color: var(--red); border-color: #f3c9c5; }
+.uat-inline[data-tone="yellow"] { background: var(--yellow-bg); color: var(--yellow-fg); border-color: #f1dea6; }
+.uat-inline[data-tone="teal"] { background: var(--teal-tint); color: var(--accent-dark); border-color: var(--teal-tint-border); }
+.uat-inline[data-tone="grey"] { background: var(--panel); color: var(--slate); }
+.uat-ref { font: 500 12px var(--font-mono); color: var(--slate); }
+.uat-small { font-size: 12px; color: var(--slate); }
+.uat-muted { color: var(--text-dim); }
+.uat-overdue { color: var(--red); font-weight: 600; }
+.uat-strong { font-weight: 600; }
+th.uat-cb, td.uat-cb { width: 36px; padding-right: 0; }
+td.uat-cb input, th.uat-cb input { margin: 0; vertical-align: middle; }
+.uat-bulk { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; background: var(--teal-tint); border: 1px solid var(--teal-tint-border); padding: 6px 10px; border-radius: 8px; margin-bottom: 10px; font-size: 12px; }
+.uat-bulk select { width: auto; height: 28px; padding: 0 6px; font-size: 12px; }
+.uat-onboard { margin-bottom: 20px; }
+.uat-onboard ol { margin: 6px 0 14px; padding-left: 20px; line-height: 1.9; font-size: 13px; }
+.uat-onboard .uat-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.uat-email-grid { display: grid; grid-template-columns: minmax(300px, 420px) minmax(0, 1fr); gap: 16px; align-items: start; }
+.uat-compose .field { margin-bottom: 12px; }
+.uat-compose textarea { min-height: 64px; }
+.uat-compose .chip-row { margin-bottom: 0; }
+.uat-sections { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; font-size: 13px; }
+.uat-sections label { display: flex; gap: 6px; align-items: center; cursor: pointer; }
+.uat-subject { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; }
+.uat-subject input { font-weight: 600; }
+.uat-email-preview { background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 20px 22px; overflow-x: auto; }
+.uat-email-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 12px 0; }
+.copy-fallback textarea { width: 100%; min-height: 180px; font: 12px var(--font-mono); }
+.copy-fallback p { margin: 0 0 6px; font-size: 12px; color: var(--text-dim); }
+.uat-sent { margin-top: 16px; }
+.uat-sent-row { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--divider); font-size: 12px; }
+.uat-sent-row:last-child { border-bottom: none; }
+.uat-sent-main { min-width: 0; }
+.uat-sent-sub { display: block; color: var(--text-dim); margin-top: 2px; }
+.uat-import-paste { min-height: 130px; font: 12px var(--font-mono); white-space: pre; }
+.uat-import-preview { margin-top: 12px; }
+.uat-import-preview .table-container { max-height: 220px; }
+.uat-import-preview th, .uat-import-preview td { padding: 6px 10px; font-size: 12px; }
+.uat-map { font-size: 12px; line-height: 1.7; margin-bottom: 8px; }
+.uat-map code { font: 11px var(--font-mono); background: var(--light-grey); padding: 1px 5px; border-radius: 4px; }
+.uat-radio-row { display: flex; flex-direction: column; gap: 6px; font-size: 13px; margin-top: 10px; }
+.uat-radio-row label { display: flex; gap: 8px; align-items: baseline; cursor: pointer; }
+.uat-guide { font-size: 12px; color: var(--slate); line-height: 1.6; }
+.uat-guide dt { font-weight: 600; color: var(--text); margin-top: 8px; }
+.uat-guide dd { margin: 0; }
+.uat-check { display: flex; gap: 8px; align-items: center; font-size: 13px; margin-top: 8px; cursor: pointer; }
+.uat-crit-edit { grid-template-columns: minmax(0, 1fr) 90px 40px; }
+.uat-crit-edit input[type="text"] { width: 100%; text-align: left; }
+.setting-row-control input[type="date"] { width: 160px; }
+.setting-row-control input.uat-wide { width: 260px; text-align: left; }
+/* six views plus a cycle switch: keep the header on one row on a laptop */
+#cycleSelect { max-width: 190px; }
+.app-header .app-search { width: 210px; }
+@media (max-width: 1000px) {
+  .uat-two, .uat-email-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 900px) {
+  #cycleSelect { order: 3; max-width: none; flex: 1 1 160px; }
+  .app-header .app-search { width: auto; flex: 1 1 200px; }
+}
+@media (max-width: 560px) {
+  .app-nav { overflow-x: auto; scrollbar-width: none; }
+  .app-nav-item { flex: none; }
+  .uat-sections { grid-template-columns: 1fr; }
+  .setting-row-control input.uat-wide { width: 100%; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="app-header">
+    <div class="app-logo"><img class="app-logo-mark" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMiIgaGVpZ2h0PSIzMiIgdmlld0JveD0iMCAwIDMyIDMyIj48cmVjdCB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHJ4PSI3IiBmaWxsPSIjMDBBOUNFIi8+PHJlY3QgeD0iOSIgeT0iOCIgd2lkdGg9IjE0IiBoZWlnaHQ9IjE3IiByeD0iMiIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjIiLz48cmVjdCB4PSIxMi41IiB5PSI2IiB3aWR0aD0iNyIgaGVpZ2h0PSI0IiByeD0iMS4yIiBmaWxsPSIjZmZmIi8+PHBhdGggZD0iTTEyLjUgMTcuMmwyLjQgMi40TDE5LjggMTQuNiIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjIuMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+PC9zdmc+" alt="">UAT Sign-off</div>
+    <nav class="app-nav" aria-label="Views">
+      <button type="button" class="app-nav-item active" data-view="overview" aria-pressed="true">Overview</button>
+      <button type="button" class="app-nav-item" data-view="tests" aria-pressed="false">Tests</button>
+      <button type="button" class="app-nav-item" data-view="defects" aria-pressed="false">Defects</button>
+      <button type="button" class="app-nav-item" data-view="signoff" aria-pressed="false">Sign-off</button>
+      <button type="button" class="app-nav-item" data-view="email" aria-pressed="false">Email update</button>
+      <button type="button" class="app-nav-item" data-view="settings" aria-pressed="false">Settings</button>
+    </nav>
+    <div class="app-header-spacer"></div>
+    <select class="toolbar-select" id="cycleSelect" aria-label="UAT cycle"></select>
+    <div class="app-search">
+      <input type="text" id="searchBox" placeholder="Search tests and defects…" aria-label="Search tests and defects">
+      <span class="search-hint-key">/</span>
+    </div>
+    <button type="button" class="primary" id="btnCopyEmail">Copy email update</button>
+  </header>
+
+  <div class="callout warn" id="storageBanner" role="status" hidden></div>
+  <div id="headerCopyFallback"></div>
+
+  <!-- ================= Overview ================= -->
+  <section id="view-overview">
+    <div class="page-summary">
+      <div class="page-summary-text">
+        <span class="page-summary-sub" id="summarySub"></span>
+        <span class="page-summary-main" id="summaryMain"></span>
+      </div>
+      <div class="uat-summary-side">
+        <span id="ragPill"></span>
+        <button type="button" class="small" id="btnRag">Set status</button>
+      </div>
+    </div>
+    <div class="callout uat-why" id="ragWhy"></div>
+
+    <div class="uat-panel uat-onboard" id="onboard" hidden>
+      <div class="uat-panel-head"><h3>Set up this UAT cycle</h3></div>
+      <ol>
+        <li>Name the cycle and set its start, end and sign-off dates in <button type="button" class="link-action" data-goto="settings">Settings</button>.</li>
+        <li>Add the test scripts: one at a time, or paste them from Excel with <button type="button" class="link-action" data-import="tests">Import tests</button>.</li>
+        <li>Add the people who must sign UAT off on the <button type="button" class="link-action" data-goto="signoff">Sign-off</button> tab.</li>
+        <li>Record results and defects as testing runs, then copy the email update.</li>
+      </ol>
+      <div class="uat-actions">
+        <button type="button" data-goto="settings">Set up the cycle</button>
+        <button type="button" data-import="tests">Import tests</button>
+        <button type="button" id="btnDemoOnboard">Load a demo cycle</button>
+      </div>
+    </div>
+
+    <div class="stat-grid" id="statGrid"></div>
+
+    <div class="uat-two" id="ovPanels">
+      <div class="uat-panel">
+        <div class="uat-panel-head"><h3>Exit criteria</h3><span id="critVerdict"></span><span class="uat-spacer"></span><button type="button" class="link-action" data-goto="settings" data-tab="criteria">Edit criteria</button></div>
+        <div id="critList"></div>
+      </div>
+      <div class="uat-panel">
+        <div class="uat-panel-head"><h3>Progress against plan</h3><span class="uat-spacer"></span>
+          <div class="legend">
+            <span class="legend-item"><span class="uat-key" style="background:#007A99"></span>Executed</span>
+            <span class="legend-item"><span class="uat-key" style="background:#3E9A40"></span>Passed</span>
+            <span class="legend-item"><span class="uat-key dash"></span>Plan</span>
+          </div>
+        </div>
+        <div class="uat-chart" id="burnup"></div>
+        <details class="uat-chart-data" id="burnupData"><summary>Show the figures as a table</summary><div id="burnupTable"></div></details>
+      </div>
+    </div>
+
+    <div id="ovAreas">
+      <div class="uat-section-head"><h3>By area</h3><span class="hint">Select an area to see its tests.</span></div>
+      <div class="table-container">
+        <table id="areaTable">
+          <thead><tr>
+            <th>Area</th><th class="num">In scope</th><th class="num">Executed</th><th class="num">Passed</th><th class="num">Failed</th>
+            <th class="num">Blocked</th><th class="num">Not run</th><th>Progress</th><th class="num">Open defects</th>
+          </tr></thead>
+          <tbody id="areaBody"></tbody>
+        </table>
+      </div>
+    </div>
+    <footer><div class="strapline">Single file, works offline. Your data never leaves this machine.</div></footer>
+  </section>
+
+  <!-- ================= Tests ================= -->
+  <section id="view-tests" hidden>
+    <div class="toolbar">
+      <div class="seg-tabs" id="testTabs" role="group" aria-label="Filter by status"></div>
+      <select class="toolbar-select" id="testArea" aria-label="Filter by area"></select>
+      <select class="toolbar-select" id="testTester" aria-label="Filter by tester"></select>
+      <div class="toolbar-spacer"></div>
+      <span class="list-meta" id="testMeta"></span>
+      <button type="button" class="small" data-import="tests">Import / paste</button>
+      <button type="button" class="small" id="btnExportTests">Export CSV</button>
+      <button type="button" class="small primary" id="btnAddTest">+ Add test</button>
+    </div>
+    <div class="uat-bulk" id="testBulk" hidden>
+      <span id="bulkCount" class="uat-strong"></span>
+      <label for="bulkStatus">Set status</label>
+      <select id="bulkStatus"></select>
+      <button type="button" class="small" id="bulkApply">Apply</button>
+      <button type="button" class="small danger" id="bulkDelete">Delete</button>
+      <span class="uat-spacer"></span>
+      <button type="button" class="small" id="bulkClear">Clear selection</button>
+    </div>
+    <div class="table-container">
+      <table id="testTable">
+        <thead><tr>
+          <th class="uat-cb"><input type="checkbox" id="testSelAll" aria-label="Select all shown tests"></th>
+          <th data-sort="ref">ID</th><th data-sort="title">Test</th><th data-sort="area">Area</th><th data-sort="tester">Tester</th>
+          <th data-sort="priority">Priority</th><th data-sort="status">Status</th><th data-sort="defects">Defects</th><th data-sort="updated">Updated</th>
+        </tr></thead>
+        <tbody id="testBody"></tbody>
+      </table>
+      <div class="empty-state" id="testEmpty" hidden></div>
+    </div>
+  </section>
+
+  <!-- ================= Defects ================= -->
+  <section id="view-defects" hidden>
+    <div class="toolbar">
+      <div class="seg-tabs" id="defTabs" role="group" aria-label="Filter by status"></div>
+      <select class="toolbar-select" id="defSeverity" aria-label="Filter by severity"></select>
+      <select class="toolbar-select" id="defArea" aria-label="Filter by area"></select>
+      <div class="toolbar-spacer"></div>
+      <span class="list-meta" id="defMeta"></span>
+      <button type="button" class="small" data-import="defects">Import / paste</button>
+      <button type="button" class="small" id="btnExportDefects">Export CSV</button>
+      <button type="button" class="small primary" id="btnAddDefect">+ Add defect</button>
+    </div>
+    <div class="table-container">
+      <table id="defTable">
+        <thead><tr>
+          <th data-sort="ref">ID</th><th data-sort="title">Defect</th><th data-sort="severity">Severity</th><th data-sort="status">Status</th>
+          <th data-sort="owner">Owner</th><th data-sort="area">Area</th><th data-sort="age" class="num">Age</th><th data-sort="eta">Fix due</th><th>Tests</th>
+        </tr></thead>
+        <tbody id="defBody"></tbody>
+      </table>
+      <div class="empty-state" id="defEmpty" hidden></div>
+    </div>
+  </section>
+
+  <!-- ================= Sign-off ================= -->
+  <section id="view-signoff" hidden>
+    <div class="callout" id="signReady"></div>
+    <div class="toolbar">
+      <div class="uat-section-head" style="margin:0"><h3>Approvers</h3><span class="hint" id="signMeta"></span></div>
+      <div class="toolbar-spacer"></div>
+      <button type="button" class="small" id="btnDraftRequest">Draft sign-off request</button>
+      <button type="button" class="small primary" id="btnAddApprover">+ Add approver</button>
+    </div>
+    <div class="table-container">
+      <table id="apprTable">
+        <thead><tr><th>Approver</th><th>Role</th><th>Signs off</th><th>Decision</th><th>Date</th><th>Conditions or comments</th></tr></thead>
+        <tbody id="apprBody"></tbody>
+      </table>
+      <div class="empty-state" id="apprEmpty" hidden>No approvers yet. Add the people who must sign UAT off, so the update can show who has and has not.</div>
+    </div>
+  </section>
+
+  <!-- ================= Email update ================= -->
+  <section id="view-email" hidden>
+    <div class="uat-email-grid">
+      <div class="uat-panel uat-compose">
+        <div class="uat-panel-head"><h3>Compose</h3><span class="hint">Figures come from the tracker. The words are yours.</span></div>
+        <div class="field">
+          <label>Email type</label>
+          <select id="emType" class="select-hidden-visually" aria-label="Email type" tabindex="-1">
+            <option value="update">Progress update</option>
+            <option value="request">Sign-off request</option>
+          </select>
+          <div class="chip-row" id="emTypeChips"></div>
+        </div>
+        <div class="field">
+          <label>Audience</label>
+          <select id="emAudience" class="select-hidden-visually" aria-label="Audience" tabindex="-1">
+            <option value="summary">Leadership summary</option>
+            <option value="full">Full detail</option>
+          </select>
+          <div class="chip-row" id="emAudienceChips"></div>
+          <div class="hint">Picks a set of sections below. Change any of them after.</div>
+        </div>
+        <div class="field"><label for="emGreeting">Greeting</label><input type="text" id="emGreeting" data-em="greeting"></div>
+        <div class="field">
+          <label for="emHeadline">Headline <span class="uat-muted">(bottom line first)</span></label>
+          <textarea id="emHeadline" data-em="headline" rows="3"></textarea>
+          <div class="hint">Leave blank to use the suggestion shown. <button type="button" class="link-action" id="emUseSuggested">Copy the suggestion in to edit it</button></div>
+        </div>
+        <div class="field"><label for="emHighlights">Highlights <span class="uat-muted">(one per line)</span></label><textarea id="emHighlights" data-em="highlights" rows="3"></textarea></div>
+        <div class="field"><label for="emRisks">Risks and issues <span class="uat-muted">(one per line)</span></label><textarea id="emRisks" data-em="risks" rows="3"></textarea></div>
+        <div class="field"><label for="emAsks">Decisions and help needed <span class="uat-muted">(one per line)</span></label><textarea id="emAsks" data-em="asks" rows="2"></textarea></div>
+        <div class="field"><label for="emNext">Next steps <span class="uat-muted">(one per line)</span></label><textarea id="emNext" data-em="nextSteps" rows="3"></textarea></div>
+        <div class="field-row">
+          <div class="field"><label for="emNextUpdate">Next update</label><input type="date" id="emNextUpdate" data-em="nextUpdate"></div>
+          <div class="field"><label for="emSignoff">Sign off as</label><input type="text" id="emSignoff" data-em="signoff" placeholder="Your name"></div>
+        </div>
+        <div class="field">
+          <label>Sections</label>
+          <div class="uat-sections" id="emSections"></div>
+        </div>
+      </div>
+
+      <div>
+        <div class="uat-panel">
+          <div class="uat-panel-head"><h3>Preview</h3><span class="hint">This is what pastes into Outlook or Gmail.</span></div>
+          <label for="emSubject" class="detail-label">Subject</label>
+          <div class="uat-subject">
+            <input type="text" id="emSubject" data-em="subject" aria-describedby="emSubjectHint">
+            <button type="button" class="small" id="btnCopySubject">Copy</button>
+          </div>
+          <div class="hint" id="emSubjectHint" style="margin:-6px 0 12px">Leave blank to use the suggested subject.</div>
+          <div class="uat-email-preview" id="emPreview"></div>
+          <div class="uat-email-actions">
+            <button type="button" class="primary" id="btnCopyEmail2">Copy email</button>
+            <button type="button" id="btnCopyText">Copy as plain text</button>
+            <span class="uat-spacer"></span>
+            <button type="button" id="btnMarkSent">Mark as sent</button>
+          </div>
+          <div id="copyFallback"></div>
+          <div class="hint">Mark as sent once it has gone out. The next update then shows what changed since.</div>
+        </div>
+        <div class="uat-panel uat-sent">
+          <div class="uat-panel-head"><h3>Updates sent</h3><span class="settings-nav-count" id="sentCount"></span></div>
+          <div id="sentLog"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= Settings ================= -->
+  <section id="view-settings" hidden>
+    <div class="settings-header"><h2>Settings</h2><span class="app-version" id="appVersion"></span></div>
+    <nav class="settings-nav" aria-label="Settings sections">
+      <button type="button" class="settings-nav-item active" data-tab="cycle"><span class="settings-nav-label">This cycle</span></button>
+      <button type="button" class="settings-nav-item" data-tab="criteria"><span class="settings-nav-label">Exit criteria</span></button>
+      <button type="button" class="settings-nav-item" data-tab="rules"><span class="settings-nav-label">Status rules</span></button>
+      <button type="button" class="settings-nav-item" data-tab="cycles"><span class="settings-nav-label">All cycles</span><span class="settings-nav-count" id="cyclesCount"></span></button>
+      <button type="button" class="settings-nav-item" data-tab="data"><span class="settings-nav-label">Saving &amp; data</span></button>
+    </nav>
+
+    <div class="settings-content" data-panel="cycle">
+      <div class="settings-panel-head"><h3>This cycle</h3><span class="hint">Shown at the top of every update.</span></div>
+      <div class="setting-row"><div class="setting-row-label"><span class="label-text">Name</span><span class="label-hint">e.g. Customer Portal R4.2 UAT</span></div>
+        <div class="setting-row-control"><input type="text" class="uat-wide" data-cy="name" aria-label="Cycle name"></div></div>
+      <div class="setting-row"><div class="setting-row-label"><span class="label-text">Project or system</span></div>
+        <div class="setting-row-control"><input type="text" class="uat-wide" data-cy="project" aria-label="Project or system"></div></div>
+      <div class="setting-row"><div class="setting-row-label"><span class="label-text">Release or build</span><span class="label-hint">The version under test</span></div>
+        <div class="setting-row-control"><input type="text" class="uat-wide" data-cy="build" aria-label="Release or build"></div></div>
+      <div class="setting-row"><div class="setting-row-label"><span class="label-text">Environment</span></div>
+        <div class="setting-row-control"><input type="text" class="uat-wide" data-cy="environment" aria-label="Environment"></div></div>
+      <div class="setting-row"><div class="setting-row-label"><span class="label-text">UAT lead</span></div>
+        <div class="setting-row-control"><input type="text" class="uat-wide" data-cy="lead" aria-label="UAT lead"></div></div>
+      <div class="setting-row"><div class="setting-row-label"><span class="label-text">Testing starts</span><span class="label-hint">First day of test execution</span></div>
+        <div class="setting-row-control"><input type="date" data-cy="startDate" aria-label="Testing starts"></div></div>
+      <div class="setting-row"><div class="setting-row-label"><span class="label-text">Testing ends</span><span class="label-hint">Last planned day of execution. The plan line runs evenly over the working days between.</span></div>
+        <div class="setting-row-control"><input type="date" data-cy="endDate" aria-label="Testing ends"></div></div>
+      <div class="setting-row"><div class="setting-row-label"><span class="label-text">Sign-off due</span></div>
+        <div class="setting-row-control"><input type="date" data-cy="signoffDate" aria-label="Sign-off due"></div></div>
+    </div>
+
+    <div class="settings-content" data-panel="criteria" hidden>
+      <div class="settings-panel-head"><h3>Exit criteria</h3><span class="hint">What has to be true before you ask for sign-off. Agree these with the approvers before testing starts.</span></div>
+      <div class="setting-row"><div class="setting-row-label"><span class="label-text">Tests executed</span><span class="label-hint">Passed or failed, as a share of tests in scope</span></div>
+        <div class="setting-row-control"><input type="number" class="narrow" min="0" max="100" data-cr="execPct" aria-label="Tests executed target"><span class="unit-suffix">% or more</span></div></div>
+      <div class="setting-row"><div class="setting-row-label"><span class="label-text">Tests passed</span><span class="label-hint">As a share of tests in scope</span></div>
+        <div class="setting-row-control"><input type="number" class="narrow" min="0" max="100" data-cr="passPct" aria-label="Tests passed target"><span class="unit-suffix">% or more</span></div></div>
+      <div class="setting-row"><div class="setting-row-label"><span class="label-text">Every critical-priority test passed</span></div>
+        <div class="setting-row-control"><input type="checkbox" data-cr="critPass" aria-label="Every critical-priority test passed"></div></div>
+      <div class="setting-row"><div class="setting-row-label"><span class="label-text">Open critical defects</span><span class="label-hint">Blank to leave out</span></div>
+        <div class="setting-row-control"><input type="number" class="narrow" min="0" data-cr="maxCritical" aria-label="Most open critical defects"><span class="unit-suffix">or fewer</span></div></div>
+      <div class="setting-row"><div class="setting-row-label"><span class="label-text">Open high defects</span><span class="label-hint">Blank to leave out</span></div>
+        <div class="setting-row-control"><input type="number" class="narrow" min="0" data-cr="maxHigh" aria-label="Most open high defects"><span class="unit-suffix">or fewer</span></div></div>
+      <div class="setting-row"><div class="setting-row-label"><span class="label-text">Blocked tests</span><span class="label-hint">Blank to leave out</span></div>
+        <div class="setting-row-control"><input type="number" class="narrow" min="0" data-cr="maxBlocked" aria-label="Most blocked tests"><span class="unit-suffix">or fewer</span></div></div>
+      <div class="settings-panel-head" style="margin-top:22px"><h3>Other criteria</h3><span class="hint">Things the figures cannot show, such as training done or a runbook walked through. Tick them off as they happen.</span></div>
+      <div class="settings-table" id="customCritList"></div>
+      <form class="uat-subject" id="customCritForm" style="margin-top:10px">
+        <input type="text" id="customCritText" placeholder="e.g. Service desk trained on the new screens" aria-label="New criterion">
+        <button type="submit" class="small">Add</button>
+      </form>
+    </div>
+
+    <div class="settings-content" data-panel="rules" hidden>
+      <div class="settings-panel-head"><h3>Status rules</h3><span class="hint">How the Green, Amber or Red status is worked out. You can always set it by hand on the Overview, with a reason.</span></div>
+      <div class="setting-row"><div class="setting-row-label"><span class="label-text">Amber when behind plan by</span><span class="label-hint">Executed share against the plan line</span></div>
+        <div class="setting-row-control"><input type="number" class="narrow" min="0" max="100" data-ru="amberBehind" aria-label="Amber when behind plan by"><span class="unit-suffix">points</span></div></div>
+      <div class="setting-row"><div class="setting-row-label"><span class="label-text">Red when behind plan by</span></div>
+        <div class="setting-row-control"><input type="number" class="narrow" min="0" max="100" data-ru="redBehind" aria-label="Red when behind plan by"><span class="unit-suffix">points</span></div></div>
+      <div class="setting-row"><div class="setting-row-label"><span class="label-text">Red when critical defects are open within</span><span class="label-hint">Further out, they make it Amber</span></div>
+        <div class="setting-row-control"><input type="number" class="narrow" min="0" max="60" data-ru="redCritDays" aria-label="Red when critical defects open within"><span class="unit-suffix">working days of sign-off</span></div></div>
+      <div class="setting-row"><div class="setting-row-label"><span class="label-text">Amber when blocked tests reach</span></div>
+        <div class="setting-row-control"><input type="number" class="narrow" min="0" max="100" data-ru="amberBlockedPct" aria-label="Amber when blocked tests reach"><span class="unit-suffix">% of scope</span></div></div>
+      <div class="settings-panel-head" style="margin-top:22px"><h3>How the rest is decided</h3></div>
+      <dl class="uat-guide">
+        <dt>Red, whatever the thresholds</dt><dd>An approver has rejected sign-off, or the sign-off date has passed without it.</dd>
+        <dt>Amber, whatever the thresholds</dt><dd>Open critical or high defects above the exit criteria, or a pass rate on the tests run so far below the pass target (once 5 or more have run).</dd>
+        <dt>Signed off</dt><dd>Every approver has approved, with or without conditions.</dd>
+        <dt>Not started</dt><dd>No tests in scope yet, or testing has not reached its start date.</dd>
+        <dt>Severity, in business terms</dt><dd><b>Critical</b>: stops go-live, no workaround. <b>High</b>: a key process is impaired and the workaround is costly. <b>Medium</b>: a workaround exists and is acceptable for a while. <b>Low</b>: cosmetic or minor.</dd>
+      </dl>
+    </div>
+
+    <div class="settings-content wide" data-panel="cycles" hidden>
+      <div class="settings-panel-head"><h3>All cycles</h3><span class="hint">One cycle per UAT phase or release. Each keeps its own tests, defects, approvers and updates.</span><button type="button" class="small primary" id="btnNewCycle">+ New cycle</button></div>
+      <div class="settings-table" id="cycleList"></div>
+    </div>
+
+    <div class="settings-content" data-panel="data" hidden>
+      <div class="settings-panel-head"><h3>Saving &amp; data</h3><span class="hint">Everything saves in this browser as you type. Keep a backup file too: browser storage can be cleared.</span></div>
+      <div class="setting-row"><div class="setting-row-label"><span class="label-text">Save a backup file</span><span class="label-hint">Every cycle, as JSON. Use it to move to another machine or hand over.</span></div>
+        <div class="setting-row-control"><button type="button" id="btnSaveJson">Save backup</button></div></div>
+      <div class="setting-row"><div class="setting-row-label"><span class="label-text">Load a backup file</span><span class="label-hint">Add its cycles, or replace everything here</span></div>
+        <div class="setting-row-control"><button type="button" id="btnLoadJson">Load backup…</button><input type="file" id="jsonFile" accept=".json,application/json" hidden></div></div>
+      <div class="setting-row"><div class="setting-row-label"><span class="label-text">Export this cycle to Excel</span><span class="label-hint">CSV files that open in Excel</span></div>
+        <div class="setting-row-control"><button type="button" id="btnExportTests2">Tests</button><button type="button" id="btnExportDefects2">Defects</button></div></div>
+      <div class="setting-row"><div class="setting-row-label"><span class="label-text">Demo cycle</span><span class="label-hint">Adds a filled-in example as a new cycle. Your cycles are not touched.</span></div>
+        <div class="setting-row-control"><button type="button" id="demoBtn">Load demo</button></div></div>
+      <div class="setting-row"><div class="setting-row-label"><span class="label-text">Delete this cycle</span><span class="label-hint">Removes its tests, defects, approvers and update history</span></div>
+        <div class="setting-row-control"><button type="button" class="danger" id="btnDeleteCycle">Delete cycle…</button></div></div>
+    </div>
+  </section>
+</div>
+
+<datalist id="dlAreas"></datalist>
+<datalist id="dlPeople"></datalist>
+
+<!-- test dialog -->
+<div class="modal-overlay" id="testOverlay" hidden>
+  <div class="modal">
+    <h2 id="testDlgTitle">Add test</h2>
+    <form id="testForm" novalidate>
+      <div class="field-row">
+        <div class="field"><label for="t_ref">ID</label><input type="text" id="t_ref" autocomplete="off"><div class="hint">Blank gives the next UAT number.</div></div>
+        <div class="field"><label for="t_area">Area</label><input type="text" id="t_area" list="dlAreas" autocomplete="off"></div>
+      </div>
+      <div class="field"><label for="t_title">Test</label><input type="text" id="t_title" autocomplete="off"></div>
+      <div class="field-row">
+        <div class="field"><label for="t_tester">Tester</label><input type="text" id="t_tester" list="dlPeople" autocomplete="off"></div>
+        <div class="field"><label for="t_priority">Priority</label><select id="t_priority"></select></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label for="t_status">Status</label><select id="t_status"></select></div>
+        <div class="field"><label for="t_defects">Defects</label><input type="text" id="t_defects" placeholder="e.g. DEF-101, DEF-104" autocomplete="off"></div>
+      </div>
+      <div class="field"><label for="t_note">Notes</label><textarea id="t_note" rows="3"></textarea></div>
+      <div class="callout danger" id="t_err" hidden></div>
+      <div class="modal-actions">
+        <button type="button" class="link-action danger" id="t_delete" style="margin-right:auto">Delete test</button>
+        <button type="button" id="t_raise">Save and raise defect</button>
+        <button type="button" data-cancel>Cancel</button>
+        <button type="submit" class="primary">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- defect dialog -->
+<div class="modal-overlay" id="defOverlay" hidden>
+  <div class="modal">
+    <h2 id="defDlgTitle">Add defect</h2>
+    <form id="defForm" novalidate>
+      <div class="field-row">
+        <div class="field"><label for="d_ref">ID</label><input type="text" id="d_ref" autocomplete="off"><div class="hint">Your tracker's key, or blank for the next DEF number.</div></div>
+        <div class="field"><label for="d_area">Area</label><input type="text" id="d_area" list="dlAreas" autocomplete="off"></div>
+      </div>
+      <div class="field"><label for="d_title">Defect</label><input type="text" id="d_title" autocomplete="off"></div>
+      <div class="field-row">
+        <div class="field"><label for="d_severity">Severity</label><select id="d_severity"></select></div>
+        <div class="field"><label for="d_status">Status</label><select id="d_status"></select></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label for="d_owner">Owner</label><input type="text" id="d_owner" list="dlPeople" autocomplete="off"></div>
+        <div class="field"><label for="d_tests">Tests</label><input type="text" id="d_tests" placeholder="e.g. UAT-014" autocomplete="off"></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label for="d_raised">Raised</label><input type="date" id="d_raised"></div>
+        <div class="field"><label for="d_eta">Fix due</label><input type="date" id="d_eta"></div>
+      </div>
+      <div class="field"><label for="d_resolution">Workaround or decision</label><input type="text" id="d_resolution" placeholder="e.g. Accepted for go-live, fix in R4.3" autocomplete="off"><div class="hint">Shown with deferred defects under Known issues accepted.</div></div>
+      <div class="field"><label for="d_note">Notes</label><textarea id="d_note" rows="2"></textarea></div>
+      <div class="callout danger" id="d_err" hidden></div>
+      <div class="modal-actions">
+        <button type="button" class="link-action danger" id="d_delete" style="margin-right:auto">Delete defect</button>
+        <button type="button" data-cancel>Cancel</button>
+        <button type="submit" class="primary">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- approver dialog -->
+<div class="modal-overlay" id="apprOverlay" hidden>
+  <div class="modal">
+    <h2 id="apprDlgTitle">Add approver</h2>
+    <form id="apprForm" novalidate>
+      <div class="field-row">
+        <div class="field"><label for="a_name">Name</label><input type="text" id="a_name" list="dlPeople" autocomplete="off"></div>
+        <div class="field"><label for="a_role">Role</label><input type="text" id="a_role" placeholder="e.g. Product Owner" autocomplete="off"></div>
+      </div>
+      <div class="field"><label for="a_scope">Signs off</label><input type="text" id="a_scope" list="dlAreas" placeholder="e.g. All, or Payments" autocomplete="off"></div>
+      <div class="field-row">
+        <div class="field"><label for="a_status">Decision</label><select id="a_status"></select></div>
+        <div class="field"><label for="a_date">Date</label><input type="date" id="a_date"></div>
+      </div>
+      <div class="field"><label for="a_note">Conditions or comments</label><textarea id="a_note" rows="2"></textarea></div>
+      <div class="callout danger" id="a_err" hidden></div>
+      <div class="modal-actions">
+        <button type="button" class="link-action danger" id="a_delete" style="margin-right:auto">Remove approver</button>
+        <button type="button" data-cancel>Cancel</button>
+        <button type="submit" class="primary">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- status override dialog -->
+<div class="modal-overlay" id="ragOverlay" hidden>
+  <div class="modal modal-compact">
+    <h2>Overall status</h2>
+    <p class="modal-lead" id="ragAutoNote"></p>
+    <form id="ragForm">
+      <div class="field">
+        <select id="ragMode" class="select-hidden-visually" aria-label="Status" tabindex="-1">
+          <option value="auto">Calculated</option><option value="green">Green</option><option value="amber">Amber</option><option value="red">Red</option>
+        </select>
+        <div class="chip-row" id="ragChips"></div>
+      </div>
+      <div class="field"><label for="ragReason">Reason <span class="uat-muted">(shown in the update)</span></label><textarea id="ragReason" rows="3"></textarea></div>
+      <div class="modal-actions">
+        <button type="button" data-cancel>Cancel</button>
+        <button type="submit" class="primary">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- import dialog -->
+<div class="modal-overlay" id="importOverlay" hidden>
+  <div class="modal modal-wide">
+    <h2 id="importTitle">Import tests</h2>
+    <p class="modal-lead" id="importLead"></p>
+    <div class="field">
+      <label for="importPaste">Paste rows from Excel, with the header row</label>
+      <textarea id="importPaste" class="uat-import-paste" spellcheck="false"></textarea>
+    </div>
+    <div class="upload-area" id="importDrop" tabindex="0" role="button" aria-label="Choose a spreadsheet to import">
+      <div class="big">Or drop an Excel or CSV file here</div>
+      <div class="or">or click to choose one</div>
+      <input type="file" id="importFile" accept=".xlsx,.xls,.csv,.tsv,.txt" hidden>
+    </div>
+    <div class="uat-import-preview" id="importPreview"></div>
+    <div class="uat-radio-row" id="importModes">
+      <label><input type="radio" name="importMode" value="merge" checked><span><b>Update and add.</b> Rows whose ID is already here update that record (only the columns in the file); the rest are added.</span></label>
+      <label><input type="radio" name="importMode" value="replace"><span><b>Replace.</b> Remove every <span data-kind-word>test</span> in this cycle first.</span></label>
+    </div>
+    <div class="modal-actions">
+      <button type="button" data-cancel>Cancel</button>
+      <button type="button" class="primary" id="importOk" disabled>Import</button>
+    </div>
+  </div>
+</div>
+
+<!-- new cycle dialog -->
+<div class="modal-overlay" id="cycleOverlay" hidden>
+  <div class="modal">
+    <h2>New UAT cycle</h2>
+    <form id="cycleForm" novalidate>
+      <div class="field"><label for="c_name">Name</label><input type="text" id="c_name" placeholder="e.g. Customer Portal R4.3 UAT" autocomplete="off"></div>
+      <div class="field-row-3">
+        <div class="field"><label for="c_start">Testing starts</label><input type="date" id="c_start"></div>
+        <div class="field"><label for="c_end">Testing ends</label><input type="date" id="c_end"></div>
+        <div class="field"><label for="c_signoff">Sign-off due</label><input type="date" id="c_signoff"></div>
+      </div>
+      <div id="c_copyWrap">
+        <label class="uat-check"><input type="checkbox" id="c_copySetup" checked>Carry over the exit criteria, status rules and approvers from <b id="c_fromName"></b></label>
+        <label class="uat-check"><input type="checkbox" id="c_copyTests">Carry over its tests too, reset to Not run (for a retest or regression cycle)</label>
+      </div>
+      <div class="callout danger" id="c_err" hidden></div>
+      <div class="modal-actions">
+        <button type="button" data-cancel>Cancel</button>
+        <button type="submit" class="primary">Create cycle</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- load backup dialog -->
+<div class="modal-overlay" id="loadOverlay" hidden>
+  <div class="modal modal-compact">
+    <h2>Load backup</h2>
+    <p class="modal-lead" id="loadLead"></p>
+    <div class="modal-actions">
+      <button type="button" data-cancel>Cancel</button>
+      <button type="button" class="danger" id="loadReplace">Replace everything</button>
+      <button type="button" class="primary" id="loadAdd">Add these cycles</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/*@include framework/vendor/sheetjs.js@*/
+</script>
+<script>
+/*@include framework/report-kit.js@*/
+</script>
+<script>
+(function () {
+  "use strict";
+  // App version, shown in Settings. Semver: MAJOR for a stored-data change that
+  // normaliseState cannot migrate, MINOR for new features, PATCH for fixes.
+  var APP_VERSION = "1.0.0";
+  var STORE_KEY = "uatSignoffTracker.v1";
+  var TAB_KEY = "uatSignoffTracker.tabCycle";
+  var SCHEMA_VERSION = 1;
+  var $ = RK.$, esc = RK.esc, dict = RK.dict;
+
+  var TEST_STATUSES = ["Not run", "In progress", "Passed", "Failed", "Blocked", "Out of scope"];
+  var PRIORITIES = ["Critical", "High", "Medium", "Low"];
+  var SEVERITIES = ["Critical", "High", "Medium", "Low"];
+  var DEFECT_STATUSES = ["New", "In fix", "Ready to retest", "Closed", "Deferred", "Rejected"];
+  var OPEN_DEFECT = ["New", "In fix", "Ready to retest"];
+  var DECISIONS = ["Pending", "Approved", "Approved with conditions", "Rejected"];
+  var RAGS = ["green", "amber", "red"];
+  var RAG_LABEL = { green: "Green", amber: "Amber", red: "Red", done: "Signed off", idle: "Not started" };
+  var RAG_PILL = { green: "pill-green", amber: "pill-yellow", red: "pill-red", done: "pill-green", idle: "pill-grey" };
+  // Status colours, for the in-row selects: green fine, yellow watch, red act
+  var TONE = {
+    "Passed": "green", "Failed": "red", "Blocked": "yellow", "In progress": "teal", "Not run": "grey", "Out of scope": "grey",
+    "New": "grey", "In fix": "teal", "Ready to retest": "yellow", "Closed": "green", "Deferred": "grey", "Rejected": "grey",
+    "Pending": "grey", "Approved": "green", "Approved with conditions": "yellow"
+  };
+  var DECISION_TONE = { "Rejected": "red" };
+  var SEV_PILL = { Critical: "pill-red", High: "pill-yellow", Medium: "pill-grey", Low: "pill-grey" };
+  var SNAP_KEYS = ["inScope", "executed", "passed", "failed", "blocked", "open", "critical", "high", "raised", "closed", "approved", "approvers"];
+  var SECTIONS = [
+    ["figures", "Key figures"], ["since", "Change since last update"], ["highlights", "Highlights"],
+    ["criteria", "Exit criteria"], ["areas", "Progress by area"], ["defects", "Defects needing attention"],
+    ["known", "Known issues accepted"], ["risks", "Risks and issues"], ["asks", "Decisions and help needed"],
+    ["approvals", "Sign-off status"], ["next", "Next steps"]
+  ];
+
+  /* ---------- small helpers ---------- */
+  function isObj(x) { return x !== null && typeof x === "object" && !Array.isArray(x); }
+  function str(x) { return typeof x === "string" ? x : (typeof x === "number" && isFinite(x)) || typeof x === "boolean" ? String(x) : ""; }
+  function oneOf(x, list, def) { return list.indexOf(x) !== -1 ? x : def; }
+  function numIn(x, def, lo, hi) {
+    if (x === "" || x === null || x === undefined) return def;
+    var n = Number(x);
+    return isFinite(n) ? Math.min(hi, Math.max(lo, n)) : def;
+  }
+  // a criterion limit: a whole number, or null when the criterion is switched off
+  function limitOf(x, def) {
+    if (x === undefined) return def;
+    if (x === null || x === "") return null;
+    var n = Number(x);
+    return isFinite(n) ? Math.max(0, Math.floor(n)) : null;
+  }
+  function arr(x) { return Array.isArray(x) ? x.filter(isObj) : []; }
+  function plural(n, word, many) { return n + " " + (n === 1 ? word : (many || word + "s")); }
+  function floorPct(n) { return Math.floor(n + 1e-9) + "%"; }
+  function pct(a, b) { return b > 0 ? a / b * 100 : 0; }
+  function cmpText(a, b) { return String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: "base" }); }
+  function lc(s) { return String(s || "").toLowerCase(); }
+  function lines(s) {
+    return String(s || "").split(/\r?\n/).map(function (l) { return l.replace(/^\s*(?:[-*•·]|\d+[.)])\s+/, "").trim(); }).filter(Boolean);
+  }
+  function uniqueIds(list) {
+    var seen = dict();
+    list.forEach(function (r) {
+      var id = str(r.id);
+      if (!id || seen[id]) { do { id = RK.uid(); } while (seen[id]); }
+      r.id = id; seen[id] = 1;
+    });
+    return list;
+  }
+  function firstLower(s) { return s ? s.charAt(0).toLowerCase() + s.slice(1) : s; }
+
+  /* ---------- dates (local calendar days as YYYY-MM-DD) ---------- */
+  function isDate(s) {
+    if (typeof s !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
+    var d = parseD(s);
+    return !isNaN(d) && RK.localDate(d) === s;
+  }
+  function parseD(s) { var p = s.split("-"); return new Date(+p[0], +p[1] - 1, +p[2]); }
+  function addDays(s, n) { var d = parseD(s); d.setDate(d.getDate() + n); return RK.localDate(d); }
+  function isWeekday(d) { var w = d.getDay(); return w !== 0 && w !== 6; }
+  // Monday to Friday from a to b, both included; 0 when b is before a
+  function workdays(a, b) {
+    if (!isDate(a) || !isDate(b) || b < a) return 0;
+    var d = parseD(a), end = parseD(b), n = 0;
+    if ((end - d) / 864e5 > 3700) return Math.round(((end - d) / 864e5 + 1) * 5 / 7);
+    while (d <= end) { if (isWeekday(d)) n++; d.setDate(d.getDate() + 1); }
+    return n;
+  }
+  // working days from `from` to `to`, not counting `from`: negative once `to` has passed
+  function workdaysUntil(from, to) {
+    if (!isDate(from) || !isDate(to)) return null;
+    return to >= from ? workdays(addDays(from, 1), to) : -workdays(addDays(to, 1), from);
+  }
+  function addWorkdays(s, n) {
+    var d = parseD(s), step = n < 0 ? -1 : 1, left = Math.abs(n);
+    while (left > 0) { d.setDate(d.getDate() + step); if (isWeekday(d)) left--; }
+    return RK.localDate(d);
+  }
+  function fmtDay(s) {
+    if (!isDate(s)) return "";
+    var d = parseD(s), o = { weekday: "short", day: "numeric", month: "short" };
+    if (s.slice(0, 4) !== RK.today().slice(0, 4)) o.year = "numeric";
+    return d.toLocaleDateString("en-GB", o);
+  }
+  function fmtShort(s) { return isDate(s) ? parseD(s).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : ""; }
+  function daysBetween(a, b) { return Math.round((parseD(b) - parseD(a)) / 864e5); }
+
+  /* ---------- model ---------- */
+  function defaultCriteria() { return { execPct: 100, passPct: 95, critPass: true, maxCritical: 0, maxHigh: 0, maxBlocked: 0, custom: [] }; }
+  function defaultRules() { return { amberBehind: 10, redBehind: 20, redCritDays: 3, amberBlockedPct: 10 }; }
+  function presetSections(type, audience) {
+    var on = type === "request"
+      ? ["figures", "criteria", "defects", "known", "risks", "approvals"]
+      : audience === "full"
+        ? SECTIONS.map(function (s) { return s[0]; })
+        : ["figures", "since", "highlights", "criteria", "defects", "risks", "asks", "approvals", "next"];
+    var out = {};
+    SECTIONS.forEach(function (s) { out[s[0]] = on.indexOf(s[0]) !== -1; });
+    if (type === "request" && audience === "full") out.areas = true;
+    return out;
+  }
+  function defaultEmail() {
+    return { type: "update", audience: "summary", subject: "", greeting: "Hi all,", headline: "", highlights: "", risks: "",
+      asks: "", nextSteps: "", nextUpdate: "", signoff: "", sections: presetSections("update", "summary") };
+  }
+  function newCycle(name) {
+    return { id: RK.uid(), name: name || "New UAT cycle", project: "", build: "", environment: "", lead: "",
+      startDate: "", endDate: "", signoffDate: "", rag: { mode: "auto", reason: "" },
+      criteria: defaultCriteria(), rules: defaultRules(), tests: [], defects: [], approvers: [],
+      email: defaultEmail(), history: [], sent: [], createdAt: RK.nowIso() };
+  }
+  function dateOr(x) { return isDate(x) ? x : ""; }
+  function normTest(t) {
+    return { id: str(t.id), ref: str(t.ref).trim(), title: str(t.title), area: str(t.area).trim(), tester: str(t.tester).trim(),
+      priority: oneOf(t.priority, PRIORITIES, "Medium"), status: oneOf(t.status, TEST_STATUSES, "Not run"),
+      defects: str(t.defects), note: str(t.note), updated: dateOr(t.updated) };
+  }
+  function normDefect(d) {
+    return { id: str(d.id), ref: str(d.ref).trim(), title: str(d.title), area: str(d.area).trim(), owner: str(d.owner).trim(),
+      severity: oneOf(d.severity, SEVERITIES, "Medium"), status: oneOf(d.status, DEFECT_STATUSES, "New"),
+      raised: dateOr(d.raised), eta: dateOr(d.eta), tests: str(d.tests), resolution: str(d.resolution), note: str(d.note),
+      updated: dateOr(d.updated) };
+  }
+  function normApprover(a) {
+    return { id: str(a.id), name: str(a.name).trim(), role: str(a.role).trim(), scope: str(a.scope).trim(),
+      status: oneOf(a.status, DECISIONS, "Pending"), date: dateOr(a.date), note: str(a.note) };
+  }
+  function normSnap(h) {
+    var o = { date: dateOr(h.date) };
+    SNAP_KEYS.forEach(function (k) { var n = Number(h[k]); o[k] = isFinite(n) && n > 0 ? Math.floor(n) : 0; });
+    o.rag = oneOf(h.rag, RAGS.concat(["done", "idle"]), "idle");
+    return o;
+  }
+  function normCycle(c) {
+    var out = newCycle(str(c.name).trim() || "Untitled UAT cycle");
+    out.id = str(c.id);
+    out.createdAt = str(c.createdAt) || out.createdAt;
+    ["project", "build", "environment", "lead"].forEach(function (f) { out[f] = str(c[f]); });
+    ["startDate", "endDate", "signoffDate"].forEach(function (f) { out[f] = dateOr(c[f]); });
+    var rag = isObj(c.rag) ? c.rag : {};
+    out.rag = { mode: oneOf(rag.mode, ["auto"].concat(RAGS), "auto"), reason: str(rag.reason) };
+    var cr = isObj(c.criteria) ? c.criteria : {}, dc = defaultCriteria();
+    out.criteria = {
+      execPct: numIn(cr.execPct, dc.execPct, 0, 100), passPct: numIn(cr.passPct, dc.passPct, 0, 100),
+      critPass: cr.critPass === undefined ? true : !!cr.critPass,
+      maxCritical: limitOf(cr.maxCritical, 0), maxHigh: limitOf(cr.maxHigh, 0), maxBlocked: limitOf(cr.maxBlocked, 0),
+      custom: uniqueIds(arr(cr.custom).map(function (x) { return { id: str(x.id), text: str(x.text), met: !!x.met }; }))
+    };
+    var ru = isObj(c.rules) ? c.rules : {}, dr = defaultRules();
+    out.rules = {
+      amberBehind: numIn(ru.amberBehind, dr.amberBehind, 0, 100), redBehind: numIn(ru.redBehind, dr.redBehind, 0, 100),
+      redCritDays: numIn(ru.redCritDays, dr.redCritDays, 0, 60), amberBlockedPct: numIn(ru.amberBlockedPct, dr.amberBlockedPct, 0, 100)
+    };
+    var em = isObj(c.email) ? c.email : {};
+    out.email.type = oneOf(em.type, ["update", "request"], "update");
+    out.email.audience = oneOf(em.audience, ["summary", "full"], "summary");
+    ["subject", "greeting", "headline", "highlights", "risks", "asks", "nextSteps", "signoff"].forEach(function (f) {
+      if (RK.has(em, f)) out.email[f] = str(em[f]);
+    });
+    out.email.nextUpdate = dateOr(em.nextUpdate);
+    out.email.sections = presetSections(out.email.type, out.email.audience);
+    if (isObj(em.sections)) SECTIONS.forEach(function (s) { if (RK.has(em.sections, s[0])) out.email.sections[s[0]] = !!em.sections[s[0]]; });
+    out.tests = uniqueIds(arr(c.tests).map(normTest));
+    out.defects = uniqueIds(arr(c.defects).map(normDefect));
+    out.approvers = uniqueIds(arr(c.approvers).map(normApprover));
+    var byDate = dict();
+    arr(c.history).map(normSnap).forEach(function (h) { if (h.date) byDate[h.date] = h; });
+    out.history = Object.keys(byDate).sort().slice(-400).map(function (k) { return byDate[k]; });
+    out.sent = arr(c.sent).map(function (s) {
+      return { at: str(s.at), subject: str(s.subject), snap: normSnap(isObj(s.snap) ? s.snap : {}) };
+    }).filter(function (s) { return s.at; }).slice(-100);
+    return out;
+  }
+  // Builds a clean state from parsed JSON (storage or a backup file). Never mutates the
+  // input; returns null when it is not tracker data at all. A file holding one cycle
+  // (no "cycles" list) loads as that cycle.
+  function normaliseState(p) {
+    if (!isObj(p)) return null;
+    var cycles;
+    if (Array.isArray(p.cycles)) cycles = arr(p.cycles).map(normCycle);
+    else if (Array.isArray(p.tests)) cycles = [normCycle(p)];
+    else return null;
+    uniqueIds(cycles);
+    if (!cycles.length) cycles = [newCycle()];
+    var active = str(p.activeId);
+    if (!cycles.some(function (c) { return c.id === active; })) active = cycles[0].id;
+    return { schemaVersion: SCHEMA_VERSION, app: "uat-signoff-tracker", rev: Number(p.rev) || 0, activeId: active, cycles: cycles };
+  }
+
+  /* ---------- metrics, criteria and status ---------- */
+  function metrics(c, today) {
+    today = today || RK.today();
+    var m = { today: today, total: c.tests.length, s: dict(), crit: { inScope: 0, passed: 0 } };
+    TEST_STATUSES.forEach(function (st) { m.s[st] = 0; });
+    c.tests.forEach(function (t) {
+      m.s[t.status]++;
+      if (t.priority === "Critical" && t.status !== "Out of scope") { m.crit.inScope++; if (t.status === "Passed") m.crit.passed++; }
+    });
+    m.outOfScope = m.s["Out of scope"]; m.inScope = m.total - m.outOfScope;
+    m.passed = m.s.Passed; m.failed = m.s.Failed; m.blocked = m.s.Blocked; m.notRun = m.s["Not run"]; m.inProgress = m.s["In progress"];
+    m.executed = m.passed + m.failed;
+    m.execPct = pct(m.executed, m.inScope); m.passPct = pct(m.passed, m.inScope);
+    m.passRate = pct(m.passed, m.executed); m.blockedPct = pct(m.blocked, m.inScope);
+
+    m.d = { open: 0, raised: 0, closed: 0, deferred: 0, retest: 0, rejected: 0, sev: dict() };
+    SEVERITIES.forEach(function (s) { m.d.sev[s] = 0; });
+    c.defects.forEach(function (d) {
+      if (d.status === "Rejected") { m.d.rejected++; return; }
+      m.d.raised++;
+      if (OPEN_DEFECT.indexOf(d.status) !== -1) { m.d.open++; m.d.sev[d.severity]++; if (d.status === "Ready to retest") m.d.retest++; }
+      else if (d.status === "Closed") m.d.closed++;
+      else m.d.deferred++;
+    });
+
+    m.a = { total: c.approvers.length, approved: 0, conditional: 0, rejected: 0, pending: 0 };
+    c.approvers.forEach(function (a) {
+      if (a.status === "Approved") m.a.approved++;
+      else if (a.status === "Approved with conditions") m.a.conditional++;
+      else if (a.status === "Rejected") m.a.rejected++;
+      else m.a.pending++;
+    });
+    m.a.yes = m.a.approved + m.a.conditional;
+    m.signedOff = m.a.total > 0 && m.a.yes === m.a.total;
+
+    m.sched = null;
+    if (isDate(c.startDate) && isDate(c.endDate) && c.endDate >= c.startDate) {
+      var total = Math.max(1, workdays(c.startDate, c.endDate));
+      var elapsed = today < c.startDate ? 0 : workdays(c.startDate, today < c.endDate ? today : c.endDate);
+      m.sched = { total: total, elapsed: elapsed, planned: elapsed / total * 100, started: today >= c.startDate, ended: today > c.endDate };
+      m.sched.behind = m.sched.planned - m.execPct;
+      m.sched.plannedCount = Math.round(m.inScope * elapsed / total);
+    }
+    m.toSignoff = isDate(c.signoffDate) ? workdaysUntil(today, c.signoffDate) : null;
+    m.criteria = evalCriteria(c, m);
+    m.criteriaMet = m.criteria.filter(function (x) { return x.met; }).length;
+    m.ready = m.inScope > 0 && m.criteriaMet === m.criteria.length;
+    var auto = autoRag(c, m);
+    m.auto = auto.rag; m.reasons = auto.reasons;
+    m.overridden = c.rag.mode !== "auto";
+    m.rag = m.overridden ? c.rag.mode : auto.rag;
+    return m;
+  }
+
+  function limitText(n) { return n === 0 ? "None" : n + " or fewer"; }
+  function evalCriteria(c, m) {
+    var cr = c.criteria, out = [];
+    out.push({ label: "Tests executed", target: cr.execPct >= 100 ? "All in scope" : cr.execPct + "% or more",
+      actual: floorPct(m.execPct) + " (" + m.executed + " of " + m.inScope + ")", met: m.inScope > 0 && m.execPct + 1e-9 >= cr.execPct });
+    out.push({ label: "Tests passed", target: cr.passPct + "% or more",
+      actual: floorPct(m.passPct) + " (" + m.passed + " of " + m.inScope + ")", met: m.inScope > 0 && m.passPct + 1e-9 >= cr.passPct });
+    if (cr.critPass) out.push({ label: "Critical-priority tests passed", target: "All",
+      actual: m.crit.passed + " of " + m.crit.inScope, met: m.crit.passed === m.crit.inScope });
+    if (cr.maxCritical !== null) out.push({ label: "Open critical defects", target: limitText(cr.maxCritical),
+      actual: String(m.d.sev.Critical), met: m.d.sev.Critical <= cr.maxCritical });
+    if (cr.maxHigh !== null) out.push({ label: "Open high defects", target: limitText(cr.maxHigh),
+      actual: String(m.d.sev.High), met: m.d.sev.High <= cr.maxHigh });
+    if (cr.maxBlocked !== null) out.push({ label: "Blocked tests", target: limitText(cr.maxBlocked),
+      actual: String(m.blocked), met: m.blocked <= cr.maxBlocked });
+    cr.custom.forEach(function (x) {
+      out.push({ label: x.text || "Untitled criterion", target: "Confirmed", actual: x.met ? "Confirmed" : "Not yet", met: x.met, customId: x.id });
+    });
+    return out;
+  }
+
+  // Green / Amber / Red from the rules in Settings, with the reasons that set it.
+  function autoRag(c, m) {
+    var R = c.rules, cr = c.criteria, lvl = 0, reasons = [];
+    function hit(l, text) { reasons.push({ lvl: l, text: text }); if (l > lvl) lvl = l; }
+    if (m.signedOff) return { rag: "done", reasons: [{ lvl: 0, text: "All " + plural(m.a.total, "approver") + " have signed off" }] };
+    if (m.inScope === 0) return { rag: "idle", reasons: [{ lvl: 0, text: "No tests in scope yet" }] };
+    if (m.sched && !m.sched.started) return { rag: "idle", reasons: [{ lvl: 0, text: "Testing starts " + fmtDay(c.startDate) }] };
+    if (m.a.rejected) hit(2, plural(m.a.rejected, "approver") + " rejected sign-off");
+    if (m.toSignoff !== null && m.toSignoff < 0) hit(2, "Sign-off was due " + fmtDay(c.signoffDate));
+    if (m.sched && m.sched.behind > 0) {
+      var gap = Math.round(m.sched.behind), why = gap + " points behind plan (" + floorPct(m.execPct) + " executed, plan " + Math.round(m.sched.planned) + "%)";
+      if (m.sched.behind >= R.redBehind) hit(2, why); else if (m.sched.behind >= R.amberBehind) hit(1, why);
+    }
+    var crit = m.d.sev.Critical, high = m.d.sev.High;
+    if (cr.maxCritical !== null && crit > cr.maxCritical) {
+      if (m.toSignoff !== null && m.toSignoff <= R.redCritDays) hit(2, plural(crit, "critical defect") + " open with " + plural(Math.max(0, m.toSignoff), "working day") + " to sign-off");
+      else hit(1, plural(crit, "critical defect") + " open");
+    }
+    if (cr.maxHigh !== null && high > cr.maxHigh) hit(1, plural(high, "high defect") + " open");
+    if (m.blocked > 0 && m.blockedPct + 1e-9 >= R.amberBlockedPct) hit(1, plural(m.blocked, "test") + " blocked (" + floorPct(m.blockedPct) + " of scope)");
+    if (m.executed >= 5 && m.passRate + 1e-9 < cr.passPct) hit(1, "Pass rate of " + floorPct(m.passRate) + " on tests run, below the " + cr.passPct + "% target");
+    if (!reasons.length) reasons.push({ lvl: 0, text: m.ready ? "All exit criteria met, awaiting sign-off" : "On plan with no blocking defects" });
+    return { rag: RAGS[lvl], reasons: reasons };
+  }
+
+  function snapOf(m) {
+    return { date: m.today, inScope: m.inScope, executed: m.executed, passed: m.passed, failed: m.failed, blocked: m.blocked,
+      open: m.d.open, critical: m.d.sev.Critical, high: m.d.sev.High, raised: m.d.raised, closed: m.d.closed + m.d.deferred,
+      approved: m.a.yes, approvers: m.a.total, rag: m.rag };
+  }
+  // one point per day for the progress chart; the latest save of the day wins
+  function recordSnapshot(c) {
+    if (!c.tests.length) return;
+    var s = snapOf(metrics(c)), h = c.history;
+    if (h.length && h[h.length - 1].date === s.date) h[h.length - 1] = s; else h.push(s);
+    if (h.length > 400) h.splice(0, h.length - 400);
+  }
+
+  /* ---------- storage ---------- */
+  var state = null, cur = null, storageWarning = "";
+  function preserveCorrupt(raw) { try { localStorage.setItem(STORE_KEY + ".corrupt." + Date.now(), raw); } catch (e) { /* nothing more to do */ } }
+  function load() {
+    var raw = null;
+    try { raw = localStorage.getItem(STORE_KEY); } catch (e) { storageWarning = "This browser is blocking storage, so nothing will be kept after you close the tab. Save a backup file from Settings."; }
+    if (raw) {
+      var parsed = null;
+      try { parsed = JSON.parse(raw); } catch (e) { parsed = null; }
+      var n = normaliseState(parsed);
+      if (n) state = n;
+      else { preserveCorrupt(raw); storageWarning = "The saved data could not be read. It has been kept aside in browser storage and the tracker started empty."; }
+    }
+    if (!state) { var c = newCycle(); state = { schemaVersion: SCHEMA_VERSION, app: "uat-signoff-tracker", rev: 0, activeId: c.id, cycles: [c] }; }
+    var tabId = null;
+    try { tabId = sessionStorage.getItem(TAB_KEY); } catch (e) { tabId = null; }
+    setCurrent(cycleById(tabId) ? tabId : state.activeId);
+  }
+  function cycleById(id) { return state.cycles.filter(function (c) { return c.id === id; })[0] || null; }
+  function setCurrent(id) {
+    cur = cycleById(id) || state.cycles[0];
+    state.activeId = cur.id;
+    try { sessionStorage.setItem(TAB_KEY, cur.id); } catch (e) { /* per-tab memory is a nicety */ }
+  }
+  function save() {
+    recordSnapshot(cur);
+    state.rev = (Number(state.rev) || 0) + 1;
+    state.activeId = cur.id;
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
+    catch (e) { banner("Could not save to browser storage, so recent changes may be lost. Save a backup file from Settings now."); }
+  }
+  function commit() { save(); renderAll(); }
+  function banner(text) { var b = $("storageBanner"); b.textContent = text; b.hidden = !text; }
+
+  /* ---------- views ---------- */
+  var view = "overview", settingsTab = "cycle";
+  var VIEWS = ["overview", "tests", "defects", "signoff", "email", "settings"];
+  function show(v, tab) {
+    view = v;
+    VIEWS.forEach(function (x) { $("view-" + x).hidden = x !== v; });
+    document.querySelectorAll(".app-nav-item").forEach(function (b) {
+      var on = b.getAttribute("data-view") === v;
+      b.classList.toggle("active", on); b.setAttribute("aria-pressed", on ? "true" : "false");
+    });
+    if (v === "settings") showSettingsTab(tab || settingsTab);
+    if (v === "email") fillCompose();
+    renderAll();
+    window.scrollTo(0, 0);
+  }
+  function showSettingsTab(t) {
+    settingsTab = t;
+    document.querySelectorAll(".settings-nav-item").forEach(function (b) { b.classList.toggle("active", b.getAttribute("data-tab") === t); });
+    document.querySelectorAll("[data-panel]").forEach(function (p) { p.hidden = p.getAttribute("data-panel") !== t; });
+    fillSettings();
+  }
+
+  function renderAll() {
+    var m = metrics(cur);
+    renderHeader();
+    renderLists();
+    renderOverview(m);
+    renderTests();
+    renderDefects();
+    renderSignoff(m);
+    renderEmail(m);
+    renderSettingsLists();
+  }
+
+  function renderHeader() {
+    var sel = $("cycleSelect");
+    sel.innerHTML = state.cycles.map(function (c) {
+      return '<option value="' + esc(c.id) + '"' + (c.id === cur.id ? " selected" : "") + ">" + esc(c.name) + "</option>";
+    }).join("") + '<option value="__new">+ New cycle…</option>';
+    $("cyclesCount").textContent = state.cycles.length;
+    document.title = cur.name + " · UAT Sign-off Tracker";
+  }
+
+  function uniq(list) {
+    var seen = dict(), out = [];
+    list.forEach(function (v) { v = String(v || "").trim(); if (v && !seen[lc(v)]) { seen[lc(v)] = 1; out.push(v); } });
+    return out.sort(cmpText);
+  }
+  function areasOf() { return uniq(cur.tests.map(function (t) { return t.area; }).concat(cur.defects.map(function (d) { return d.area; }))); }
+  function peopleOf() {
+    return uniq(cur.tests.map(function (t) { return t.tester; }).concat(cur.defects.map(function (d) { return d.owner; }), cur.approvers.map(function (a) { return a.name; })));
+  }
+  function renderLists() {
+    $("dlAreas").innerHTML = areasOf().map(function (a) { return '<option value="' + esc(a) + '">'; }).join("");
+    $("dlPeople").innerHTML = peopleOf().map(function (a) { return '<option value="' + esc(a) + '">'; }).join("");
+  }
+  function ragPill(rag, big) { return '<span class="status-pill ' + RAG_PILL[rag] + (big ? " uat-rag-big" : "") + '">' + esc(RAG_LABEL[rag]) + "</span>"; }
+
+  /* ---------- overview ---------- */
+  function scheduleText(c, m) {
+    var bits = [];
+    if (m.sched) {
+      if (!m.sched.started) bits.push("Testing starts " + fmtDay(c.startDate));
+      else if (m.sched.ended) bits.push("Testing window ended " + fmtDay(c.endDate));
+      else bits.push("Day " + m.sched.elapsed + " of " + m.sched.total);
+    }
+    if (isDate(c.signoffDate)) bits.push("sign-off due " + fmtDay(c.signoffDate));
+    return bits.join(", ");
+  }
+  function headlineShort(m) {
+    if (m.rag === "done") return "Signed off by all " + plural(m.a.total, "approver");
+    if (!m.inScope) return "No tests yet";
+    var s = floorPct(m.execPct) + " executed, " + floorPct(m.passPct) + " passed";
+    var ch = critHighText(m);
+    return s + (ch ? ", " + ch : m.d.open ? ", " + plural(m.d.open, "defect") + " open" : ", no open defects");
+  }
+  function critHighText(m) {
+    var c = m.d.sev.Critical, h = m.d.sev.High;
+    if (!c && !h) return "";
+    if (c && h) return c + " critical and " + plural(h, "high defect") + " open";
+    return c ? plural(c, "critical defect") + " open" : plural(h, "high defect") + " open";
+  }
+  function renderOverview(m) {
+    var c = cur;
+    $("summarySub").textContent = [c.name].concat(scheduleText(c, m) ? [scheduleText(c, m)] : []).join(" · ");
+    $("summaryMain").textContent = headlineShort(m);
+    $("ragPill").innerHTML = ragPill(m.rag, true);
+    var why = $("ragWhy");
+    why.className = "callout uat-why" + (m.rag === "red" ? " danger" : m.rag === "amber" ? " warn" : m.rag === "green" || m.rag === "done" ? " ok" : "");
+    if (m.overridden) {
+      why.innerHTML = "<b>Set by hand to " + esc(RAG_LABEL[m.rag]) + ".</b> " + esc(c.rag.reason || "No reason given.") +
+        ' <span class="uat-muted">The rules would say ' + esc(RAG_LABEL[m.auto]) + ".</span>";
+    } else {
+      why.innerHTML = "<b>Why " + esc(RAG_LABEL[m.rag]) + ":</b><ul>" + m.reasons.map(function (r) { return "<li>" + esc(r.text) + "</li>"; }).join("") + "</ul>";
+    }
+    var empty = !c.tests.length;
+    $("onboard").hidden = !empty;
+    $("statGrid").hidden = empty; $("ovPanels").hidden = empty; $("ovAreas").hidden = empty;
+    if (empty) return;
+
+    var scale = Math.max(1, m.inScope);
+    function w(n) { return (n / scale * 100).toFixed(2) + "%"; }
+    var planMark = m.sched && m.sched.started ? '<div class="uat-plan-mark" style="left:' + Math.min(100, m.sched.planned).toFixed(2) + '%" title="Plan for today"></div>' : "";
+    var cards = [];
+    cards.push(card("tests", "Execution", m.sched && m.sched.started ? behindPill(c, m) : "",
+      floorPct(m.execPct), "of " + plural(m.inScope, "test") + " in scope",
+      '<div class="bar-track"><div class="bar-fill status-green" style="width:' + w(m.passed) + '"></div><div class="bar-fill status-red" style="width:' + w(m.failed) +
+        '"></div><div class="bar-fill status-yellow" style="width:' + w(m.blocked) + '"></div>' + planMark + "</div>",
+      [["Passed", m.passed], ["Failed", m.failed], ["Blocked", m.blocked], ["Not run or in progress", m.notRun + m.inProgress]],
+      { neg: { Failed: m.failed > 0, Blocked: m.blocked > 0 } }));
+    cards.push(card("tests", "Pass rate", m.executed && m.passRate + 1e-9 < c.criteria.passPct ? '<span class="status-pill pill-yellow">Below target</span>' : "",
+      m.executed ? floorPct(m.passRate) : "–", "of tests run",
+      "", [["Passed of scope", floorPct(m.passPct)], ["Target", c.criteria.passPct + "%"], ["Critical tests passed", m.crit.passed + " of " + m.crit.inScope], ["Out of scope", m.outOfScope]], {}));
+    var cl = c.criteria.maxCritical, hl = c.criteria.maxHigh;
+    cards.push(card("defects", "Open defects", m.d.retest ? '<span class="status-pill pill-yellow">' + m.d.retest + " to retest</span>" : "",
+      String(m.d.open), "of " + plural(m.d.raised, "raised", "raised"), "",
+      [["Critical", m.d.sev.Critical], ["High", m.d.sev.High], ["Medium", m.d.sev.Medium], ["Low", m.d.sev.Low]],
+      { neg: { Critical: cl !== null && m.d.sev.Critical > cl, High: hl !== null && m.d.sev.High > hl } }));
+    var signPill = m.a.rejected ? '<span class="status-pill pill-red">' + m.a.rejected + " rejected</span>" :
+      m.ready && !m.signedOff ? '<span class="status-pill pill-green">Ready</span>' : "";
+    cards.push(card("signoff", "Sign-off", signPill, m.a.yes + " of " + m.a.total, "approvers",
+      '<div class="bar-track"><div class="bar-fill status-green" style="width:' + (m.a.total ? m.a.yes / m.a.total * 100 : 0).toFixed(2) + '%"></div></div>',
+      [["Criteria met", m.criteriaMet + " of " + m.criteria.length], ["Pending", m.a.pending],
+        ["With conditions", m.a.conditional], [m.toSignoff !== null && m.toSignoff < 0 ? "Overdue by" : "Working days left", m.toSignoff === null ? "–" : Math.abs(m.toSignoff)]],
+      { neg: { "Overdue by": true } }));
+    $("statGrid").innerHTML = cards.join("");
+
+    $("critVerdict").innerHTML = m.ready ? '<span class="status-pill pill-green">All met</span>' :
+      '<span class="status-pill pill-grey">' + m.criteriaMet + " of " + m.criteria.length + " met</span>";
+    $("critList").innerHTML = m.criteria.map(function (x) {
+      var label = x.customId
+        ? '<label><input type="checkbox" data-crit-toggle="' + esc(x.customId) + '"' + (x.met ? " checked" : "") + ">" + esc(x.label) + "</label>"
+        : esc(x.label);
+      return '<div class="uat-crit-row"><div class="uat-crit-label">' + label + '<span class="uat-crit-target">Target: ' + esc(x.target) + "</span></div>" +
+        '<span class="uat-crit-actual">' + esc(x.actual) + "</span>" +
+        '<span class="status-pill ' + (x.met ? "pill-green" : "pill-red") + '">' + (x.met ? "Met" : "Not met") + "</span></div>";
+    }).join("");
+
+    renderBurnup(c, m);
+
+    var areas = areaRows(c);
+    $("areaBody").innerHTML = areas.map(function (a) {
+      var sc = Math.max(1, a.inScope);
+      return '<tr class="clickable" tabindex="0" data-area="' + esc(a.key) + '"><td class="wrap-cell"><span class="cell-title">' + esc(a.name) + "</span></td>" +
+        '<td class="num mono">' + a.inScope + '</td><td class="num mono">' + a.executed + '</td><td class="num mono">' + a.passed +
+        '</td><td class="num mono">' + a.failed + '</td><td class="num mono">' + a.blocked + '</td><td class="num mono">' + a.notRun + "</td>" +
+        '<td><div class="row-bar-cell" style="min-width:140px"><span class="uat-small mono">' + floorPct(pct(a.executed, a.inScope)) + ' executed</span>' +
+        '<span class="row-bar-track" style="display:flex"><span class="row-bar-fill" style="width:' + (a.passed / sc * 100) + '%;background:var(--green)"></span>' +
+        '<span class="row-bar-fill" style="width:' + (a.failed / sc * 100) + '%;background:var(--red-soft)"></span>' +
+        '<span class="row-bar-fill" style="width:' + (a.blocked / sc * 100) + '%;background:var(--yellow)"></span></span></div></td>' +
+        '<td class="num mono' + (a.critHigh ? " uat-overdue" : "") + '">' + a.open + "</td></tr>";
+    }).join("");
+  }
+  function behindPill(c, m) {
+    var b = m.sched.behind;
+    if (b >= c.rules.redBehind) return '<span class="status-pill pill-red">' + Math.round(b) + " pts behind</span>";
+    if (b >= c.rules.amberBehind) return '<span class="status-pill pill-yellow">' + Math.round(b) + " pts behind</span>";
+    if (b <= -1) return '<span class="status-pill pill-green">' + Math.round(-b) + " pts ahead</span>";
+    return '<span class="status-pill pill-green">On plan</span>';
+  }
+  function card(go, name, pill, value, of, bar, nums, opt) {
+    return '<div class="stat-card" role="button" tabindex="0" data-goto="' + go + '"><div class="stat-card-name"><span>' + esc(name) + "</span>" + pill + "</div>" +
+      '<div class="stat-card-figure"><span class="stat-card-value">' + esc(value) + '</span><span class="stat-card-of">' + esc(of) + "</span></div>" + bar +
+      '<div class="stat-card-nums">' + nums.map(function (n) {
+        var neg = opt.neg && opt.neg[n[0]] && n[1] !== 0 && n[1] !== "–";
+        return "<span>" + esc(n[0]) + '<span class="stat-card-num' + (neg ? " neg" : "") + '">' + esc(n[1]) + "</span></span>";
+      }).join("") + "</div></div>";
+  }
+  function areaRows(c) {
+    var map = dict(), out = [];
+    function row(name) {
+      var key = lc(name);
+      if (!map[key]) { map[key] = { key: name, name: name || "(No area)", inScope: 0, executed: 0, passed: 0, failed: 0, blocked: 0, notRun: 0, open: 0, critHigh: 0 }; out.push(map[key]); }
+      return map[key];
+    }
+    c.tests.forEach(function (t) {
+      if (t.status === "Out of scope") return;
+      var r = row(t.area);
+      r.inScope++;
+      if (t.status === "Passed") { r.passed++; r.executed++; }
+      else if (t.status === "Failed") { r.failed++; r.executed++; }
+      else if (t.status === "Blocked") r.blocked++;
+      else r.notRun++;
+    });
+    c.defects.forEach(function (d) {
+      if (OPEN_DEFECT.indexOf(d.status) === -1) return;
+      var r = row(d.area); r.open++;
+      if (d.severity === "Critical" || d.severity === "High") r.critHigh++;
+    });
+    return out.sort(function (a, b) { return a.key === "" ? 1 : b.key === "" ? -1 : cmpText(a.name, b.name); });
+  }
+
+  /* ---------- progress chart: executed and passed against the plan line ---------- */
+  var chart = null;
+  function renderBurnup(c, m) {
+    var box = $("burnup");
+    chart = null;
+    var hist = c.history.filter(function (h) { return h.date; });
+    var start = isDate(c.startDate) ? c.startDate : (hist[0] && hist[0].date);
+    var end = isDate(c.endDate) ? c.endDate : null;
+    if (!start || !end || end < start) {
+      box.innerHTML = '<div class="muted-empty">Set the testing start and end dates in Settings to see progress against plan.</div>';
+      $("burnupData").hidden = true;
+      return;
+    }
+    $("burnupData").hidden = false;
+    var lastX = hist.length ? hist[hist.length - 1].date : start;
+    var domainEnd = [end, lastX, m.today <= addDays(end, 30) ? m.today : end].sort().pop();
+    var N = Math.max(2, workdays(start, domainEnd));
+    var planN = Math.max(1, workdays(start, end));
+    var pts = hist.filter(function (h) { return h.date >= start && h.date <= domainEnd; });
+    var yMax = Math.max(1, m.inScope, Math.max.apply(null, pts.map(function (h) { return h.inScope; }).concat([0])));
+    var W = 640, H = 230, L = 38, R = 96, T = 14, B = 30, iw = W - L - R, ih = H - T - B;
+    function X(i) { return L + i / N * iw; }
+    function Y(v) { return T + ih - v / yMax * ih; }
+    function xi(d) { return workdays(start, d); }
+    var s = '<svg viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="Tests executed and passed by day against the plan">';
+    [0, 0.5, 1].forEach(function (f) {
+      var v = Math.round(yMax * f), y = Y(v).toFixed(1);
+      s += '<line x1="' + L + '" x2="' + (L + iw) + '" y1="' + y + '" y2="' + y + '" stroke="#EEF0F1" stroke-width="1"/>' +
+        '<text x="' + (L - 6) + '" y="' + (+y + 4) + '" text-anchor="end" font-size="11" fill="#8C8C8C">' + v + "</text>";
+    });
+    s += '<text x="' + L + '" y="' + (H - 8) + '" font-size="11" fill="#6B6B6B">' + esc(fmtShort(start)) + "</text>";
+    s += '<text x="' + X(planN).toFixed(1) + '" y="' + (H - 8) + '" font-size="11" fill="#6B6B6B" text-anchor="middle">' + esc(fmtShort(end)) + "</text>";
+    var planEndY = Y(m.inScope);
+    s += '<line x1="' + X(0) + '" y1="' + Y(0) + '" x2="' + X(planN).toFixed(1) + '" y2="' + planEndY.toFixed(1) + '" stroke="#8C8C8C" stroke-width="1.5" stroke-dasharray="4 3"/>';
+    s += '<text x="' + (X(planN) + 6).toFixed(1) + '" y="' + (planEndY + 4).toFixed(1) + '" font-size="11" fill="#6B6B6B">Plan ' + m.inScope + "</text>";
+    if (m.today >= start && m.today <= domainEnd) {
+      var tx = X(xi(m.today)).toFixed(1);
+      s += '<line x1="' + tx + '" x2="' + tx + '" y1="' + T + '" y2="' + (T + ih) + '" stroke="#D5DADD" stroke-width="1"/>' +
+        '<text x="' + tx + '" y="' + (T + 10) + '" font-size="10" fill="#8C8C8C" text-anchor="middle" dx="-16">Today</text>';
+    }
+    function path(key, color) {
+      if (!pts.length) return "";
+      var d = pts.map(function (h, i) { return (i ? "L" : "M") + X(xi(h.date)).toFixed(1) + " " + Y(h[key]).toFixed(1); }).join(" ");
+      var last = pts[pts.length - 1];
+      return '<path d="' + d + '" fill="none" stroke="' + color + '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>' +
+        '<circle cx="' + X(xi(last.date)).toFixed(1) + '" cy="' + Y(last[key]).toFixed(1) + '" r="4" fill="' + color + '" stroke="#fff" stroke-width="2"/>';
+    }
+    s += path("executed", "#007A99") + path("passed", "#3E9A40");
+    if (pts.length) {
+      var lp = pts[pts.length - 1], lx = X(xi(lp.date)) + 8, ye = Y(lp.executed), yp = Y(lp.passed);
+      if (Math.abs(ye - yp) < 13) { if (ye <= yp) yp = ye + 13; else ye = yp + 13; }
+      s += '<text x="' + lx.toFixed(1) + '" y="' + (ye + 4).toFixed(1) + '" font-size="11" fill="#1A1A1A">Executed ' + lp.executed + "</text>" +
+        '<text x="' + lx.toFixed(1) + '" y="' + (yp + 4).toFixed(1) + '" font-size="11" fill="#1A1A1A">Passed ' + lp.passed + "</text>";
+    }
+    s += '<line id="chartCross" x1="0" x2="0" y1="' + T + '" y2="' + (T + ih) + '" stroke="#3D3D3D" stroke-width="1" visibility="hidden"/>';
+    s += '<rect x="' + L + '" y="' + T + '" width="' + iw + '" height="' + ih + '" fill="transparent" id="chartHit"/></svg>';
+    if (pts.length < 2) s += '<div class="hint">The lines fill in as results are recorded day by day: each day the tracker is used keeps one point.</div>';
+    box.innerHTML = s + '<div class="uat-tip" id="chartTip" hidden></div>';
+    chart = { pts: pts, X: X, xi: xi, W: W, start: start, planN: planN, inScope: m.inScope };
+    $("burnupTable").innerHTML = pts.length ? '<table><thead><tr><th>Day</th><th class="num">Executed</th><th class="num">Passed</th><th class="num">Plan</th><th class="num">Open defects</th></tr></thead><tbody>' +
+      pts.slice().reverse().map(function (h) {
+        return "<tr><td>" + esc(fmtDay(h.date)) + '</td><td class="num mono">' + h.executed + '</td><td class="num mono">' + h.passed +
+          '</td><td class="num mono">' + planAt(h.date) + '</td><td class="num mono">' + h.open + "</td></tr>";
+      }).join("") + "</tbody></table>" : '<div class="muted-empty">No days recorded yet.</div>';
+  }
+  function planAt(d) { return chart ? Math.round(chart.inScope * Math.min(1, chart.xi(d) / chart.planN)) : 0; }
+  function chartHover(e) {
+    if (!chart || !chart.pts.length) return;
+    var svg = $("burnup").querySelector("svg"), r = svg.getBoundingClientRect(), x = (e.clientX - r.left) * chart.W / r.width;
+    var best = null, bd = 1e9;
+    chart.pts.forEach(function (h) { var d = Math.abs(chart.X(chart.xi(h.date)) - x); if (d < bd) { bd = d; best = h; } });
+    var px = chart.X(chart.xi(best.date)), cross = $("chartCross"), tip = $("chartTip");
+    cross.setAttribute("x1", px); cross.setAttribute("x2", px); cross.setAttribute("visibility", "visible");
+    tip.innerHTML = "<b>" + esc(fmtDay(best.date)) + '</b><br><span class="uat-key" style="background:#007A99"></span>Executed <span class="mono">' + best.executed +
+      '</span><br><span class="uat-key" style="background:#3E9A40"></span>Passed <span class="mono">' + best.passed +
+      '</span><br><span class="uat-key dash"></span>Plan <span class="mono">' + planAt(best.date) + '</span><br>Open defects <span class="mono">' + best.open + "</span>";
+    tip.hidden = false;
+    var left = px * r.width / chart.W + 12;
+    if (left + tip.offsetWidth > r.width) left = px * r.width / chart.W - tip.offsetWidth - 12;
+    tip.style.left = Math.max(0, left) + "px"; tip.style.top = "8px";
+  }
+  function chartLeave() { if ($("chartTip")) { $("chartTip").hidden = true; $("chartCross").setAttribute("visibility", "hidden"); } }
+
+  /* ---------- tests ---------- */
+  var testTab = "all", testSort = { key: "ref", dir: 1 }, selected = dict();
+  function query() { return lc($("searchBox").value.trim()); }
+  function testMatches(t, q) {
+    return !q || [t.ref, t.title, t.area, t.tester, t.defects, t.note, t.status].some(function (v) { return lc(v).indexOf(q) !== -1; });
+  }
+  function filteredTests() {
+    var q = query(), area = $("testArea").value, tester = $("testTester").value;
+    return cur.tests.filter(function (t) {
+      if (testTab !== "all" && t.status !== testTab) return false;
+      if (area && lc(t.area) !== lc(area === "__none" ? "" : area)) return false;
+      if (tester && lc(t.tester) !== lc(tester === "__none" ? "" : tester)) return false;
+      return testMatches(t, q);
+    }).sort(function (a, b) {
+      var k = testSort.key, x, y;
+      if (k === "priority") { x = PRIORITIES.indexOf(a.priority); y = PRIORITIES.indexOf(b.priority); }
+      else if (k === "status") { x = TEST_STATUSES.indexOf(a.status); y = TEST_STATUSES.indexOf(b.status); }
+      else return (cmpText(a[k] || "￿", b[k] || "￿") || cmpText(a.ref, b.ref)) * testSort.dir;
+      return ((x - y) || cmpText(a.ref, b.ref)) * testSort.dir;
+    });
+  }
+  function fillSelect(sel, opts, keep) {
+    var v = sel.value;
+    sel.innerHTML = opts.map(function (o) { return '<option value="' + esc(o[0]) + '">' + esc(o[1]) + "</option>"; }).join("");
+    if (keep && opts.some(function (o) { return o[0] === v; })) sel.value = v;
+  }
+  function statusSelect(kind, id, value, list) {
+    var tone = (kind === "approver" && DECISION_TONE[value]) || TONE[value] || "grey";
+    return '<select class="uat-inline" data-inline="' + kind + '" data-id="' + esc(id) + '" data-tone="' + tone + '" aria-label="Status">' +
+      list.map(function (s) { return "<option" + (s === value ? " selected" : "") + ">" + esc(s) + "</option>"; }).join("") + "</select>";
+  }
+  function renderTests() {
+    var counts = dict();
+    TEST_STATUSES.forEach(function (s) { counts[s] = 0; });
+    cur.tests.forEach(function (t) { counts[t.status]++; });
+    $("testTabs").innerHTML = [["all", "All", cur.tests.length]].concat(TEST_STATUSES.map(function (s) { return [s, s, counts[s]]; })).map(function (t) {
+      return '<button type="button" class="seg-tab' + (testTab === t[0] ? " active" : "") + '" data-tab="' + esc(t[0]) + '" aria-pressed="' + (testTab === t[0]) + '">' +
+        esc(t[1]) + '<span class="seg-tab-count">' + t[2] + "</span></button>";
+    }).join("");
+    var areas = uniq(cur.tests.map(function (t) { return t.area; })), testers = uniq(cur.tests.map(function (t) { return t.tester; }));
+    fillSelect($("testArea"), [["", "All areas"]].concat(areas.map(function (a) { return [a, a]; }), cur.tests.some(function (t) { return !t.area; }) ? [["__none", "(No area)"]] : []), true);
+    fillSelect($("testTester"), [["", "All testers"]].concat(testers.map(function (a) { return [a, a]; }), cur.tests.some(function (t) { return !t.tester; }) ? [["__none", "(Unassigned)"]] : []), true);
+    var rows = filteredTests();
+    Object.keys(selected).forEach(function (id) { if (!cur.tests.some(function (t) { return t.id === id; })) delete selected[id]; });
+    $("testMeta").textContent = rows.length === cur.tests.length ? plural(rows.length, "test") : rows.length + " of " + plural(cur.tests.length, "test");
+    var today = RK.today();
+    $("testBody").innerHTML = rows.map(function (t) {
+      return '<tr class="clickable" tabindex="0" data-open-test="' + esc(t.id) + '">' +
+        '<td class="uat-cb"><input type="checkbox" data-sel="' + esc(t.id) + '"' + (selected[t.id] ? " checked" : "") + ' aria-label="Select ' + esc(t.ref || t.title) + '"></td>' +
+        '<td><span class="uat-ref">' + esc(t.ref) + "</span></td>" +
+        '<td class="wrap-cell" style="min-width:220px"><span class="cell-title">' + esc(t.title || "(untitled)") + "</span>" + (t.note ? '<span class="cell-sub uat-muted">' + esc(t.note.length > 120 ? t.note.slice(0, 117) + "…" : t.note) + "</span>" : "") + "</td>" +
+        "<td>" + esc(t.area) + "</td><td>" + esc(t.tester) + "</td>" +
+        '<td><span class="' + (t.priority === "Critical" ? "uat-strong" : "uat-small") + '">' + esc(t.priority) + "</span></td>" +
+        "<td>" + statusSelect("test", t.id, t.status, TEST_STATUSES) + "</td>" +
+        '<td class="wrap-cell"><span class="uat-ref">' + esc(t.defects) + "</span></td>" +
+        '<td class="mono uat-small">' + (t.updated ? esc(t.updated === today ? "Today" : fmtShort(t.updated)) : "") + "</td></tr>";
+    }).join("");
+    var em = $("testEmpty");
+    em.hidden = rows.length > 0;
+    em.innerHTML = cur.tests.length ? "No tests match these filters." :
+      'No tests yet. <button type="button" class="link-action" data-import="tests">Paste them from Excel</button> or use + Add test.';
+    var nSel = Object.keys(selected).length;
+    $("testBulk").hidden = nSel === 0;
+    $("bulkCount").textContent = nSel + " selected";
+    var shownSel = rows.filter(function (t) { return selected[t.id]; }).length;
+    $("testSelAll").checked = rows.length > 0 && shownSel === rows.length;
+    $("testSelAll").indeterminate = shownSel > 0 && shownSel < rows.length;
+  }
+
+  /* ---------- defects ---------- */
+  var defTab = "open", defSort = { key: "severity", dir: 1 };
+  function defectAge(d, today) { return d.raised && OPEN_DEFECT.indexOf(d.status) !== -1 ? Math.max(0, daysBetween(d.raised, today)) : null; }
+  function filteredDefects() {
+    var q = query(), sev = $("defSeverity").value, area = $("defArea").value, today = RK.today();
+    return cur.defects.filter(function (d) {
+      if (defTab === "open" && OPEN_DEFECT.indexOf(d.status) === -1) return false;
+      if (defTab !== "open" && defTab !== "all" && d.status !== defTab) return false;
+      if (sev && d.severity !== sev) return false;
+      if (area && lc(d.area) !== lc(area === "__none" ? "" : area)) return false;
+      return !q || [d.ref, d.title, d.area, d.owner, d.tests, d.note, d.resolution, d.status].some(function (v) { return lc(v).indexOf(q) !== -1; });
+    }).sort(function (a, b) {
+      var k = defSort.key, x, y;
+      if (k === "severity") { x = SEVERITIES.indexOf(a.severity); y = SEVERITIES.indexOf(b.severity); }
+      else if (k === "status") { x = DEFECT_STATUSES.indexOf(a.status); y = DEFECT_STATUSES.indexOf(b.status); }
+      else if (k === "age") { x = defectAge(a, today); y = defectAge(b, today); x = x === null ? -1 : x; y = y === null ? -1 : y; }
+      else return (cmpText(a[k] || "￿", b[k] || "￿") || cmpText(a.ref, b.ref)) * defSort.dir;
+      return ((x - y) || cmpText(a.ref, b.ref)) * defSort.dir;
+    });
+  }
+  function renderDefects() {
+    var counts = dict();
+    DEFECT_STATUSES.forEach(function (s) { counts[s] = 0; });
+    cur.defects.forEach(function (d) { counts[d.status]++; });
+    var open = cur.defects.filter(function (d) { return OPEN_DEFECT.indexOf(d.status) !== -1; }).length;
+    $("defTabs").innerHTML = [["open", "Open", open], ["all", "All", cur.defects.length]].concat(DEFECT_STATUSES.map(function (s) { return [s, s, counts[s]]; })).map(function (t) {
+      return '<button type="button" class="seg-tab' + (defTab === t[0] ? " active" : "") + '" data-tab="' + esc(t[0]) + '" aria-pressed="' + (defTab === t[0]) + '">' +
+        esc(t[1]) + '<span class="seg-tab-count">' + t[2] + "</span></button>";
+    }).join("");
+    fillSelect($("defSeverity"), [["", "All severities"]].concat(SEVERITIES.map(function (s) { return [s, s]; })), true);
+    var areas = uniq(cur.defects.map(function (d) { return d.area; }));
+    fillSelect($("defArea"), [["", "All areas"]].concat(areas.map(function (a) { return [a, a]; }), cur.defects.some(function (d) { return !d.area; }) ? [["__none", "(No area)"]] : []), true);
+    var rows = filteredDefects(), today = RK.today();
+    $("defMeta").textContent = rows.length === cur.defects.length ? plural(rows.length, "defect") : rows.length + " of " + plural(cur.defects.length, "defect");
+    $("defBody").innerHTML = rows.map(function (d) {
+      var age = defectAge(d, today), isOpen = OPEN_DEFECT.indexOf(d.status) !== -1, overdue = isOpen && d.eta && d.eta < today;
+      return '<tr class="clickable" tabindex="0" data-open-defect="' + esc(d.id) + '">' +
+        '<td><span class="uat-ref">' + esc(d.ref) + "</span></td>" +
+        '<td class="wrap-cell" style="min-width:220px"><span class="cell-title">' + esc(d.title || "(untitled)") + "</span>" +
+          (d.resolution ? '<span class="cell-sub uat-muted">' + esc(d.resolution) + "</span>" : "") + "</td>" +
+        '<td><span class="status-pill ' + SEV_PILL[d.severity] + '">' + esc(d.severity) + "</span></td>" +
+        "<td>" + statusSelect("defect", d.id, d.status, DEFECT_STATUSES) + "</td>" +
+        "<td>" + esc(d.owner) + "</td><td>" + esc(d.area) + "</td>" +
+        '<td class="num mono uat-small">' + (age === null ? "" : age + "d") + "</td>" +
+        '<td class="mono uat-small' + (overdue ? " uat-overdue" : "") + '">' + esc(fmtShort(d.eta)) + (overdue ? " overdue" : "") + "</td>" +
+        '<td class="wrap-cell"><span class="uat-ref">' + esc(d.tests) + "</span></td></tr>";
+    }).join("");
+    var em = $("defEmpty");
+    em.hidden = rows.length > 0;
+    em.textContent = !cur.defects.length ? "No defects logged yet." : defTab === "open" && !open ? "No open defects." : "No defects match these filters.";
+  }
+
+  /* ---------- sign-off ---------- */
+  function renderSignoff(m) {
+    var r = $("signReady"), unmet = m.criteria.filter(function (x) { return !x.met; });
+    if (m.signedOff) { r.className = "callout ok"; r.innerHTML = "<b>Signed off.</b> All " + plural(m.a.total, "approver") + " have approved" + (m.a.conditional ? ", " + m.a.conditional + " with conditions" : "") + "."; }
+    else if (m.ready) { r.className = "callout ok"; r.innerHTML = "<b>Ready to request sign-off.</b> All " + plural(m.criteria.length, "exit criterion", "exit criteria") + " are met."; }
+    else {
+      r.className = "callout warn";
+      r.innerHTML = "<b>" + m.criteriaMet + " of " + m.criteria.length + " exit criteria met.</b> Still open: " +
+        unmet.map(function (x) { return esc(x.label) + " (" + esc(x.actual) + ", target " + esc(lc(x.target)) + ")"; }).join("; ") + ".";
+    }
+    $("signMeta").textContent = m.a.total ? m.a.yes + " of " + m.a.total + " approved" + (m.a.rejected ? ", " + m.a.rejected + " rejected" : "") : "";
+    $("apprBody").innerHTML = cur.approvers.map(function (a) {
+      return '<tr class="clickable" tabindex="0" data-open-appr="' + esc(a.id) + '"><td><div class="entity"><span class="avatar-chip">' + esc(initials(a.name)) +
+        '</span><div class="entity-text"><span class="entity-name">' + esc(a.name || "(no name)") + "</span></div></div></td>" +
+        "<td>" + esc(a.role) + "</td><td>" + esc(a.scope) + "</td><td>" + statusSelect("approver", a.id, a.status, DECISIONS) + "</td>" +
+        '<td class="mono uat-small">' + esc(fmtShort(a.date)) + '</td><td class="wrap-cell"><span class="cell-sub">' + esc(a.note) + "</span></td></tr>";
+    }).join("");
+    $("apprEmpty").hidden = cur.approvers.length > 0;
+  }
+  function initials(n) { var p = String(n || "?").trim().split(/\s+/); return ((p[0] || "?").charAt(0) + (p.length > 1 ? p[p.length - 1].charAt(0) : "")).toUpperCase(); }
+
+  /* ---------- email: one document model, rendered as HTML for pasting and as plain text ---------- */
+  function autoHeadline(c, m) {
+    var due = isDate(c.signoffDate) ? " on " + fmtDay(c.signoffDate) : "";
+    if (m.rag === "done") return c.name + " is signed off by all " + plural(m.a.total, "approver") + (m.d.deferred ? ", with " + plural(m.d.deferred, "known issue") + " accepted" : "") + ".";
+    if (m.rag === "idle") return m.inScope ? "Testing starts " + fmtDay(c.startDate) + " with " + plural(m.inScope, "test") + " in scope." : "The UAT scope is being prepared.";
+    var lead;
+    var why = m.overridden ? (c.rag.reason ? [c.rag.reason.replace(/[.\s]+$/, "")] : []) :
+      m.reasons.filter(function (r) { return r.lvl > 0; }).map(function (r) { return firstLower(r.text); });
+    if (m.ready) lead = "UAT has met all its exit criteria and is ready for sign-off" + (isDate(c.signoffDate) ? " by " + fmtDay(c.signoffDate) : "") + ".";
+    else if (m.rag === "green") lead = "UAT is on track for sign-off" + due + ".";
+    else lead = "UAT is " + (m.rag === "red" ? "off track" : "at risk") + " for sign-off" + due + (why.length ? ": " + why.join("; ") : "") + ".";
+    return lead + " " + m.executed + " of " + plural(m.inScope, "test") + " executed (" + floorPct(m.execPct) + "), " +
+      m.passed + " passed, " + (m.d.open ? plural(m.d.open, "defect") : "no defects") + " open.";
+  }
+  function autoSubject(c, m, type) {
+    var tag = "[UAT] " + c.name;
+    if (type === "request") return tag + ": sign-off requested" + (isDate(c.signoffDate) ? " by " + fmtDay(c.signoffDate) : "");
+    var bits = [RAG_LABEL[m.rag].toUpperCase()];
+    if (m.sched && m.sched.started && !m.sched.ended) bits.push("day " + m.sched.elapsed + " of " + m.sched.total);
+    if (m.inScope && m.rag !== "done") bits.push(floorPct(m.execPct) + " executed");
+    var ch = critHighText(m);
+    if (m.rag !== "done") bits.push(ch || (m.d.open ? plural(m.d.open, "defect") + " open" : "no open defects"));
+    return tag + " update: " + bits.join(" | ");
+  }
+  function sinceText(c, m) {
+    var last = c.sent.length ? c.sent[c.sent.length - 1] : null;
+    if (!last) return null;
+    var a = last.snap, b = snapOf(m), parts = [];
+    function d(n, one, many) { if (n > 0) parts.push(plural(n, one, many)); }
+    d(b.executed - a.executed, "more test executed", "more tests executed");
+    d(b.passed - a.passed, "more passed", "more passed");
+    d(b.raised - a.raised, "defect raised", "defects raised");
+    d(b.closed - a.closed, "defect closed or accepted", "defects closed or accepted");
+    d(b.approved - a.approved, "approval received", "approvals received");
+    if (a.rag !== b.rag && a.rag) parts.push("status moved from " + RAG_LABEL[a.rag] + " to " + RAG_LABEL[b.rag]);
+    if (b.inScope !== a.inScope) parts.push("scope changed from " + a.inScope + " to " + plural(b.inScope, "test"));
+    var when = isDate(last.at.slice(0, 10)) ? fmtDay(last.at.slice(0, 10)) : "the last update";
+    return { when: when, text: parts.length ? parts.join(", ") : "no change in the figures" };
+  }
+  var BADGE = { green: ["#2E7D32", "#ffffff"], amber: ["#E0A526", "#1A1A1A"], red: ["#B3261E", "#ffffff"], done: ["#2E7D32", "#ffffff"], idle: ["#6B6B6B", "#ffffff"] };
+  function buildDoc(c, m) {
+    var e = c.email, sec = e.sections, blocks = [], today = RK.today();
+    var meta = [scheduleText(c, m)].concat(c.build ? ["build " + c.build] : [], c.environment ? [c.environment] : []).filter(Boolean).join(" · ");
+    blocks.push({ k: "p", text: e.greeting });
+    blocks.push({ k: "status", rag: m.rag, title: c.name, sub: meta });
+    blocks.push({ k: "p", text: e.headline.trim() || autoHeadline(c, m), strong: true });
+    if (e.type === "request") {
+      var unmet = m.criteria.filter(function (x) { return !x.met; });
+      blocks.push({ k: "p", text: (m.ready ? "UAT has met all " + plural(m.criteria.length, "exit criterion", "exit criteria") + ", so we are asking for your sign-off."
+        : m.criteriaMet + " of " + m.criteria.length + " exit criteria are met. The exceptions are below, and we are asking for your sign-off with them accepted.") +
+        " Please reply" + (isDate(c.signoffDate) ? " by " + fmtDay(c.signoffDate) : "") + " with one of: Approved; Approved with conditions (please state them); or Rejected (please give the reason)." });
+      if (unmet.length && !sec.criteria) blocks.push({ k: "list", items: unmet.map(function (x) { return x.label + ": " + x.actual + " (target " + lc(x.target) + ")"; }) });
+    }
+    if (sec.figures && m.inScope) {
+      blocks.push({ k: "figures", items: [
+        [m.executed + " / " + m.inScope, "Tests executed (" + floorPct(m.execPct) + ")"],
+        [String(m.passed), "Passed (" + floorPct(m.passPct) + " of scope)"],
+        [String(m.d.open), "Open defects" + (critHighText(m) ? " (" + m.d.sev.Critical + " critical, " + m.d.sev.High + " high)" : "")],
+        [m.a.yes + " / " + m.a.total, "Approvals"]
+      ] });
+      blocks.push({ k: "bar", total: m.inScope, segs: [[m.passed, "#3E9A40"], [m.failed, "#D9534F"], [m.blocked, "#E0A526"]],
+        note: "Passed " + m.passed + " · Failed " + m.failed + " · Blocked " + m.blocked + " · Not run or in progress " + (m.notRun + m.inProgress) +
+          (m.sched && m.sched.started && !m.sched.ended ? " · Plan for today: " + m.sched.plannedCount + " executed (" + Math.round(m.sched.planned) + "%)" : "") });
+    }
+    if (sec.since) {
+      var s = sinceText(c, m);
+      if (s) blocks.push({ k: "p", text: "Since the last update (" + s.when + "): " + s.text + ".", small: true });
+    }
+    if (sec.highlights && lines(e.highlights).length) { blocks.push({ k: "h", text: "Highlights" }); blocks.push({ k: "list", items: lines(e.highlights) }); }
+    if (sec.criteria && m.criteria.length) {
+      blocks.push({ k: "h", text: "Exit criteria: " + m.criteriaMet + " of " + m.criteria.length + " met" });
+      blocks.push({ k: "table", head: ["Criterion", "Target", "Now", "Status"], rows: m.criteria.map(function (x) {
+        return [x.label, x.target, x.actual, { text: x.met ? "Met" : "Not met", color: x.met ? "#2E7D32" : "#B3261E", bold: true }];
+      }) });
+    }
+    if (sec.areas) {
+      var areas = areaRows(c).filter(function (a) { return a.inScope; });
+      if (areas.length) {
+        blocks.push({ k: "h", text: "Progress by area" });
+        blocks.push({ k: "table", head: ["Area", "In scope", "Executed", "Passed", "Failed", "Blocked", "Open defects"], num: [1, 2, 3, 4, 5, 6],
+          rows: areas.map(function (a) { return [a.name, a.inScope, a.executed + " (" + floorPct(pct(a.executed, a.inScope)) + ")", a.passed, a.failed, a.blocked, a.open]; }) });
+      }
+    }
+    if (sec.defects) {
+      var open = c.defects.filter(function (d) { return OPEN_DEFECT.indexOf(d.status) !== -1; }).sort(function (a, b) {
+        return (SEVERITIES.indexOf(a.severity) - SEVERITIES.indexOf(b.severity)) || cmpText(a.raised || "9", b.raised || "9") || cmpText(a.ref, b.ref);
+      });
+      var full = e.audience === "full";
+      var list = full ? open : open.filter(function (d) { return d.severity === "Critical" || d.severity === "High"; });
+      var cap = full ? 40 : 10;
+      blocks.push({ k: "h", text: full ? "Open defects" : "Defects needing attention" });
+      blocks.push({ k: "p", small: true, text: m.d.open ? "Open: " + m.d.sev.Critical + " critical, " + m.d.sev.High + " high, " + m.d.sev.Medium + " medium, " + m.d.sev.Low + " low" +
+        (m.d.retest ? "; " + m.d.retest + " fixed and waiting for retest" : "") + "." : "No defects are open." });
+      if (list.length) {
+        blocks.push({ k: "table", head: ["ID", "Defect", "Severity", "Status", "Owner", "Fix due"], rows: list.slice(0, cap).map(function (d) {
+          var overdue = d.eta && d.eta < today;
+          return [d.ref, d.title, { text: d.severity, color: d.severity === "Critical" ? "#B3261E" : null, bold: d.severity === "Critical" }, d.status, d.owner,
+            { text: fmtShort(d.eta) + (overdue ? " (overdue)" : ""), color: overdue ? "#B3261E" : null }];
+        }) });
+        if (list.length > cap) blocks.push({ k: "p", small: true, text: "And " + (list.length - cap) + " more in the tracker." });
+      } else if (m.d.open && !full) blocks.push({ k: "p", small: true, text: "None of the open defects is critical or high." });
+    }
+    if (sec.known) {
+      var known = c.defects.filter(function (d) { return d.status === "Deferred"; });
+      if (known.length) {
+        blocks.push({ k: "h", text: "Known issues accepted" });
+        blocks.push({ k: "table", head: ["ID", "Defect", "Severity", "Workaround or decision"], rows: known.map(function (d) { return [d.ref, d.title, d.severity, d.resolution || "Not recorded"]; }) });
+      }
+    }
+    if (sec.risks && lines(e.risks).length) { blocks.push({ k: "h", text: "Risks and issues" }); blocks.push({ k: "list", items: lines(e.risks) }); }
+    if (sec.asks && lines(e.asks).length) { blocks.push({ k: "h", text: "Decisions and help needed" }); blocks.push({ k: "list", items: lines(e.asks) }); }
+    if (sec.approvals && c.approvers.length) {
+      blocks.push({ k: "h", text: "Sign-off: " + m.a.yes + " of " + m.a.total + " approved" });
+      blocks.push({ k: "table", head: ["Approver", "Role", "Signs off", "Decision", "Date", "Conditions or comments"], rows: c.approvers.map(function (a) {
+        var col = a.status === "Rejected" ? "#B3261E" : a.status === "Pending" ? "#6B6B6B" : "#2E7D32";
+        return [a.name, a.role, a.scope, { text: a.status, color: col, bold: true }, fmtShort(a.date), a.note];
+      }) });
+    }
+    if (sec.next && (lines(e.nextSteps).length || e.nextUpdate)) {
+      blocks.push({ k: "h", text: "Next steps" });
+      if (lines(e.nextSteps).length) blocks.push({ k: "list", items: lines(e.nextSteps) });
+      if (e.nextUpdate) blocks.push({ k: "p", text: "Next update: " + fmtDay(e.nextUpdate) + "." });
+    }
+    blocks.push({ k: "sign", lines: ["Thanks,"].concat(e.signoff.trim() ? [e.signoff.trim()] : []) });
+    return blocks;
+  }
+  var FONT = "font-family:Arial,Helvetica,sans-serif;";
+  function cellText(c) { return c && typeof c === "object" ? str(c.text) : str(c); }
+  function docHtml(blocks) {
+    var h = '<div style="' + FONT + 'font-size:14px;line-height:1.45;color:#1A1A1A">';
+    blocks.forEach(function (b) {
+      if (b.k === "p" && b.text) h += '<p style="margin:0 0 12px;' + (b.small ? "font-size:13px;color:#3D3D3D;" : "") + '">' + (b.strong ? "<b>" + esc(b.text) + "</b>" : esc(b.text)) + "</p>";
+      else if (b.k === "status") {
+        var bg = BADGE[b.rag];
+        h += '<table cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;margin:4px 0 12px"><tr>' +
+          '<td bgcolor="' + bg[0] + '" style="background:' + bg[0] + ";color:" + bg[1] + ";" + FONT + 'font-size:13px;font-weight:bold;padding:7px 12px;letter-spacing:.5px;white-space:nowrap">' + esc(RAG_LABEL[b.rag].toUpperCase()) + "</td>" +
+          '<td style="padding:0 0 0 12px;' + FONT + '"><span style="font-size:16px;font-weight:bold">' + esc(b.title) + "</span>" +
+          (b.sub ? '<br><span style="font-size:12px;color:#6B6B6B">' + esc(b.sub) + "</span>" : "") + "</td></tr></table>";
+      } else if (b.k === "figures") {
+        h += '<table cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;margin:0 0 8px"><tr>' + b.items.map(function (it) {
+          return '<td style="border:1px solid #D5DADD;padding:10px 16px;' + FONT + 'vertical-align:top"><span style="font-size:22px;font-weight:bold">' + esc(it[0]) +
+            '</span><br><span style="font-size:12px;color:#6B6B6B">' + esc(it[1]) + "</span></td>";
+        }).join("") + "</tr></table>";
+      } else if (b.k === "bar") {
+        var used = 0, cells = "";
+        b.segs.forEach(function (sg) {
+          if (sg[0] <= 0) return;
+          var w = sg[0] / Math.max(1, b.total) * 100; used += w;
+          cells += '<td width="' + w.toFixed(1) + '%" bgcolor="' + sg[1] + '" style="width:' + w.toFixed(1) + "%;background:" + sg[1] + ';height:10px;font-size:1px;line-height:1px">&nbsp;</td>';
+        });
+        if (used < 99.95) cells += '<td width="' + (100 - used).toFixed(1) + '%" bgcolor="#E9ECEE" style="width:' + (100 - used).toFixed(1) + '%;background:#E9ECEE;height:10px;font-size:1px;line-height:1px">&nbsp;</td>';
+        h += '<table width="560" cellpadding="0" cellspacing="0" border="0" style="width:560px;max-width:100%;border-collapse:collapse;margin:4px 0 4px"><tr>' + cells + "</tr></table>" +
+          '<p style="margin:0 0 12px;font-size:12px;color:#6B6B6B">' + esc(b.note) + "</p>";
+      } else if (b.k === "h") h += '<p style="margin:18px 0 6px;font-size:15px;font-weight:bold;color:#007A99">' + esc(b.text) + "</p>";
+      else if (b.k === "list") h += '<ul style="margin:0 0 12px;padding-left:22px">' + b.items.map(function (i) { return '<li style="margin:0 0 4px">' + esc(i) + "</li>"; }).join("") + "</ul>";
+      else if (b.k === "table") {
+        var num = b.num || [];
+        h += '<table cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;' + FONT + 'font-size:13px;margin:0 0 12px"><tr>' +
+          b.head.map(function (x, i) {
+            return '<th bgcolor="#007A99" style="background:#007A99;color:#ffffff;border:1px solid #007A99;padding:6px 10px;font-weight:bold;text-align:' + (num.indexOf(i) !== -1 ? "right" : "left") + '">' + esc(x) + "</th>";
+          }).join("") + "</tr>" +
+          b.rows.map(function (r, ri) {
+            return "<tr>" + r.map(function (cell, i) {
+              var o = cell && typeof cell === "object" ? cell : null;
+              return '<td style="border:1px solid #D5DADD;padding:6px 10px;vertical-align:top;' + (ri % 2 ? "background:#FAFBFB;" : "") +
+                (num.indexOf(i) !== -1 ? "text-align:right;" : "") + (o && o.color ? "color:" + o.color + ";" : "") + (o && o.bold ? "font-weight:bold;" : "") + '">' + esc(cellText(cell)) + "</td>";
+            }).join("") + "</tr>";
+          }).join("") + "</table>";
+      } else if (b.k === "sign") h += '<p style="margin:18px 0 0">' + b.lines.map(esc).join("<br>") + "</p>";
+    });
+    return h + "</div>";
+  }
+  function pad(s, n) { s = String(s); while (s.length < n) s += " "; return s; }
+  function docText(blocks) {
+    var out = [];
+    blocks.forEach(function (b) {
+      if (b.k === "p" && b.text) out.push(b.text, "");
+      else if (b.k === "status") out.push("STATUS: " + RAG_LABEL[b.rag].toUpperCase() + " | " + b.title + (b.sub ? "\n" + b.sub : ""), "");
+      else if (b.k === "figures") { b.items.forEach(function (it) { out.push(it[1] + ": " + it[0]); }); }
+      else if (b.k === "bar") out.push(b.note, "");
+      else if (b.k === "h") out.push(b.text.toUpperCase(), new Array(Math.min(60, b.text.length) + 1).join("-"));
+      else if (b.k === "list") { b.items.forEach(function (i) { out.push("- " + i); }); out.push(""); }
+      else if (b.k === "table") {
+        var rows = [b.head].concat(b.rows.map(function (r) { return r.map(cellText); }));
+        var w = b.head.map(function (_, i) { return Math.min(48, Math.max.apply(null, rows.map(function (r) { return String(r[i]).length; }))); });
+        rows.forEach(function (r, ri) {
+          out.push(r.map(function (cell, i) { var s = String(cell); if (s.length > w[i]) s = s.slice(0, w[i] - 1) + "…"; return pad(s, w[i]); }).join("  ").replace(/\s+$/, ""));
+          if (ri === 0) out.push(w.map(function (n) { return new Array(n + 1).join("-"); }).join("  "));
+        });
+        out.push("");
+      } else if (b.k === "sign") out.push(b.lines.join("\n"));
+    });
+    return out.join("\n").replace(/\n{3,}/g, "\n\n").trim() + "\n";
+  }
+  function emailPayload() {
+    var m = metrics(cur), blocks = buildDoc(cur, m);
+    return { subject: cur.email.subject.trim() || autoSubject(cur, m, cur.email.type), html: docHtml(blocks), text: docText(blocks), m: m };
+  }
+
+  var emTypeRefresh = null, emAudRefresh = null, ragRefresh = null;
+  function fillCompose() {
+    var e = cur.email;
+    document.querySelectorAll("[data-em]").forEach(function (el) { if (document.activeElement !== el) el.value = e[el.getAttribute("data-em")] || ""; });
+    $("emType").value = e.type; $("emAudience").value = e.audience;
+    if (emTypeRefresh) emTypeRefresh();
+    if (emAudRefresh) emAudRefresh();
+    $("emSections").innerHTML = SECTIONS.map(function (s) {
+      return '<label><input type="checkbox" data-sec="' + s[0] + '"' + (e.sections[s[0]] ? " checked" : "") + ">" + esc(s[1]) + "</label>";
+    }).join("");
+  }
+  function renderEmail(m) {
+    var p = emailPayload();
+    $("emPreview").innerHTML = p.html;
+    $("emSubject").placeholder = autoSubject(cur, m, cur.email.type);
+    $("emHeadline").placeholder = autoHeadline(cur, m);
+    $("sentCount").textContent = cur.sent.length || "";
+    $("sentLog").innerHTML = cur.sent.length ? cur.sent.slice().reverse().map(function (s, i) {
+      var idx = cur.sent.length - 1 - i, d = s.at.slice(0, 10);
+      return '<div class="uat-sent-row"><div class="uat-sent-main"><span class="status-pill ' + RAG_PILL[s.snap.rag] + '">' + esc(RAG_LABEL[s.snap.rag]) + "</span> " +
+        '<span class="mono">' + esc(isDate(d) ? fmtDay(d) + " " + s.at.slice(11, 16) : s.at) + "</span>" +
+        '<span class="uat-sent-sub">' + esc(s.subject || "") + " · " + s.snap.executed + " of " + s.snap.inScope + " executed, " + plural(s.snap.open, "defect") + " open</span></div>" +
+        '<button type="button" class="link-action danger" data-unsend="' + idx + '">Remove</button></div>';
+    }).join("") : '<div class="muted-empty">Nothing marked as sent yet.</div>';
+  }
+  function writeText(t) {
+    return navigator.clipboard && navigator.clipboard.writeText ? navigator.clipboard.writeText(t) : Promise.reject(new Error("no-clipboard"));
+  }
+  function copyEmail(fallbackEl) {
+    var p = emailPayload();
+    RK.clipboard.clearFallback($("copyFallback")); RK.clipboard.clearFallback($("headerCopyFallback"));
+    RK.clipboard.write({ html: p.html, text: p.text }).then(function (kind) {
+      RK.toast(kind === "html" ? "Email copied. Paste it into a new message, then copy the subject." : "Copied as plain text (this browser could not copy formatting).", 3600);
+    }).catch(function () {
+      RK.clipboard.fallbackInto(fallbackEl, "Subject: " + p.subject + "\n\n" + p.text, "The browser blocked the copy. Select all and copy from here:");
+    });
+  }
+
+  /* ---------- settings ---------- */
+  function fillSettings() {
+    document.querySelectorAll("[data-cy]").forEach(function (el) { if (document.activeElement !== el) el.value = cur[el.getAttribute("data-cy")] || ""; });
+    document.querySelectorAll("[data-cr]").forEach(function (el) {
+      var k = el.getAttribute("data-cr"), v = cur.criteria[k];
+      if (document.activeElement === el) return;
+      if (el.type === "checkbox") el.checked = !!v; else el.value = v === null ? "" : v;
+    });
+    document.querySelectorAll("[data-ru]").forEach(function (el) { if (document.activeElement !== el) el.value = cur.rules[el.getAttribute("data-ru")]; });
+    $("appVersion").textContent = "v" + APP_VERSION;
+  }
+  function renderSettingsLists() {
+    var cl = cur.criteria.custom;
+    $("customCritList").innerHTML = cl.length ? cl.map(function (x) {
+      return '<div class="settings-table-row uat-crit-edit"><div data-label="Criterion"><input type="text" value="' + esc(x.text) + '" data-crit-text="' + esc(x.id) + '" aria-label="Criterion"></div>' +
+        '<div data-label="Met"><label class="uat-check" style="margin:0"><input type="checkbox" data-crit-toggle="' + esc(x.id) + '"' + (x.met ? " checked" : "") + ">Met</label></div>" +
+        '<div class="col-actions"><button type="button" class="icon-btn" data-crit-del="' + esc(x.id) + '" aria-label="Remove criterion">×</button></div></div>';
+    }).join("") : '<div class="settings-empty-state hint">None yet.</div>';
+    $("cycleList").innerHTML = '<div class="settings-table-row header" style="grid-template-columns:minmax(0,2fr) 1fr 90px 110px 210px"><div>Cycle</div><div>Testing</div><div class="col-num">Tests</div><div>Status</div><div></div></div>' +
+      state.cycles.map(function (c) {
+        var m = metrics(c), on = c.id === cur.id;
+        return '<div class="settings-table-row" style="grid-template-columns:minmax(0,2fr) 1fr 90px 110px 210px"><div data-label="Cycle"><span class="uat-strong">' + esc(c.name) + "</span>" + (on ? ' <span class="status-pill pill-teal">Open</span>' : "") + "</div>" +
+          '<div data-label="Testing" class="uat-small mono">' + esc(c.startDate ? fmtShort(c.startDate) + " to " + fmtShort(c.endDate) : "No dates") + "</div>" +
+          '<div class="col-num mono" data-label="Tests">' + c.tests.length + '</div><div data-label="Status">' + ragPill(m.rag) + "</div>" +
+          '<div class="col-actions">' + (on ? "" : '<button type="button" class="small" data-cycle-open="' + esc(c.id) + '">Open</button>') +
+          '<button type="button" class="small" data-cycle-dup="' + esc(c.id) + '">Duplicate</button>' +
+          '<button type="button" class="small danger" data-cycle-del="' + esc(c.id) + '">Delete</button></div></div>';
+      }).join("");
+  }
+
+  /* ---------- refs ---------- */
+  function nextRef(list, prefix) {
+    var max = 0, re = new RegExp("^" + prefix + "-?(\\d+)$", "i");
+    list.forEach(function (x) { var mm = re.exec(x.ref); if (mm) max = Math.max(max, +mm[1]); });
+    return prefix + "-" + String(max + 1).padStart(3, "0");
+  }
+  function refTaken(list, ref, exceptId) { return list.some(function (x) { return x.id !== exceptId && ref && lc(x.ref) === lc(ref); }); }
+
+  /* ---------- dialogs ---------- */
+  function opts(sel, list) { sel.innerHTML = list.map(function (s) { return "<option>" + esc(s) + "</option>"; }).join(""); }
+  function showErr(id, text) { var e = $(id); e.textContent = text; e.hidden = !text; }
+
+  // test
+  var testDlg, editTestId = null, raiseAfter = false;
+  function openTest(id, opener) {
+    var t = id ? cur.tests.filter(function (x) { return x.id === id; })[0] : null;
+    editTestId = t ? t.id : null;
+    $("testDlgTitle").textContent = t ? "Edit test" : "Add test";
+    $("t_ref").value = t ? t.ref : ""; $("t_ref").placeholder = nextRef(cur.tests, "UAT");
+    $("t_title").value = t ? t.title : ""; $("t_area").value = t ? t.area : ($("testArea").value && $("testArea").value !== "__none" ? $("testArea").value : "");
+    $("t_tester").value = t ? t.tester : ""; $("t_priority").value = t ? t.priority : "Medium";
+    $("t_status").value = t ? t.status : "Not run"; $("t_defects").value = t ? t.defects : ""; $("t_note").value = t ? t.note : "";
+    $("t_delete").hidden = !t; $("t_raise").hidden = false;
+    showErr("t_err", "");
+    testDlg.open(opener);
+    $(t ? "t_status" : "t_title").focus();
+  }
+  function saveTest() {
+    var ref = $("t_ref").value.trim(), title = $("t_title").value.trim();
+    if (!title && !ref) { showErr("t_err", "Give the test a name or an ID."); return false; }
+    if (refTaken(cur.tests, ref, editTestId)) { showErr("t_err", "Another test already has the ID " + ref + "."); return false; }
+    var t = editTestId ? cur.tests.filter(function (x) { return x.id === editTestId; })[0] : null;
+    if (!t) { t = normTest({ id: RK.uid() }); cur.tests.push(t); }
+    var status = $("t_status").value;
+    if (t.status !== status || !editTestId) t.updated = RK.today();
+    t.ref = ref || nextRef(cur.tests, "UAT"); t.title = title; t.area = $("t_area").value.trim(); t.tester = $("t_tester").value.trim();
+    t.priority = $("t_priority").value; t.status = status; t.defects = $("t_defects").value.trim(); t.note = $("t_note").value;
+    editTestId = t.id;
+    commit();
+    return t;
+  }
+
+  // defect
+  var defDlg, editDefId = null, defFromTest = null;
+  function openDefect(id, opener, prefill) {
+    var d = id ? cur.defects.filter(function (x) { return x.id === id; })[0] : null;
+    editDefId = d ? d.id : null;
+    defFromTest = prefill && prefill.testId ? prefill.testId : null;
+    var p = d || normDefect(Object.assign({ raised: RK.today() }, prefill || {}));
+    $("defDlgTitle").textContent = d ? "Edit defect" : "Add defect";
+    $("d_ref").value = d ? d.ref : ""; $("d_ref").placeholder = nextRef(cur.defects, "DEF");
+    $("d_title").value = p.title; $("d_area").value = p.area; $("d_severity").value = p.severity; $("d_status").value = p.status;
+    $("d_owner").value = p.owner; $("d_tests").value = p.tests; $("d_raised").value = p.raised; $("d_eta").value = p.eta;
+    $("d_resolution").value = p.resolution; $("d_note").value = p.note;
+    $("d_delete").hidden = !d;
+    showErr("d_err", "");
+    defDlg.open(opener);
+    $("d_title").focus();
+  }
+  function saveDefect() {
+    var ref = $("d_ref").value.trim(), title = $("d_title").value.trim();
+    if (!title && !ref) { showErr("d_err", "Give the defect a title or an ID."); return false; }
+    if (refTaken(cur.defects, ref, editDefId)) { showErr("d_err", "Another defect already has the ID " + ref + "."); return false; }
+    var d = editDefId ? cur.defects.filter(function (x) { return x.id === editDefId; })[0] : null;
+    if (!d) { d = normDefect({ id: RK.uid() }); cur.defects.push(d); }
+    d.ref = ref || nextRef(cur.defects, "DEF"); d.title = title; d.area = $("d_area").value.trim();
+    d.severity = $("d_severity").value; d.status = $("d_status").value; d.owner = $("d_owner").value.trim();
+    d.tests = $("d_tests").value.trim(); d.raised = dateOr($("d_raised").value); d.eta = dateOr($("d_eta").value);
+    d.resolution = $("d_resolution").value.trim(); d.note = $("d_note").value; d.updated = RK.today();
+    if (defFromTest) {
+      var t = cur.tests.filter(function (x) { return x.id === defFromTest; })[0];
+      if (t && refList(t.defects).map(lc).indexOf(lc(d.ref)) === -1) t.defects = refList(t.defects).concat([d.ref]).join(", ");
+    }
+    commit();
+    return true;
+  }
+  function refList(s) { return String(s || "").split(/[,;\s]+/).filter(Boolean); }
+
+  // approver
+  var apprDlg, editApprId = null;
+  function openAppr(id, opener) {
+    var a = id ? cur.approvers.filter(function (x) { return x.id === id; })[0] : null;
+    editApprId = a ? a.id : null;
+    $("apprDlgTitle").textContent = a ? "Edit approver" : "Add approver";
+    $("a_name").value = a ? a.name : ""; $("a_role").value = a ? a.role : ""; $("a_scope").value = a ? a.scope : "";
+    $("a_status").value = a ? a.status : "Pending"; $("a_date").value = a ? a.date : ""; $("a_note").value = a ? a.note : "";
+    $("a_delete").hidden = !a;
+    showErr("a_err", "");
+    apprDlg.open(opener);
+    $("a_name").focus();
+  }
+
+  /* ---------- import from Excel, CSV or a paste ---------- */
+  var COLS = {
+    tests: {
+      ref: ["id", "ref", "reference", "testid", "testcaseid", "caseid", "testref", "key", "testkey", "scriptid", "scenarioid", "tcid", "testno", "testnumber", "no", "number"],
+      title: ["title", "test", "testcase", "testname", "testcasename", "name", "scenario", "scenarioname", "summary", "description", "script", "testscript", "testscenario", "case", "testcasetitle", "testtitle"],
+      area: ["area", "module", "feature", "workstream", "process", "function", "functionalarea", "businessarea", "component", "epic", "category", "stream", "capability", "section"],
+      tester: ["tester", "testedby", "executedby", "assignee", "assignedto", "owner", "resource", "runby", "user"],
+      priority: ["priority", "criticality", "importance", "businesspriority", "risk"],
+      status: ["status", "result", "outcome", "executionstatus", "teststatus", "runstatus", "state", "lastresult", "testresult"],
+      defects: ["defects", "defect", "defectid", "defectids", "bugs", "bug", "linkeddefects", "issues", "issue", "jira"],
+      note: ["notes", "note", "comments", "comment", "remarks", "actualresult", "actualresults"],
+      updated: ["updated", "lastupdated", "executedon", "dateexecuted", "lastrun", "rundate", "executiondate", "executed", "date"]
+    },
+    defects: {
+      ref: ["id", "ref", "key", "defectid", "bugid", "issueid", "issuekey", "defectref", "defectno", "defectnumber", "ticket", "jiraid", "jirakey", "jira"],
+      title: ["title", "summary", "defect", "description", "name", "issue", "bug", "defectsummary", "defecttitle", "defectdescription"],
+      severity: ["severity", "sev", "defectseverity", "priority", "impact", "criticality"],
+      status: ["status", "state", "defectstatus", "workflowstatus"],
+      owner: ["owner", "assignee", "assignedto", "fixer", "developer", "resolver"],
+      area: ["area", "module", "feature", "workstream", "process", "function", "functionalarea", "businessarea", "component", "epic", "category", "stream", "capability"],
+      raised: ["raised", "created", "createdon", "dateraised", "opened", "dateopened", "logged", "reported", "reportedon", "datecreated", "raisedon"],
+      eta: ["fixdue", "eta", "due", "duedate", "targetdate", "fixby", "fixdate", "plannedfix", "targetfix", "expectedfix", "targetfixdate"],
+      tests: ["tests", "test", "testid", "testcase", "linkedtests", "testref", "testcaseid", "testcases"],
+      resolution: ["resolution", "workaround", "decision", "workaroundordecision", "resolutionnotes"],
+      note: ["notes", "note", "comments", "comment", "remarks"]
+    }
+  };
+  var FIELD_LABEL = { ref: "ID", title: "Title", area: "Area", tester: "Tester", priority: "Priority", status: "Status", defects: "Defects",
+    note: "Notes", updated: "Updated", severity: "Severity", owner: "Owner", raised: "Raised", eta: "Fix due", tests: "Tests", resolution: "Workaround" };
+  function normHead(h) { return lc(h).replace(/[^a-z0-9]/g, ""); }
+  // Finds the header row (the first of the top ten rows naming two or more known
+  // columns) and maps each field to one column: the closest synonym wins, and a column
+  // is used once.
+  function mapColumns(rows, kind) {
+    var cols = COLS[kind], fields = Object.keys(cols);
+    for (var r = 0; r < Math.min(10, rows.length); r++) {
+      var heads = rows[r].map(normHead), cand = [];
+      heads.forEach(function (h, ci) {
+        if (!h) return;
+        fields.forEach(function (f, fi) { var si = cols[f].indexOf(h); if (si !== -1) cand.push([si, fi, f, ci]); });
+      });
+      if (cand.length < 2) continue;
+      cand.sort(function (a, b) { return a[0] - b[0] || a[1] - b[1] || a[3] - b[3]; });
+      var map = {}, usedCol = dict();
+      cand.forEach(function (c) { if (!RK.has(map, c[2]) && !usedCol[c[3]]) { map[c[2]] = c[3]; usedCol[c[3]] = 1; } });
+      if (!RK.has(map, "title") && !RK.has(map, "ref")) continue;
+      return { headerRow: r, map: map, unused: rows[r].map(function (h, ci) { return usedCol[ci] || !String(h).trim() ? null : String(h).trim(); }).filter(Boolean) };
+    }
+    return null;
+  }
+  function priorityLevel(v) {
+    var s = lc(v).trim(), mm = /^(?:p|s|sev|severity|priority|level)?\s*[-:]?\s*([0-9])\b/.exec(s);
+    if (mm) { var n = +mm[1]; return n <= 1 ? "Critical" : n === 2 ? "High" : n === 3 ? "Medium" : "Low"; }
+    if (/crit|highest|urgent|blocker|showstopper|must/.test(s)) return "Critical";
+    if (/high|major|should/.test(s)) return "High";
+    if (/low|minor|trivial|cosmetic|could|won/.test(s)) return "Low";
+    if (/med|normal|moderate|average/.test(s)) return "Medium";
+    return null;
+  }
+  function testStatusOf(v) {
+    var s = lc(v).trim();
+    if (!s || /^(not run|no run|not started|not executed|unexecuted|to do|todo|pending|ready|ready to test|new|open|planned|norun)$/.test(s)) return "Not run";
+    if (/block/.test(s)) return "Blocked";
+    if (/fail|^f$|^ko$|red/.test(s)) return "Failed";
+    if (/pass|^p$|^ok$|success|green|^done$|^complete(d)?$/.test(s)) return "Passed";
+    if (/n\/a|^na$|not applicable|out of scope|descop|deferred|cancel|removed|skip|withdrawn/.test(s)) return "Out of scope";
+    if (/progress|wip|running|executing|started|retest|on hold|hold/.test(s)) return "In progress";
+    return "Not run";
+  }
+  function defectStatusOf(v) {
+    var s = lc(v).trim();
+    if (/reject|not a (defect|bug)|duplicate|cannot reproduce|can't reproduce|invalid|as designed|by design|withdrawn/.test(s)) return "Rejected";
+    if (/defer|won'?t fix|accepted|known issue|backlog|postpone|future release/.test(s)) return "Deferred";
+    if (/retest|ready (for|to) (test|uat|verif|retest)|resolved|fixed|deployed|in uat|awaiting verification|in test/.test(s)) return "Ready to retest";
+    if (/clos|done|verified|complete/.test(s)) return "Closed";
+    if (/progress|in fix|fixing|develop|assigned|investigat|analys|triag|review|reopen/.test(s)) return "In fix";
+    return "New";
+  }
+  function dateOf(v) {
+    if (v === null || v === undefined || v === "") return "";
+    if (typeof v === "number" && v > 20000 && v < 80000) {
+      var d = new Date(Math.round((v - 25569) * 864e5));
+      return d.getUTCFullYear() + "-" + String(d.getUTCMonth() + 1).padStart(2, "0") + "-" + String(d.getUTCDate()).padStart(2, "0");
+    }
+    var s = String(v).trim(), mm;
+    if ((mm = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(s))) { var iso = mm[1] + "-" + mm[2].padStart(2, "0") + "-" + mm[3].padStart(2, "0"); return isDate(iso) ? iso : ""; }
+    if ((mm = /^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})/.exec(s))) {
+      var y = mm[3].length === 2 ? "20" + mm[3] : mm[3], uk = y + "-" + mm[2].padStart(2, "0") + "-" + mm[1].padStart(2, "0");
+      return isDate(uk) ? uk : "";
+    }
+    var t = Date.parse(s);
+    return isNaN(t) ? "" : RK.localDate(new Date(t));
+  }
+  function parseImport(rows, kind) {
+    rows = (rows || []).map(function (r) { return (Array.isArray(r) ? r : []).map(function (c) { return c === null || c === undefined ? "" : c; }); });
+    var mc = mapColumns(rows, kind);
+    if (!mc) return { error: "Could not find a header row. The first row should name the columns, for example " + (kind === "tests" ? "ID, Test, Area, Tester, Priority, Status." : "ID, Summary, Severity, Status, Owner.") };
+    var recs = [], skipped = 0;
+    rows.slice(mc.headerRow + 1, mc.headerRow + 5001).forEach(function (r) {
+      if (!r.some(function (c) { return String(c).trim(); })) return;
+      var o = {}, has = {};
+      Object.keys(mc.map).forEach(function (f) {
+        var raw = r[mc.map[f]], v = typeof raw === "string" ? raw.trim() : raw;
+        if (f === "priority" || f === "severity") o[f] = priorityLevel(v) || "Medium";
+        else if (f === "status") o[f] = kind === "tests" ? testStatusOf(v) : defectStatusOf(v);
+        else if (f === "updated" || f === "raised" || f === "eta") o[f] = dateOf(v);
+        else o[f] = str(v).trim();
+        has[f] = true;
+      });
+      if (!o.title && !o.ref) { skipped++; return; }
+      recs.push({ rec: o, fields: has });
+    });
+    return { records: recs, map: mc.map, header: rows[mc.headerRow], unused: mc.unused, skipped: skipped };
+  }
+  // merge: update the record with the same ID (only the imported columns), add the rest
+  function applyImport(c, kind, parsed, mode) {
+    var list = kind === "tests" ? c.tests : c.defects, norm = kind === "tests" ? normTest : normDefect;
+    if (mode === "replace") list.length = 0;
+    var byRef = dict(), added = 0, updated = 0, today = RK.today();
+    list.forEach(function (x) { if (x.ref) byRef[lc(x.ref)] = x; });
+    parsed.records.forEach(function (p) {
+      var o = p.rec, hit = o.ref ? byRef[lc(o.ref)] : null;
+      if (hit) {
+        Object.keys(p.fields).forEach(function (f) { hit[f] = o[f]; });
+        var n = norm(hit); Object.keys(n).forEach(function (k) { hit[k] = n[k]; });
+        if (!p.fields.updated && kind === "tests") hit.updated = today;
+        updated++;
+      } else {
+        var rec = norm(Object.assign({ id: RK.uid() }, o));
+        if (!rec.ref) rec.ref = nextRef(list, kind === "tests" ? "UAT" : "DEF");
+        if (kind === "tests" && !rec.updated && rec.status !== "Not run") rec.updated = today;
+        if (kind === "defects" && !rec.raised) rec.raised = today;
+        list.push(rec); byRef[lc(rec.ref)] = rec; added++;
+      }
+    });
+    uniqueIds(list);
+    return { added: added, updated: updated };
+  }
+  function rowsFromPaste(text) {
+    text = String(text || "").replace(/\r\n?/g, "\n").replace(/\n+$/, "");
+    if (!text.trim()) return [];
+    var first = text.split("\n")[0];
+    if (first.indexOf("\t") !== -1) return parseDelimited(text, "\t");
+    return parseDelimited(text, first.indexOf(";") !== -1 && first.indexOf(",") === -1 ? ";" : ",");
+  }
+  // quotes may hold the delimiter or a line break (Excel quotes a cell with a newline)
+  function parseDelimited(text, delim) {
+    var rows = [], row = [], cell = "", q = false;
+    for (var i = 0; i < text.length; i++) {
+      var ch = text.charAt(i);
+      if (q) {
+        if (ch === '"') { if (text.charAt(i + 1) === '"') { cell += '"'; i++; } else q = false; }
+        else cell += ch;
+      } else if (ch === '"' && cell === "") q = true;
+      else if (ch === delim) { row.push(cell); cell = ""; }
+      else if (ch === "\n") { row.push(cell); rows.push(row); row = []; cell = ""; }
+      else cell += ch;
+    }
+    row.push(cell); rows.push(row);
+    return rows;
+  }
+
+  var importDlg, importKind = "tests", importParsed = null;
+  function openImport(kind, opener) {
+    importKind = kind; importParsed = null;
+    $("importTitle").textContent = kind === "tests" ? "Import tests" : "Import defects";
+    $("importLead").textContent = kind === "tests"
+      ? "Columns are found by name: ID, Test (or Scenario, Title), Area (or Module), Tester, Priority, Status (or Result), Defects, Notes. Pass, Fail, Blocked, N/A and similar are understood."
+      : "Columns are found by name: ID (or Key), Summary, Severity (or Priority), Status, Owner (or Assignee), Area, Raised (or Created), Fix due, Tests, Workaround. Jira-style statuses are understood.";
+    document.querySelectorAll("[data-kind-word]").forEach(function (el) { el.textContent = kind === "tests" ? "test" : "defect"; });
+    $("importPaste").value = "";
+    $("importPaste").placeholder = kind === "tests" ? "ID\tTest\tArea\tTester\tPriority\tStatus\nUAT-001\tLog in with a new account\tAccounts\tAisha\tHigh\tPass" :
+      "Key\tSummary\tSeverity\tStatus\tAssignee\nPAY-412\tCard declined for saved cards\tCritical\tIn Progress\tPayments team";
+    document.querySelector('input[name="importMode"][value="merge"]').checked = true;
+    renderImportPreview();
+    importDlg.open(opener);
+    $("importPaste").focus();
+  }
+  function renderImportPreview() {
+    var box = $("importPreview"), p = importParsed;
+    $("importOk").disabled = !(p && p.records && p.records.length);
+    if (!p) { box.innerHTML = ""; return; }
+    if (p.error) { box.innerHTML = '<div class="callout danger">' + esc(p.error) + "</div>"; return; }
+    var fields = Object.keys(COLS[importKind]).filter(function (f) { return RK.has(p.map, f); });
+    var list = importKind === "tests" ? cur.tests : cur.defects, byRef = dict(), upd = 0;
+    list.forEach(function (x) { if (x.ref) byRef[lc(x.ref)] = 1; });
+    p.records.forEach(function (r) { if (r.rec.ref && byRef[lc(r.rec.ref)]) upd++; });
+    var noun = importKind === "tests" ? "test" : "defect";
+    box.innerHTML = '<div class="callout ok"><b>' + plural(p.records.length, "row") + " ready.</b> " +
+      (upd ? upd + " match an existing " + noun + " ID and " + (p.records.length - upd) + " are new." : "All are new.") +
+      (p.skipped ? " " + plural(p.skipped, "row") + " without a title or ID will be skipped." : "") + "</div>" +
+      '<div class="uat-map">Columns used: ' + fields.map(function (f) { return esc(FIELD_LABEL[f]) + " ← <code>" + esc(String(p.header[p.map[f]])) + "</code>"; }).join(", ") +
+      (p.unused.length ? '<br><span class="uat-muted">Not used: ' + p.unused.map(function (u) { return "<code>" + esc(u) + "</code>"; }).join(" ") + "</span>" : "") + "</div>" +
+      '<div class="table-container"><table><thead><tr>' + fields.map(function (f) { return "<th>" + esc(FIELD_LABEL[f]) + "</th>"; }).join("") + "</tr></thead><tbody>" +
+      p.records.slice(0, 6).map(function (r) { return "<tr>" + fields.map(function (f) { return '<td class="wrap-cell">' + esc(r.rec[f]) + "</td>"; }).join("") + "</tr>"; }).join("") +
+      "</tbody></table></div>" + (p.records.length > 6 ? '<div class="hint">Showing the first 6.</div>' : "");
+  }
+  function readImportBuffer(buf) {
+      try {
+        var wb = XLSX.read(buf, { type: "array" });
+        var best = null;
+        wb.SheetNames.forEach(function (n) {
+          if (best && !best.error) return;
+          var rows = XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, raw: true, defval: "" });
+          var parsed = parseImport(rows, importKind);
+          if (!best || !parsed.error) best = parsed;
+        });
+        importParsed = best || { error: "That file has no sheets." };
+      } catch (e) { importParsed = { error: "Could not read that file. Save it as .xlsx or .csv and try again." }; }
+      renderImportPreview();
+  }
+
+  /* ---------- cycles ---------- */
+  function cloneCycle(src, name, withTests) {
+    var c = normCycle(JSON.parse(JSON.stringify(src)));
+    c.id = RK.uid(); c.name = name; c.createdAt = RK.nowIso();
+    c.history = []; c.sent = []; c.defects = []; c.rag = { mode: "auto", reason: "" };
+    c.criteria.custom.forEach(function (x) { x.met = false; });
+    c.approvers.forEach(function (a) { a.status = "Pending"; a.date = ""; a.note = ""; });
+    var em = defaultEmail(); em.greeting = src.email.greeting; em.signoff = src.email.signoff; c.email = em;
+    c.tests = withTests ? c.tests.map(function (t) { t.status = t.status === "Out of scope" ? t.status : "Not run"; t.defects = ""; t.updated = ""; return t; }) : [];
+    uniqueIds(c.tests); c.tests.forEach(function (t) { t.id = RK.uid(); });
+    uniqueIds(c.approvers); c.approvers.forEach(function (a) { a.id = RK.uid(); });
+    return c;
+  }
+  function switchCycle(id) {
+    setCurrent(id);
+    selected = dict(); testTab = "all"; defTab = "open";
+    $("testArea").value = ""; $("testTester").value = ""; $("defSeverity").value = ""; $("defArea").value = "";
+    save();
+    fillCompose(); fillSettings(); renderAll();
+  }
+  var cycleDlg, dupFrom = null;
+  function openNewCycle(fromId, opener) {
+    dupFrom = fromId ? cycleById(fromId) : null;
+    var src = dupFrom || cur;
+    $("c_name").value = dupFrom ? dupFrom.name + " (copy)" : "";
+    $("c_start").value = ""; $("c_end").value = ""; $("c_signoff").value = "";
+    $("c_fromName").textContent = src.name;
+    $("c_copySetup").checked = true; $("c_copyTests").checked = !!dupFrom;
+    $("c_copyWrap").hidden = !src.tests.length && !src.approvers.length && !dupFrom;
+    showErr("c_err", "");
+    cycleDlg.open(opener);
+    $("c_name").focus();
+  }
+
+  /* ---------- demo ---------- */
+  function rng(seed) { return function () { seed |= 0; seed = seed + 0x6D2B79F5 | 0; var t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+  function demoCycle() {
+    var T = RK.today(), rnd = rng(42);
+    var c = newCycle("Customer Portal R4.2 UAT");
+    c.project = "Customer Portal"; c.build = "4.2.0-rc3"; c.environment = "UAT2"; c.lead = "Sam Patel";
+    c.startDate = addWorkdays(T, -7); c.endDate = addWorkdays(T, 3); c.signoffDate = addWorkdays(T, 5);
+    var AREAS = [
+      ["Accounts and login", ["Register a new customer account", "Log in with email and password", "Reset a forgotten password", "Lock an account after five failed attempts", "Update contact details", "Log out from every device", "Accept the new terms on first login", "Change marketing preferences"]],
+      ["Payments", ["Pay by saved Visa card", "Pay by new Mastercard", "Pay by bank transfer", "Refund a full order", "Refund part of an order", "3-D Secure challenge completes", "Declined card shows the right message", "Save a card for later", "Remove a saved card", "Payment receipt email"]],
+      ["Orders", ["Place a standard order", "Place an order with a promo code", "Amend delivery address before dispatch", "Cancel an order before dispatch", "Track an order", "Reorder from history", "Order history after a part refund", "Split delivery across two dates", "Order confirmation screen", "Order with out-of-stock item"]],
+      ["Invoices and statements", ["Download a monthly statement", "Statement shows VAT breakdown", "Invoice matches order total", "Credit note after refund", "Statement for a closed account", "Export invoices to CSV", "Invoice in Arabic layout", "Statement email reminder"]],
+      ["Notifications", ["Order dispatched push notification", "Push link opens the order", "SMS delivery window", "Email preferences honoured", "Payment failed alert", "Quiet hours respected"]],
+      ["Reporting", ["Daily sales report totals", "Report filters persist on export", "Refunds report matches finance", "Customer growth chart", "Report access by role", "Scheduled report email", "Report date range across month end", "Download report as Excel"]],
+      ["Admin and permissions", ["Grant a support role", "Revoke a user role", "Audit log records role changes", "Admin search by customer email", "Bulk deactivate test accounts", "Two-factor for admin users"]]
+    ];
+    var TESTERS = ["Aisha Khan", "Ben Carter", "Chloe Martin", "Daniel Osei", "Emma Lewis"];
+    var n = 0;
+    AREAS.forEach(function (a, ai) {
+      a[1].forEach(function (title, i) {
+        n++;
+        c.tests.push(normTest({ id: RK.uid(), ref: "UAT-" + String(n).padStart(3, "0"), title: title, area: a[0], tester: TESTERS[(ai + i) % TESTERS.length],
+          priority: i === 0 ? "Critical" : i < 3 ? "High" : i < 6 ? "Medium" : "Low" }));
+      });
+    });
+    // results so far: later areas are less far along, as a real cycle would be
+    var plan = { "UAT-011": ["Failed", "DEF-101"], "UAT-028": ["Failed", "DEF-102"], "UAT-030": ["Failed", "DEF-103"], "UAT-031": ["Passed", ""],
+      "UAT-003": ["Failed", "DEF-104"], "UAT-051": ["Failed", "DEF-105"], "UAT-040": ["Blocked", "DEF-110"], "UAT-012": ["Blocked", "DEF-101"],
+      "UAT-016": ["Blocked", "DEF-101"], "UAT-055": ["Passed", "DEF-109"], "UAT-035": ["Out of scope", ""] };
+    c.tests.forEach(function (t, i) {
+      var p = plan[t.ref];
+      if (p) { t.status = p[0]; t.defects = p[1]; }
+      else {
+        var x = rnd(), frac = 1 - i / c.tests.length * 0.5;
+        t.status = x < frac * 0.92 ? "Passed" : x < frac * 0.92 + 0.05 ? "In progress" : "Not run";
+      }
+      if (t.status !== "Not run") t.updated = addWorkdays(T, -Math.floor(rnd() * 4));
+    });
+    function def(ref, sev, status, title, area, owner, raisedAgo, etaIn, tests, resolution) {
+      c.defects.push(normDefect({ id: RK.uid(), ref: ref, severity: sev, status: status, title: title, area: area, owner: owner,
+        raised: addWorkdays(T, -raisedAgo), eta: etaIn === null ? "" : addWorkdays(T, etaIn), tests: tests, resolution: resolution || "", updated: T }));
+    }
+    def("DEF-101", "Critical", "In fix", "Card payment declined for saved Visa cards", "Payments", "Payments squad", 5, 2, "UAT-011, UAT-012, UAT-016");
+    def("DEF-102", "High", "New", "Order history shows duplicate lines after a part refund", "Orders", "Orders squad", 2, 3, "UAT-028");
+    def("DEF-103", "High", "Ready to retest", "Statement PDF missing the VAT breakdown", "Invoices and statements", "Billing team", 4, 0, "UAT-030");
+    def("DEF-104", "Medium", "In fix", "Password reset email arrives after 10 minutes or more", "Accounts and login", "Identity team", 6, 2, "UAT-003");
+    def("DEF-105", "Medium", "New", "Report export drops the filters applied on screen", "Reporting", "Data team", 1, 4, "UAT-051");
+    def("DEF-106", "Low", "Closed", "Typo on the order confirmation screen", "Orders", "Orders squad", 6, -3, "UAT-027");
+    def("DEF-107", "Medium", "Closed", "Session timeout warning not shown", "Accounts and login", "Identity team", 7, -4, "UAT-006");
+    def("DEF-108", "Low", "Deferred", "Logo misaligned on the mobile login page", "Accounts and login", "Web team", 5, null, "UAT-002", "Accepted for go-live; fix in R4.3");
+    def("DEF-109", "High", "Closed", "Admin cannot revoke a user role", "Admin and permissions", "Platform team", 6, -2, "UAT-055");
+    def("DEF-110", "Medium", "Deferred", "Push notification link opens the home page", "Notifications", "Mobile team", 3, null, "UAT-040", "Workaround: the link opens the order list; fix in R4.3");
+    def("DEF-111", "Low", "Rejected", "Date picker starts the week on Sunday", "Orders", "Orders squad", 3, null, "UAT-026", "Matches the agreed design");
+    c.approvers = [
+      { name: "Priya Shah", role: "Product Owner", scope: "All", status: "Pending" },
+      { name: "Mark Evans", role: "Head of Payments", scope: "Payments", status: "Pending" },
+      { name: "Lucy Grant", role: "Finance Operations Lead", scope: "Invoices and statements", status: "Approved with conditions", date: addWorkdays(T, -1), note: "Subject to DEF-103 passing retest" },
+      { name: "Tom Reid", role: "Service Desk Lead", scope: "Support readiness", status: "Approved", date: addWorkdays(T, -2) },
+      { name: "Hannah Cole", role: "Information Security", scope: "Admin and permissions", status: "Pending" }
+    ].map(function (a) { return normApprover(Object.assign({ id: RK.uid() }, a)); });
+    c.criteria.custom = [
+      { id: RK.uid(), text: "Service desk trained on the new screens", met: true },
+      { id: RK.uid(), text: "Go-live runbook walked through with operations", met: false }
+    ];
+    // history: one point per working day so far, growing towards today's figures
+    var m = metrics(c, T), days = workdays(c.startDate, T), d = c.startDate;
+    for (var k = 1; k < days; k++) {
+      while (!isWeekday(parseD(d))) d = addDays(d, 1);
+      var f = Math.pow(k / days, 1.15);
+      var s = snapOf(m); s.date = d; s.executed = Math.round(m.executed * f); s.passed = Math.round(m.passed * f * 0.97);
+      s.failed = Math.max(0, s.executed - s.passed); s.blocked = Math.round(m.blocked * f);
+      s.raised = Math.round(m.d.raised * Math.min(1, f * 1.2)); s.open = Math.max(1, Math.round(m.d.open * f + 2 * (1 - f)));
+      s.critical = k >= 3 ? 1 : 0; s.high = Math.min(3, Math.round(3 * f)); s.closed = Math.round((m.d.closed + m.d.deferred) * f * 0.8);
+      s.approved = k > days - 2 ? 1 : 0; s.rag = k < days - 3 ? "green" : "amber";
+      c.history.push(s);
+      d = addDays(d, 1);
+    }
+    var sentAt = c.history.length > 3 ? c.history[c.history.length - 3] : null;
+    if (sentAt) c.sent.push({ at: sentAt.date + "T16:30:00", subject: "[UAT] Customer Portal R4.2 UAT update: " + RAG_LABEL[sentAt.rag].toUpperCase(), snap: Object.assign({}, sentAt) });
+    var e = c.email;
+    e.highlights = "Payments regression pack is complete apart from the saved-card tests waiting on DEF-101\nFinance Operations signed off invoices and statements, conditional on the DEF-103 retest\nTwo low and medium issues accepted as known issues for go-live, with workarounds agreed";
+    e.risks = "DEF-101 (saved Visa cards declined) blocks three payment tests and is the main risk to the sign-off date. Fix due " + fmtDay(addWorkdays(T, 2)) + ".\nUAT2 was down for half a day this week; testers are working extra hours to recover the time.";
+    e.asks = "Mark Evans: if DEF-102 is not fixed by " + fmtDay(addWorkdays(T, 3)) + ", can it go live as a known issue with a manual check by the service desk?";
+    e.nextSteps = "Retest DEF-101 and DEF-103 once deployed to UAT2\nFinish the remaining Reporting, Notifications and Admin tests\nSend the sign-off request on " + fmtDay(c.endDate);
+    e.nextUpdate = addWorkdays(T, 1); e.signoff = "Sam";
+    recordSnapshot(c);
+    return c;
+  }
+
+  /* ---------- CSV export ---------- */
+  function exportCsv(kind) {
+    var txt = RK.csv.safeText, rows;
+    if (kind === "tests") rows = [["ID", "Test", "Area", "Tester", "Priority", "Status", "Defects", "Notes", "Updated"]].concat(cur.tests.map(function (t) {
+      return [txt(t.ref), txt(t.title), txt(t.area), txt(t.tester), t.priority, t.status, txt(t.defects), txt(t.note), t.updated];
+    }));
+    else rows = [["ID", "Defect", "Severity", "Status", "Owner", "Area", "Raised", "Fix due", "Tests", "Workaround or decision", "Notes"]].concat(cur.defects.map(function (d) {
+      return [txt(d.ref), txt(d.title), d.severity, d.status, txt(d.owner), txt(d.area), d.raised, d.eta, txt(d.tests), txt(d.resolution), txt(d.note)];
+    }));
+    RK.download(slug(cur.name) + "-" + kind + "-" + RK.today() + ".csv", RK.csv.BOM + RK.csv.fromRows(rows), "text/csv");
+    RK.toast((kind === "tests" ? "Tests" : "Defects") + " exported");
+  }
+  function slug(s) { return lc(s).replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 50) || "uat"; }
+
+  /* ---------- wiring ---------- */
+  function wire() {
+    document.querySelectorAll(".app-nav-item").forEach(function (b) { b.addEventListener("click", function () { show(b.getAttribute("data-view")); }); });
+    document.querySelectorAll(".settings-nav-item").forEach(function (b) { b.addEventListener("click", function () { showSettingsTab(b.getAttribute("data-tab")); }); });
+    // anything with data-goto / data-import, including cards and rows drawn later
+    document.addEventListener("click", function (e) {
+      var g = e.target.closest("[data-goto]");
+      if (g && !e.target.closest(".modal-overlay")) { show(g.getAttribute("data-goto"), g.getAttribute("data-tab")); return; }
+      var im = e.target.closest("[data-import]");
+      if (im) openImport(im.getAttribute("data-import"), im);
+    });
+    $("statGrid").addEventListener("keydown", function (e) {
+      var g = e.target.closest("[data-goto]");
+      if (g && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); show(g.getAttribute("data-goto")); }
+    });
+
+    $("cycleSelect").addEventListener("change", function () {
+      var v = this.value;
+      if (v === "__new") { this.value = cur.id; openNewCycle(null, this); return; }
+      switchCycle(v);
+    });
+    $("searchBox").addEventListener("input", function () {
+      if (["tests", "defects"].indexOf(view) === -1 && this.value.trim()) show("tests");
+      else renderAll();
+    });
+    RK.searchShortcut($("searchBox"));
+    $("btnCopyEmail").addEventListener("click", function () { copyEmail($("headerCopyFallback")); });
+    $("btnCopyEmail2").addEventListener("click", function () { copyEmail($("copyFallback")); });
+    $("btnCopyText").addEventListener("click", function () {
+      var p = emailPayload();
+      writeText(p.text).then(function () { RK.toast("Plain text copied"); }).catch(function () { RK.clipboard.fallbackInto($("copyFallback"), p.text); });
+    });
+    $("btnCopySubject").addEventListener("click", function () {
+      var s = emailPayload().subject;
+      writeText(s).then(function () { RK.toast("Subject copied"); }).catch(function () { RK.clipboard.fallbackInto($("copyFallback"), s); });
+    });
+    $("btnMarkSent").addEventListener("click", function () {
+      var p = emailPayload();
+      cur.sent.push({ at: RK.today() + "T" + new Date().toTimeString().slice(0, 8), subject: p.subject, snap: snapOf(p.m) });
+      if (cur.sent.length > 100) cur.sent.splice(0, cur.sent.length - 100);
+      commit();
+      RK.toast("Marked as sent. The next update will show what changed since now.");
+    });
+    $("sentLog").addEventListener("click", function (e) {
+      var b = e.target.closest("[data-unsend]"); if (!b) return;
+      var i = +b.getAttribute("data-unsend");
+      RK.confirm("Remove this entry? The next update will compare against the one before it.", function () { cur.sent.splice(i, 1); commit(); }, { okLabel: "Remove", danger: true });
+    });
+
+    // overview
+    $("btnRag").addEventListener("click", function () { openRag(this); });
+    $("areaBody").addEventListener("click", function (e) {
+      var r = e.target.closest("[data-area]"); if (!r) return;
+      testTab = "all"; show("tests");
+      var a = r.getAttribute("data-area"); $("testArea").value = a || "__none"; renderAll();
+    });
+    $("areaBody").addEventListener("keydown", function (e) { if ((e.key === "Enter" || e.key === " ") && e.target.matches("[data-area]")) { e.preventDefault(); e.target.click(); } });
+    document.addEventListener("change", function (e) {
+      var t = e.target.closest("[data-crit-toggle]");
+      if (!t) return;
+      var x = cur.criteria.custom.filter(function (c) { return c.id === t.getAttribute("data-crit-toggle"); })[0];
+      if (x) { x.met = t.checked; commit(); }
+    });
+    $("burnup").addEventListener("mousemove", function (e) { if (e.target.id === "chartHit" || e.target.closest("svg")) chartHover(e); });
+    $("burnup").addEventListener("mouseleave", chartLeave);
+    $("btnDemoOnboard").addEventListener("click", loadDemo);
+
+    // tests list
+    $("testTabs").addEventListener("click", function (e) { var b = e.target.closest("[data-tab]"); if (b) { testTab = b.getAttribute("data-tab"); renderAll(); } });
+    $("testArea").addEventListener("change", renderAll);
+    $("testTester").addEventListener("change", renderAll);
+    RK.sortable($("testTable"), testSort, renderAll);
+    $("btnAddTest").addEventListener("click", function () { openTest(null, this); });
+    $("btnExportTests").addEventListener("click", function () { exportCsv("tests"); });
+    $("btnExportTests2").addEventListener("click", function () { exportCsv("tests"); });
+    $("testBody").addEventListener("click", function (e) {
+      if (e.target.closest("input, select, button, label")) return;
+      var r = e.target.closest("[data-open-test]"); if (r) openTest(r.getAttribute("data-open-test"), r);
+    });
+    $("testBody").addEventListener("keydown", function (e) {
+      var r = e.target.closest("[data-open-test]");
+      if (r && e.target === r && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); openTest(r.getAttribute("data-open-test"), r); }
+    });
+    $("testBody").addEventListener("change", function (e) {
+      var cb = e.target.closest("[data-sel]");
+      if (cb) { if (cb.checked) selected[cb.getAttribute("data-sel")] = 1; else delete selected[cb.getAttribute("data-sel")]; renderTests(); return; }
+      inlineChange(e);
+    });
+    $("testSelAll").addEventListener("change", function () {
+      var on = this.checked;
+      filteredTests().forEach(function (t) { if (on) selected[t.id] = 1; else delete selected[t.id]; });
+      renderTests();
+    });
+    opts($("bulkStatus"), TEST_STATUSES);
+    $("bulkApply").addEventListener("click", function () {
+      var st = $("bulkStatus").value, today = RK.today(), n = 0;
+      cur.tests.forEach(function (t) { if (selected[t.id] && t.status !== st) { t.status = st; t.updated = today; n++; } });
+      commit(); RK.toast(plural(n, "test") + " set to " + st);
+    });
+    $("bulkDelete").addEventListener("click", function () {
+      var n = Object.keys(selected).length;
+      RK.confirm("Delete " + plural(n, "test") + "? This cannot be undone.", function () {
+        cur.tests = cur.tests.filter(function (t) { return !selected[t.id]; }); selected = dict(); commit();
+      }, { okLabel: "Delete", danger: true });
+    });
+    $("bulkClear").addEventListener("click", function () { selected = dict(); renderTests(); });
+
+    // defects list
+    $("defTabs").addEventListener("click", function (e) { var b = e.target.closest("[data-tab]"); if (b) { defTab = b.getAttribute("data-tab"); renderAll(); } });
+    $("defSeverity").addEventListener("change", renderAll);
+    $("defArea").addEventListener("change", renderAll);
+    RK.sortable($("defTable"), defSort, renderAll);
+    $("btnAddDefect").addEventListener("click", function () { openDefect(null, this); });
+    $("btnExportDefects").addEventListener("click", function () { exportCsv("defects"); });
+    $("btnExportDefects2").addEventListener("click", function () { exportCsv("defects"); });
+    $("defBody").addEventListener("click", function (e) {
+      if (e.target.closest("input, select, button")) return;
+      var r = e.target.closest("[data-open-defect]"); if (r) openDefect(r.getAttribute("data-open-defect"), r);
+    });
+    $("defBody").addEventListener("keydown", function (e) {
+      var r = e.target.closest("[data-open-defect]");
+      if (r && e.target === r && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); openDefect(r.getAttribute("data-open-defect"), r); }
+    });
+    $("defBody").addEventListener("change", inlineChange);
+
+    // approvers
+    $("btnAddApprover").addEventListener("click", function () { openAppr(null, this); });
+    $("btnDraftRequest").addEventListener("click", function () {
+      cur.email.type = "request"; cur.email.sections = presetSections("request", cur.email.audience); save(); show("email");
+    });
+    $("apprBody").addEventListener("click", function (e) {
+      if (e.target.closest("input, select, button")) return;
+      var r = e.target.closest("[data-open-appr]"); if (r) openAppr(r.getAttribute("data-open-appr"), r);
+    });
+    $("apprBody").addEventListener("keydown", function (e) {
+      var r = e.target.closest("[data-open-appr]");
+      if (r && e.target === r && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); openAppr(r.getAttribute("data-open-appr"), r); }
+    });
+    $("apprBody").addEventListener("change", inlineChange);
+
+    // email composer
+    emTypeRefresh = RK.chipsFromSelect($("emType"), $("emTypeChips"));
+    emAudRefresh = RK.chipsFromSelect($("emAudience"), $("emAudienceChips"));
+    $("emType").addEventListener("change", function () { cur.email.type = this.value; cur.email.sections = presetSections(cur.email.type, cur.email.audience); save(); fillCompose(); renderAll(); });
+    $("emAudience").addEventListener("change", function () { cur.email.audience = this.value; cur.email.sections = presetSections(cur.email.type, cur.email.audience); save(); fillCompose(); renderAll(); });
+    var emTimer = null;
+    document.querySelectorAll("[data-em]").forEach(function (el) {
+      el.addEventListener("input", function () {
+        cur.email[el.getAttribute("data-em")] = el.type === "date" ? dateOr(el.value) : el.value;
+        renderEmail(metrics(cur));
+        clearTimeout(emTimer); emTimer = setTimeout(save, 400);
+      });
+    });
+    $("emSections").addEventListener("change", function (e) {
+      var cb = e.target.closest("[data-sec]"); if (!cb) return;
+      cur.email.sections[cb.getAttribute("data-sec")] = cb.checked; commit();
+    });
+    $("emUseSuggested").addEventListener("click", function () {
+      cur.email.headline = autoHeadline(cur, metrics(cur)); $("emHeadline").value = cur.email.headline; commit(); $("emHeadline").focus();
+    });
+
+    // settings
+    document.querySelectorAll("[data-cy]").forEach(function (el) {
+      el.addEventListener("change", function () {
+        var k = el.getAttribute("data-cy");
+        cur[k] = el.type === "date" ? dateOr(el.value) : el.value.trim();
+        if (k === "name" && !cur.name) cur.name = "Untitled UAT cycle";
+        commit();
+      });
+    });
+    document.querySelectorAll("[data-cr]").forEach(function (el) {
+      el.addEventListener("change", function () {
+        var k = el.getAttribute("data-cr");
+        if (el.type === "checkbox") cur.criteria[k] = el.checked;
+        else if (k === "execPct" || k === "passPct") cur.criteria[k] = numIn(el.value, defaultCriteria()[k], 0, 100);
+        else cur.criteria[k] = limitOf(el.value, null);
+        commit(); fillSettings();
+      });
+    });
+    document.querySelectorAll("[data-ru]").forEach(function (el) {
+      el.addEventListener("change", function () {
+        var k = el.getAttribute("data-ru"), max = k === "redCritDays" ? 60 : 100;
+        cur.rules[k] = numIn(el.value, defaultRules()[k], 0, max); commit(); fillSettings();
+      });
+    });
+    $("customCritForm").addEventListener("submit", function (e) {
+      e.preventDefault();
+      var t = $("customCritText").value.trim(); if (!t) return;
+      cur.criteria.custom.push({ id: RK.uid(), text: t, met: false }); $("customCritText").value = ""; commit();
+    });
+    $("customCritList").addEventListener("change", function (e) {
+      var t = e.target.closest("[data-crit-text]"); if (!t) return;
+      var x = cur.criteria.custom.filter(function (c) { return c.id === t.getAttribute("data-crit-text"); })[0];
+      if (x) { x.text = t.value.trim(); commit(); }
+    });
+    $("customCritList").addEventListener("click", function (e) {
+      var b = e.target.closest("[data-crit-del]"); if (!b) return;
+      cur.criteria.custom = cur.criteria.custom.filter(function (c) { return c.id !== b.getAttribute("data-crit-del"); }); commit();
+    });
+    $("btnNewCycle").addEventListener("click", function () { openNewCycle(null, this); });
+    $("cycleList").addEventListener("click", function (e) {
+      var o = e.target.closest("[data-cycle-open]"), d = e.target.closest("[data-cycle-dup]"), x = e.target.closest("[data-cycle-del]");
+      if (o) switchCycle(o.getAttribute("data-cycle-open"));
+      else if (d) openNewCycle(d.getAttribute("data-cycle-dup"), d);
+      else if (x) deleteCycle(x.getAttribute("data-cycle-del"));
+    });
+    $("btnDeleteCycle").addEventListener("click", function () { deleteCycle(cur.id); });
+    $("demoBtn").addEventListener("click", loadDemo);
+    $("btnSaveJson").addEventListener("click", function () {
+      save();
+      RK.download("uat-tracker-backup-" + RK.today() + ".json", JSON.stringify(state, null, 2), "application/json");
+      RK.toast("Backup saved to your downloads");
+    });
+    $("btnLoadJson").addEventListener("click", function () { $("jsonFile").click(); });
+    $("jsonFile").addEventListener("change", function () {
+      var f = this.files && this.files[0]; this.value = "";
+      if (!f) return;
+      var reader = new FileReader();
+      reader.onload = function () {
+        var parsed = null;
+        try { parsed = normaliseState(JSON.parse(reader.result)); } catch (e) { parsed = null; }
+        if (!parsed) { RK.confirm("That file is not a UAT tracker backup, so nothing was loaded.", function () {}, { title: "Cannot load", okLabel: "OK" }); return; }
+        pendingLoad = parsed;
+        $("loadLead").textContent = "The file holds " + plural(parsed.cycles.length, "cycle") + ": " + parsed.cycles.map(function (c) { return c.name; }).join(", ") + ". Add them alongside your " + plural(state.cycles.length, "cycle") + " here, or replace everything here with the file?";
+        loadDlg.open($("btnLoadJson"));
+      };
+      reader.readAsText(f);
+    });
+
+    // dialogs
+    testDlg = RK.modal($("testOverlay"));
+    opts($("t_priority"), PRIORITIES); opts($("t_status"), TEST_STATUSES);
+    $("testOverlay").querySelector("[data-cancel]").addEventListener("click", testDlg.close);
+    $("testForm").addEventListener("submit", function (e) { e.preventDefault(); if (saveTest()) testDlg.close(); });
+    $("t_raise").addEventListener("click", function () {
+      var t = saveTest(); if (!t) return;
+      testDlg.close();
+      if (t.status === "Not run" || t.status === "In progress") { t.status = "Failed"; t.updated = RK.today(); commit(); }
+      openDefect(null, null, { testId: t.id, title: "", area: t.area, tests: t.ref, severity: t.priority === "Critical" ? "High" : "Medium" });
+    });
+    $("t_delete").addEventListener("click", function () {
+      RK.confirm("Delete this test? This cannot be undone.", function () {
+        cur.tests = cur.tests.filter(function (t) { return t.id !== editTestId; }); testDlg.close(); commit();
+      }, { okLabel: "Delete", danger: true });
+    });
+    defDlg = RK.modal($("defOverlay"));
+    opts($("d_severity"), SEVERITIES); opts($("d_status"), DEFECT_STATUSES);
+    $("defOverlay").querySelector("[data-cancel]").addEventListener("click", defDlg.close);
+    $("defForm").addEventListener("submit", function (e) { e.preventDefault(); if (saveDefect()) defDlg.close(); });
+    $("d_delete").addEventListener("click", function () {
+      RK.confirm("Delete this defect? This cannot be undone.", function () {
+        cur.defects = cur.defects.filter(function (d) { return d.id !== editDefId; }); defDlg.close(); commit();
+      }, { okLabel: "Delete", danger: true });
+    });
+    apprDlg = RK.modal($("apprOverlay"));
+    opts($("a_status"), DECISIONS);
+    $("apprOverlay").querySelector("[data-cancel]").addEventListener("click", apprDlg.close);
+    $("a_status").addEventListener("change", function () { if (this.value !== "Pending" && !$("a_date").value) $("a_date").value = RK.today(); });
+    $("apprForm").addEventListener("submit", function (e) {
+      e.preventDefault();
+      var name = $("a_name").value.trim();
+      if (!name) { showErr("a_err", "Give the approver a name."); return; }
+      var a = editApprId ? cur.approvers.filter(function (x) { return x.id === editApprId; })[0] : null;
+      if (!a) { a = normApprover({ id: RK.uid() }); cur.approvers.push(a); }
+      a.name = name; a.role = $("a_role").value.trim(); a.scope = $("a_scope").value.trim(); a.status = $("a_status").value;
+      a.date = dateOr($("a_date").value); a.note = $("a_note").value;
+      apprDlg.close(); commit();
+    });
+    $("a_delete").addEventListener("click", function () {
+      RK.confirm("Remove this approver?", function () {
+        cur.approvers = cur.approvers.filter(function (a) { return a.id !== editApprId; }); apprDlg.close(); commit();
+      }, { okLabel: "Remove", danger: true });
+    });
+    ragDlg = RK.modal($("ragOverlay"));
+    ragRefresh = RK.chipsFromSelect($("ragMode"), $("ragChips"));
+    $("ragOverlay").querySelector("[data-cancel]").addEventListener("click", ragDlg.close);
+    $("ragForm").addEventListener("submit", function (e) {
+      e.preventDefault();
+      cur.rag = { mode: $("ragMode").value, reason: $("ragReason").value.trim() };
+      ragDlg.close(); commit();
+    });
+    importDlg = RK.modal($("importOverlay"));
+    $("importOverlay").querySelector("[data-cancel]").addEventListener("click", importDlg.close);
+    var pasteTimer = null;
+    $("importPaste").addEventListener("input", function () {
+      clearTimeout(pasteTimer);
+      pasteTimer = setTimeout(function () {
+        var rows = rowsFromPaste($("importPaste").value);
+        importParsed = rows.length ? parseImport(rows, importKind) : null;
+        renderImportPreview();
+      }, 150);
+    });
+    RK.upload({ drop: $("importDrop"), fileInput: $("importFile"), onFile: readImportBuffer,
+      onError: function (msg) { importParsed = { error: msg }; renderImportPreview(); } });
+    $("importOk").addEventListener("click", function () {
+      if (!importParsed || !importParsed.records) return;
+      var mode = document.querySelector('input[name="importMode"]:checked').value;
+      var go = function () {
+        var r = applyImport(cur, importKind, importParsed, mode);
+        importDlg.close(); commit();
+        show(importKind);
+        RK.toast("Imported: " + r.added + " added, " + r.updated + " updated");
+      };
+      var list = importKind === "tests" ? cur.tests : cur.defects;
+      if (mode === "replace" && list.length) RK.confirm("Replace all " + plural(list.length, importKind === "tests" ? "test" : "defect") + " in this cycle with the " + importParsed.records.length + " imported?", go, { okLabel: "Replace", danger: true });
+      else go();
+    });
+    cycleDlg = RK.modal($("cycleOverlay"));
+    $("cycleOverlay").querySelector("[data-cancel]").addEventListener("click", cycleDlg.close);
+    $("cycleForm").addEventListener("submit", function (e) {
+      e.preventDefault();
+      var name = $("c_name").value.trim();
+      if (!name) { showErr("c_err", "Give the cycle a name."); return; }
+      var s = dateOr($("c_start").value), en = dateOr($("c_end").value), so = dateOr($("c_signoff").value);
+      if (s && en && en < s) { showErr("c_err", "Testing cannot end before it starts."); return; }
+      var src = dupFrom || cur, c;
+      if ($("c_copySetup").checked || $("c_copyTests").checked) {
+        c = cloneCycle(src, name, $("c_copyTests").checked);
+        if (!$("c_copySetup").checked) { c.criteria = defaultCriteria(); c.rules = defaultRules(); c.approvers = []; }
+        ["project", "build", "environment", "lead"].forEach(function (f) { c[f] = src[f]; });
+      } else c = newCycle(name);
+      c.startDate = s; c.endDate = en; c.signoffDate = so;
+      state.cycles.push(c);
+      cycleDlg.close();
+      switchCycle(c.id);
+      show("overview");
+      RK.toast("Cycle created");
+    });
+    loadDlg = RK.modal($("loadOverlay"), { onClose: function () { pendingLoad = null; } });
+    $("loadOverlay").querySelector("[data-cancel]").addEventListener("click", loadDlg.close);
+    $("loadAdd").addEventListener("click", function () {
+      var p = pendingLoad; if (!p) return;
+      var ids = dict(); state.cycles.forEach(function (c) { ids[c.id] = 1; });
+      p.cycles.forEach(function (c) { if (ids[c.id]) c.id = RK.uid(); state.cycles.push(c); });
+      var first = p.cycles[0].id; loadDlg.close(); switchCycle(first); RK.toast(plural(p.cycles.length, "cycle") + " added");
+    });
+    $("loadReplace").addEventListener("click", function () {
+      var p = pendingLoad; if (!p) return;
+      try { localStorage.setItem(STORE_KEY + ".before-load", JSON.stringify(state)); } catch (e) { /* best effort */ }
+      state = p; loadDlg.close(); switchCycle(p.activeId); RK.toast("Backup loaded");
+    });
+
+    // another tab saved: take its data, keep this tab's cycle open
+    window.addEventListener("storage", function (e) {
+      if (e.key !== STORE_KEY || !e.newValue) return;
+      var n = null;
+      try { n = normaliseState(JSON.parse(e.newValue)); } catch (err) { n = null; }
+      if (!n) return;
+      var keep = cur.id;
+      state = n; setCurrent(cycleById(keep) ? keep : n.activeId);
+      if (!document.querySelector(".modal-overlay:not([hidden])")) { fillCompose(); fillSettings(); }
+      renderAll();
+      banner("Changes made in another tab have been loaded here.");
+    });
+  }
+  var ragDlg, loadDlg, pendingLoad = null;
+  function openRag(opener) {
+    var m = metrics(cur);
+    $("ragMode").value = cur.rag.mode; if (ragRefresh) ragRefresh();
+    $("ragReason").value = cur.rag.reason;
+    $("ragAutoNote").textContent = "Calculated from the rules: " + RAG_LABEL[m.auto] + " (" + m.reasons.map(function (r) { return firstLower(r.text); }).join("; ") + "). Set it by hand when you know something the figures do not.";
+    ragDlg.open(opener);
+  }
+  function inlineChange(e) {
+    var s = e.target.closest("[data-inline]"); if (!s) return;
+    var kind = s.getAttribute("data-inline"), id = s.getAttribute("data-id"), v = s.value, today = RK.today();
+    var list = kind === "test" ? cur.tests : kind === "defect" ? cur.defects : cur.approvers;
+    var rec = list.filter(function (x) { return x.id === id; })[0]; if (!rec) return;
+    rec.status = v;
+    if (kind === "approver") { if (v !== "Pending" && !rec.date) rec.date = today; if (v === "Pending") rec.date = ""; }
+    else rec.updated = today;
+    commit();
+    var again = document.querySelector('[data-inline="' + kind + '"][data-id="' + CSS.escape(id) + '"]');
+    if (again) again.focus();
+    if (kind === "test" && v === "Failed" && !rec.defects) RK.toast("Marked Failed. Open the test and choose Save and raise defect to log it.", 4200);
+  }
+  function deleteCycle(id) {
+    var c = cycleById(id); if (!c) return;
+    RK.confirm("Delete " + c.name + ", with its " + plural(c.tests.length, "test") + ", " + plural(c.defects.length, "defect") + " and update history? This cannot be undone.", function () {
+      state.cycles = state.cycles.filter(function (x) { return x.id !== id; });
+      if (!state.cycles.length) state.cycles.push(newCycle());
+      switchCycle(cur.id === id ? state.cycles[0].id : cur.id);
+      RK.toast("Cycle deleted");
+    }, { okLabel: "Delete cycle", danger: true });
+  }
+  function loadDemo() {
+    var c = demoCycle();
+    // an untouched empty cycle is replaced rather than left lying around
+    if (state.cycles.length === 1 && !cur.tests.length && !cur.defects.length && !cur.approvers.length && cur.name === "New UAT cycle") state.cycles = [];
+    state.cycles.push(c);
+    switchCycle(c.id);
+    show("overview");
+    RK.toast("Demo cycle loaded. Delete it from Settings when you are done.");
+  }
+
+  /* ---------- self tests (?selftest=1) ---------- */
+  function runSelfTests() {
+    var results = [];
+    function assert(name, cond) { results.push({ name: name, pass: !!cond }); }
+    assert("workdays Mon to Fri is 5", workdays("2026-11-02", "2026-11-06") === 5);
+    assert("workdays across a weekend", workdays("2026-11-06", "2026-11-09") === 2);
+    assert("workdaysUntil counts forward and back", workdaysUntil("2026-11-06", "2026-11-09") === 1 && workdaysUntil("2026-11-09", "2026-11-06") === -1);
+    assert("addWorkdays skips weekends", addWorkdays("2026-11-06", 1) === "2026-11-09" && addWorkdays("2026-11-09", -1) === "2026-11-06");
+    function fixture() {
+      var c = newCycle("Fixture");
+      c.startDate = "2026-11-02"; c.endDate = "2026-11-13"; c.signoffDate = "2026-11-17";
+      ["Passed", "Passed", "Passed", "Failed", "Blocked", "Not run", "Out of scope"].forEach(function (s, i) {
+        c.tests.push(normTest({ id: "t" + i, ref: "UAT-00" + i, title: "T" + i, status: s, priority: i === 0 ? "Critical" : "Medium" }));
+      });
+      c.defects.push(normDefect({ id: "d1", ref: "D1", severity: "High", status: "In fix" }));
+      c.defects.push(normDefect({ id: "d2", ref: "D2", severity: "Low", status: "Deferred" }));
+      c.defects.push(normDefect({ id: "d3", ref: "D3", severity: "Critical", status: "Rejected" }));
+      return c;
+    }
+    var c = fixture(), m = metrics(c, "2026-11-06");
+    assert("in scope leaves out Out of scope", m.inScope === 6);
+    assert("executed is passed plus failed", m.executed === 4 && m.passed === 3);
+    assert("open defects leave out deferred and rejected", m.d.open === 1 && m.d.sev.High === 1 && m.d.sev.Critical === 0 && m.d.raised === 2);
+    assert("plan: day 5 of 10 is 50%", m.sched.elapsed === 5 && m.sched.total === 10 && Math.round(m.sched.planned) === 50);
+    assert("criteria: high defect over the limit is not met", m.criteria.filter(function (x) { return x.label === "Open high defects"; })[0].met === false);
+    assert("criteria: critical tests passed is met", m.criteria.filter(function (x) { return x.label === "Critical-priority tests passed"; })[0].met === true);
+    assert("status amber for an open high defect", m.auto === "amber" && m.reasons.some(function (r) { return /high defect/.test(r.text); }));
+    c.approvers.push(normApprover({ id: "a1", name: "A", status: "Rejected" }));
+    assert("status red when an approver rejects", metrics(c, "2026-11-06").auto === "red");
+    c.approvers[0].status = "Approved";
+    assert("signed off when every approver approves", metrics(c, "2026-11-06").auto === "done");
+    c.approvers = [];
+    assert("red once the sign-off date has passed", metrics(c, "2026-11-18").auto === "red");
+    assert("not started before the start date", metrics(c, "2026-10-30").auto === "idle");
+    c.rag = { mode: "green", reason: "Agreed with sponsor" };
+    var mo = metrics(c, "2026-11-06");
+    assert("a status set by hand wins and keeps the calculated one", mo.rag === "green" && mo.auto === "amber" && mo.overridden);
+    assert("an empty cycle is not started", metrics(newCycle(), "2026-11-06").auto === "idle");
+
+    var p = parseImport([["Notes"], ["Test Case ID", "Scenario", "Module", "Result", "Priority"], ["TC-1", "Log in", "Accounts", "PASS", "P1"], ["TC-2", "Pay", "Payments", "fail", "Sev 3"], ["", "", "", "", ""], ["TC-3", "Refund", "Payments", "N/A", "minor"]], "tests");
+    assert("import finds the header row below a title row", !p.error && p.records.length === 3);
+    assert("import maps Test Case ID to ID and Scenario to Test", p.map.ref === 0 && p.map.title === 1 && p.map.area === 2 && p.map.status === 3);
+    assert("import reads Pass, Fail and N/A", p.records[0].rec.status === "Passed" && p.records[1].rec.status === "Failed" && p.records[2].rec.status === "Out of scope");
+    assert("import reads P1, Sev 3 and minor", p.records[0].rec.priority === "Critical" && p.records[1].rec.priority === "Medium" && p.records[2].rec.priority === "Low");
+    var ci = newCycle("Merge");
+    ci.tests.push(normTest({ id: "x1", ref: "TC-1", title: "Log in", tester: "Keep me", status: "Not run" }));
+    var r = applyImport(ci, "tests", parseImport([["ID", "Status"], ["tc-1", "Passed"], ["TC-9", "Failed"]], "tests"), "merge");
+    assert("merge updates by ID, case blind, and keeps other fields", r.updated === 1 && r.added === 1 && ci.tests[0].status === "Passed" && ci.tests[0].tester === "Keep me");
+    var pd = parseImport([["Key", "Summary", "Priority", "Severity", "Status", "Created"], ["PAY-1", "Declined", "Low", "Blocker", "Resolved", "14/11/2026"], ["PAY-2", "Typo", "", "S4", "Won't Fix", 45658]], "defects");
+    assert("defect import prefers Severity over Priority", pd.map.severity === 3 && pd.records[0].rec.severity === "Critical" && pd.records[1].rec.severity === "Low");
+    assert("defect import reads Resolved and Won't Fix", pd.records[0].rec.status === "Ready to retest" && pd.records[1].rec.status === "Deferred");
+    assert("dates: UK day first and Excel serials", pd.records[0].rec.raised === "2026-11-14" && pd.records[1].rec.raised === "2025-01-01");
+    assert("paste: quoted cells keep tabs and line breaks", JSON.stringify(rowsFromPaste('ID\tTest\n1\t"two\nlines"')) === JSON.stringify([["ID", "Test"], ["1", "two\nlines"]]));
+    assert("no header row is a clear error", !!parseImport([["a", "b"], ["c", "d"]], "tests").error);
+
+    assert("normalise rejects data that is not the tracker's", normaliseState({ foo: 1 }) === null && normaliseState("x") === null);
+    var ns = normaliseState({ cycles: [{ name: "A", tests: [{ id: "same", status: "Bogus", priority: "?" }, { id: "same" }], rag: { mode: "purple" }, criteria: { maxHigh: null } }] });
+    assert("normalise fixes duplicate ids, unknown values and keeps a switched-off limit",
+      ns && ns.cycles[0].tests[0].id !== ns.cycles[0].tests[1].id && ns.cycles[0].tests[0].status === "Not run" &&
+      ns.cycles[0].tests[0].priority === "Medium" && ns.cycles[0].rag.mode === "auto" && ns.cycles[0].criteria.maxHigh === null && ns.cycles[0].criteria.maxCritical === 0);
+    assert("a single-cycle file loads as one cycle", normaliseState({ name: "Solo", tests: [] }).cycles[0].name === "Solo");
+
+    var ce = fixture();
+    ce.tests[0].title = '<img src=x onerror="alert(1)">';
+    ce.defects[0].title = "<script>x<\/script>";
+    ce.email.sections = presetSections("update", "full");
+    var saved = cur; cur = ce;
+    try {
+      var html = docHtml(buildDoc(ce, metrics(ce, "2026-11-06"))), text = docText(buildDoc(ce, metrics(ce, "2026-11-06")));
+      assert("email HTML escapes user text", html.indexOf("<script>") === -1 && html.indexOf("&lt;script&gt;") !== -1);
+      assert("email has the status, criteria and defects", /AMBER/.test(html) && /Exit criteria: \d+ of \d+ met/.test(html) && /Open defects/.test(html));
+      assert("plain text has a table with a rule under the header", /\nID\s+Defect\s+Severity[^\n]*\n-+/.test(text));
+      assert("subject leads with the status", /^\[UAT\] Fixture update: AMBER/.test(autoSubject(ce, metrics(ce, "2026-11-06"), "update")));
+      ce.sent.push({ at: "2026-11-05T10:00:00", subject: "", snap: normSnap({ executed: 2, passed: 1, raised: 1, closed: 0, approved: 0, inScope: 6, rag: "green" }) });
+      var since = sinceText(ce, metrics(ce, "2026-11-06"));
+      assert("since last update lists the changes", since && /2 more tests executed/.test(since.text) && /1 defect raised/.test(since.text) && /from Green to Amber/.test(since.text));
+    } finally { cur = saved; }
+    assert("demo cycle is amber with a critical defect open", (function () { var d = demoCycle(), dm = metrics(d); return dm.auto === "amber" && dm.d.sev.Critical === 1 && d.history.length > 0; })());
+
+    var passed = results.filter(function (x) { return x.pass; }).length;
+    console.log("Self tests: " + passed + "/" + results.length + " passed");
+    results.forEach(function (x) { console[x.pass ? "log" : "error"]((x.pass ? "PASS" : "FAIL") + " - " + x.name); });
+    return results;
+  }
+
+  /* ---------- init ---------- */
+  load();
+  wire();
+  if (storageWarning) banner(storageWarning);
+  // one chart point for each day the tracker is opened, even with no edits
+  if (cur.tests.length && (!cur.history.length || cur.history[cur.history.length - 1].date !== RK.today())) save();
+  fillCompose(); fillSettings();
+  show("overview");
+  if (new URLSearchParams(location.search).get("selftest") === "1") runSelfTests();
+})();
+</script>
+</body>
+</html>
