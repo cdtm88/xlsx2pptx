@@ -1,0 +1,754 @@
+<!-- @out: uat-email-builder.html -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<!-- Offline by policy: nothing may load from or send to the network (framework/DESIGN.md). -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; connect-src 'none'; form-action 'none'; base-uri 'none'">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light only">
+<title>UAT Email Builder</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMiIgaGVpZ2h0PSIzMiIgdmlld0JveD0iMCAwIDMyIDMyIj48cmVjdCB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHJ4PSI3IiBmaWxsPSIjMDBBOUNFIi8+PHJlY3QgeD0iOSIgeT0iOCIgd2lkdGg9IjE0IiBoZWlnaHQ9IjE3IiByeD0iMiIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjIiLz48cmVjdCB4PSIxMi41IiB5PSI2IiB3aWR0aD0iNyIgaGVpZ2h0PSI0IiByeD0iMS4yIiBmaWxsPSIjZmZmIi8+PHBhdGggZD0iTTEyLjUgMTcuMmwyLjQgMi40TDE5LjggMTQuNiIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjIuMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+PC9zdmc+">
+<style>
+/*@include framework/report-kit-2.css@*/
+
+/* ---- UAT email builder (uem-*) ---- */
+.uem-panel { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; min-width: 0; }
+.uem-panel-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.uem-panel-head h3 { margin: 0; font-size: 16px; font-weight: 700; color: var(--heading); }
+.uem-panel-head .hint { margin: 0; }
+.uem-grid { display: grid; grid-template-columns: minmax(320px, 460px) minmax(0, 1fr); gap: 16px; align-items: start; }
+.uem-group { border-top: 1px solid var(--divider); padding-top: 14px; margin-top: 4px; }
+.uem-group > h4 { margin: 0 0 10px; font-size: 13px; font-weight: 700; color: var(--accent-dark); text-transform: uppercase; letter-spacing: .4px; }
+.uem-compose .field { margin-bottom: 12px; }
+.uem-compose textarea { min-height: 64px; }
+.uem-compose .chip-row { margin-bottom: 0; }
+.uem-compose input[type="number"] { text-align: right; }
+.uem-field-row-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.uem-derived { font-size: 12px; color: var(--slate); background: var(--light-grey); border-radius: 6px; padding: 6px 10px; margin: -2px 0 12px; }
+.uem-warn { color: var(--red); font-weight: 600; }
+.uem-muted { color: var(--text-dim); font-weight: 400; }
+.uem-sections { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; font-size: 13px; }
+.uem-sections label { display: flex; gap: 6px; align-items: center; cursor: pointer; }
+.uem-rows { display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; }
+.uem-row { position: relative; border: 1px solid var(--border); border-radius: 8px; padding: 10px 34px 4px 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 0 10px; background: var(--lighter-grey); }
+.uem-row .field { margin-bottom: 8px; }
+.uem-row .field > label { font-size: 11px; margin-bottom: 3px; }
+.uem-row .field.wide { grid-column: 1 / -1; }
+.uem-row input, .uem-row select { height: 30px; font-size: 13px; }
+.uem-row-x { position: absolute; top: 6px; right: 6px; width: 24px; height: 24px; padding: 0; line-height: 1; border: none; background: none; color: var(--text-dim); font-size: 18px; cursor: pointer; }
+.uem-row-x:hover { color: var(--red); }
+.uem-subject { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; }
+.uem-subject input { font-weight: 600; }
+.uem-preview { background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 20px 22px; overflow-x: auto; }
+/* undo the kit's app-table look inside the preview, so it shows what the inline styles paste as */
+.uem-preview table { width: auto; }
+.uem-preview th, .uem-preview td { white-space: normal; text-transform: none; letter-spacing: normal; font-size: inherit; position: static; user-select: auto; }
+.uem-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 12px 0; }
+.copy-fallback textarea { width: 100%; min-height: 180px; font: 12px var(--font-mono); }
+.copy-fallback p { margin: 0 0 6px; font-size: 12px; color: var(--text-dim); }
+.uem-intro { margin: -4px 0 14px; font-size: 13px; color: var(--slate); }
+/* side by side, Compose and Preview each scroll on their own inside the window
+   (sizeGrid sets the height); stacked on narrower screens, the page scrolls */
+@media (min-width: 1001px) {
+  .uem-grid { height: var(--uem-h, auto); align-items: stretch; }
+  .uem-col { min-height: 0; max-height: 100%; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
+}
+@media (max-width: 1000px) {
+  .uem-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 560px) {
+  .uem-sections, .uem-row { grid-template-columns: 1fr; }
+  .uem-field-row-4 { grid-template-columns: 1fr 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="app-header">
+    <div class="app-logo"><img class="app-logo-mark" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMiIgaGVpZ2h0PSIzMiIgdmlld0JveD0iMCAwIDMyIDMyIj48cmVjdCB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHJ4PSI3IiBmaWxsPSIjMDBBOUNFIi8+PHJlY3QgeD0iOSIgeT0iOCIgd2lkdGg9IjE0IiBoZWlnaHQ9IjE3IiByeD0iMiIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjIiLz48cmVjdCB4PSIxMi41IiB5PSI2IiB3aWR0aD0iNyIgaGVpZ2h0PSI0IiByeD0iMS4yIiBmaWxsPSIjZmZmIi8+PHBhdGggZD0iTTEyLjUgMTcuMmwyLjQgMi40TDE5LjggMTQuNiIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjIuMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+PC9zdmc+" alt="">UAT Email Builder</div>
+    <div class="app-header-spacer"></div>
+    <span class="app-version" id="appVersion"></span>
+    <button type="button" id="btnExample">Load example</button>
+    <button type="button" id="btnFresh">Start fresh</button>
+    <button type="button" class="primary" id="btnCopyEmail">Copy email</button>
+  </header>
+  <div id="headerCopyFallback"></div>
+
+  <p class="uem-intro">Type in this week's figures and status; the email builds itself in the same format as the UAT Sign-off Tracker. Everything is kept in this browser for next time.</p>
+
+  <div class="uem-grid" id="grid">
+    <div class="uem-panel uem-compose uem-col">
+      <div class="uem-panel-head"><h3>Compose</h3><span class="hint">Every figure and the status are yours to set.</span></div>
+
+      <div class="field">
+        <label>Email type</label>
+        <select id="emType" class="select-hidden-visually" aria-label="Email type" tabindex="-1" data-k="type">
+          <option value="update">Progress update</option>
+          <option value="request">Sign-off request</option>
+        </select>
+        <div class="chip-row" id="emTypeChips"></div>
+      </div>
+      <div class="field">
+        <label>Sections</label>
+        <div class="uem-sections" id="emSections"></div>
+        <div class="hint">Changing the email type picks a set; change any of them after.</div>
+      </div>
+
+      <div class="uem-group">
+        <h4>UAT</h4>
+        <div class="field"><label for="f_name">Name</label><input type="text" id="f_name" data-k="name" placeholder="Customer Portal R4.2 UAT"></div>
+        <div class="field-row">
+          <div class="field"><label for="f_build">Build</label><input type="text" id="f_build" data-k="build" placeholder="Optional"></div>
+          <div class="field"><label for="f_env">Environment</label><input type="text" id="f_env" data-k="environment" placeholder="Optional"></div>
+        </div>
+        <div class="field-row-3">
+          <div class="field"><label for="f_day">Day</label><input type="number" id="f_day" data-k="day" min="0" step="1"></div>
+          <div class="field"><label for="f_days">of (days)</label><input type="number" id="f_days" data-k="days" min="0" step="1"></div>
+          <div class="field"><label for="f_signoff">Sign-off due</label><input type="date" id="f_signoff" data-k="signoffDate"></div>
+        </div>
+      </div>
+
+      <div class="uem-group">
+        <h4>Status</h4>
+        <div class="field">
+          <select id="f_status" class="select-hidden-visually" aria-label="Status" tabindex="-1" data-k="status">
+            <option value="green">Green</option>
+            <option value="amber">Amber</option>
+            <option value="red">Red</option>
+            <option value="done">Signed off</option>
+            <option value="idle">Not started</option>
+          </select>
+          <div class="chip-row" id="statusChips"></div>
+        </div>
+        <div class="field">
+          <label for="f_reason">Why <span class="uem-muted">(for Amber or Red, goes in the headline)</span></label>
+          <input type="text" id="f_reason" data-k="reason" placeholder="1 critical and 2 high defects open">
+        </div>
+      </div>
+
+      <div class="uem-group">
+        <h4>Tests</h4>
+        <div class="uem-field-row-4">
+          <div class="field"><label for="f_scope">In scope</label><input type="number" id="f_scope" data-k="inScope" min="0" step="1"></div>
+          <div class="field"><label for="f_passed">Passed</label><input type="number" id="f_passed" data-k="passed" min="0" step="1"></div>
+          <div class="field"><label for="f_failed">Failed</label><input type="number" id="f_failed" data-k="failed" min="0" step="1"></div>
+          <div class="field"><label for="f_blocked">Blocked</label><input type="number" id="f_blocked" data-k="blocked" min="0" step="1"></div>
+        </div>
+        <div class="field">
+          <label for="f_plan">Planned executed by today <span class="uem-muted">(optional)</span></label>
+          <input type="number" id="f_plan" data-k="plan" min="0" step="1" style="max-width:120px">
+        </div>
+        <div class="uem-derived" id="testsDerived"></div>
+      </div>
+
+      <div class="uem-group">
+        <h4>Open defects</h4>
+        <div class="uem-field-row-4">
+          <div class="field"><label for="f_crit">Critical</label><input type="number" id="f_crit" data-k="critical" min="0" step="1"></div>
+          <div class="field"><label for="f_high">High</label><input type="number" id="f_high" data-k="high" min="0" step="1"></div>
+          <div class="field"><label for="f_med">Medium</label><input type="number" id="f_med" data-k="medium" min="0" step="1"></div>
+          <div class="field"><label for="f_low">Low</label><input type="number" id="f_low" data-k="low" min="0" step="1"></div>
+        </div>
+        <div class="field">
+          <label for="f_retest">Of which fixed and waiting for retest <span class="uem-muted">(optional)</span></label>
+          <input type="number" id="f_retest" data-k="retest" min="0" step="1" style="max-width:120px">
+        </div>
+        <div class="uem-derived" id="defectsDerived"></div>
+      </div>
+
+      <div class="uem-group">
+        <h4>Approvals</h4>
+        <div class="field-row">
+          <div class="field"><label for="f_approved">Approved</label><input type="number" id="f_approved" data-k="approved" min="0" step="1"></div>
+          <div class="field"><label for="f_approvers">of (approvers)</label><input type="number" id="f_approvers" data-k="approvers" min="0" step="1"></div>
+        </div>
+        <div class="uem-derived" id="approvalsDerived" hidden></div>
+      </div>
+
+      <div class="uem-group">
+        <h4>Words</h4>
+        <div class="field"><label for="f_greeting">Greeting</label><input type="text" id="f_greeting" data-k="greeting"></div>
+        <div class="field">
+          <label for="f_headline">Headline <span class="uem-muted">(bottom line first)</span></label>
+          <textarea id="f_headline" data-k="headline" rows="3"></textarea>
+          <div class="hint">Leave blank to use the suggestion shown. <button type="button" class="link-action" id="useSuggested">Copy the suggestion in to edit it</button></div>
+        </div>
+        <div class="field-row">
+          <div class="field"><label for="f_sinceDate">Last update sent</label><input type="date" id="f_sinceDate" data-k="sinceDate"></div>
+          <div class="field"><label for="f_since">What changed since</label><input type="text" id="f_since" data-k="since" placeholder="12 more tests executed, 3 defects closed"></div>
+        </div>
+        <div class="field"><label for="f_highlights">Highlights <span class="uem-muted">(one per line)</span></label><textarea id="f_highlights" data-k="highlights" rows="3"></textarea></div>
+        <div class="field"><label for="f_risks">Risks and issues <span class="uem-muted">(one per line)</span></label><textarea id="f_risks" data-k="risks" rows="3"></textarea></div>
+        <div class="field"><label for="f_asks">Decisions and help needed <span class="uem-muted">(one per line)</span></label><textarea id="f_asks" data-k="asks" rows="2"></textarea></div>
+        <div class="field"><label for="f_next">Next steps <span class="uem-muted">(one per line)</span></label><textarea id="f_next" data-k="nextSteps" rows="3"></textarea></div>
+        <div class="field-row">
+          <div class="field"><label for="f_nextUpdate">Next update</label><input type="date" id="f_nextUpdate" data-k="nextUpdate"></div>
+          <div class="field"><label for="f_signoffName">Sign off as</label><input type="text" id="f_signoffName" data-k="signoff" placeholder="Your name"></div>
+        </div>
+      </div>
+
+      <div class="uem-group">
+        <h4>Defects needing attention</h4>
+        <div class="hint" style="margin:-4px 0 8px">Optional. The defects to list in the email, usually the critical and high ones.</div>
+        <div class="uem-rows" id="rows-defects"></div>
+        <button type="button" class="small" data-add="defects">+ Add defect</button>
+      </div>
+
+      <div class="uem-group">
+        <h4>Known issues accepted</h4>
+        <div class="hint" style="margin:-4px 0 8px">Optional. Defects going live with a workaround or a decision to defer.</div>
+        <div class="uem-rows" id="rows-known"></div>
+        <button type="button" class="small" data-add="known">+ Add known issue</button>
+      </div>
+
+      <div class="uem-group">
+        <h4>Approvers</h4>
+        <div class="hint" style="margin:-4px 0 8px">Optional. Listed under Sign-off; the Approved figure above is what the email counts.</div>
+        <div class="uem-rows" id="rows-people"></div>
+        <button type="button" class="small" data-add="people">+ Add approver</button>
+      </div>
+
+      <div class="uem-group">
+        <h4>Exit criteria</h4>
+        <div class="hint" style="margin:-4px 0 10px">Met or Not met is worked out from the figures above. Leave a limit blank to drop that criterion.</div>
+        <div class="field-row">
+          <div class="field"><label for="t_exec">Tests executed, % of scope</label><input type="number" id="t_exec" data-t="execPct" min="0" max="100" step="1"></div>
+          <div class="field"><label for="t_pass">Tests passed, % of scope</label><input type="number" id="t_pass" data-t="passPct" min="0" max="100" step="1"></div>
+        </div>
+        <div class="field-row-3">
+          <div class="field"><label for="t_crit">Max open critical</label><input type="number" id="t_crit" data-t="maxCritical" min="0" step="1"></div>
+          <div class="field"><label for="t_high">Max open high</label><input type="number" id="t_high" data-t="maxHigh" min="0" step="1"></div>
+          <div class="field"><label for="t_blocked">Max blocked</label><input type="number" id="t_blocked" data-t="maxBlocked" min="0" step="1"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="uem-col">
+      <div class="uem-panel">
+        <div class="uem-panel-head"><h3>Preview</h3><span class="hint">This is what pastes into Outlook or Gmail.</span></div>
+        <label for="f_subject" class="detail-label">Subject</label>
+        <div class="uem-subject">
+          <input type="text" id="f_subject" data-k="subject" aria-describedby="subjectHint">
+          <button type="button" class="small" id="btnCopySubject">Copy</button>
+        </div>
+        <div class="hint" id="subjectHint" style="margin:-6px 0 12px">Leave blank to use the suggested subject.</div>
+        <div class="uem-preview" id="preview"></div>
+        <div class="uem-actions">
+          <button type="button" class="primary" id="btnCopyEmail2">Copy email</button>
+          <button type="button" id="btnCopyText">Copy as plain text</button>
+        </div>
+        <div id="copyFallback"></div>
+      </div>
+      <footer><div class="strapline">Single file, works offline. Your data never leaves this machine.</div></footer>
+    </div>
+  </div>
+</div>
+
+<script>
+/*@include framework/report-kit.js@*/
+</script>
+<script>
+(function () {
+  "use strict";
+  // Semver: MAJOR for a stored-data change normalise() cannot migrate, MINOR for features, PATCH for fixes.
+  var APP_VERSION = "1.0.0";
+  var store = RK.store("uatEmailBuilder.v1");
+  var $ = RK.$, esc = RK.esc;
+
+  var SEVERITIES = ["Critical", "High", "Medium", "Low"];
+  var OPEN_STATUSES = ["New", "In fix", "Ready to retest"];
+  var DECISIONS = ["Pending", "Approved", "Approved with conditions", "Rejected"];
+  var STATUSES = ["green", "amber", "red", "done", "idle"];
+  var RAG_LABEL = { green: "Green", amber: "Amber", red: "Red", done: "Signed off", idle: "Not started" };
+  var SECTIONS = [
+    ["figures", "Key figures"], ["since", "Change since last update"], ["highlights", "Highlights"],
+    ["criteria", "Exit criteria"], ["defects", "Defects needing attention"], ["known", "Known issues accepted"],
+    ["risks", "Risks and issues"], ["asks", "Decisions and help needed"], ["approvals", "Sign-off status"], ["next", "Next steps"]
+  ];
+  // the three optional lists: field, label, input kind (options for a select), wide
+  var LISTS = {
+    defects: [["ref", "ID", "text"], ["severity", "Severity", SEVERITIES], ["title", "Defect", "text", true],
+      ["status", "Status", OPEN_STATUSES], ["owner", "Owner", "text"], ["eta", "Fix due", "date"]],
+    known: [["ref", "ID", "text"], ["severity", "Severity", SEVERITIES], ["title", "Defect", "text", true],
+      ["resolution", "Workaround or decision", "text", true]],
+    people: [["name", "Approver", "text"], ["role", "Role", "text"], ["scope", "Signs off", "text"],
+      ["status", "Decision", DECISIONS], ["date", "Date", "date"], ["note", "Conditions or comments", "text", true]]
+  };
+  var TEXT_KEYS = ["name", "build", "environment", "reason", "greeting", "headline", "since", "highlights", "risks", "asks", "nextSteps", "signoff", "subject"];
+  var NUM_KEYS = ["day", "days", "inScope", "passed", "failed", "blocked", "plan", "critical", "high", "medium", "low", "retest", "approved", "approvers"];
+  var DATE_KEYS = ["signoffDate", "sinceDate", "nextUpdate"];
+
+  /* ---------- helpers ---------- */
+  function isObj(x) { return x !== null && typeof x === "object" && !Array.isArray(x); }
+  function str(x) { return typeof x === "string" ? x : typeof x === "number" && isFinite(x) ? String(x) : ""; }
+  function oneOf(x, list, def) { return list.indexOf(x) !== -1 ? x : def; }
+  // a typed count: "" stays blank, anything else becomes a whole number of 0 or more
+  function countStr(x) {
+    if (x === "" || x === null || x === undefined) return "";
+    var n = Number(x);
+    return isFinite(n) ? String(Math.max(0, Math.floor(n))) : "";
+  }
+  function n(k) { var v = Number(state[k]); return isFinite(v) && v > 0 ? Math.floor(v) : 0; }
+  function plural(c, word, many) { return c + " " + (c === 1 ? word : (many || word + "s")); }
+  function floorPct(x) { return Math.floor(x + 1e-9) + "%"; }
+  function pct(a, b) { return b > 0 ? a / b * 100 : 0; }
+  function lc(s) { return String(s || "").toLowerCase(); }
+  function lines(s) {
+    return String(s || "").split(/\r?\n/).map(function (l) { return l.replace(/^\s*(?:[-*•·]|\d+[.)])\s+/, "").trim(); }).filter(Boolean);
+  }
+  function isDate(s) {
+    if (typeof s !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
+    var d = parseD(s);
+    return !isNaN(d) && RK.localDate(d) === s;
+  }
+  function parseD(s) { var p = s.split("-"); return new Date(+p[0], +p[1] - 1, +p[2]); }
+  function fmtDay(s) {
+    if (!isDate(s)) return "";
+    var d = parseD(s), o = { weekday: "short", day: "numeric", month: "short" };
+    if (s.slice(0, 4) !== RK.today().slice(0, 4)) o.year = "numeric";
+    return d.toLocaleDateString("en-GB", o);
+  }
+  function fmtShort(s) { return isDate(s) ? parseD(s).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : ""; }
+
+  /* ---------- state ---------- */
+  function presetSections(type) {
+    var on = type === "request"
+      ? ["figures", "criteria", "defects", "known", "risks", "approvals"]
+      : ["figures", "since", "highlights", "criteria", "defects", "risks", "asks", "approvals", "next"];
+    var out = {};
+    SECTIONS.forEach(function (s) { out[s[0]] = on.indexOf(s[0]) !== -1; });
+    return out;
+  }
+  function defaultTargets() { return { execPct: "100", passPct: "95", maxCritical: "0", maxHigh: "0", maxBlocked: "0" }; }
+  function blank() {
+    var s = { type: "update", status: "green", targets: defaultTargets(), sections: presetSections("update"), defects: [], known: [], people: [] };
+    TEXT_KEYS.forEach(function (k) { s[k] = ""; });
+    NUM_KEYS.forEach(function (k) { s[k] = ""; });
+    DATE_KEYS.forEach(function (k) { s[k] = ""; });
+    s.greeting = "Hi all,";
+    return s;
+  }
+  function normRow(list, r) {
+    var o = {};
+    LISTS[list].forEach(function (f) {
+      var v = str(r[f[0]]);
+      o[f[0]] = Array.isArray(f[2]) ? oneOf(v, f[2], f[2][0]) : f[2] === "date" ? (isDate(v) ? v : "") : v;
+    });
+    return o;
+  }
+  // Load, then commit: anything stored is checked field by field before use
+  function normalise(raw) {
+    var s = blank();
+    if (!isObj(raw)) return s;
+    s.type = oneOf(raw.type, ["update", "request"], "update");
+    s.status = oneOf(raw.status, STATUSES, "green");
+    TEXT_KEYS.forEach(function (k) { if (RK.has(raw, k)) s[k] = str(raw[k]); });
+    NUM_KEYS.forEach(function (k) { s[k] = countStr(raw[k]); });
+    DATE_KEYS.forEach(function (k) { s[k] = isDate(raw[k]) ? raw[k] : ""; });
+    if (isObj(raw.targets)) Object.keys(s.targets).forEach(function (k) {
+      if (RK.has(raw.targets, k)) s.targets[k] = countStr(raw.targets[k]);
+    });
+    s.sections = presetSections(s.type);
+    if (isObj(raw.sections)) SECTIONS.forEach(function (x) { if (RK.has(raw.sections, x[0])) s.sections[x[0]] = !!raw.sections[x[0]]; });
+    Object.keys(LISTS).forEach(function (l) {
+      s[l] = (Array.isArray(raw[l]) ? raw[l] : []).filter(isObj).slice(0, 100).map(function (r) { return normRow(l, r); });
+    });
+    return s;
+  }
+  var state = normalise(store.get());
+  var saveWarned = false;
+  function save() {
+    if (!store.set(state) && !saveWarned) { saveWarned = true; RK.toast("This browser would not save. Your email is fine on screen but will not be kept.", 5000); }
+  }
+
+  /* ---------- figures ---------- */
+  function limit(k) { var v = state.targets[k]; return v === "" ? null : Math.max(0, Math.floor(Number(v) || 0)); }
+  function limitText(x) { return x === 0 ? "None" : x + " or fewer"; }
+  function metrics() {
+    var m = { inScope: n("inScope"), passed: n("passed"), failed: n("failed"), blocked: n("blocked"), plan: state.plan === "" ? null : n("plan") };
+    m.executed = m.passed + m.failed;
+    m.rest = Math.max(0, m.inScope - m.executed - m.blocked);
+    m.over = m.executed + m.blocked > m.inScope;
+    m.execPct = pct(m.executed, m.inScope); m.passPct = pct(m.passed, m.inScope);
+    m.d = { sev: { Critical: n("critical"), High: n("high"), Medium: n("medium"), Low: n("low") }, retest: n("retest"), known: state.known.length };
+    m.d.open = m.d.sev.Critical + m.d.sev.High + m.d.sev.Medium + m.d.sev.Low;
+    m.a = { yes: n("approved"), total: n("approvers") };
+    m.day = n("day"); m.days = n("days");
+    m.rag = state.status;
+
+    var execT = Math.min(100, Number(state.targets.execPct === "" ? 100 : state.targets.execPct) || 0);
+    var passT = Math.min(100, Number(state.targets.passPct === "" ? 95 : state.targets.passPct) || 0);
+    var cr = [];
+    cr.push({ label: "Tests executed", target: execT >= 100 ? "All in scope" : execT + "% or more",
+      actual: floorPct(m.execPct) + " (" + m.executed + " of " + m.inScope + ")", met: m.inScope > 0 && m.execPct + 1e-9 >= execT });
+    cr.push({ label: "Tests passed", target: passT + "% or more",
+      actual: floorPct(m.passPct) + " (" + m.passed + " of " + m.inScope + ")", met: m.inScope > 0 && m.passPct + 1e-9 >= passT });
+    var mc = limit("maxCritical"), mh = limit("maxHigh"), mb = limit("maxBlocked");
+    if (mc !== null) cr.push({ label: "Open critical defects", target: limitText(mc), actual: String(m.d.sev.Critical), met: m.d.sev.Critical <= mc });
+    if (mh !== null) cr.push({ label: "Open high defects", target: limitText(mh), actual: String(m.d.sev.High), met: m.d.sev.High <= mh });
+    if (mb !== null) cr.push({ label: "Blocked tests", target: limitText(mb), actual: String(m.blocked), met: m.blocked <= mb });
+    m.criteria = cr;
+    m.criteriaMet = cr.filter(function (x) { return x.met; }).length;
+    m.ready = m.inScope > 0 && m.criteriaMet === cr.length;
+    return m;
+  }
+  function critHighText(m) {
+    var c = m.d.sev.Critical, h = m.d.sev.High;
+    if (!c && !h) return "";
+    if (c && h) return c + " critical and " + plural(h, "high defect") + " open";
+    return c ? plural(c, "critical defect") + " open" : plural(h, "high defect") + " open";
+  }
+  function inWindow(m) { return m.days > 0 && m.day > 0 && m.day <= m.days; }
+  function scheduleText(m) {
+    var bits = [];
+    if (inWindow(m)) bits.push("Day " + m.day + " of " + m.days);
+    else if (m.days > 0 && m.day > m.days) bits.push("Testing window ended");
+    if (isDate(state.signoffDate)) bits.push("sign-off due " + fmtDay(state.signoffDate));
+    return bits.join(", ");
+  }
+
+  /* ---------- email: one document model, rendered as HTML for pasting and as plain text
+     (the same blocks and styles as the UAT Sign-off Tracker, so the two emails match) ---------- */
+  function uatName() { return state.name.trim() || "UAT"; }
+  function autoHeadline(m) {
+    var due = isDate(state.signoffDate) ? " on " + fmtDay(state.signoffDate) : "";
+    if (m.rag === "done") return uatName() + " is signed off" + (m.a.total ? " by all " + plural(m.a.total, "approver") : "") + (m.d.known ? ", with " + plural(m.d.known, "known issue") + " accepted" : "") + ".";
+    if (m.rag === "idle") return m.inScope ? "Testing has not started yet; " + plural(m.inScope, "test") + (m.inScope === 1 ? " is" : " are") + " in scope." : "The UAT scope is being prepared.";
+    var lead, why = state.reason.trim().replace(/[.\s]+$/, "");
+    if (m.rag === "green") lead = m.ready ? "UAT has met all its exit criteria and is ready for sign-off" + (isDate(state.signoffDate) ? " by " + fmtDay(state.signoffDate) : "") + "." : "UAT is on track for sign-off" + due + ".";
+    else lead = "UAT is " + (m.rag === "red" ? "off track" : "at risk") + " for sign-off" + due + (why ? ": " + why : "") + ".";
+    if (!m.inScope) return lead;
+    return lead + " " + m.executed + " of " + plural(m.inScope, "test") + " executed (" + floorPct(m.execPct) + "), " +
+      m.passed + " passed, " + (m.d.open ? plural(m.d.open, "defect") : "no defects") + " open.";
+  }
+  function autoSubject(m) {
+    var tag = "[UAT] " + uatName();
+    if (state.type === "request") return tag + ": sign-off requested" + (isDate(state.signoffDate) ? " by " + fmtDay(state.signoffDate) : "");
+    var bits = [RAG_LABEL[m.rag].toUpperCase()];
+    if (inWindow(m)) bits.push("day " + m.day + " of " + m.days);
+    if (m.inScope && m.rag !== "done") bits.push(floorPct(m.execPct) + " executed");
+    var ch = critHighText(m);
+    if (m.rag !== "done") bits.push(ch || (m.d.open ? plural(m.d.open, "defect") + " open" : "no open defects"));
+    return tag + " update: " + bits.join(" | ");
+  }
+  var BADGE = { green: ["#2E7D32", "#ffffff"], amber: ["#E0A526", "#1A1A1A"], red: ["#B3261E", "#ffffff"], done: ["#2E7D32", "#ffffff"], idle: ["#6B6B6B", "#ffffff"] };
+  function buildDoc(m) {
+    var e = state, sec = e.sections, blocks = [], today = RK.today();
+    var meta = [scheduleText(m)].concat(e.build.trim() ? ["build " + e.build.trim()] : [], e.environment.trim() ? [e.environment.trim()] : []).filter(Boolean).join(" · ");
+    blocks.push({ k: "p", text: e.greeting });
+    blocks.push({ k: "status", rag: m.rag, title: uatName(), sub: meta });
+    blocks.push({ k: "p", text: e.headline.trim() || autoHeadline(m), strong: true });
+    if (e.type === "request") {
+      var unmet = m.criteria.filter(function (x) { return !x.met; });
+      blocks.push({ k: "p", text: (m.ready ? "UAT has met all " + plural(m.criteria.length, "exit criterion", "exit criteria") + ", so we are asking for your sign-off."
+        : m.criteriaMet + " of " + m.criteria.length + " exit criteria are met. The exceptions are below, and we are asking for your sign-off with them accepted.") +
+        " Please reply" + (isDate(e.signoffDate) ? " by " + fmtDay(e.signoffDate) : "") + " with one of: Approved; Approved with conditions (please state them); or Rejected (please give the reason)." });
+      if (unmet.length && !sec.criteria) blocks.push({ k: "list", items: unmet.map(function (x) { return x.label + ": " + x.actual + " (target " + lc(x.target) + ")"; }) });
+    }
+    if (sec.figures && m.inScope) {
+      blocks.push({ k: "figures", items: [
+        [m.executed + " / " + m.inScope, "Tests executed (" + floorPct(m.execPct) + ")"],
+        [String(m.passed), "Passed (" + floorPct(m.passPct) + " of scope)"],
+        [String(m.d.open), "Open defects" + (critHighText(m) ? " (" + m.d.sev.Critical + " critical, " + m.d.sev.High + " high)" : "")],
+        [m.a.yes + " / " + m.a.total, "Approvals"]
+      ] });
+      blocks.push({ k: "bar", total: m.inScope, segs: [[m.passed, "#3E9A40"], [m.failed, "#D9534F"], [m.blocked, "#E0A526"]],
+        note: "Passed " + m.passed + " · Failed " + m.failed + " · Blocked " + m.blocked + " · Not run or in progress " + m.rest +
+          (m.plan !== null && inWindow(m) && m.rag !== "done" ? " · Plan for today: " + m.plan + " executed (" + Math.round(pct(m.plan, m.inScope)) + "%)" : "") });
+    }
+    if (sec.since && e.since.trim()) {
+      var when = isDate(e.sinceDate) ? fmtDay(e.sinceDate) : "";
+      blocks.push({ k: "p", small: true, text: "Since the last update" + (when ? " (" + when + ")" : "") + ": " + e.since.trim().replace(/[.\s]+$/, "") + "." });
+    }
+    if (sec.highlights && lines(e.highlights).length) { blocks.push({ k: "h", text: "Highlights" }); blocks.push({ k: "list", items: lines(e.highlights) }); }
+    if (sec.criteria && m.criteria.length && m.inScope) {
+      blocks.push({ k: "h", text: "Exit criteria: " + m.criteriaMet + " of " + m.criteria.length + " met" });
+      blocks.push({ k: "table", head: ["Criterion", "Target", "Now", "Status"], rows: m.criteria.map(function (x) {
+        return [x.label, x.target, x.actual, { text: x.met ? "Met" : "Not met", color: x.met ? "#2E7D32" : "#B3261E", bold: true }];
+      }) });
+    }
+    if (sec.defects) {
+      var list = e.defects.filter(function (d) { return d.ref.trim() || d.title.trim(); });
+      blocks.push({ k: "h", text: "Defects needing attention" });
+      blocks.push({ k: "p", small: true, text: m.d.open ? "Open: " + m.d.sev.Critical + " critical, " + m.d.sev.High + " high, " + m.d.sev.Medium + " medium, " + m.d.sev.Low + " low" +
+        (m.d.retest ? "; " + m.d.retest + " fixed and waiting for retest" : "") + "." : "No defects are open." });
+      if (list.length) {
+        blocks.push({ k: "table", head: ["ID", "Defect", "Severity", "Status", "Owner", "Fix due"], rows: list.map(function (d) {
+          var overdue = d.eta && d.eta < today;
+          return [d.ref, d.title, { text: d.severity, color: d.severity === "Critical" ? "#B3261E" : null, bold: d.severity === "Critical" }, d.status, d.owner,
+            { text: fmtShort(d.eta) + (overdue ? " (overdue)" : ""), color: overdue ? "#B3261E" : null }];
+        }) });
+      }
+    }
+    if (sec.known) {
+      var known = e.known.filter(function (d) { return d.ref.trim() || d.title.trim(); });
+      if (known.length) {
+        blocks.push({ k: "h", text: "Known issues accepted" });
+        blocks.push({ k: "table", head: ["ID", "Defect", "Severity", "Workaround or decision"], rows: known.map(function (d) { return [d.ref, d.title, d.severity, d.resolution || "Not recorded"]; }) });
+      }
+    }
+    if (sec.risks && lines(e.risks).length) { blocks.push({ k: "h", text: "Risks and issues" }); blocks.push({ k: "list", items: lines(e.risks) }); }
+    if (sec.asks && lines(e.asks).length) { blocks.push({ k: "h", text: "Decisions and help needed" }); blocks.push({ k: "list", items: lines(e.asks) }); }
+    var people = e.people.filter(function (a) { return a.name.trim(); });
+    if (sec.approvals && (m.a.total || people.length)) {
+      blocks.push({ k: "h", text: "Sign-off: " + m.a.yes + " of " + m.a.total + " approved" });
+      if (people.length) blocks.push({ k: "table", head: ["Approver", "Role", "Signs off", "Decision", "Date", "Conditions or comments"], rows: people.map(function (a) {
+        var col = a.status === "Rejected" ? "#B3261E" : a.status === "Pending" ? "#6B6B6B" : "#2E7D32";
+        return [a.name, a.role, a.scope, { text: a.status, color: col, bold: true }, fmtShort(a.date), a.note];
+      }) });
+    }
+    if (sec.next && (lines(e.nextSteps).length || e.nextUpdate)) {
+      blocks.push({ k: "h", text: "Next steps" });
+      if (lines(e.nextSteps).length) blocks.push({ k: "list", items: lines(e.nextSteps) });
+      if (e.nextUpdate) blocks.push({ k: "p", text: "Next update: " + fmtDay(e.nextUpdate) + "." });
+    }
+    blocks.push({ k: "sign", lines: ["Thanks,"].concat(e.signoff.trim() ? [e.signoff.trim()] : []) });
+    return blocks;
+  }
+  var FONT = "font-family:Arial,Helvetica,sans-serif;";
+  function cellText(c) { return c && typeof c === "object" ? str(c.text) : str(c); }
+  function docHtml(blocks) {
+    var h = '<div style="' + FONT + 'font-size:14px;line-height:1.45;color:#1A1A1A">';
+    blocks.forEach(function (b) {
+      if (b.k === "p" && b.text) h += '<p style="margin:0 0 12px;' + (b.small ? "font-size:13px;color:#3D3D3D;" : "") + '">' + (b.strong ? "<b>" + esc(b.text) + "</b>" : esc(b.text)) + "</p>";
+      else if (b.k === "status") {
+        var bg = BADGE[b.rag];
+        h += '<table cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;margin:4px 0 12px"><tr>' +
+          '<td bgcolor="' + bg[0] + '" style="background:' + bg[0] + ";color:" + bg[1] + ";" + FONT + 'font-size:13px;font-weight:bold;padding:7px 12px;letter-spacing:.5px;white-space:nowrap">' + esc(RAG_LABEL[b.rag].toUpperCase()) + "</td>" +
+          '<td style="padding:0 0 0 12px;' + FONT + '"><span style="font-size:16px;font-weight:bold">' + esc(b.title) + "</span>" +
+          (b.sub ? '<br><span style="font-size:12px;color:#6B6B6B">' + esc(b.sub) + "</span>" : "") + "</td></tr></table>";
+      } else if (b.k === "figures") {
+        h += '<table cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;margin:0 0 8px"><tr>' + b.items.map(function (it) {
+          return '<td style="border:1px solid #D5DADD;padding:10px 16px;' + FONT + 'vertical-align:top"><span style="font-size:22px;font-weight:bold">' + esc(it[0]) +
+            '</span><br><span style="font-size:12px;color:#6B6B6B">' + esc(it[1]) + "</span></td>";
+        }).join("") + "</tr></table>";
+      } else if (b.k === "bar") {
+        var used = 0, cells = "";
+        b.segs.forEach(function (sg) {
+          if (sg[0] <= 0 || used >= 99.95) return;
+          var w = Math.min(sg[0] / Math.max(1, b.total) * 100, 100 - used); used += w;
+          cells += '<td width="' + w.toFixed(1) + '%" bgcolor="' + sg[1] + '" style="width:' + w.toFixed(1) + "%;background:" + sg[1] + ';height:10px;font-size:1px;line-height:1px">&nbsp;</td>';
+        });
+        if (used < 99.95) cells += '<td width="' + (100 - used).toFixed(1) + '%" bgcolor="#E9ECEE" style="width:' + (100 - used).toFixed(1) + '%;background:#E9ECEE;height:10px;font-size:1px;line-height:1px">&nbsp;</td>';
+        h += '<table width="560" cellpadding="0" cellspacing="0" border="0" style="width:560px;max-width:100%;border-collapse:collapse;margin:4px 0 4px"><tr>' + cells + "</tr></table>" +
+          '<p style="margin:0 0 12px;font-size:12px;color:#6B6B6B">' + esc(b.note) + "</p>";
+      } else if (b.k === "h") h += '<p style="margin:18px 0 6px;font-size:15px;font-weight:bold;color:#007A99">' + esc(b.text) + "</p>";
+      else if (b.k === "list") h += '<ul style="margin:0 0 12px;padding-left:22px">' + b.items.map(function (i) { return '<li style="margin:0 0 4px">' + esc(i) + "</li>"; }).join("") + "</ul>";
+      else if (b.k === "table") {
+        h += '<table cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;' + FONT + 'font-size:13px;margin:0 0 12px"><tr>' +
+          b.head.map(function (x) {
+            return '<th bgcolor="#007A99" style="background:#007A99;color:#ffffff;border:1px solid #007A99;padding:6px 10px;font-weight:bold;text-align:left">' + esc(x) + "</th>";
+          }).join("") + "</tr>" +
+          b.rows.map(function (r, ri) {
+            return "<tr>" + r.map(function (cell) {
+              var o = cell && typeof cell === "object" ? cell : null;
+              return '<td style="border:1px solid #D5DADD;padding:6px 10px;vertical-align:top;' + (ri % 2 ? "background:#FAFBFB;" : "") +
+                (o && o.color ? "color:" + o.color + ";" : "") + (o && o.bold ? "font-weight:bold;" : "") + '">' + esc(cellText(cell)) + "</td>";
+            }).join("") + "</tr>";
+          }).join("") + "</table>";
+      } else if (b.k === "sign") h += '<p style="margin:18px 0 0">' + b.lines.map(esc).join("<br>") + "</p>";
+    });
+    return h + "</div>";
+  }
+  function pad(s, w) { s = String(s); while (s.length < w) s += " "; return s; }
+  function docText(blocks) {
+    var out = [];
+    blocks.forEach(function (b) {
+      if (b.k === "p" && b.text) out.push(b.text, "");
+      else if (b.k === "status") out.push("STATUS: " + RAG_LABEL[b.rag].toUpperCase() + " | " + b.title + (b.sub ? "\n" + b.sub : ""), "");
+      else if (b.k === "figures") { b.items.forEach(function (it) { out.push(it[1] + ": " + it[0]); }); }
+      else if (b.k === "bar") out.push(b.note, "");
+      else if (b.k === "h") out.push(b.text.toUpperCase(), new Array(Math.min(60, b.text.length) + 1).join("-"));
+      else if (b.k === "list") { b.items.forEach(function (i) { out.push("- " + i); }); out.push(""); }
+      else if (b.k === "table") {
+        var rows = [b.head].concat(b.rows.map(function (r) { return r.map(cellText); }));
+        var w = b.head.map(function (_, i) { return Math.min(48, Math.max.apply(null, rows.map(function (r) { return String(r[i]).length; }))); });
+        rows.forEach(function (r, ri) {
+          out.push(r.map(function (cell, i) { var s = String(cell); if (s.length > w[i]) s = s.slice(0, w[i] - 1) + "…"; return pad(s, w[i]); }).join("  ").replace(/\s+$/, ""));
+          if (ri === 0) out.push(w.map(function (x) { return new Array(x + 1).join("-"); }).join("  "));
+        });
+        out.push("");
+      } else if (b.k === "sign") out.push(b.lines.join("\n"));
+    });
+    return out.join("\n").replace(/\n{3,}/g, "\n\n").trim() + "\n";
+  }
+  function payload() {
+    var m = metrics(), blocks = buildDoc(m);
+    return { subject: state.subject.trim() || autoSubject(m), html: docHtml(blocks), text: docText(blocks), m: m };
+  }
+
+  /* ---------- compose form ---------- */
+  var typeRefresh = null, statusRefresh = null;
+  function fillForm() {
+    document.querySelectorAll("[data-k]").forEach(function (el) { el.value = state[el.getAttribute("data-k")] || ""; });
+    document.querySelectorAll("[data-t]").forEach(function (el) { el.value = state.targets[el.getAttribute("data-t")]; });
+    $("emType").value = state.type; $("f_status").value = state.status;
+    if (typeRefresh) typeRefresh();
+    if (statusRefresh) statusRefresh();
+    renderSections();
+    Object.keys(LISTS).forEach(renderRows);
+  }
+  function renderSections() {
+    $("emSections").innerHTML = SECTIONS.map(function (s) {
+      return '<label><input type="checkbox" data-sec="' + s[0] + '"' + (state.sections[s[0]] ? " checked" : "") + ">" + esc(s[1]) + "</label>";
+    }).join("");
+  }
+  function renderRows(list) {
+    var fields = LISTS[list];
+    $("rows-" + list).innerHTML = state[list].map(function (r, i) {
+      return '<div class="uem-row">' + fields.map(function (f) {
+        var id = "r_" + list + "_" + i + "_" + f[0], attrs = ' id="' + id + '" data-list="' + list + '" data-i="' + i + '" data-f="' + f[0] + '"', input;
+        if (Array.isArray(f[2])) input = "<select" + attrs + ">" + f[2].map(function (o) { return "<option" + (r[f[0]] === o ? " selected" : "") + ">" + esc(o) + "</option>"; }).join("") + "</select>";
+        else input = '<input type="' + f[2] + '"' + attrs + ' value="' + esc(r[f[0]]) + '">';
+        return '<div class="field' + (f[3] ? " wide" : "") + '"><label for="' + id + '">' + esc(f[1]) + "</label>" + input + "</div>";
+      }).join("") + '<button type="button" class="uem-row-x" data-remove="' + list + '" data-i="' + i + '" aria-label="Remove">×</button></div>';
+    }).join("");
+  }
+
+  function render() {
+    var p = payload(), m = p.m;
+    $("preview").innerHTML = p.html;
+    $("f_subject").placeholder = autoSubject(m);
+    $("f_headline").placeholder = autoHeadline(m);
+    $("testsDerived").innerHTML = m.inScope
+      ? "Executed " + m.executed + " of " + m.inScope + " (" + floorPct(m.execPct) + "), passed " + floorPct(m.passPct) + " of scope, not run or in progress " + m.rest + "." +
+        (m.over ? ' <span class="uem-warn">Passed, failed and blocked add up to more than in scope.</span>' : "")
+      : "Enter the tests in scope to show the key figures.";
+    $("defectsDerived").textContent = m.d.open ? plural(m.d.open, "defect") + " open in total." : "No open defects.";
+    var apOver = m.a.yes > m.a.total;
+    $("approvalsDerived").hidden = !apOver;
+    $("approvalsDerived").innerHTML = apOver ? '<span class="uem-warn">Approved is more than the number of approvers.</span>' : "";
+  }
+
+  /* ---------- copy ---------- */
+  function writeText(t) {
+    return navigator.clipboard && navigator.clipboard.writeText ? navigator.clipboard.writeText(t) : Promise.reject(new Error("no-clipboard"));
+  }
+  function clearFallbacks() { RK.clipboard.clearFallback($("copyFallback")); RK.clipboard.clearFallback($("headerCopyFallback")); }
+  function copyEmail(fallbackEl) {
+    var p = payload();
+    clearFallbacks();
+    RK.clipboard.write({ html: p.html, text: p.text }).then(function (kind) {
+      RK.toast(kind === "html" ? "Email copied. Paste it into a new message, then copy the subject." : "Copied as plain text (this browser could not copy formatting).", 3600);
+    }).catch(function () {
+      RK.clipboard.fallbackInto(fallbackEl, "Subject: " + p.subject + "\n\n" + p.text, "The browser blocked the copy. Select all and copy from here:");
+    });
+  }
+
+  /* ---------- example ---------- */
+  function addDays(n) { var d = new Date(); d.setDate(d.getDate() + n); return RK.localDate(d); }
+  function example() {
+    var s = blank();
+    s.name = "Customer Portal R4.2 UAT"; s.build = "4.2.0-rc3"; s.environment = "UAT2";
+    s.status = "amber"; s.reason = "1 critical and 2 high defects open";
+    s.day = "8"; s.days = "11"; s.signoffDate = addDays(5);
+    s.inScope = "120"; s.passed = "83"; s.failed = "11"; s.blocked = "6"; s.plan = "87";
+    s.critical = "1"; s.high = "2"; s.medium = "4"; s.low = "3"; s.retest = "2";
+    s.approved = "1"; s.approvers = "4";
+    s.sinceDate = addDays(-2); s.since = "14 more tests executed, 12 more passed, 3 defects closed";
+    s.highlights = "Payments and refunds passed end to end\nAccessibility retest complete";
+    s.risks = "Critical defect CP-212 blocks card refunds; fix due " + fmtShort(addDays(1));
+    s.asks = "Finance to confirm the refund workaround is acceptable if CP-212 slips";
+    s.nextSteps = "Retest CP-212 and CP-219 once deployed\nFinish the reporting scripts";
+    s.nextUpdate = addDays(2); s.signoff = "Sam Taylor";
+    s.defects = [
+      { ref: "CP-212", severity: "Critical", title: "Card refunds fail for partial amounts", status: "In fix", owner: "Payments team", eta: addDays(1) },
+      { ref: "CP-219", severity: "High", title: "Statement PDF misses the last page", status: "Ready to retest", owner: "Docs team", eta: addDays(-1) },
+      { ref: "CP-224", severity: "High", title: "Session times out during long uploads", status: "New", owner: "Platform", eta: "" }
+    ];
+    s.known = [{ ref: "CP-190", severity: "Low", title: "Date picker starts on Sunday", resolution: "Fix in R4.3; no business impact" }];
+    s.people = [
+      { name: "Alex Morgan", role: "Product owner", scope: "Customer journeys", status: "Approved", date: addDays(-1), note: "" },
+      { name: "Priya Shah", role: "Finance lead", scope: "Payments and refunds", status: "Pending", date: "", note: "" },
+      { name: "Jordan Lee", role: "Operations", scope: "Support processes", status: "Pending", date: "", note: "" },
+      { name: "Chris Wong", role: "IT service owner", scope: "Go-live readiness", status: "Pending", date: "", note: "" }
+    ];
+    return s;
+  }
+  function hasContent() {
+    var b = blank();
+    return TEXT_KEYS.concat(NUM_KEYS, DATE_KEYS).some(function (k) { return state[k] !== b[k]; }) ||
+      Object.keys(LISTS).some(function (l) { return state[l].length; });
+  }
+  function replaceAll(next, msg) {
+    var go = function () { state = next; save(); fillForm(); render(); clearFallbacks(); };
+    if (hasContent()) RK.confirm(msg, go, { okLabel: "Replace" }); else go();
+  }
+
+  /* ---------- events ---------- */
+  function onField(e) {
+    var el = e.target, k = el.getAttribute("data-k"), t = el.getAttribute("data-t"), list = el.getAttribute("data-list");
+    if (k && k !== "type" && k !== "status") state[k] = NUM_KEYS.indexOf(k) !== -1 ? countStr(el.value) : el.value;
+    else if (t) state.targets[t] = countStr(el.value);
+    else if (list) state[list][+el.getAttribute("data-i")][el.getAttribute("data-f")] = el.value;
+    else return;
+    save(); render();
+  }
+  document.addEventListener("input", onField);
+  document.addEventListener("change", function (e) {
+    var sec = e.target.getAttribute("data-sec");
+    if (sec) { state.sections[sec] = e.target.checked; save(); render(); }
+  });
+  $("emType").addEventListener("change", function () { state.type = this.value; state.sections = presetSections(state.type); renderSections(); save(); render(); });
+  $("f_status").addEventListener("change", function () { state.status = this.value; save(); render(); });
+  typeRefresh = RK.chipsFromSelect($("emType"), $("emTypeChips"));
+  statusRefresh = RK.chipsFromSelect($("f_status"), $("statusChips"));
+
+  document.querySelectorAll("[data-add]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      var list = b.getAttribute("data-add");
+      state[list].push(normRow(list, {}));
+      save(); renderRows(list); render();
+      var rows = $("rows-" + list).querySelectorAll(".uem-row");
+      var first = rows[rows.length - 1].querySelector("input");
+      if (first) first.focus();
+    });
+  });
+  document.addEventListener("click", function (e) {
+    var x = e.target.closest("[data-remove]");
+    if (!x) return;
+    var list = x.getAttribute("data-remove");
+    state[list].splice(+x.getAttribute("data-i"), 1);
+    save(); renderRows(list); render();
+  });
+  $("useSuggested").addEventListener("click", function () {
+    state.headline = autoHeadline(metrics()); $("f_headline").value = state.headline; save(); render(); $("f_headline").focus();
+  });
+  $("btnCopyEmail").addEventListener("click", function () { copyEmail($("headerCopyFallback")); });
+  $("btnCopyEmail2").addEventListener("click", function () { copyEmail($("copyFallback")); });
+  $("btnCopyText").addEventListener("click", function () {
+    var p = payload();
+    clearFallbacks();
+    writeText(p.text).then(function () { RK.toast("Plain text copied"); }).catch(function () { RK.clipboard.fallbackInto($("copyFallback"), p.text); });
+  });
+  $("btnCopySubject").addEventListener("click", function () {
+    var s = payload().subject;
+    clearFallbacks();
+    writeText(s).then(function () { RK.toast("Subject copied"); }).catch(function () { RK.clipboard.fallbackInto($("copyFallback"), s); });
+  });
+  $("btnExample").addEventListener("click", function () { replaceAll(example(), "Replace what you have typed with the example?"); });
+  $("btnFresh").addEventListener("click", function () {
+    var next = blank();
+    // keep who it is from and how it is set up; clear the week's figures and words
+    ["name", "build", "environment", "greeting", "signoff"].forEach(function (k) { next[k] = state[k]; });
+    next.type = state.type; next.targets = state.targets; next.sections = state.sections; next.people = state.people;
+    replaceAll(next, "Clear the figures, words and defect lists? The UAT name, approvers, sign-off name, exit criteria and sections are kept.");
+  });
+
+  // the two columns fill the window below the intro, so each scrolls alone
+  function sizeGrid() {
+    var g = $("grid"), top = g.getBoundingClientRect().top + window.scrollY;
+    g.style.setProperty("--uem-h", Math.max(380, window.innerHeight - top - 16) + "px");
+  }
+  window.addEventListener("resize", sizeGrid);
+
+  $("appVersion").textContent = "v" + APP_VERSION;
+  fillForm();
+  render();
+  sizeGrid();
+})();
+</script>
+</body>
+</html>

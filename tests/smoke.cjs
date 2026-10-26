@@ -59,6 +59,28 @@ const FLOWS = {
     const file = await (await dl).path();
     t("downloads a PowerPoint", fs.statSync(file).size > 10000 && fs.readFileSync(file).slice(0, 2).toString() === "PK");
   },
+  "uat-email-builder.html": async (page, t) => {
+    const preview = () => page.textContent("#preview");
+    await page.fill("#f_name", "Smoke UAT");
+    await page.click('#statusChips [data-chip-value="amber"]');
+    await page.fill("#f_reason", "2 high defects open");
+    for (const [id, v] of [["#f_day", "3"], ["#f_days", "10"], ["#f_scope", "40"], ["#f_passed", "18"], ["#f_failed", "2"], ["#f_blocked", "1"], ["#f_high", "2"], ["#f_approvers", "3"]]) await page.fill(id, v);
+    const subject = await page.getAttribute("#f_subject", "placeholder");
+    t("subject carries the status and the typed figures", subject === "[UAT] Smoke UAT update: AMBER | day 3 of 10 | 50% executed | 2 high defects open", subject);
+    const p = await preview();
+    t("preview shows the badge, headline and figures", /AMBER/.test(p) && /at risk for sign-off: 2 high defects open\. 20 of 40 tests executed \(50%\)/.test(p) && /Not run or in progress 19/.test(p), p.slice(0, 200));
+    t("exit criteria are worked out from the figures", /Exit criteria: 1 of 5 met/.test(p));
+    await page.click('[data-add="defects"]');
+    await page.fill("#r_defects_0_ref", "D-1"); await page.fill("#r_defects_0_title", "Login fails");
+    t("an added defect shows in the email", /D-1\s*Login fails/.test(await preview()));
+    await page.click('#emTypeChips [data-chip-value="request"]');
+    t("sign-off request asks for a fixed reply", /Please reply with one of: Approved/.test(await preview()));
+    await page.reload();
+    t("the email is kept for next time", (await page.inputValue("#f_scope")) === "40" && /D-1/.test(await preview()));
+    await page.click("#btnExample");
+    await page.click(".modal-overlay:not([hidden]) [data-rk-ok]");
+    t("the example replaces it after asking", /Customer Portal R4\.2 UAT/.test(await preview()) && /CP-212/.test(await preview()));
+  },
   "waqti-exceptions.html": async (page, t) => {
     await page.setInputFiles("#fileInput", path.join(FIX, "waqti-export.xlsx"));
     await page.waitForFunction(() => /waqti-export/.test(document.getElementById("fileNameSub").textContent), null, { timeout: 5000 });
