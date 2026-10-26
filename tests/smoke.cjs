@@ -300,7 +300,10 @@ function fakeFs() {
   const write = (n, text) => localStorage.setItem(PFX + n, JSON.stringify({ text, lastModified: Date.now() }));
   class FakeHandle {
     constructor(n) { this.__fakeFile = n; this.kind = "file"; this.name = n; }
-    async getFile() { const r = read(this.__fakeFile) || { text: "", lastModified: 0 }; return new File([r.text], this.name, { lastModified: r.lastModified }); }
+    async getFile() {
+      if (localStorage.getItem(PFX + "fail")) { localStorage.removeItem(PFX + "fail"); throw new DOMException("not ready", "NotReadableError"); }
+      const r = read(this.__fakeFile) || { text: "", lastModified: 0 }; return new File([r.text], this.name, { lastModified: r.lastModified });
+    }
     async createWritable() { const n = this.__fakeFile; let buf = ""; return { write: async (t) => { buf += t; }, close: async () => write(n, buf) }; }
     async queryPermission() { return localStorage.getItem(PFX + "perm") || "granted"; }
     async requestPermission() { localStorage.setItem(PFX + "perm", "granted"); return "granted"; }
@@ -429,6 +432,84 @@ async function uatFileRegressions(browser) {
   await ctx.close();
 }
 
+
+/* ---------- cost tracker: project files on RK.fileDoc ---------- */
+async function costFileRegressions(browser) {
+  console.log("project-cost-tracker.html: project files");
+  const url = "file://" + path.join(ROOT, "project-cost-tracker.html");
+  const t = (n, c, w) => check("cost files: " + n, c, w);
+  const ctx = await browser.newContext();
+  await ctx.addInitScript(fakeFs);
+  const errors = [];
+  const p = await ctx.newPage();
+  p.on("pageerror", (e) => errors.push(e.message));
+  const file = (n) => p.evaluate((n) => { const r = window.__fakefs.read(n); return r && r.text ? JSON.parse(r.text) : null; }, n);
+  const status = () => p.textContent("#saveState");
+  const settle = () => p.waitForTimeout(900);
+  const dataTab = async () => { await p.click('.app-nav-item[data-view="settings"]'); await p.click('.settings-nav-item[data-tab="data"]'); };
+  try {
+    await p.goto(url); await p.waitForTimeout(400);
+    t("starts in this browser only", /In this browser only/.test(await status()), await status());
+    await dataTab();
+    await p.click("#demoBtn"); await p.click(".modal-overlay:not([hidden]) [data-rk-ok]"); await p.waitForTimeout(200);
+    const demoName = await p.$eval("#pname", (e) => e.value);
+    await p.evaluate(() => { window.__fakefs.next = "costs-a.json"; });
+    await p.click("#newProject"); await settle();
+    t("new project file saves the project on screen", (await file("costs-a.json")).name === demoName && /Saved to costs-a\.json/.test(await status()), await status());
+
+    await p.click('.settings-nav-item[data-tab="project"]');
+    await p.fill("#pname", "Costs A"); await settle();
+    t("an edit is written into the file", (await file("costs-a.json")).name === "Costs A");
+    await p.click("#undoBtn"); await settle();
+    t("undo still works after save as, into the same file", (await p.$eval("#pname", (e) => e.value)) === demoName && (await file("costs-a.json")).name === demoName);
+    t("history from before the save as moved with it", await p.isVisible("#undoBtn"));
+
+    // another project's file: its own content, and no undo into it
+    await p.evaluate(() => { const r = JSON.parse(window.__fakefs.read("costs-a.json").text); r.name = "Costs B"; window.__fakefs.write("costs-b.json", JSON.stringify(r)); window.__fakefs.next = "costs-b.json"; });
+    await dataTab();
+    await p.click("#openProject"); await settle();
+    t("open project file shows that file", (await p.$eval("#pname", (e) => e.value)) === "Costs B" && /Saved to costs-b\.json/.test(await status()));
+    t("undo history is emptied on a switch", await p.isHidden("#undoBtn"));
+    t("the first file is untouched", (await file("costs-a.json")).name === demoName);
+
+    // an install from before RK.fileDoc: same database, crash copy stored as an object
+    await p.evaluate(() => new Promise((res, rej) => {
+      const q = indexedDB.open("project-cost-tracker", 1);
+      q.onsuccess = () => {
+        const tx = q.result.transaction(["handles", "scratch", "session"], "readwrite");
+        const data = JSON.parse(window.__fakefs.read("costs-a.json").text);
+        window.__fakefs.write("legacy.json", JSON.stringify(Object.assign({}, data, { name: "Legacy on disk" })));
+        tx.objectStore("handles").put({ id: "legacyid", name: "legacy.json", handle: { __fakeFile: "legacy.json", kind: "file", name: "legacy.json" }, lastOpened: Date.now() }, "legacyid");
+        tx.objectStore("scratch").put({ id: "legacyid", data: Object.assign({}, data, { name: "Legacy unsaved" }), savedAt: Date.now() + 60000, name: "legacy.json", fileModified: 1 }, "legacyid");
+        tx.objectStore("session").put({ id: "legacyid" }, "last");
+        tx.oncomplete = res; tx.onerror = () => rej(tx.error);
+      };
+      q.onerror = () => rej(q.error);
+    }));
+    await p.evaluate(() => sessionStorage.setItem("project-cost-tracker:tab", "legacyid"));
+    await p.reload(); await p.waitForTimeout(700);
+    t("an older build's file and crash copy still open", /Unsaved edits for legacy\.json/.test(await status()) && (await p.$eval("#pname", (e) => e.value)) === "Legacy unsaved", await status());
+    t("and the choice is shown", await p.isVisible("#staleRow"));
+    await p.click("#useDisk"); await settle();
+    t("load the file takes the disk version", (await p.$eval("#pname", (e) => e.value)) === "Legacy on disk" && /Saved to legacy\.json/.test(await status()));
+
+    // CT-01: the file cannot be read at start (a network drive not ready). The
+    // browser copy shows, edits stay in it, and Reconnect reads the file rather
+    // than writing the browser copy over it.
+    await p.evaluate(() => localStorage.setItem("__fakefs:fail", "1"));
+    await p.reload(); await p.waitForTimeout(700);
+    t("an unreadable file at start shows as not connected", /Not connected to legacy\.json/.test(await status()) && (await p.$eval("#pname", (e) => e.value)) !== "Legacy on disk", await status());
+    await p.click('.app-nav-item[data-view="settings"]'); await p.click('.settings-nav-item[data-tab="project"]');
+    await p.fill("#pname", "Browser edit"); await settle();
+    t("edits then stay out of the file", (await file("legacy.json")).name === "Legacy on disk");
+    await p.click("#reconnectBtn"); await settle();
+    t("reconnect reads the file instead of overwriting it", (await p.$eval("#pname", (e) => e.value)) === "Legacy on disk" &&
+      (await file("legacy.json")).name === "Legacy on disk" && /Saved to legacy\.json/.test(await status()), await status());
+  } catch (e) { t("flow", false, e.message.split("\n")[0]); }
+  t("no page errors", errors.length === 0, errors.slice(0, 3).join(" | "));
+  await ctx.close();
+}
+
 (async () => {
   kitUnits();
   const browser = await chromium.launch();
@@ -440,6 +521,7 @@ async function uatFileRegressions(browser) {
   check("every tool has a main flow in this test", tools.every((t) => FLOWS[t]), tools.filter((t) => !FLOWS[t]).join(", "));
   await deliveryRegressions(browser);
   await uatFileRegressions(browser);
+  await costFileRegressions(browser);
   // the starter is never shipped, but new tools are copied from it: it must build and run clean
   console.log("framework/starter.src.html");
   const tmp = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "rk-starter-")), "starter.html");

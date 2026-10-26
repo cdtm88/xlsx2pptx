@@ -2059,8 +2059,14 @@ window.RK = (function () {
                     the prefix of the keys it keeps in localStorage and sessionStorage
        label        what a file is called in the picker ("UAT tracker project")
        serialise()  the text to write: the state on screen, now
-       load(text)   parse, validate and show text read from a file. Throw to
-                    refuse it, before anything on screen has changed
+       load(text, how)  parse, validate and show text read from a file. Throw
+                    to refuse it, before anything on screen has changed.
+                    how.reload is true when it is the bound file read again
+                    (an undoable step for a page that keeps undo)
+       onBind(fromId, toId, kept)  the bound file changed. kept: what is on
+                    screen moved to the new file with it (save as), so history
+                    taken in the old one still applies; otherwise drop it
+       tabKey       sessionStorage key for this tab's file (default app + ":tab-file")
        onChange(info)  redraw the save status (info() below)
        onMessage(text) a short note for the user (a toast)
        delay        ms between the last edit and the write (default 500)
@@ -2086,7 +2092,7 @@ window.RK = (function () {
   function fileDoc(opts) {
     var APP = opts.app, DELAY = opts.delay || 500;
     var FS_OK = typeof window.showSaveFilePicker === "function" && typeof window.showOpenFilePicker === "function";
-    var BLOCK_KEY = APP + ":fs-blocked", TAB_KEY = APP + ":tab-file";
+    var BLOCK_KEY = APP + ":fs-blocked", TAB_KEY = opts.tabKey || APP + ":tab-file";
     var TYPES = [{ description: opts.label || "Project file", accept: { "application/json": [".json"] } }];
     var isEdge = /\bEdg\//.test(navigator.userAgent);
     function blank() { return { id: null, handle: null, name: "", permission: "none", lastModified: 0, savedAt: 0, stale: false, loaded: false, lastJob: null }; }
@@ -2164,7 +2170,7 @@ window.RK = (function () {
     function blockedName() { try { return localStorage.getItem(BLOCK_KEY) || ""; } catch (e) { return ""; } }
     function info() {
       return { available: FS_OK && !blockedName(), supported: FS_OK, blocked: blockedName(), isEdge: isEdge,
-        bound: !!doc.handle, connected: !!doc.handle && doc.permission === "granted", name: doc.name, savedAt: doc.savedAt,
+        id: doc.id, bound: !!doc.handle, connected: !!doc.handle && doc.permission === "granted", name: doc.name, savedAt: doc.savedAt,
         stale: stale, staleWhy: staleWhy, writeFailed: writeFailed, blockedBy: blockedBy, busy: pending > 0 || !!timer, dirty: dirty };
     }
     function hhmm(t) { var d = new Date(t); return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"); }
@@ -2238,10 +2244,12 @@ window.RK = (function () {
       idbPut("scratch", doc.id, payload);   // first: it is what survives a failed write
       return enqueue({ doc: doc, handle: doc.handle, id: doc.id, text: text, payload: payload, seq: seq, force: !!force, stale: stale });
     }
-    // an edit happened: write it soon. False when no file is bound (the page
-    // keeps it in browser storage instead).
+    // an edit happened: write it soon. False when no file is bound, or when the
+    // bound file's content was never shown here (it could not be read at start):
+    // what is on screen is then the browser copy, so the page keeps the edit there,
+    // and neither the file nor its crash copy is touched.
     function touch() {
-      if (!doc.handle) return false;
+      if (!doc.handle || !doc.loaded) return false;
       dirty = true; editSeq++;
       clearTimeout(timer); timer = setTimeout(saveNow, DELAY);
       changed();
@@ -2255,11 +2263,23 @@ window.RK = (function () {
     });
 
     /* binding a file */
-    function bind(handle, id) {
-      if (id !== doc.id) { doc.stale = stale; doc = blank(); }
+    function bind(handle, id, kept) {
+      var from = doc.id;
+      if (id !== from) { doc.stale = stale; doc = blank(); }
       doc.handle = handle; doc.name = handle.name; doc.id = id; doc.permission = "granted"; doc.lastModified = 0; doc.loaded = true;
       stale = false; staleWhy = ""; writeFailed = false;
       chain.then(function () { releaseOthers(doc.id); });
+      if (id !== from && opts.onBind) opts.onBind(from, id, !!kept);
+    }
+    // crash copies are text; the cost tracker's own build kept the parsed object
+    function scratchText(sc) {
+      if (!sc) return null;
+      if (typeof sc.text === "string") return sc.text;
+      return sc.data && typeof sc.data === "object" ? JSON.stringify(sc.data, null, 2) : null;
+    }
+    function sameText(a, b) {
+      if (a === b) return true;
+      try { return JSON.stringify(JSON.parse(a)) === JSON.stringify(JSON.parse(b)); } catch (e) { return false; }
     }
     function remember() {
       if (!doc.id || !doc.handle) return Promise.resolve();
@@ -2282,10 +2302,10 @@ window.RK = (function () {
     }
     function readFile(h) { return h.getFile().then(function (f) { return f.text().then(function (t) { return { f: f, t: t }; }); }); }
     // load first (it throws before anything changes), then bind
-    function loadFrom(h, id, r) {
+    function loadFrom(h, id, r, reload) {
       if (timer) { if (id !== doc.id) saveNow(); else { clearTimeout(timer); timer = null; } }
-      opts.load(r.t);
-      bind(h, id);
+      opts.load(r.t, { reload: !!reload, name: h.name });
+      bind(h, id, false);
       doc.lastModified = r.f.lastModified; doc.savedAt = r.f.lastModified;
       dirty = false;
       idbPut("scratch", doc.id, { id: doc.id, text: r.t, savedAt: r.f.lastModified, name: doc.name, fileModified: r.f.lastModified });
@@ -2322,7 +2342,7 @@ window.RK = (function () {
             blockedBy = "";
             if (timer) saveNow();   // typed while the picker was open: the old file's
             if (prepare) prepare();
-            bind(h, id);
+            bind(h, id, !prepare);
             return saveNow();
           });
         });
@@ -2334,7 +2354,8 @@ window.RK = (function () {
       return flush().then(function () { return claim(id); }).then(function (free) {
         if (!free) { blockedBy = h.name; changed(); say(h.name + " is open in another tab"); return false; }
         blockedBy = "";
-        return readFile(h).then(function (r) { return loadFrom(h, id, r); }).then(function () {
+        var again = id === doc.id;
+        return readFile(h).then(function (r) { return loadFrom(h, id, r, again); }).then(function () {
           changed(); say("Opened " + doc.name); return true;
         }).catch(function (e) {   // a failed open must not hold its claim, nor drop the open file's
           if (id !== doc.id) { release(id); claimed = doc.id; }
@@ -2381,8 +2402,11 @@ window.RK = (function () {
         if (p !== "granted") { say("Still not connected"); changed(); return false; }
         writeFailed = false;
         // nothing of this file was ever shown here (no crash copy): read it, never write over it
-        if (!doc.loaded) return readFile(doc.handle).then(function (r) { return loadFrom(doc.handle, doc.id, r); })
-          .then(function () { changed(); say("Reconnected to " + doc.name); return true; });
+        if (!doc.loaded) {
+          if (opts.onBind) opts.onBind(doc.id, doc.id, false);   // history taken here was not this file's
+          return readFile(doc.handle).then(function (r) { return loadFrom(doc.handle, doc.id, r, false); })
+            .then(function () { changed(); say("Reconnected to " + doc.name); return true; });
+        }
         // doc.lastModified is the file as this page last wrote or read it, so a
         // file changed meanwhile goes stale rather than being overwritten
         return saveNow().then(function (ok) {
@@ -2400,7 +2424,7 @@ window.RK = (function () {
       return readFile(d.handle).then(function (r) {
         if (d !== doc) return false;
         stale = false; staleWhy = "";
-        return loadFrom(d.handle, d.id, r).then(function () { changed(); say("Loaded " + doc.name + " from disk"); return true; });
+        return loadFrom(d.handle, d.id, r, true).then(function () { changed(); say("Loaded " + doc.name + " from disk"); return true; });
       }).catch(function (e) { say("Could not read " + d.name); changed(); return false; });
     }
     // stale: write what is on screen over the file
@@ -2455,12 +2479,13 @@ window.RK = (function () {
         doc.permission = p;
         if (p === "granted") {
           return readFile(row.handle).then(function (r) {
-            try { opts.load(r.t); } catch (e) { letGo(row, e && e.message || String(e), onError); return; }
+            try { opts.load(r.t, { reload: false, name: row.name }); } catch (e) { letGo(row, e && e.message || String(e), onError); return; }
             doc.loaded = true; doc.lastModified = r.f.lastModified; doc.savedAt = r.f.lastModified;
             // the file wins, unless this browser holds newer edits that never reached it
             return idbGet("scratch", row.id).then(function (sc) {
-              if (!sc || typeof sc.text !== "string" || !(sc.savedAt > r.f.lastModified) || sc.text === r.t) return;
-              try { opts.load(sc.text); } catch (e) { return; }
+              var st = scratchText(sc);
+              if (st === null || !(sc.savedAt > r.f.lastModified) || sameText(st, r.t)) return;
+              try { opts.load(st, { reload: false, name: row.name }); } catch (e) { return; }
               stale = true; dirty = true;
               staleWhy = "This browser holds edits to " + doc.name + " from " + hhmm(sc.savedAt) +
                 " that never reached the file. They are what is shown here; the file has not been changed.";
@@ -2469,9 +2494,10 @@ window.RK = (function () {
         }
         // no permission until a click: show the newest copy we have of this file
         return idbGet("scratch", row.id).then(function (sc) {
-          if (!sc || typeof sc.text !== "string") return;
+          var st = scratchText(sc);
+          if (st === null) return;
           if (sc.fileModified > 0) doc.lastModified = sc.fileModified;
-          try { opts.load(sc.text); doc.loaded = true; }
+          try { opts.load(st, { reload: false, name: row.name }); doc.loaded = true; }
           catch (e) { if (onError) onError("The copy of " + row.name + " kept in this browser could not be shown."); }
         });
       });

@@ -121,7 +121,7 @@ Type scale (px): 22 page headline, 20 settings title, 18 dialog/drawer title,
 | `RK.csv.escape`, `.safeText`, `.fromRows`, `.BOM` | CSV that opens cleanly in Excel; `safeText` stops a text cell starting `=` `+` `-` `@`, tab or CR running as a formula |
 | `RK.dict()`, `RK.has(o, k)` | a lookup with no prototype, and an own-key test: use them for anything keyed by file or user data |
 | `RK.toast(message, ms?)` | shows a `.toast` and fades it after `ms` (default 2600); a new message replaces the one showing |
-| `RK.fileDoc(opts)` | binds the page to one project file on disk (File System Access API) and writes every change into it: create, open, recent files, reconnect after a restart, one tab per file, stale-file and crash-copy handling, policy-block detection. The page supplies `serialise()` and `load(text)` and draws `status()` / `info()`; see the comment above it in `report-kit.js` and [`docs/storage-design.md`](../docs/storage-design.md). The UAT sign-off tracker is the reference use |
+| `RK.fileDoc(opts)` | binds the page to one project file on disk (File System Access API) and writes every change into it: create, open, recent files, reconnect after a restart, one tab per file, stale-file and crash-copy handling, policy-block detection. The page supplies `serialise()` and `load(text)` and draws `status()` / `info()`; see the comment above it in `report-kit.js` and [`docs/storage-design.md`](../docs/storage-design.md). The UAT sign-off tracker and the project cost tracker use it; the UAT tracker is the simpler reference |
 | `RK.download(filename, text, type)`, `RK.store(key)`, `RK.esc` | from kit 1, unchanged |
 
 ## Checklist for a new tool
