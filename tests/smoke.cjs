@@ -54,12 +54,110 @@ function kitUnits() {
 /* ---------- per-tool main flows ---------- */
 const FLOWS = {
   "delivery-plan.html": async (page, t) => {
-    await page.setInputFiles("#file-input", path.join(FIX, "delivery-plan.xlsx"));
-    await page.waitForSelector("#slide-stack .slide, #slide-stack > *", { timeout: 5000 });
-    const dl = page.waitForEvent("download", { timeout: 15000 });
-    await page.click("#btn-download");
-    const file = await (await dl).path();
-    t("downloads a PowerPoint", fs.statSync(file).size > 10000 && fs.readFileSync(file).slice(0, 2).toString() === "PK");
+    const native = [];
+    page.on("dialog", (d) => native.push(d.type()));
+    const main = () => page.textContent("#summaryMain");
+    const values = () => page.$$eval("#statGrid .stat-card-value", (els) => els.map((e) => e.textContent).join(" "));
+    const row = (n, f) => "#task-tbody tr:nth-child(" + n + ") ." + f;
+    const settle = () => page.waitForTimeout(250);
+    const confirmShown = () => page.isVisible(".modal-overlay:not([hidden]) [data-rk-ok]");
+    const settings = async (panel) => { await page.click('.app-nav-item[data-view="settings"]'); await page.click(`.settings-nav-item[data-panel="${panel}"]`); };
+    const back = () => page.click('.app-nav-item[data-view="main"]');
+    // the PPTX from the header button: its file name and how many slides it holds
+    const exportPptx = async () => {
+      const dl = page.waitForEvent("download", { timeout: 15000 });
+      await page.click("#btn-download");
+      const d = await dl, buf = fs.readFileSync(await d.path());
+      const slides = new Set((buf.toString("latin1").match(/ppt\/slides\/slide\d+\.xml/g) || [])).size;
+      return { name: d.suggestedFilename(), pk: buf.slice(0, 2).toString() === "PK", slides };
+    };
+    const load = async (fixture) => { await page.setInputFiles("#file-input", path.join(FIX, fixture)); await settle(); };
+
+    // start view: a keyboard-reachable drop zone with nothing nested in it, and the template
+    t("opens on the drop zone, with Download disabled", await page.isVisible("#drop-zone") && await page.isDisabled("#btn-download"));
+    t("the drop zone is a button with no button inside it", (await page.getAttribute("#drop-zone", "role")) === "button" &&
+      (await page.getAttribute("#drop-zone", "tabindex")) === "0" && (await page.$$("#drop-zone button, #drop-zone input")).length === 0);
+    // stand in for the picker (a real one cannot be driven headless reliably)
+    await page.evaluate(() => { const i = document.getElementById("file-input"); window.__picks = 0; i.click = () => { window.__picks++; }; });
+    await page.focus("#drop-zone");
+    await page.keyboard.press("Enter");
+    await page.keyboard.press(" ");
+    t("Enter or Space on the drop zone opens the file picker (DP-A1)", (await page.evaluate(() => window.__picks)) === 2);
+    await page.evaluate(() => { delete document.getElementById("file-input").click; });
+    const tdl = page.waitForEvent("download", { timeout: 5000 });
+    await page.click("#btn-template");
+    const tpl = await tdl;
+    t("the blank template downloads", tpl.suggestedFilename() === "Delivery_Plan_Template.xlsx" && fs.readFileSync(await tpl.path()).slice(0, 2).toString() === "PK");
+
+    // loaded: the answer, the cards, one slide
+    await load("delivery-plan.xlsx");
+    t("answer line", (await main()) === "3 tasks across 2 workstreams, 1 at risk, Mar to Apr 2026", await main());
+    t("the file and title above it", (await page.textContent("#summarySub")) === "Smoke Plan · delivery-plan.xlsx", await page.textContent("#summarySub"));
+    t("cards: on the slides, workstreams, at risk, weeks", (await values()) === "3 2 1 6", await values());
+    t("at risk card carries a red pill", await page.isVisible("#statGrid .status-pill.pill-red"));
+    t("the at risk task shows a red pill in the table", await page.isVisible(row(2, "dp-risk") + " .pill-red") && !(await page.isVisible(row(1, "dp-risk") + " .pill-red")));
+    t("one slide previewed", (await page.$$("#slide-stack .dp-slide")).length === 1 && /One slide/.test(await page.textContent("#slide-count-lbl")));
+    t("the columns read are named", /Read from: delivery-plan\.xlsx/.test(await page.textContent("#cols-note")) && /Dates from: Start Date \/ End Date/.test(await page.textContent("#cols-note")));
+    t("every table field is labelled", await page.$$eval("#taskTable input, #taskTable select", (els) => els.length > 0 && els.every((e) => e.labels.length || e.getAttribute("aria-label"))));
+
+    // edits in the table redraw the answer, cards and preview
+    await page.fill(row(1, "f-name"), "Alpha <renamed> & co");
+    await page.check(row(3, "f-risk"));
+    await page.selectOption(row(2, "f-status"), "Blocked");
+    await settle();
+    t("an edited name reaches the preview", (await page.textContent("#slide-stack")).includes("Alpha <renamed> & co"));
+    t("ticking At Risk counts it", (await main()) === "3 tasks across 2 workstreams, 2 at risk, Mar to Apr 2026", await main());
+    t("a status change recolours its pill", await page.$eval(row(2, "f-status"), (e) => e.classList.contains("pill-red")));
+    await page.uncheck(row(1, "f-show")); await settle();
+    t("an unticked task leaves the slide and is struck through", (await main()).startsWith("2 tasks across 2 workstreams") &&
+      await page.$eval("#task-tbody tr:nth-child(1)", (r) => r.classList.contains("row-off")) && (await values()).startsWith("2 2"), await main());
+    await page.check(row(1, "f-show"));
+    await page.fill(row(3, "f-end"), "2026-05-01"); await settle();
+    t("a later end date stretches the timeline", (await main()).endsWith("Mar to May 2026") && (await page.textContent("#week-count-lbl")) === "9 of 9 weeks", await page.textContent("#week-count-lbl"));
+    const ex1 = await exportPptx();
+    t("exports a one-slide PowerPoint named after the title", ex1.pk && ex1.slides === 1 && ex1.name === "Smoke_Plan.pptx", JSON.stringify(ex1));
+
+    // Settings: title, Today line, bar colour and the version
+    await settings("panel-slide");
+    t("version shown in Settings", (await page.textContent("#appVersion")) === "v2.0.0");
+    await page.click('#color-seg [data-mode="single"]');
+    t("single colour changes the key", /Scheduled/.test(await page.textContent("#legend")) && (await page.getAttribute('#color-seg [data-mode="single"]', "aria-pressed")) === "true");
+    await page.fill("#cfg-title", ""); await settle();
+    const ex2 = await exportPptx();
+    t("the title can be cleared; the file falls back to Delivery_Plan (DP-09)", ex2.name === "Delivery_Plan.pptx", ex2.name);
+    await page.fill("#cfg-title", "Renamed plan"); await settle();
+    await back();
+    t("the title reaches the answer's first line", (await page.textContent("#summarySub")).startsWith("Renamed plan"));
+
+    // loading over an edited plan asks in the page; Cancel keeps it
+    await load("dp-multi-slide.xlsx");
+    t("loading over edits asks first, in the page", await confirmShown());
+    await page.click(".modal-overlay:not([hidden]) [data-rk-cancel]"); await settle();
+    t("and Cancel keeps the plan", (await page.textContent("#summarySub")).startsWith("Renamed plan"));
+    await load("dp-multi-slide.xlsx");
+    await page.click(".modal-overlay:not([hidden]) [data-rk-ok]"); await settle();
+    t("multi-slide answer", (await main()) === "40 tasks across 3 workstreams, 5 at risk, Mar to Jul 2026", await main());
+    t("split across two slides", (await page.$$("#slide-stack .dp-slide")).length === 2 && /Split across 2 slides/.test(await page.textContent("#slide-count-lbl")));
+    const ex3 = await exportPptx();
+    t("exports a two-slide PowerPoint", ex3.pk && ex3.slides === 2 && ex3.name === "Multislide_plan.pptx", JSON.stringify(ex3));
+
+    // other header spellings and a sheet with no dates: unedited, so no question
+    await load("dp-header-spellings.xlsx");
+    t("Start_Date / End Date - dd/mm/yyyy still parse", !(await confirmShown()) && (await page.inputValue(row(1, "f-start"))) === "2026-03-02" &&
+      (await page.inputValue(row(1, "f-end"))) === "2026-03-13" && (await main()).startsWith("2 tasks across 1 workstream,"), await main());
+    await load("dp-no-dates.xlsx");
+    t("a sheet with no date columns is refused with the headers found, and the plan stays",
+      await page.isVisible("#error-msg") && /Headers found:/.test(await page.textContent("#error-msg")) && (await main()).startsWith("2 tasks"));
+
+    // phone width: no sideways page scroll on either view
+    await load("dp-multi-slide.xlsx");
+    await page.setViewportSize({ width: 390, height: 844 });
+    let widest = await page.evaluate(() => document.documentElement.scrollWidth);
+    for (const p of ["panel-slide", "panel-sheet"]) { await settings(p); widest = Math.max(widest, await page.evaluate(() => document.documentElement.scrollWidth)); }
+    await back();
+    t("no sideways scroll at 390px", widest <= 390, String(widest));
+    await page.setViewportSize({ width: 1280, height: 800 });
+    t("no native dialogs", native.length === 0, native.join(", "));
   },
   "uat-email-builder.html": async (page, t) => {
     const preview = () => page.textContent("#preview");
@@ -621,7 +719,7 @@ async function deliveryRegressions(browser) {
   const txt = (p, sel) => p.$eval(sel, (e) => e.textContent).catch(() => "");
   const selText = (p, sel) => p.$eval(sel, (e) => e.selectedOptions[0].text).catch(() => "");
   const checked = (p, sel) => p.$eval(sel, (e) => e.checked).catch(() => false);
-  const visible = (p, sel) => p.$eval(sel, (e) => !e.classList.contains("hidden")).catch(() => false);
+  const visible = (p, sel) => p.isVisible(sel).catch(() => false);
   async function load(fixture, fn) {
     const ctx = await browser.newContext({ acceptDownloads: true });
     const p = await ctx.newPage(), errors = [];

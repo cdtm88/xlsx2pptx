@@ -72,7 +72,7 @@ the same.
 | [`report-kit.js`](framework/report-kit.js) | Shared runtime (`window.RK`): file loading, clipboard, storage, dialogs, sorting and the rules JSON module. |
 | [`DESIGN.md`](framework/DESIGN.md) | Principles, tokens, components and a checklist for new tools. |
 | [`starter.src.html`](framework/starter.src.html) | A small working page to copy when starting a new tool. |
-| [`report-kit.css`](framework/report-kit.css) | Kit 1, frozen. No tool uses it any more; not for new ones. |
+| [`report-kit.css`](framework/report-kit.css) | Kit 1, frozen and unused: every tool is on kit 2. Kept for reference, not for new ones. |
 
 **Design principles:** answer first · numbers in mono · colour only for status ·
 quiet chrome · keyboard accessible · offline enforced.

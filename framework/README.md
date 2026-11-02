@@ -13,7 +13,7 @@ no build step *for the user*, and no external requests.
 | `starter.src.html` | A small working page in the kit 2 language. Copy it to start a new tool. |
 | `signoff.html` | The sign-off line every tool ends with ("Dreamt up by Christian, built with Claude…"). Pulled into each footer with `<!--@include framework/signoff.html@-->`; edit it here and rebuild to change it everywhere. |
 | `DESIGN.md` | The design language: principles, tokens, every component, the runtime helpers, a checklist for new tools. |
-| `report-kit.css` | Kit 1, **frozen**: the original look (cards, light-header tables, upload zone, KPIs, staff-name editor). No tool includes it any more; kept for reference, not for new tools. |
+| `report-kit.css` | Kit 1, **frozen and unused**: the original look (cards, light-header tables, upload zone, KPIs, staff-name editor). No tool includes it since the delivery plan moved to kit 2; kept for reference, not for new tools. |
 | `report-kit.js` | `window.RK`: DOM/format helpers, file download, namespaced `localStorage`, clipboard (rich HTML + text), upload wiring, xlsx plumbing, the **rules JSON module**, the reusable **staff-name editor**, and (since 1.1.0) the kit 2 runtime: `RK.modal`, `RK.confirm`, `RK.sortable`, `RK.chipsFromSelect`, `RK.stepSegs`, `RK.searchShortcut`, CSV and number/date helpers, and (1.2.0) `RK.dict`/`RK.has` for lookups keyed by file data, and (1.3.0) `RK.toast`, and (1.4.0) `RK.fileDoc`, one project file per project on disk with autosave (see `docs/storage-design.md`), and (1.5.0) `RK.clipboard.writeText` for a plain-text-only copy and column-mapper labels tied to their selects, and (1.6.0) an `onCancel` for `RK.confirm`. The kit 1 helpers and `RK.show`/`RK.hide` work under either stylesheet; the kit 2 helpers (`RK.modal`, `RK.confirm`, chips, steps) are styled only by `report-kit-2.css`. |
 | `vendor/sheetjs.js` | The vendored SheetJS mini build (read-only), inlined where a report reads `.xlsx`. One copy for all reports. |
 | `build.py` | The inliner. Turns a `reports/<name>.src.html` into the shipped single-file `<name>.html`. |
@@ -147,15 +147,17 @@ across versions:
    file and (ideally) drive it headless before shipping. Run the
    `DESIGN.md` checklist.
 
-Every tool now uses kit 2 except the delivery plan, which uses no kit at all.
-`report-kit.css` (kit 1) is no longer included by any tool; it stays frozen in the
-repo for reference until the delivery plan is ported (BACKLOG ARCH-5). Moving a
-tool over means switching its stylesheet include and its markup to the kit 2
-classes. The ones that moved show how: the cost tracker's source has a kit 1
-tool's cards, dialogs and dense grids carried over; the demand summary's has an
-upload-first tool with a sortable picker, the staff-name editor in Settings and a
-copied email table kept exactly as it was; Waqti exceptions has tabbed lists with
-row drawers, an editable grid in Settings, a "save this tool with my settings"
-copy and its own rules.json format kept byte for byte; PI capacity has inline
-grids turned into dialogs, a sprint matrix with a sticky first column and totals
-row, a per-person drawer and a print view, with its saved file and CSVs unchanged.
+Every tool now uses kit 2: the delivery plan, the last one, moved in its v2.0.0
+(it had used no kit at all). `report-kit.css` (kit 1) is no longer included by any
+tool; it stays in the repo, frozen and unused, for reference only, and could be
+deleted. Moving a tool over means switching its stylesheet include and its markup
+to the kit 2 classes. The ones that moved show how: the cost tracker's source has
+a kit 1 tool's cards, dialogs and dense grids carried over; the demand summary's
+has an upload-first tool with a sortable picker, the staff-name editor in Settings
+and a copied email table kept exactly as it was; Waqti exceptions has tabbed lists
+with row drawers, an editable grid in Settings, a "save this tool with my
+settings" copy and its own rules.json format kept byte for byte; PI capacity has
+inline grids turned into dialogs, a sprint matrix with a sticky first column and
+totals row, a per-person drawer and a print view, with its saved file and CSVs
+unchanged; the delivery plan has a table edited in place (`.cell-input`) beside a
+slide preview, with the PowerPoint it writes unchanged part for part.

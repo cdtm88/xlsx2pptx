@@ -72,6 +72,15 @@ dp_plan("dp-no-dates.xlsx", ["Task", "Owner", "Vendor", "Calendar", "Weekend"], 
 dp_plan("dp-roadmap-6y.xlsx", ["Task", "Category", "Status", "Start Date", "End Date"],
         [["%d Q%d release" % (y, q + 1), "Roadmap", "Not Started", D(y, 1 + 3 * q, 1), D(y, 3 + 3 * q, 28)]
          for y in range(2026, 2032) for q in range(4)], title="Roadmap", start=D(2026, 1, 1))
+# 40 tasks in three lanes, too many for one slide: Build (22) fills the first,
+# Test (12) and Launch (6) the second. Every seventh task is at risk.
+dp_plan("dp-multi-slide.xlsx", ["Task", "Category", "Status", "Start Date", "End Date", "Milestone", "At Risk"],
+        [["%s %d" % (lane, k + 1), lane, ["Done", "In Progress", "Not Started", "Blocked"][(i) % 4],
+          D(2026, 3, 2) + dt.timedelta(days=3 * i), D(2026, 3, 6) + dt.timedelta(days=3 * i + 7 * (k % 3)),
+          "Y" if k == n - 1 else "", "Y" if i % 7 == 6 else ""]
+         for i, (lane, k, n) in enumerate([("Build", k, 22) for k in range(22)] + [("Test", k, 12) for k in range(12)]
+                                         + [("Launch", k, 6) for k in range(6)])],
+        title="Multi-slide plan")
 
 
 # The real legacy sprint template (git 7a02d97, "Start Sprint"/"End Sprint" and

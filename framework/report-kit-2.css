@@ -1,6 +1,6 @@
 /* ============================================================
    Report Kit 2: the design language for new browser tools
-   kit-version: 2.4.0
+   kit-version: 2.5.0
    Extracted from vendor-spend-tracker.html. Inlined into a report
    by framework/build.py. See framework/DESIGN.md for the rules and
    framework/starter.src.html for a page that uses every part.
@@ -447,6 +447,11 @@ td.row-actions { text-align: right; }
 tr.row-off td { opacity: .45; text-decoration: line-through; }
 tr.row-off td.row-check { opacity: 1; text-decoration: none; }
 td.row-check, th.row-check { width: 64px; text-align: center; padding-right: 6px; }
+/* inline editing: a field in a cell that reads as plain text until hovered or focused */
+.cell-input { width: 100%; min-width: 0; padding: 4px 6px; background: transparent; border-color: transparent; }
+.cell-input:hover { border-color: var(--border-input); background: var(--panel); }
+.cell-input:focus { border-color: var(--accent); background: var(--panel); }
+tr.row-off .cell-input { text-decoration: line-through; }
 
 /* dense: a grid of figures (a sprint or month matrix); numbers in it are mono */
 table.dense th { padding: 8px 10px; }
@@ -647,6 +652,9 @@ tfoot tr.total-row td.sticky-col { z-index: 3; box-shadow: inset 0 1px 0 var(--b
 .start-panel { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 24px 26px; }
 .start-panel h2 { margin: 0 0 6px; font-size: 20px; font-weight: 600; }
 .start-panel .upload-area { padding: 48px 24px; }
+/* secondary actions under the drop zone, e.g. a blank template to start from */
+.start-actions { display: flex; align-items: center; gap: 8px 12px; flex-wrap: wrap; margin-top: 14px; }
+.start-actions .hint { margin: 0; }
 /* RK.xlsx.renderMapper labels each column select with a bare label.field */
 label.field { display: block; font-size: 12px; font-weight: 600; color: var(--text); }
 

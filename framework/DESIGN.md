@@ -11,9 +11,10 @@ wins and this document gets fixed.
 - **Starting point:** [`starter.src.html`](starter.src.html), a small working
   page that uses every main part. Copy it to `reports/<name>.src.html`.
 
-`report-kit.css` (v1) is frozen, and no tool includes it any more (the last one,
-PI capacity, moved in its v2.0.0). Do not include both stylesheets in one page: kit 2 styles bare
-`button`, `input`, `select` and `table` elements.
+`report-kit.css` (v1) is frozen, and no tool includes it any more (the last on it,
+PI capacity, moved in its v2.0.0; the delivery plan, which used no kit, moved in
+its v2.0.0). Every tool is on kit 2. Do not include both stylesheets in one page:
+kit 2 styles bare `button`, `input`, `select` and `table` elements.
 
 ## Principles
 
@@ -113,8 +114,9 @@ Type scale (px): 22 page headline, 20 settings title, 18 dialog/drawer title,
 | `.option-cards`, `.option-card`, `-title`, `-desc` | radio cards, e.g. export format |
 | `.date-pair` | two date fields side by side |
 | `.upload-area` (+ `.dragover`), `.big`, `.or`, `label.field` | file drop zone for `RK.upload`; `label.field` is what `RK.xlsx.renderMapper` emits |
-| `.start-view`, `.start-panel` | the opening panel of an upload-first tool: a heading, one lead line (`.modal-lead`) and the drop zone, centred (Waqti exceptions) |
+| `.start-view`, `.start-panel`, `.start-actions` | the opening panel of an upload-first tool: a heading, one lead line (`.modal-lead`) and the drop zone, centred (Waqti exceptions); `.start-actions` is a row of secondary actions under the drop zone, such as a blank template to start from (delivery plan). Never put a button inside the drop zone |
 | `tr.row-off`, `td.row-check` / `th.row-check` | a row the user left out of an email or export (its tick box unticked): faded and struck through, except the tick box cell |
+| `.cell-input` | a field edited in place in a table cell (`input` or `select`): reads as plain text until hovered or focused, struck through in a `tr.row-off` (delivery plan) |
 | `.toast` (+ `.on`) | short confirmation at the foot of the screen, made by `RK.toast` |
 | `.copy-fallback` | the manual-copy box `RK.clipboard.fallbackInto` draws when the browser blocks the clipboard |
 | `.table-container.rk-name-editor` | home for `RK.NameEditor`: mono Staff IDs, the export name beneath, rows still missing a name in the watch colour; hidden while empty |
@@ -136,7 +138,7 @@ Type scale (px): 22 page headline, 20 settings title, 18 dialog/drawer title,
 | `RK.dict()`, `RK.has(o, k)` | a lookup with no prototype, and an own-key test: use them for anything keyed by file or user data |
 | `RK.toast(message, ms?)` | shows a `.toast` and fades it after `ms` (default 2600); a new message replaces the one showing |
 | `RK.fileDoc(opts)` | binds the page to one project file on disk (File System Access API) and writes every change into it: create, open, recent files, reconnect after a restart, one tab per file, stale-file and crash-copy handling, policy-block detection. The page supplies `serialise()` and `load(text)` and draws `status()` / `info()`; see the comment above it in `report-kit.js` and [`docs/storage-design.md`](../docs/storage-design.md). The UAT sign-off tracker and the project cost tracker use it; the UAT tracker is the simpler reference |
-| `RK.download(filename, text, type)`, `RK.store(key)`, `RK.esc` | from kit 1, unchanged |
+| `RK.download(filename, text, type)`, `RK.store(key)`, `RK.esc` | from kit 1, unchanged. `RK.download` takes a string, bytes (`Uint8Array`) or a `Blob`, so it also saves a built file or an image (the delivery plan's template and PNG) |
 | `RK.xlsx`, `RK.upload`, `RK.rules`, `RK.NameEditor`, `RK.clipboard` | from kit 1; styled under kit 2 by `.upload-area`, `label.field`, `.rk-name-editor` and `.copy-fallback`. The Waqti demand summary uses all of them; Waqti exceptions uses all but `RK.rules` and `RK.NameEditor`. Since 1.5.0 `RK.xlsx.renderMapper` ties each label to its select (`for`/`id`, named after the fields container's id) and `RK.clipboard.writeText(text)` copies plain text only, for a "copy as plain text" choice |
 
 ## Checklist for a new tool

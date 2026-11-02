@@ -1,308 +1,220 @@
-<!DOCTYPE html>
+<!-- @out: delivery-plan.html -->
+<!-- Source for delivery-plan.html. Build with: python3 framework/build.py -->
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
+<meta charset="utf-8">
 <!-- Offline by policy: nothing may load from or send to the network (framework/DESIGN.md). -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; connect-src 'none'; form-action 'none'; base-uri 'none'">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Delivery Plan Generator</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light only">
+<title>Delivery Plan</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMiIgaGVpZ2h0PSIzMiIgdmlld0JveD0iMCAwIDMyIDMyIj4KICA8cmVjdCB4PSIyIiB5PSI5IiB3aWR0aD0iNi41IiBoZWlnaHQ9IjYuNSIgcng9IjEuNCIgZmlsbD0iIzFlODI0YyI+PC9yZWN0PgogIDxyZWN0IHg9IjkuNSIgeT0iOSIgd2lkdGg9IjYuNSIgaGVpZ2h0PSI2LjUiIHJ4PSIxLjQiIGZpbGw9IiMxZTgyNGMiIG9wYWNpdHk9Ii41Ij48L3JlY3Q+CiAgPHJlY3QgeD0iMiIgeT0iMTYuNSIgd2lkdGg9IjYuNSIgaGVpZ2h0PSI2LjUiIHJ4PSIxLjQiIGZpbGw9IiMxZTgyNGMiIG9wYWNpdHk9Ii41Ij48L3JlY3Q+CiAgPHJlY3QgeD0iOS41IiB5PSIxNi41IiB3aWR0aD0iNi41IiBoZWlnaHQ9IjYuNSIgcng9IjEuNCIgZmlsbD0iIzFlODI0YyI+PC9yZWN0PgogIDxwYXRoIGQ9Ik0xNy41IDE0IEwyMC41IDE0IEwyMC41IDExLjUgTDI0LjUgMTYgTDIwLjUgMjAuNSBMMjAuNSAxOCBMMTcuNSAxOCBaIiBmaWxsPSIjZDI1ODJiIj48L3BhdGg+CiAgPHJlY3QgeD0iMjQuNSIgeT0iMTEuNSIgd2lkdGg9IjYiIGhlaWdodD0iOSIgcng9IjEuNCIgZmlsbD0iI2QyNTgyYiI+PC9yZWN0Pgo8L3N2Zz4=">
+<style>
+/*@include framework/report-kit-2.css@*/
 
-<!-- @out: delivery-plan.html -->
+/* ---- Delivery plan (dp-*) ---- */
+.dp-range { display: flex; align-items: center; gap: 6px 8px; flex-wrap: wrap; }
+.dp-range > label { font-size: 12px; font-weight: 600; color: var(--text-dim); }
+.dp-range select { width: auto; font-family: var(--font-mono); }
+.dp-range .dp-to { font-size: 12px; color: var(--text-dim); }
+.dp-count { font: 500 12px var(--font-mono); color: var(--dim-grey); white-space: nowrap; }
+.dp-stats { grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
+.dp-cols { margin: -4px 0 12px; font-size: 12px; }
+.dp-cols b { font-weight: 600; color: var(--slate); }
+.dp-tasks .table-container { max-height: min(60vh, 460px); }
+.dp-tasks td { padding: 4px 8px; }
+.dp-namecell { display: flex; align-items: center; gap: 6px; }
+.dp-namecell .cell-input { min-width: 220px; }
+.dp-tags { display: flex; gap: 4px; flex: none; }
+.dp-tasks input.f-section { min-width: 130px; }
+.dp-date { width: 9.4em; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+th.dp-flagcol, td.dp-flagcol { width: 1%; text-align: center; }
+.dp-risk { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.dp-risk .status-pill { visibility: hidden; }
+.dp-risk input:checked + .status-pill { visibility: visible; }
+select.dp-status { width: auto; appearance: none; -webkit-appearance: none; border: 1px solid transparent; border-radius: 20px; padding: 3px 10px; font-size: 12px; font-weight: 600; cursor: pointer; }
+select.dp-status.dp-st-blank { background: var(--panel); color: var(--dim-grey); border: 1px dashed var(--border-input); }
+select.dp-status option { background: #fff; color: var(--text); }
+tr.dp-offplan .cell-input { color: var(--dim-grey); }
+.dp-preview { overflow-x: auto; }
+.dp-slide-stack { display: flex; flex-direction: column; align-items: flex-start; gap: 14px; }
+.dp-slide-frame { display: inline-block; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+.dp-slide { position: relative; width: 1000px; height: 563px; background: #fff; transform-origin: top left; overflow: hidden; }
+.dp-slide * { position: absolute; box-sizing: border-box; }
+.dp-swatch { width: 16px; height: 11px; border-radius: 3px; }
+.dp-note-block + .dp-note-block { margin-top: 8px; }
+.dp-note-lead { font-weight: 600; }
+.dp-note-list { margin: 4px 0 2px 18px; padding: 0; }
+.dp-title-input { width: 340px !important; max-width: 100%; text-align: left !important; }
+.dp-date-input { width: 11em; font-family: var(--font-mono); }
+.dp-mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+@media (max-width: 560px) {
+  .dp-namecell .cell-input { min-width: 170px; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="app-header">
+    <div class="app-logo"><img class="app-logo-mark" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMiIgaGVpZ2h0PSIzMiIgdmlld0JveD0iMCAwIDMyIDMyIj4KICA8cmVjdCB4PSIyIiB5PSI5IiB3aWR0aD0iNi41IiBoZWlnaHQ9IjYuNSIgcng9IjEuNCIgZmlsbD0iIzFlODI0YyI+PC9yZWN0PgogIDxyZWN0IHg9IjkuNSIgeT0iOSIgd2lkdGg9IjYuNSIgaGVpZ2h0PSI2LjUiIHJ4PSIxLjQiIGZpbGw9IiMxZTgyNGMiIG9wYWNpdHk9Ii41Ij48L3JlY3Q+CiAgPHJlY3QgeD0iMiIgeT0iMTYuNSIgd2lkdGg9IjYuNSIgaGVpZ2h0PSI2LjUiIHJ4PSIxLjQiIGZpbGw9IiMxZTgyNGMiIG9wYWNpdHk9Ii41Ij48L3JlY3Q+CiAgPHJlY3QgeD0iOS41IiB5PSIxNi41IiB3aWR0aD0iNi41IiBoZWlnaHQ9IjYuNSIgcng9IjEuNCIgZmlsbD0iIzFlODI0YyI+PC9yZWN0PgogIDxwYXRoIGQ9Ik0xNy41IDE0IEwyMC41IDE0IEwyMC41IDExLjUgTDI0LjUgMTYgTDIwLjUgMjAuNSBMMjAuNSAxOCBMMTcuNSAxOCBaIiBmaWxsPSIjZDI1ODJiIj48L3BhdGg+CiAgPHJlY3QgeD0iMjQuNSIgeT0iMTEuNSIgd2lkdGg9IjYiIGhlaWdodD0iOSIgcng9IjEuNCIgZmlsbD0iI2QyNTgyYiI+PC9yZWN0Pgo8L3N2Zz4=" alt="">Delivery Plan</div>
+    <nav class="app-nav" aria-label="Views">
+      <button type="button" class="app-nav-item active" data-view="main" aria-pressed="true">Plan</button>
+      <button type="button" class="app-nav-item" data-view="settings" aria-pressed="false">Settings</button>
+    </nav>
+    <div class="app-header-spacer"></div>
+    <button type="button" id="btn-load">Load plan</button>
+    <button type="button" class="primary" id="btn-download" disabled>Download PPTX</button>
+    <input type="file" id="file-input" accept=".xlsx,.xls" hidden>
+  </header>
+
+  <div class="callout danger" id="error-msg" role="alert" hidden></div>
+
+  <!-- ================= PLAN ================= -->
+  <div id="mainView">
+
+    <!-- nothing loaded yet: the drop zone is the page -->
+    <div class="start-view" id="start-view">
+      <div class="start-panel">
+        <h2>Turn a delivery plan into a Gantt slide</h2>
+        <p class="modal-lead">Drop the Excel plan to see it as a PowerPoint timeline: real dates, week-commencing columns, workstream lanes and an At Risk flag. Edit any task here, then download the slides.</p>
+        <div class="upload-area" id="drop-zone" tabindex="0" role="button" aria-label="Choose an Excel delivery plan">
+          <div class="big">Drop the Excel plan (.xlsx) here</div>
+          <div class="or">or click to choose a file</div>
+        </div>
+        <div class="start-actions">
+          <button type="button" id="btn-template">Download blank template</button>
+          <span class="hint">One row per task: Task, Category, Status, Start Date, End Date, Milestone, At Risk.</span>
+        </div>
+      </div>
+    </div>
+
+    <div id="loadedView" hidden>
+      <div class="page-summary">
+        <div class="page-summary-text">
+          <span class="page-summary-sub" id="summarySub"></span>
+          <span class="page-summary-main" id="summaryMain"></span>
+        </div>
+        <div class="dp-range" role="group" aria-label="Weeks on the slide">
+          <label for="wk-from">Weeks</label>
+          <select id="wk-from" class="toolbar-select" aria-label="First week shown (week commencing)"></select>
+          <span class="dp-to">to</span>
+          <select id="wk-to" class="toolbar-select" aria-label="Last week shown (week commencing)"></select>
+          <button type="button" class="link-action" id="wk-reset">Reset</button>
+          <span class="dp-count" id="week-count-lbl"></span>
+        </div>
+      </div>
+      <div class="stat-grid dp-stats" id="statGrid"></div>
+
+      <section class="panel dp-tasks" aria-labelledby="tasksTitle">
+        <div class="panel-head">
+          <div class="panel-title"><h2 id="tasksTitle">Tasks</h2><span class="hint dp-mono" id="task-sel-lbl"></span><span class="hint">Edit any field to change the plan without re-uploading. The slide keeps this order.</span></div>
+          <div class="panel-actions">
+            <button type="button" class="small" id="task-all">Select all</button>
+            <button type="button" class="small" id="task-none">Clear</button>
+          </div>
+        </div>
+        <p class="hint dp-cols" id="cols-note" hidden></p>
+        <div class="table-container">
+          <table class="dense" id="taskTable">
+            <thead>
+              <tr>
+                <th class="row-check"><input type="checkbox" id="task-head-cb" aria-label="Show every task"></th>
+                <th>Task</th>
+                <th>Workstream</th>
+                <th>Status</th>
+                <th>Start</th>
+                <th>End</th>
+                <th class="dp-flagcol">Milestone</th>
+                <th class="dp-flagcol">At risk</th>
+              </tr>
+            </thead>
+            <tbody id="task-tbody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="previewTitle">
+        <div class="panel-head">
+          <div class="panel-title"><h2 id="previewTitle">Slide preview</h2><span class="hint" id="slide-count-lbl"></span></div>
+          <div class="panel-actions">
+            <div class="legend" id="legend" role="group" aria-label="Key to the bar colours"></div>
+            <button type="button" class="small" id="btn-copy-img" title="Copies the plan and its key as an image, without the title">Copy image</button>
+          </div>
+        </div>
+        <div class="callout warn" id="hidden-note" hidden></div>
+        <div class="dp-preview">
+          <div class="dp-slide-stack" id="slide-stack"></div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <!-- ================= SETTINGS ================= -->
+  <div id="settingsView" hidden>
+    <div class="settings-header"><h2>Settings</h2><span class="app-version" id="appVersion"></span></div>
+    <nav class="settings-nav" aria-label="Settings sections">
+      <button type="button" class="settings-nav-item active" data-panel="panel-slide" aria-pressed="true"><span class="settings-nav-label">Slide</span></button>
+      <button type="button" class="settings-nav-item" data-panel="panel-sheet" aria-pressed="false"><span class="settings-nav-label">Spreadsheet</span></button>
+    </nav>
+
+    <div class="settings-content" id="panel-slide">
+      <div class="settings-panel-head"><h3>Slide</h3><span class="hint">Set once per plan; every slide in the deck uses them.</span></div>
+      <p class="muted-empty" id="slideEmpty">Load a plan to set its title, Today line and bar colour.</p>
+      <div id="slideRows" hidden>
+        <div class="setting-row">
+          <div class="setting-row-label"><label class="label-text" for="cfg-title">Title</label><span class="label-hint">Across the top of every slide, and the file name</span></div>
+          <div class="setting-row-control"><input type="text" id="cfg-title" class="dp-title-input"></div>
+        </div>
+        <div class="setting-row">
+          <div class="setting-row-label"><label class="label-text" for="cfg-now-date">Today line</label><span class="label-hint">Where the green Today line sits. Clear it to leave the line off.</span></div>
+          <div class="setting-row-control"><input type="date" id="cfg-now-date" class="dp-date-input"></div>
+        </div>
+        <div class="setting-row">
+          <div class="setting-row-label"><span class="label-text" id="colorLbl">Bar colour</span><span class="label-hint">By status, or one grey for every task (milestones stay amber)</span></div>
+          <div class="setting-row-control">
+            <div class="seg-tabs" id="color-seg" role="group" aria-labelledby="colorLbl">
+              <button type="button" class="seg-tab active" data-mode="status" aria-pressed="true">By status</button>
+              <button type="button" class="seg-tab" data-mode="single" aria-pressed="false">Single colour</button>
+            </div>
+          </div>
+        </div>
+        <div class="setting-row">
+          <div class="setting-row-label"><span class="label-text">Timeline shown</span><span class="label-hint">Pick the weeks beside the answer on the Plan page</span></div>
+          <div class="setting-row-control"><span class="dp-mono" id="cfg-span"></span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="settings-content" id="panel-sheet" hidden>
+      <div class="settings-panel-head"><h3>Spreadsheet</h3><span class="hint">Columns are found by name, so a sheet of your own works too.</span></div>
+      <div class="setting-row">
+        <div class="setting-row-label"><span class="label-text">Blank template</span><span class="label-hint">Start Date and End Date per task, with a week-commencing timeline, formatting and formulas</span></div>
+        <div class="setting-row-control"><button type="button" id="btn-template2">Download template</button></div>
+      </div>
+      <div class="setting-row">
+        <div class="setting-row-label"><span class="label-text">Another plan</span><span class="label-hint">Replaces the plan open now; asks first if you have edited it here</span></div>
+        <div class="setting-row-control"><button type="button" id="btn-load2">Load plan</button></div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <!--@include framework/signoff.html@-->
+    <div class="strapline">Single file, works offline. Your data never leaves this machine.</div>
+  </footer>
+</div>
+
 <script>
 /*@include framework/vendor/sheetjs.js@*/
 </script>
 <script>
 /*@include framework/vendor/pptxgenjs.js@*/
 </script>
-<style>
-:root{
-  --teal:#00A9CE; --teal-dark:#007A99; --teal-tint:#E6F6FA;
-  --charcoal:#1A1A1A; --slate:#3D3D3D; --mid:#6B6B6B;
-  --ink:#172B4D; --line:#E4E8EB; --line-soft:#EEF1F3;
-  --bg:#F6F8F9; --card:#FFFFFF;
-  --radius:12px; --shadow:0 1px 3px rgba(23,43,77,.06),0 1px 2px rgba(23,43,77,.04);
-}
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Roboto,Arial,sans-serif;
-  background:var(--bg);color:var(--charcoal);line-height:1.5;-webkit-font-smoothing:antialiased}
-
-/* Header */
-.app-header{background:var(--card);border-bottom:1px solid var(--line);padding:1.1rem 0}
-.app-header .inner{max-width:1120px;margin:0 auto;padding:0 2rem;display:flex;align-items:center;gap:.9rem}
-.brand-logo{height:34px;width:auto;display:block}
-.logo-div{width:1px;height:30px;background:var(--line)}
-.app-header h1{font-size:1.02rem;color:var(--slate);font-weight:700;letter-spacing:-.01em}
-.app-header p{font-size:.78rem;color:var(--mid);margin-top:.1rem}
-
-.container{max-width:1120px;margin:0 auto;padding:1.5rem 2rem 1rem}
-
-/* Cards */
-.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
-  box-shadow:var(--shadow);padding:1.1rem 1.4rem;margin-bottom:1rem}
-.card-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.6rem;margin-bottom:1rem}
-.card-head .title{font-size:.72rem;font-weight:700;color:var(--slate);text-transform:uppercase;letter-spacing:.06em}
-.card-head .sub{font-size:.74rem;color:var(--mid);font-weight:500;text-transform:none;letter-spacing:0;margin-left:.5rem}
-
-/* Upload */
-.upload-card{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:1.1rem}
-.upload-area{border:2px dashed #CBD5DC;border-radius:12px;padding:1.75rem 2rem;text-align:center;cursor:pointer;
-  transition:border-color .18s,background .18s;background:#FCFDFE}
-.upload-area:hover,.upload-area.dragover{background:var(--teal-tint);border-color:var(--teal)}
-.upload-icon{width:46px;height:46px;border-radius:12px;background:var(--teal-tint);
-  display:flex;align-items:center;justify-content:center;margin:0 auto .7rem}
-.upload-icon svg{width:22px;height:22px;stroke:var(--teal)}
-.upload-title{font-size:1.05rem;color:var(--charcoal);font-weight:700;letter-spacing:-.01em}
-.upload-sub{font-size:.83rem;color:var(--mid);margin-top:.3rem}
-.upload-sub .link{color:var(--teal);font-weight:600;cursor:pointer}
-.upload-area input[type=file]{display:none}
-.upload-foot{display:flex;justify-content:flex-end;margin-top:.85rem}
-
-/* Config grid */
-.config{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:1.1rem}
-.field label{font-size:.68rem;color:var(--mid);text-transform:uppercase;letter-spacing:.06em;font-weight:700}
-.field input{display:block;width:100%;margin-top:.35rem;padding:.55rem .7rem;border:1px solid var(--line);
-  border-radius:8px;font-size:.9rem;color:var(--charcoal);font-family:inherit;background:#fff;transition:border-color .15s,box-shadow .15s}
-.field input:focus{outline:none;border-color:var(--teal);box-shadow:0 0 0 3px rgba(0,169,206,.14)}
-.field input[readonly]{background:#F4F6F7;color:var(--mid);cursor:default}
-
-/* Week range */
-.range-row{display:flex;align-items:center;gap:.7rem;flex-wrap:wrap}
-.range-row .lbl{font-size:.85rem;font-weight:600;color:var(--slate)}
-.range-row .to{font-size:.82rem;color:var(--mid)}
-.sel{position:relative;display:inline-flex}
-.sel select{appearance:none;-webkit-appearance:none;font-family:inherit;font-size:.88rem;font-weight:600;color:var(--charcoal);
-  background:#fff;border:1px solid var(--line);border-radius:8px;padding:.5rem 2rem .5rem .75rem;cursor:pointer;
-  transition:border-color .15s,box-shadow .15s}
-.sel select:focus{outline:none;border-color:var(--teal);box-shadow:0 0 0 3px rgba(0,169,206,.14)}
-.sel::after{content:"";position:absolute;right:.7rem;top:50%;width:8px;height:8px;border-right:2px solid var(--mid);
-  border-bottom:2px solid var(--mid);transform:translateY(-70%) rotate(45deg);pointer-events:none}
-.link-btn{background:none;border:none;color:var(--teal);font-weight:600;font-size:.85rem;cursor:pointer;font-family:inherit;padding:.3rem .2rem}
-.link-btn:hover{color:var(--teal-dark);text-decoration:underline}
-
-/* Buttons */
-.btn{display:inline-flex;align-items:center;gap:.5rem;padding:.65rem 1.3rem;border:none;border-radius:9px;
-  font-size:.88rem;font-weight:600;cursor:pointer;font-family:inherit;transition:background .18s,border-color .18s,color .18s}
-.btn svg{width:16px;height:16px}
-.btn-primary{background:var(--teal);color:#fff}
-.btn-primary:hover{background:var(--teal-dark)}
-.btn-secondary{background:#fff;color:var(--slate);border:1px solid var(--line)}
-.btn-secondary:hover{background:#F4F6F7;border-color:#D4DBE0}
-.btn-ghost{background:#fff;color:var(--slate);border:1px solid var(--line)}
-.btn-ghost:hover{background:#F4F6F7;border-color:var(--teal);color:var(--teal-dark)}
-.btn-ghost svg{stroke:currentColor}
-.mini-btn{padding:.32rem .7rem;font-size:.75rem;border:1px solid var(--line);background:#fff;border-radius:7px;
-  cursor:pointer;color:var(--slate);font-family:inherit;font-weight:600}
-.mini-btn:hover{background:#F4F6F7;border-color:var(--teal);color:var(--teal-dark)}
-.controls-row{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap}
-
-/* Segmented control */
-.seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;background:#F4F6F7;padding:2px}
-.seg button{padding:.42rem .9rem;border:none;background:transparent;color:var(--mid);font-weight:600;cursor:pointer;
-  font-size:.8rem;font-family:inherit;border-radius:7px;transition:all .15s}
-.seg button.active{background:#fff;color:var(--teal-dark);box-shadow:0 1px 2px rgba(23,43,77,.1)}
-
-/* Tasks table */
-.table-wrap{max-height:340px;overflow:auto;border:1px solid var(--line);border-radius:10px}
-.task-table{width:100%;border-collapse:collapse;font-size:.82rem}
-.task-table thead th{position:sticky;top:0;background:#F4F6F7;color:var(--slate);padding:.6rem .7rem;text-align:left;
-  font-weight:700;font-size:.7rem;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--line);z-index:1}
-.task-table th.cbcol,.task-table td.cbcol{width:40px;text-align:center;padding-left:0;padding-right:0}
-.task-table td{padding:.5rem .7rem;border-bottom:1px solid var(--line-soft);color:var(--charcoal)}
-.task-table tbody tr:last-child td{border-bottom:none}
-.task-table tbody tr:hover{background:#FAFBFC}
-.task-table tbody tr.off td:not(.cbcol){opacity:.45;text-decoration:line-through}
-.task-table tbody tr.offplan td:not(.cbcol){color:#97A0AF}
-.task-table input[type=checkbox]{accent-color:var(--teal);width:16px;height:16px;cursor:pointer}
-.task-table input.f-risk{accent-color:#FF6B00}
-.tag-offplan{display:inline-block;margin-left:.45rem;font-size:.6rem;font-weight:700;color:#97A0AF;border:1px solid #D3D9DE;
-  border-radius:4px;padding:.05rem .35rem;vertical-align:middle;text-transform:uppercase;letter-spacing:.04em}
-.tag-nodate,.tag-outside{display:inline-block;margin-left:.45rem;font-size:.6rem;font-weight:700;color:#B25E00;border:1px solid #F0C48A;
-  border-radius:4px;padding:.05rem .35rem;vertical-align:middle;text-transform:uppercase;letter-spacing:.04em}
-.sb{display:inline-block;padding:.16rem .55rem;border-radius:5px;font-size:.7rem;font-weight:600}
-.sb-d{background:#36B37E;color:#fff}
-.sb-p{background:#2684FF;color:#fff}
-.sb-n{background:#F1F3F5;color:#42526E;border:1px solid #C6CDD3}
-.sb-b{background:#DE350B;color:#fff}
-.sb-m{background:#F59E0B;color:#fff}
-.sb-blank{background:#FFF;color:#97A0AF;border:1px dashed #C6CDD3}
-
-/* Editable task cells — plain text until hovered, so the table still reads as
-   a table rather than a form */
-/* the flex wrapper sits inside the cell, not on it — a display:flex <td> drops
-   out of table layout and stops stretching to the row height, which knocks its
-   bottom border out of line with the rest of the row */
-.task-table .namecell{display:flex;align-items:center;gap:.35rem}
-.task-table .cell{width:100%;min-width:0;font-family:inherit;font-size:.82rem;color:var(--charcoal);
-  background:transparent;border:1px solid transparent;border-radius:6px;padding:.26rem .38rem;
-  transition:border-color .15s,background .15s,box-shadow .15s}
-.task-table .cell:hover{border-color:var(--line);background:#fff}
-.task-table .cell:focus{outline:none;border-color:var(--teal);background:#fff;box-shadow:0 0 0 3px rgba(0,169,206,.14)}
-/* Chrome reserves slack inside a date input, so even at its intrinsic width the
-   value and the picker icon sit apart. Sized to a ten-character date plus the
-   icon instead, which closes the gap without clipping either. */
-.task-table input[type=date].cell{width:7rem;min-width:0}
-.task-table td.datecell,.task-table th.datecell{width:1%;white-space:nowrap;padding-left:.3rem;padding-right:.3rem}
-.task-table th.mscol,.task-table td.mscol{width:1%;text-align:center;white-space:nowrap;
-  padding-left:.5rem;padding-right:.5rem}
-.task-table select.sb{appearance:none;-webkit-appearance:none;font-family:inherit;cursor:pointer;
-  border:1px solid transparent;max-width:100%;transition:box-shadow .15s}
-.task-table select.sb.sb-n,.task-table select.sb.sb-blank{border-style:solid}
-.task-table select.sb:hover{box-shadow:0 0 0 2px rgba(23,43,77,.12)}
-.task-table select.sb:focus{outline:none;box-shadow:0 0 0 3px rgba(0,169,206,.3)}
-.task-table select.sb option{background:#fff;color:var(--charcoal)}
-.task-table tbody tr.off .cell,.task-table tbody tr.off select.sb{text-decoration:line-through}
-.task-table tbody tr.offplan .cell{color:#97A0AF}
-
-/* Legend */
-.legend{display:flex;gap:1.4rem;flex-wrap:wrap;font-size:.78rem;color:var(--mid)}
-.legend-item{display:flex;align-items:center;gap:.4rem}
-.legend-swatch{width:16px;height:11px;border-radius:3px;display:inline-block}
-
-/* Preview */
-.preview-container{overflow-x:auto;border-radius:10px}
-/* One frame per slide, stacked — a long plan grows the section rather than
-   being clipped at the bottom of a single fixed-height slide */
-.slide-stack{display:flex;flex-direction:column;align-items:flex-start;gap:.9rem}
-.slide-frame{display:inline-block;box-shadow:0 4px 20px rgba(23,43,77,.12);border-radius:6px;overflow:hidden;border:1px solid var(--line)}
-.slide{position:relative;width:1000px;height:563px;background:#fff;transform-origin:top left;overflow:hidden}
-.slide *{position:absolute;box-sizing:border-box}
-
-.actions{display:flex;gap:.9rem;flex-wrap:wrap}
-.hidden{display:none!important}
-.error{background:#FFF4F2;color:#B42318;padding:.9rem 1.1rem;border-radius:10px;border:1px solid #FDD;border-left:4px solid #DE350B;margin-bottom:1.25rem;font-size:.85rem}
-.cols-note{margin-top:.75rem;font-size:.76rem;color:var(--mid)}
-.cols-note b{font-weight:600;color:var(--slate)}
-.hint-note{margin-bottom:1rem;font-size:.82rem;color:#42526E;background:#F4F6F7;border-left:3px solid #A5ADBA;padding:.6rem .85rem;border-radius:0 8px 8px 0}
-.note-block{margin-bottom:.55rem}
-.note-block:last-child{margin-bottom:0}
-.note-lead{font-weight:600}
-.note-list{margin:.25rem 0 .15rem 1.15rem;padding:0}
-.note-list li{font-size:.8rem;margin:.05rem 0}
-.hint-note .link-btn{font-size:.78rem;padding:.1rem 0}
-.section-label{font-size:.72rem;font-weight:700;color:var(--slate);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.6rem}
-.app-footer{max-width:1120px;margin:.5rem auto 2rem;padding:0 2rem;text-align:center;font-size:.78rem;color:var(--mid)}
-
-/* toast */
-#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:24px;background:var(--slate);color:#fff;
-  padding:.6rem 1rem;border-radius:8px;font-size:.82rem;opacity:0;pointer-events:none;transition:opacity .2s;z-index:50}
-#toast.on{opacity:1}
-</style>
-</head>
-<body>
-<header class="app-header">
-  <div class="inner">
-    <img class="brand-logo" alt="Logo" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjQgMjkgOTQgNDAiPgogIDxyZWN0IHg9IjkiIHk9IjM0IiB3aWR0aD0iMTQiIGhlaWdodD0iMTQiIHJ4PSIzIiBmaWxsPSIjMWU4MjRjIj48L3JlY3Q+CiAgPHJlY3QgeD0iMjUiIHk9IjM0IiB3aWR0aD0iMTQiIGhlaWdodD0iMTQiIHJ4PSIzIiBmaWxsPSIjMWU4MjRjIiBvcGFjaXR5PSIuNTUiPjwvcmVjdD4KICA8cmVjdCB4PSI5IiB5PSI1MCIgd2lkdGg9IjE0IiBoZWlnaHQ9IjE0IiByeD0iMyIgZmlsbD0iIzFlODI0YyIgb3BhY2l0eT0iLjU1Ij48L3JlY3Q+CiAgPHJlY3QgeD0iMjUiIHk9IjUwIiB3aWR0aD0iMTQiIGhlaWdodD0iMTQiIHJ4PSIzIiBmaWxsPSIjMWU4MjRjIj48L3JlY3Q+CiAgPHBhdGggZD0iTTQzIDQ1IEw1NCA0NSBMNTQgMzkgTDY0IDUwIEw1NCA2MSBMNTQgNTUgTDQzIDU1IFoiIGZpbGw9IiNkMjU4MmIiPjwvcGF0aD4KICA8cmVjdCB4PSI2NiIgeT0iNDAiIHdpZHRoPSIyNyIgaGVpZ2h0PSIyMCIgcng9IjMiIGZpbGw9IiNkMjU4MmIiPjwvcmVjdD4KICA8cmVjdCB4PSI3MCIgeT0iNDQiIHdpZHRoPSIxNCIgaGVpZ2h0PSIyLjQiIHJ4PSIxLjIiIGZpbGw9IiNmZmZmZmYiPjwvcmVjdD4KICA8cmVjdCB4PSI3MCIgeT0iNDkiIHdpZHRoPSIxOSIgaGVpZ2h0PSIyLjQiIHJ4PSIxLjIiIGZpbGw9IiNmZmZmZmYiIG9wYWNpdHk9Ii42Ij48L3JlY3Q+CiAgPHJlY3QgeD0iNzAiIHk9IjU0IiB3aWR0aD0iMTkiIGhlaWdodD0iMi40IiByeD0iMS4yIiBmaWxsPSIjZmZmZmZmIiBvcGFjaXR5PSIuNiI+PC9yZWN0Pgo8L3N2Zz4=">
-    <div class="logo-div"></div>
-    <div>
-      <h1>Delivery Plan Generator</h1>
-      <p>Turn an Excel delivery plan into a PowerPoint Gantt chart</p>
-    </div>
-  </div>
-</header>
-
-<div class="container">
-  <section id="upload-section">
-    <div class="upload-card">
-      <div class="upload-area" id="drop-zone">
-        <div class="upload-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
-          </svg>
-        </div>
-        <div class="upload-title">Drop your Excel file here</div>
-        <div class="upload-sub">or <span class="link">browse</span> (.xlsx)</div>
-        <input type="file" id="file-input" accept=".xlsx,.xls">
-      </div>
-      <div class="upload-foot">
-        <button class="btn btn-ghost" id="btn-template">
-          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          Download blank template
-        </button>
-      </div>
-    </div>
-  </section>
-
-  <div id="error-msg" class="error hidden"></div>
-
-  <section id="result-section" class="hidden">
-    <div class="card">
-      <div class="config">
-        <div class="field"><label>Title</label><input type="text" id="cfg-title"></div>
-        <div class="field"><label>Plan span</label><input type="text" id="cfg-span" readonly></div>
-        <div class="field"><label>Now / Today Date</label><input type="date" id="cfg-now-date"></div>
-      </div>
-      <div id="cols-note" class="cols-note hidden"></div>
-    </div>
-
-    <div class="card">
-      <div class="range-row">
-        <span class="lbl">Show weeks</span>
-        <span class="sel"><select id="wk-from"></select></span>
-        <span class="to">to</span>
-        <span class="sel"><select id="wk-to"></select></span>
-        <button class="link-btn" id="wk-reset">Reset</button>
-        <span class="sub" id="week-count-lbl" style="color:var(--mid);font-size:.78rem"></span>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-head">
-        <span class="title">Tasks <span class="sub" id="task-sel-lbl"></span>
-          <span class="sub">&mdash; edit any field to adjust the plan without re-uploading</span></span>
-        <div class="controls-row">
-          <button class="mini-btn" id="task-all">Select all</button>
-          <button class="mini-btn" id="task-none">Clear</button>
-        </div>
-      </div>
-      <div class="table-wrap">
-        <table class="task-table"><thead><tr>
-          <th class="cbcol"><input type="checkbox" id="task-head-cb" title="Select all"></th>
-          <th>Task</th><th>Category</th><th>Status</th>
-          <th class="datecell">Start</th><th class="datecell">End</th>
-          <th class="mscol">Milestone</th><th class="mscol">At Risk</th>
-        </tr></thead><tbody id="task-tbody"></tbody></table>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-head">
-        <span class="title">Bar colour</span>
-        <div class="seg" id="color-seg">
-          <button data-mode="status" class="active">By status</button>
-          <button data-mode="single">Single colour</button>
-        </div>
-      </div>
-      <div class="legend" id="legend"></div>
-    </div>
-
-    <div class="card">
-      <div class="card-head">
-        <span class="title">Slide preview <span class="sub" id="slide-count-lbl"></span></span>
-        <div class="controls-row">
-          <button class="mini-btn" id="btn-copy-img" title="Copy the plan and key as an image (the title is left out)">Copy image</button>
-        </div>
-      </div>
-      <div id="hidden-note" class="hint-note hidden"></div>
-      <div class="preview-container">
-        <div class="slide-stack" id="slide-stack"></div>
-      </div>
-    </div>
-
-    <div class="actions">
-      <button class="btn btn-primary" id="btn-download">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        Download PPTX
-      </button>
-      <button class="btn btn-secondary" id="btn-reset">Upload another file</button>
-    </div>
-  </section>
-</div>
-
-<div id="toast" role="status" aria-live="polite"></div>
-
-<footer class="app-footer"><!--@include framework/signoff.html@--></footer>
-
+<script>
+/*@include framework/report-kit.js@*/
+</script>
 <script>
 (function(){
 'use strict';
@@ -431,7 +343,7 @@ function fmtDayMon(d){
 function fmtFull(d){return fmtDayMon(d)+' '+d.getFullYear()}
 
 // Week commencing: the date rolled back to its Monday. Always Monday, whatever
-// day the plan itself starts on — a plan beginning on a Thursday still reads as
+// day the plan itself starts on: a plan beginning on a Thursday still reads as
 // w/c Monday columns rather than Thursday-to-Wednesday ones.
 function weekStartOf(d){
   var r=midnight(d);
@@ -456,7 +368,7 @@ function sprintStartDate(sp){
 }
 
 function sprintDates(sprints,startSprint,startDate){
-  var dates=Object.create(null);   // keyed by cell text: "constructor" is no sprint
+  var dates=RK.dict();   // keyed by cell text: "constructor" is no sprint
   var si=sprints.indexOf(startSprint);
   if(si<0||!startDate){
     var d=startDate||new Date();
@@ -476,8 +388,8 @@ function sprintDates(sprints,startSprint,startDate){
 // "Start Date - dd/mm/yyyy" all read as plain words. Columns match on whole
 // words, never on letters inside one: "Vendor", "Calendar", "Attendees",
 // "Dependencies", "Weekend" or "Legend" are not End, "Started by" is not Start.
-function wordSet(s){var o=Object.create(null);s.split(' ').forEach(function(w){o[w]=true});return o}
-function wordMap(o){var m=Object.create(null);Object.keys(o).forEach(function(k){m[k]=o[k]});return m}
+function wordSet(s){var o=RK.dict();s.split(' ').forEach(function(w){o[w]=true});return o}
+function wordMap(o){var m=RK.dict();Object.keys(o).forEach(function(k){m[k]=o[k]});return m}
 function headerWords(h){
   var out=[];
   String(h).replace(/([a-z])([A-Z])/g,'$1 $2').toLowerCase().split(/[^a-z0-9]+/).forEach(function(w){
@@ -592,7 +504,7 @@ function parseExcel(buf){
   if(hRow<0)hRow=looseRow;
   if(hRow<0)throw new Error('Header row not found. Column A must contain "Task".');
 
-  var cols={},sprints=[],sheetWeeks=[],heads=[],seen=[],claimed=Object.create(null);
+  var cols={},sprints=[],sheetWeeks=[],heads=[],seen=[],claimed=RK.dict();
   for(var c2=0;c2<=ref.e.c;c2++){
     var h=cv(hRow,c2);
     if(h===null||h===undefined||h==='')continue;
@@ -695,7 +607,7 @@ function parseExcel(buf){
     throw new Error('No dated tasks found. Give at least one task a Start Date and an End Date.');
 
   // planStart/sheetWeeks are kept so the axis can be rebuilt when a task date
-  // is edited — the sheet's own window still bounds it, not just the tasks.
+  // is edited: the sheet's own window still bounds it, not just the tasks.
   return {title:title,sheetNow:sheetNow,planStart:planStart,sheetWeeks:sheetWeeks,
     weeks:weeks,tasks:tasks,weekFrom:0,weekTo:weeks.length-1,
     nowDate:null,colorMode:'status',columns:used};
@@ -775,7 +687,7 @@ function weekIndex(weeks,d){
 
 function barColorFor(t,mode){
   var base=t.milestone?MILESTONE_FILL
-    :(mode==='single'?SINGLE_FILL:(STATUS_FILL[t.status]||DEFAULT_FILL));
+    :(mode==='single'?SINGLE_FILL:(RK.has(STATUS_FILL,t.status)?STATUS_FILL[t.status]:DEFAULT_FILL));
   if(!t.atRisk)return base;
   return {fill:base.fill,line:RISK_LINE,lineW:RISK_LINE_W};
 }
@@ -803,7 +715,7 @@ function paginate(groups,cap){
 
 // Returns one layout covering every slide the plan needs: `pages` is what gets
 // drawn, one entry per slide. opts.singlePage keeps every row on one unbounded
-// page instead — what the copied image wants, a PNG having no page to run off.
+// page instead, which is what the copied image wants, a PNG having no page to run off.
 function computeLayout(data,opts){
   opts=opts||{};
   var weeks=data.weeks;
@@ -845,22 +757,22 @@ function computeLayout(data,opts){
 
   // group placed tasks by section (first-appearance order; unsectioned last)
   var sectioned=placed.some(function(o){return o.task.section});
-  var gmap=Object.create(null), order=[];
+  var gmap=RK.dict(), order=[];
   placed.forEach(function(o){
     var key=sectioned?(o.task.section||''):'';
-    if(!(key in gmap)){gmap[key]={name:key,items:[]};order.push(gmap[key])}
+    if(!RK.has(gmap,key)){gmap[key]={name:key,items:[]};order.push(gmap[key])}
     gmap[key].items.push(o);
   });
   order.sort(function(a,b){return (a.name===''?1:0)-(b.name===''?1:0)});
   // A section keeps its colour wherever it lands, including on a later slide.
-  var bandColor=Object.create(null),ci=0;
+  var bandColor=RK.dict(),ci=0;
   order.forEach(function(g){
     if(g.name){bandColor[g.name]=SECTION_COLORS[ci%SECTION_COLORS.length];ci++}
   });
 
   var nT=placed.length;
   // A plan taller than one slide is split across slides rather than run off the
-  // bottom. Every slide shares one row height — that of the fullest slide — so
+  // bottom. Every slide shares one row height (that of the fullest slide), so
   // the rows line up from one to the next.
   var cap=Math.max(1,Math.floor(AVAIL_H/MIN_ROW_H));
   var pageSegs=(opts.singlePage||nT<=cap)
@@ -935,7 +847,7 @@ function computeLayout(data,opts){
 
 // ===== PREVIEW =====
 function p(inches){return Math.round(inches*PX)}
-// A line weight in points as preview pixels — never thinner than the 1px a
+// A line weight in points as preview pixels, never thinner than the 1px a
 // hairline outline already got.
 function pxLine(pt){return Math.max(1,(pt||0.75)*PX/72)}
 
@@ -943,8 +855,8 @@ function renderPreview(L,data){
   var stack=document.getElementById('slide-stack');
   stack.innerHTML='';
   L.pages.forEach(function(pg,i){
-    var frame=document.createElement('div'); frame.className='slide-frame';
-    var sl=document.createElement('div'); sl.className='slide';
+    var frame=document.createElement('div'); frame.className='dp-slide-frame';
+    var sl=document.createElement('div'); sl.className='dp-slide';
     frame.appendChild(sl); stack.appendChild(frame);
     drawSlide(sl,L,pg,data,i,L.pages.length);
   });
@@ -1049,11 +961,11 @@ function drawSlide(el,L,pg,data,pageNo,pageCount){
 }
 
 function scalePreview(){
-  var ct=document.querySelector('.preview-container');
-  if(!ct)return;
+  var ct=document.querySelector('.dp-preview');
+  if(!ct||!ct.clientWidth)return;
   var sc=Math.min(1,(ct.clientWidth-2)/1000);
-  ct.querySelectorAll('.slide-frame').forEach(function(f){
-    var sl=f.querySelector('.slide');
+  ct.querySelectorAll('.dp-slide-frame').forEach(function(f){
+    var sl=f.querySelector('.dp-slide');
     if(!sl)return;
     sl.style.transform='scale('+sc+')';
     f.style.width=1000*sc+'px';
@@ -1192,7 +1104,7 @@ function drawPptxSlide(slide,pptx,L,pg,data,pageNo,pageCount){
 
 // ===== COPY AS IMAGE =====
 // A canvas twin of the slide drawn from the same layout code as the preview and
-// the PPTX, minus the title — what gets pasted is the plan and its key, so it
+// the PPTX, minus the title: what gets pasted is the plan and its key, so it
 // drops into a deck or an email under whatever heading is already there. It is
 // drawn from a single-page layout, so a long plan comes out whole.
 var IMG_PPI = 200;                     // ~2500px wide: crisp pasted at slide size
@@ -1342,42 +1254,6 @@ function planCanvas(L,data){
   return c;
 }
 
-// Clipboard first; a file:// page with the clipboard blocked still gets the
-// image, as a download.
-function copyPlanImage(){
-  if(!currentLayout||!currentData)return;
-  if(!currentLayout.nT){toast('Nothing to copy — no tasks in the selected weeks');return}
-  // One continuous canvas, however long the plan: an image has no slide to
-  // run off, so the paginated layout would only add repeated headers.
-  var canvas;
-  try{canvas=planCanvas(computeLayout(currentData,{singlePage:true}),currentData)}
-  catch(e){toast('Could not draw the image');return}
-  canvas.toBlob(function(blob){
-    if(!blob){toast('Could not create the image');return}
-    function fallback(){
-      var url=URL.createObjectURL(blob),a=document.createElement('a');
-      a.href=url;
-      a.download=(currentData.title.replace(/[^a-zA-Z0-9\s]/g,'').replace(/\s+/g,'_')
-        .replace(/^_+|_+$/g,'')||'Delivery_Plan')+'.png';
-      document.body.appendChild(a);a.click();a.remove();
-      setTimeout(function(){URL.revokeObjectURL(url)},1500);
-      toast('Clipboard blocked here, image downloaded instead');
-    }
-    if(!navigator.clipboard||!window.ClipboardItem){fallback();return}
-    navigator.clipboard.write([new ClipboardItem({'image/png':blob})])
-      .then(function(){toast('Plan copied as an image')})
-      .catch(fallback);
-  },'image/png');
-}
-
-var toastTimer=null;
-function toast(msg){
-  var t=document.getElementById('toast');
-  t.textContent=msg; t.classList.add('on');
-  clearTimeout(toastTimer);
-  toastTimer=setTimeout(function(){t.classList.remove('on')},2600);
-}
-
 // ===== LEGEND =====
 function legendFor(mode,hasRisk){
   var items=(mode==='single')
@@ -1392,69 +1268,87 @@ function legendFor(mode,hasRisk){
         {label:'Blocked',color:S.red},
         {label:'Milestone',color:S.amber}
       ];
-  // Only shown once something is actually flagged — the outline is a warning,
+  // Only shown once something is actually flagged: the outline is a warning,
   // not a sixth state every plan has to carry a key for.
   if(hasRisk)items.push({label:'At Risk',color:C.white,border:RISK_LINE,borderW:RISK_LINE_W});
   return items;
 }
 
 // ===== UI =====
-var currentData=null, currentLayout=null;
+var APP_VERSION='2.0.0';
+var $=RK.$, esc=RK.esc;
+var currentData=null, currentLayout=null, currentFile='';
+// Edits made on this page since the plan was loaded: loading another plan asks
+// first while there are any, since they are not in the spreadsheet.
+var dirty=false;
+// Typing in a name, workstream or the title redraws once the typing pauses
+// (BACKLOG DP-08); every other change redraws at once, and an export or copy
+// redraws first, so neither ever uses a stale layout.
+var uiTimer=null;
 
-function showError(msg){
-  var el=document.getElementById('error-msg');
-  el.textContent=msg;el.classList.remove('hidden');
-}
-function clearError(){document.getElementById('error-msg').classList.add('hidden')}
-
-function escH(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML}
-
-function escA(s){return escH(s).replace(/"/g,'&quot;')}
+function showError(msg){var el=$('error-msg');el.textContent=msg;el.hidden=false}
+function clearError(){$('error-msg').hidden=true}
 
 // The statuses the Excel template validates against. A file carrying anything
 // else (an older "Milestone", a house status) keeps it as an extra option
 // rather than having it silently rewritten.
 var STATUS_OPTS=['','Not Started','In Progress','Done','Blocked'];
+var STATUS_PILL=RK.dict();
+STATUS_PILL['Done']='pill-green';
+STATUS_PILL['In Progress']='pill-teal';
+STATUS_PILL['Not Started']='pill-grey';
+STATUS_PILL['Blocked']='pill-red';
+STATUS_PILL['Milestone']='pill-yellow';
 
 function statusClass(s){
-  var M={Done:'sb-d','In Progress':'sb-p','Not Started':'sb-n',Blocked:'sb-b',Milestone:'sb-m'};
-  if(!s)return 'sb-blank';
-  return Object.prototype.hasOwnProperty.call(M,s)?M[s]:'sb-n';
+  if(!s)return 'dp-st-blank';
+  return RK.has(STATUS_PILL,s)?STATUS_PILL[s]:'pill-grey';
 }
 
 function statusSelect(t,idx){
   var opts=STATUS_OPTS.slice();
   if(t.status&&opts.indexOf(t.status)<0)opts.push(t.status);
   var html=opts.map(function(o){
-    return '<option value="'+escA(o)+'"'+(o===t.status?' selected':'')+'>'+(o?escH(o):'—')+'</option>';
+    return '<option value="'+esc(o)+'"'+(o===t.status?' selected':'')+'>'+(o?esc(o):'No status')+'</option>';
   }).join('');
-  return '<select class="sb '+statusClass(t.status)+' f-status" data-i="'+idx+'" title="Status">'+html+'</select>';
+  return '<select class="dp-status '+statusClass(t.status)+' f-status" data-i="'+idx+'" aria-label="Task '+(idx+1)+' status">'+html+'</select>';
 }
 
+// The key beside the preview: the same items and fills the slide's own key uses.
 function buildLegend(){
-  var el=document.getElementById('legend');
   var items=legendFor(currentData?currentData.colorMode:'status',
     currentLayout?currentLayout.hasRisk:false);
-  el.innerHTML=items.map(function(it){
-    var bdr=it.border?'border:'+(it.borderW||1)+'px solid #'+it.border:'';
-    return '<div class="legend-item"><span class="legend-swatch" style="background:#'+it.color+';'+bdr+'"></span>'+it.label+'</div>';
+  $('legend').innerHTML=items.map(function(it){
+    var bdr=it.border?'border:'+(it.borderW||1)+'px solid #'+esc(it.border)+';':'';
+    return '<span class="legend-item"><span class="legend-swatch dp-swatch" style="background:#'+esc(it.color)+';'+bdr+'"></span>'+esc(it.label)+'</span>';
   }).join('');
 }
 
 // ---- Week range (From / To) ----
 function weekOptionsHtml(){
   return currentData.weeks.map(function(d,i){
-    return '<option value="'+i+'">'+escH(fmtFull(d))+'</option>';
+    return '<option value="'+i+'">'+esc(fmtFull(d))+'</option>';
   }).join('');
 }
 
-function populateWeekSelects(){
-  var from=document.getElementById('wk-from'), to=document.getElementById('wk-to');
-  var html=weekOptionsHtml();
+function weekCountText(){
+  var n=currentData.weekTo-currentData.weekFrom+1, all=currentData.weeks.length;
+  return n+' of '+all+' week'+(all===1?'':'s');
+}
+
+// Fill both pickers from the axis and show the window currentData holds.
+function fillWeekSelects(){
+  var from=$('wk-from'), to=$('wk-to'), html=weekOptionsHtml();
   from.innerHTML=html; to.innerHTML=html;
+  from.value=currentData.weekFrom; to.value=currentData.weekTo;
+  $('week-count-lbl').textContent=weekCountText();
+}
+
+// Default visible window on load: the weeks the tasks actually span.
+function populateWeekSelects(){
   var auto=autoWeekRange(currentData);
-  from.value=auto[0]; to.value=auto[1];
-  applyWeekRange();
+  currentData.weekFrom=auto[0]; currentData.weekTo=auto[1];
+  fillWeekSelects();
 }
 
 // Editing a task date can push the plan outside the current axis, so rebuild it
@@ -1468,7 +1362,7 @@ function refreshWeekAxis(wasAuto){
   var fromD=currentData.weeks[currentData.weekFrom];
   var toD=currentData.weeks[currentData.weekTo];
   var weeks=buildWeeks(currentData.planStart,currentData.tasks,currentData.sheetWeeks);
-  if(!weeks.length)return;                    // every date cleared — keep the axis
+  if(!weeks.length)return;                    // every date cleared: keep the axis
   currentData.weeks=weeks;
   if(wasAuto||!fromD||!toD||toD<weeks[0]||fromD>weeks[weeks.length-1]){
     var auto=autoWeekRange(currentData);
@@ -1477,63 +1371,53 @@ function refreshWeekAxis(wasAuto){
     currentData.weekFrom=weekIndex(weeks,fromD);           // weekIndex clamps
     currentData.weekTo=Math.max(currentData.weekFrom,weekIndex(weeks,toD));
   }
-  var from=document.getElementById('wk-from'), to=document.getElementById('wk-to');
-  var html=weekOptionsHtml();
-  from.innerHTML=html; to.innerHTML=html;
-  from.value=currentData.weekFrom; to.value=currentData.weekTo;
-  document.getElementById('week-count-lbl').textContent=
-    (currentData.weekTo-currentData.weekFrom+1)+' of '+weeks.length
-    +' week'+(weeks.length===1?'':'s');
+  fillWeekSelects();
 }
 
 function applyWeekRange(){
-  var fromEl=document.getElementById('wk-from'), toEl=document.getElementById('wk-to');
+  var fromEl=$('wk-from'), toEl=$('wk-to');
   var fi=+fromEl.value, ti=+toEl.value;
   if(isNaN(fi)||isNaN(ti))return;
   if(ti<fi){var tmp=fi;fi=ti;ti=tmp;fromEl.value=fi;toEl.value=ti}
   currentData.weekFrom=fi; currentData.weekTo=ti;
-  var n=ti-fi+1;
-  document.getElementById('week-count-lbl').textContent=
-    n+' of '+currentData.weeks.length+' week'+(currentData.weeks.length===1?'':'s');
+  $('week-count-lbl').textContent=weekCountText();
+  dirty=true;
   updateUI();
 }
 
 function resetWeekRange(){
   var auto=autoWeekRange(currentData);
-  document.getElementById('wk-from').value=auto[0];
-  document.getElementById('wk-to').value=auto[1];
+  $('wk-from').value=auto[0];
+  $('wk-to').value=auto[1];
   applyWeekRange();
 }
 
+// ---- Task table: every field edits the plan in place ----
 function buildTaskTable(){
-  var tb=document.getElementById('task-tbody');
-  tb.innerHTML='';
-  currentData.tasks.forEach(function(t,idx){
-    var tr=document.createElement('tr');
-    tr.setAttribute('data-i',idx);
-    if(t.selected===false)tr.className='off';
-    tr.innerHTML=
-      '<td class="cbcol"><input type="checkbox" class="f-show" data-i="'+idx+'"'
-        +(t.selected!==false?' checked':'')+' title="Show on the plan"></td>'
-      +'<td><div class="namecell"><input type="text" class="cell f-name" data-i="'+idx+'" value="'
-        +escA(t.name)+'" title="Task"><span class="tags"></span></div></td>'
-      +'<td><input type="text" class="cell f-section" data-i="'+idx+'" value="'
-        +escA(t.section||'')+'" title="Category"></td>'
+  $('task-tbody').innerHTML=currentData.tasks.map(function(t,idx){
+    var n=idx+1, on=t.selected!==false;
+    return '<tr data-i="'+idx+'"'+(on?'':' class="row-off"')+'>'
+      +'<td class="row-check"><input type="checkbox" class="f-show" data-i="'+idx+'"'+(on?' checked':'')
+        +' aria-label="Show task '+n+' on the plan"></td>'
+      +'<td><div class="dp-namecell"><input type="text" class="cell-input f-name" data-i="'+idx+'" value="'
+        +esc(t.name)+'" aria-label="Task '+n+' name"><span class="dp-tags"></span></div></td>'
+      +'<td><input type="text" class="cell-input f-section" data-i="'+idx+'" value="'
+        +esc(t.section||'')+'" aria-label="Task '+n+' workstream"></td>'
       +'<td>'+statusSelect(t,idx)+'</td>'
-      +'<td class="datecell"><input type="date" class="cell f-start" data-i="'+idx+'" value="'
-        +(t.start?toInput(t.start):'')+'" title="Start date"></td>'
-      +'<td class="datecell"><input type="date" class="cell f-end" data-i="'+idx+'" value="'
-        +(t.end?toInput(t.end):'')+'" title="End date"></td>'
-      +'<td class="mscol"><input type="checkbox" class="f-ms" data-i="'+idx+'"'
-        +(t.milestone?' checked':'')+' title="Milestone"></td>'
-      +'<td class="mscol"><input type="checkbox" class="f-risk" data-i="'+idx+'"'
-        +(t.atRisk?' checked':'')+' title="At Risk \u2014 outlines the block in orange"></td>';
-    tb.appendChild(tr);
-  });
+      +'<td><input type="date" class="cell-input dp-date f-start" data-i="'+idx+'" value="'
+        +(t.start?toInput(t.start):'')+'" aria-label="Task '+n+' start date"></td>'
+      +'<td><input type="date" class="cell-input dp-date f-end" data-i="'+idx+'" value="'
+        +(t.end?toInput(t.end):'')+'" aria-label="Task '+n+' end date"></td>'
+      +'<td class="dp-flagcol"><input type="checkbox" class="f-ms" data-i="'+idx+'"'
+        +(t.milestone?' checked':'')+' aria-label="Task '+n+' is a milestone"></td>'
+      +'<td class="dp-flagcol"><label class="dp-risk"><input type="checkbox" class="f-risk" data-i="'+idx+'"'
+        +(t.atRisk?' checked':'')+' aria-label="Task '+n+' is at risk"><span class="status-pill pill-red" aria-hidden="true">At risk</span></label></td>'
+      +'</tr>';
+  }).join('');
   updateTaskCount();
 }
 
-// One delegated handler for the whole table, wired once — rebuilding rows on
+// One delegated handler for the whole table, wired once: rebuilding rows on
 // every keystroke would take the caret with it.
 function onTaskEdit(e){
   if(!currentData)return;
@@ -1543,32 +1427,33 @@ function onTaskEdit(e){
   if(!t)return;
   var typed=e.type==='input', changed=e.type==='change';
 
-  if(el.classList.contains('f-name')&&typed){t.name=el.value;updateUI();return}
-  if(el.classList.contains('f-section')&&typed){t.section=el.value;updateUI();return}
+  if(el.classList.contains('f-name')&&typed){t.name=el.value;dirty=true;scheduleUI();return}
+  if(el.classList.contains('f-section')&&typed){t.section=el.value;dirty=true;scheduleUI();return}
   if(!changed)return;
 
   if(el.classList.contains('f-show')){
     t.selected=el.checked;
-    el.closest('tr').classList.toggle('off',!el.checked);
-    updateTaskCount();updateUI();
+    el.closest('tr').classList.toggle('row-off',!el.checked);
+    updateTaskCount();
   }else if(el.classList.contains('f-status')){
     t.status=el.value;
-    el.className='sb '+statusClass(t.status)+' f-status';
-    updateUI();
+    el.className='dp-status '+statusClass(t.status)+' f-status';
   }else if(el.classList.contains('f-ms')){
-    t.milestone=el.checked;updateUI();
+    t.milestone=el.checked;
   }else if(el.classList.contains('f-risk')){
-    t.atRisk=el.checked;updateUI();
+    t.atRisk=el.checked;
   }else if(el.classList.contains('f-start')||el.classList.contains('f-end')){
     var d=el.value?fromInput(el.value):null;
-    // A year still being typed (0002, 0020, 0202…) or a typo leaves the task as
+    // A year still being typed (0002, 0020, 0202...) or a typo leaves the task as
     // it was and the axis alone; the box is put back on blur if left that way.
     if(d&&!plausibleDate(d))return;
     var auto=autoWeekRange(currentData);
     var wasAuto=auto[0]===currentData.weekFrom&&auto[1]===currentData.weekTo;
     if(el.classList.contains('f-start'))t.start=d; else t.end=d;
-    refreshWeekAxis(wasAuto);updateUI();
-  }
+    refreshWeekAxis(wasAuto);
+  }else return;
+  dirty=true;
+  updateUI();
 }
 
 // A date box left on an implausible year goes back to the task's own date.
@@ -1585,110 +1470,186 @@ function onTaskBlur(e){
 
 function updateTaskCount(){
   var n=currentData.tasks.filter(function(t){return t.selected!==false}).length;
-  document.getElementById('task-sel-lbl').textContent='('+n+' of '+currentData.tasks.length+' shown)';
-  var head=document.getElementById('task-head-cb');
+  $('task-sel-lbl').textContent=n+' of '+currentData.tasks.length+' shown';
+  var head=$('task-head-cb');
   head.checked=n===currentData.tasks.length;
   head.indeterminate=n>0&&n<currentData.tasks.length;
 }
 
+function setAllTasks(on){
+  currentData.tasks.forEach(function(t){t.selected=on});
+  dirty=true;
+  buildTaskTable();updateUI();
+}
+
+// ---- Redraw ----
+function scheduleUI(){clearTimeout(uiTimer);uiTimer=setTimeout(updateUI,150)}
+function flushUI(){if(uiTimer!==null)updateUI()}
+
 function updateUI(){
+  clearTimeout(uiTimer); uiTimer=null;
   if(!currentData)return;
-  currentData.title=document.getElementById('cfg-title').value||currentData.title;
-  var nd=document.getElementById('cfg-now-date').value;
+  // The title may be cleared (BACKLOG DP-09); the file name falls back to
+  // Delivery_Plan when it is.
+  currentData.title=$('cfg-title').value;
+  var nd=$('cfg-now-date').value;
   currentData.nowDate=nd?fromInput(nd):null;
   try{
     currentLayout=computeLayout(currentData);
     renderPreview(currentLayout,currentData);
     renderHiddenNote(currentLayout.hidden,currentLayout.undated,currentLayout.outside);
     buildLegend();
+    renderSummary(currentLayout);
     var np=currentLayout.pages.length;
-    document.getElementById('slide-count-lbl').textContent=
-      np>1?('\u2014 split across '+np+' slides'):'';
-    document.getElementById('cfg-span').value=
+    $('slide-count-lbl').textContent=np>1?('Split across '+np+' slides'):'One slide';
+    $('cfg-span').textContent=
       fmtFull(currentLayout.spanStart)+' – '+fmtFull(addDays(currentLayout.spanEnd,-1))
-      +'  ('+currentLayout.nW+' week'+(currentLayout.nW===1?'':'s')+')';
+      +' ('+currentLayout.nW+' week'+(currentLayout.nW===1?'':'s')+')';
     clearError();
   }
   catch(e){showError('Layout error: '+e.message)}
 }
 
-// Reflect auto-hidden tasks (selected but outside the chosen weeks):
-// tag their table rows and show a graceful summary above the preview.
+// "Mar to Apr 2026", "Nov 2026 to Feb 2027", "Mar 2026"
+function monthSpan(a,b){
+  var ma=MON_SHORT[a.getMonth()], mb=MON_SHORT[b.getMonth()];
+  if(a.getFullYear()!==b.getFullYear())return ma+' '+a.getFullYear()+' to '+mb+' '+b.getFullYear();
+  if(a.getMonth()!==b.getMonth())return ma+' to '+mb+' '+b.getFullYear();
+  return ma+' '+b.getFullYear();
+}
+
+function plural(n,word){return n+' '+word+(n===1?'':'s')}
+
+// The answer line and the cards, all about what is on the slides now.
+function renderSummary(L){
+  var rows=[];
+  L.pages.forEach(function(pg){pg.rows.forEach(function(r){rows.push(r.task)})});
+  var lanes=RK.dict(), nLanes=0, risk=0, ms=0, done=0, blocked=0, lo=null, hi=null;
+  rows.forEach(function(t){
+    if(t.section&&!RK.has(lanes,t.section)){lanes[t.section]=true;nLanes++}
+    if(t.atRisk)risk++;
+    if(t.milestone)ms++;
+    if(t.status==='Done')done++;
+    if(t.status==='Blocked')blocked++;
+    if(!lo||t.start<lo)lo=t.start;
+    if(!hi||t.end>hi)hi=t.end;
+  });
+  var all=currentData.tasks.length;
+  var shown=currentData.tasks.filter(function(t){return t.selected!==false}).length;
+  var notPlaced=L.hidden.length+L.undated.length+L.outside.length;
+
+  $('summarySub').textContent=(currentData.title||'Untitled plan')+(currentFile?' · '+currentFile:'');
+  if(!rows.length){
+    $('summaryMain').textContent='No tasks fall in the selected weeks';
+  }else{
+    var first=lo<L.spanStart?L.spanStart:lo, lastDay=addDays(L.spanEnd,-1), last=hi>lastDay?lastDay:hi;
+    $('summaryMain').textContent=plural(rows.length,'task')
+      +(nLanes?' across '+plural(nLanes,'workstream'):'')
+      +', '+(risk?risk+' at risk':'none at risk')
+      +', '+monthSpan(first,last);
+  }
+
+  function card(name,value,of,nums,pill){
+    return '<div class="stat-card"><div class="stat-card-name"><span>'+esc(name)+'</span>'+(pill||'')+'</div>'
+      +'<div class="stat-card-figure"><span class="stat-card-value">'+esc(value)+'</span>'
+      +(of?'<span class="stat-card-of">'+esc(of)+'</span>':'')+'</div>'
+      +'<div class="stat-card-nums">'+nums.map(function(n){
+        return '<span>'+esc(n[0])+'<span class="stat-card-num">'+esc(n[1])+'</span></span>';
+      }).join('')+'</div></div>';
+  }
+  var vis=L.vis;
+  $('statGrid').innerHTML=
+    card('On the slides',rows.length,'of '+plural(all,'task'),[['Left out',all-shown],['Not placed',notPlaced]])
+    +card('Workstreams',nLanes,'',[['Milestones',ms],['Slides',L.pages.length]])
+    +card('At risk',risk,'',[['Blocked',blocked],['Done',done]],
+      risk?'<span class="status-pill pill-red">Flagged</span>':'')
+    +card('Weeks shown',L.nW,'of '+currentData.weeks.length+' on the timeline',
+      [['From (w/c)',fmtFull(vis[0])],['To (w/c)',fmtFull(vis[vis.length-1])]]);
+}
+
+// Reflect tasks that are ticked but not on a slide: tag their table rows and
+// list them above the preview.
 function renderHiddenNote(hidden,undated,outside){
   hidden=hidden||[]; undated=undated||[]; outside=outside||[];
-  var hset={},uset={},oset={};
+  // A task that ends before it starts has both dates (BACKLOG DP-05).
+  var backwards=undated.filter(function(t){return t.start&&t.end});
+  var nodates=undated.filter(function(t){return !(t.start&&t.end)});
   var weeks=currentData.weeks, longPlan=weeks.cap==='long';
-  hidden.forEach(function(t){hset[currentData.tasks.indexOf(t)]=true});
-  undated.forEach(function(t){uset[currentData.tasks.indexOf(t)]=true});
-  outside.forEach(function(t){oset[currentData.tasks.indexOf(t)]=true});
+  function idxSet(list){var s=RK.dict();list.forEach(function(t){s[currentData.tasks.indexOf(t)]=true});return s}
+  var hset=idxSet(hidden), nset=idxSet(nodates), bset=idxSet(backwards), oset=idxSet(outside);
   document.querySelectorAll('#task-tbody tr').forEach(function(tr){
-    var i=+tr.getAttribute('data-i');
-    var host=tr.querySelector('.tags');
+    var i=tr.getAttribute('data-i');
+    var host=tr.querySelector('.dp-tags');
     if(!host)return;
-    function tag(cls,txt,on){
+    function tag(cls,pill,txt,on){
       var ex=host.querySelector('.'+cls);
-      if(on&&!ex){var s=document.createElement('span');s.className=cls;s.textContent=txt;host.appendChild(s)}
+      if(on&&!ex){var s=document.createElement('span');s.className='status-pill '+pill+' '+cls;s.textContent=txt;host.appendChild(s)}
       else if(on&&ex.textContent!==txt)ex.textContent=txt;
       else if(!on&&ex)ex.remove();
     }
-    tr.classList.toggle('offplan',!!hset[i]||!!uset[i]||!!oset[i]);
-    tag('tag-offplan','off-plan',!!hset[i]);
-    tag('tag-nodate','no dates',!!uset[i]);
-    tag('tag-outside',longPlan?'past 5 years':'check dates',!!oset[i]);
+    var h=RK.has(hset,i), n=RK.has(nset,i), b=RK.has(bset,i), o=RK.has(oset,i);
+    tr.classList.toggle('dp-offplan',h||n||b||o);
+    tag('tag-offplan','pill-grey','Outside weeks',h);
+    tag('tag-nodate','pill-yellow','No dates',n);
+    tag('tag-backwards','pill-yellow','Ends before start',b);
+    tag('tag-outside','pill-yellow',longPlan?'Past 5 years':'Check dates',o);
   });
-  var note=document.getElementById('hidden-note');
+  var note=$('hidden-note');
   note.innerHTML='';
   function block(items,lead,withDates){
     if(!items.length)return;
-    var wrap=document.createElement('div'); wrap.className='note-block';
-    var ld=document.createElement('div'); ld.className='note-lead'; ld.textContent=lead; wrap.appendChild(ld);
-    var ul=document.createElement('ul'); ul.className='note-list';
+    var wrap=document.createElement('div'); wrap.className='dp-note-block';
+    var ld=document.createElement('div'); ld.className='dp-note-lead'; ld.textContent=lead; wrap.appendChild(ld);
+    var ul=document.createElement('ul'); ul.className='dp-note-list';
     items.forEach(function(t,idx){
       var li=document.createElement('li');
-      li.textContent=t.name+(withDates?' ('+fmtFull(t.start)+' \u2013 '+fmtFull(t.end)+')':'');
-      if(idx>=5)li.className='extra hidden';
+      li.textContent=t.name+(withDates?' ('+fmtFull(t.start)+' – '+fmtFull(t.end)+')':'');
+      if(idx>=5){li.className='dp-extra';li.hidden=true}
       ul.appendChild(li);
     });
     wrap.appendChild(ul);
     if(items.length>5){
       var extra=items.length-5;
-      var btn=document.createElement('button'); btn.className='link-btn'; btn.textContent='See '+extra+' more';
+      var btn=document.createElement('button'); btn.type='button'; btn.className='link-action';
+      btn.textContent='See '+extra+' more'; btn.setAttribute('aria-expanded','false');
       btn.addEventListener('click',function(){
-        var showing=ul.querySelectorAll('li.extra.hidden').length===0;
-        ul.querySelectorAll('li.extra').forEach(function(li){li.classList.toggle('hidden',showing)});
-        btn.textContent=showing?('See '+extra+' more'):'See less';
+        var open=btn.getAttribute('aria-expanded')==='true';
+        ul.querySelectorAll('li.dp-extra').forEach(function(li){li.hidden=open});
+        btn.setAttribute('aria-expanded',open?'false':'true');
+        btn.textContent=open?('See '+extra+' more'):'See less';
       });
       wrap.appendChild(btn);
     }
     note.appendChild(wrap);
   }
-  block(hidden,hidden.length+' task'+(hidden.length>1?'s':'')+' outside the selected weeks \u2014 widen the range to include:');
-  block(undated,undated.length+' task'+(undated.length>1?'s':'')+' with no valid start/end date \u2014 can\u2019t be placed:');
+  block(hidden,plural(hidden.length,'task')+' outside the selected weeks. Widen the range to include:');
+  block(nodates,plural(nodates.length,'task')+' with no valid start or end date, so not placed:');
+  block(backwards,plural(backwards.length,'task')+' ending before '+(backwards.length>1?'they start':'it starts')+', so not placed:',true);
   if(longPlan)
     block(outside,'This plan runs past five years, more than one slide can show, so the timeline stops at w/c '
       +fmtFull(weeks[weeks.length-1])+'. '+outside.length+' task'+(outside.length>1?'s run':' runs')
       +' past that and '+(outside.length>1?'are':'is')+' left off:',true);
   else
-    block(outside,outside.length+' task'+(outside.length>1?'s':'')+' dated far outside the rest of the plan. Check for a mistyped year:',true);
-  note.classList.toggle('hidden', !hidden.length && !undated.length && !outside.length);
+    block(outside,plural(outside.length,'task')+' dated far outside the rest of the plan. Check for a mistyped year:',true);
+  note.hidden=!hidden.length&&!undated.length&&!outside.length;
 }
 
 // Which spreadsheet columns the plan was read from, so a plan drawn from the
 // baseline rather than the forecast, or without its lanes, is noticed.
 function renderColsNote(used){
-  var el=document.getElementById('cols-note');
+  var el=$('cols-note');
   el.innerHTML='';
-  if(!used){el.classList.add('hidden');return}
-  var parts=[['Dates from',used.dates.join(' / ')],['Lanes',used.section],
+  if(!used){el.hidden=true;return}
+  var parts=[['Read from',currentFile],['Dates from',used.dates.join(' / ')],['Lanes',used.section],
     ['Milestones',used.milestone],['At risk',used.risk],['Status',used.status]];
   if(used.other.length)parts.push(['Not used',used.other.join(', ')]);
   parts.forEach(function(p){
     if(!p[1])return;
-    if(el.childNodes.length)el.appendChild(document.createTextNode(' \u00b7 '));
+    if(el.childNodes.length)el.appendChild(document.createTextNode(' · '));
     var b=document.createElement('b');b.textContent=p[0]+': ';
     el.appendChild(b);el.appendChild(document.createTextNode(p[1]));
   });
-  el.classList.remove('hidden');
+  el.hidden=false;
 }
 
 function defaultNowDate(data){
@@ -1699,49 +1660,74 @@ function defaultNowDate(data){
   return data.sheetNow||today;
 }
 
-function handleFile(file){
+// ---- Loading: read and check the file, then replace the plan ----
+function loadFile(buf,name){
+  var data;
+  try{
+    data=parseExcel(new Uint8Array(buf));
+    data.nowDate=defaultNowDate(data);
+  }catch(err){showError(err.message);return}
+  if(currentData&&dirty){
+    RK.confirm('Load “'+name+'” in place of the plan open now? Edits made on this page are not in the spreadsheet, so they will be lost.',
+      function(){commit(data,name)},
+      {title:'Replace this plan?',okLabel:'Replace plan',danger:true,
+        onCancel:function(){RK.toast('Kept the plan you were editing')}});
+    return;
+  }
+  commit(data,name);
+}
+
+function commit(data,name){
+  var replacing=!!currentData;
   clearError();
-  // Clear the picker once the file is read (or fails to be), so choosing the
-  // same file again — say after fixing it — still fires a change.
-  function resetInput(){document.getElementById('file-input').value=''}
-  var reader=new FileReader();
-  reader.onerror=function(){
-    resetInput();
-    showError('Couldn\u2019t read '+(file&&file.name?'\u201c'+file.name+'\u201d':'that file')
-      +'. Check it isn\u2019t open elsewhere or moved, then try again.');
-  };
-  reader.onload=function(e){
-    resetInput();
-    try{
-      currentData=parseExcel(new Uint8Array(e.target.result));
-      currentData.nowDate=defaultNowDate(currentData);
-
-      document.getElementById('cfg-title').value=currentData.title;
-      document.getElementById('cfg-now-date').value=currentData.nowDate?toInput(currentData.nowDate):'';
-
-      renderColsNote(currentData.columns);
-      setColorSeg(currentData.colorMode);
-      populateWeekSelects();
-      buildTaskTable();
-      buildLegend();
-
-      document.getElementById('upload-section').classList.add('hidden');
-      document.getElementById('result-section').classList.remove('hidden');
-      updateUI();
-    }catch(err){showError(err.message)}
-  };
-  reader.readAsArrayBuffer(file);
+  currentData=data; currentFile=name||''; dirty=false;
+  $('cfg-title').value=data.title;
+  $('cfg-now-date').value=data.nowDate?toInput(data.nowDate):'';
+  renderColsNote(data.columns);
+  setColorSeg(data.colorMode);
+  populateWeekSelects();
+  buildTaskTable();
+  $('start-view').hidden=true;
+  $('loadedView').hidden=false;
+  $('slideEmpty').hidden=true;
+  $('slideRows').hidden=false;
+  $('btn-download').disabled=false;
+  showView('main');
+  updateUI();
+  if(replacing)RK.toast('Loaded '+currentFile);
 }
 
 function setColorSeg(mode){
-  document.querySelectorAll('#color-seg button').forEach(function(b){
-    b.classList.toggle('active',b.getAttribute('data-mode')===mode);
+  document.querySelectorAll('#color-seg [data-mode]').forEach(function(b){
+    var on=b.getAttribute('data-mode')===mode;
+    b.classList.toggle('active',on);
+    b.setAttribute('aria-pressed',on?'true':'false');
   });
 }
 
-function setAllTasks(on){
-  currentData.tasks.forEach(function(t){t.selected=on});
-  buildTaskTable();updateUI();
+// ---- Copy image: clipboard first; a file:// page with the clipboard blocked
+// still gets the image, as a download. ----
+function copyPlanImage(){
+  if(!currentData)return;
+  flushUI();
+  if(!currentLayout||!currentLayout.nT){RK.toast('Nothing to copy: no tasks in the selected weeks');return}
+  // One continuous canvas, however long the plan: an image has no slide to
+  // run off, so the paginated layout would only add repeated headers.
+  var canvas;
+  try{canvas=planCanvas(computeLayout(currentData,{singlePage:true}),currentData)}
+  catch(e){RK.toast('Could not draw the image');return}
+  canvas.toBlob(function(blob){
+    if(!blob){RK.toast('Could not create the image');return}
+    function fallback(){
+      RK.download((currentData.title.replace(/[^a-zA-Z0-9\s]/g,'').replace(/\s+/g,'_')
+        .replace(/^_+|_+$/g,'')||'Delivery_Plan')+'.png',blob,'image/png');
+      RK.toast('Clipboard blocked here, image downloaded instead');
+    }
+    if(!navigator.clipboard||!window.ClipboardItem){fallback();return}
+    navigator.clipboard.write([new ClipboardItem({'image/png':blob})])
+      .then(function(){RK.toast('Plan copied as an image')})
+      .catch(fallback);
+  },'image/png');
 }
 
 // ---- Blank template download ----
@@ -1750,68 +1736,86 @@ function downloadTemplate(){
     var bin=atob(TEMPLATE_B64);
     var bytes=new Uint8Array(bin.length);
     for(var i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);
-    var blob=new Blob([bytes],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
-    var url=URL.createObjectURL(blob);
-    var a=document.createElement('a');
-    a.href=url;a.download='Delivery_Plan_Template.xlsx';
-    document.body.appendChild(a);a.click();a.remove();
-    setTimeout(function(){URL.revokeObjectURL(url)},1500);
+    RK.download('Delivery_Plan_Template.xlsx',bytes,'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
   }catch(e){showError('Template download failed: '+e.message)}
 }
 
+// ---- Views ----
+function showView(v){
+  $('mainView').hidden=v!=='main';
+  $('settingsView').hidden=v!=='settings';
+  document.querySelectorAll('.app-nav-item').forEach(function(b){
+    var on=b.getAttribute('data-view')===v;
+    b.classList.toggle('active',on);
+    b.setAttribute('aria-pressed',on?'true':'false');
+  });
+  if(v==='main')scalePreview();     // a hidden preview has no width to scale to
+}
+
+function showPanel(id){
+  document.querySelectorAll('#settingsView .settings-nav-item').forEach(function(b){
+    var on=b.getAttribute('data-panel')===id;
+    b.classList.toggle('active',on);
+    b.setAttribute('aria-pressed',on?'true':'false');
+    $(b.getAttribute('data-panel')).hidden=!on;
+  });
+}
+
 function init(){
-  var dz=document.getElementById('drop-zone');
-  var fi=document.getElementById('file-input');
-  dz.addEventListener('click',function(){fi.click()});
-  dz.addEventListener('dragover',function(e){e.preventDefault();dz.classList.add('dragover')});
-  dz.addEventListener('dragleave',function(){dz.classList.remove('dragover')});
-  dz.addEventListener('drop',function(e){
-    e.preventDefault();dz.classList.remove('dragover');
-    if(e.dataTransfer.files.length)handleFile(e.dataTransfer.files[0]);
+  $('appVersion').textContent='v'+APP_VERSION;
+
+  RK.upload({drop:$('drop-zone'),fileInput:$('file-input'),replaceBtn:$('btn-load'),
+    onFile:loadFile,
+    onError:function(){showError('Could not read that file. Check it is not open elsewhere or moved, then try again.')}});
+  $('btn-load2').addEventListener('click',function(){$('file-input').click()});
+  $('btn-template').addEventListener('click',downloadTemplate);
+  $('btn-template2').addEventListener('click',downloadTemplate);
+
+  document.querySelectorAll('.app-nav-item').forEach(function(b){
+    b.addEventListener('click',function(){showView(b.getAttribute('data-view'))});
   });
-  fi.addEventListener('change',function(){if(fi.files.length)handleFile(fi.files[0])});
-
-  document.getElementById('btn-template').addEventListener('click',function(e){e.stopPropagation();downloadTemplate()});
-
-  ['cfg-title','cfg-now-date'].forEach(function(id){
-    document.getElementById(id).addEventListener('change',updateUI);
-    document.getElementById(id).addEventListener('input',updateUI);
+  document.querySelectorAll('#settingsView .settings-nav-item').forEach(function(b){
+    b.addEventListener('click',function(){showPanel(b.getAttribute('data-panel'))});
   });
 
-  document.getElementById('wk-from').addEventListener('change',applyWeekRange);
-  document.getElementById('wk-to').addEventListener('change',applyWeekRange);
-  document.getElementById('wk-reset').addEventListener('click',resetWeekRange);
+  $('cfg-title').addEventListener('input',function(){dirty=true;scheduleUI()});
+  $('cfg-title').addEventListener('change',updateUI);
+  ['input','change'].forEach(function(ev){
+    $('cfg-now-date').addEventListener(ev,function(){dirty=true;updateUI()});
+  });
 
-  document.getElementById('btn-copy-img').addEventListener('click',copyPlanImage);
+  $('wk-from').addEventListener('change',applyWeekRange);
+  $('wk-to').addEventListener('change',applyWeekRange);
+  $('wk-reset').addEventListener('click',resetWeekRange);
 
-  var tbody=document.getElementById('task-tbody');
+  $('btn-copy-img').addEventListener('click',copyPlanImage);
+
+  var tbody=$('task-tbody');
   tbody.addEventListener('input',onTaskEdit);
   tbody.addEventListener('change',onTaskEdit);
   tbody.addEventListener('focusout',onTaskBlur);
 
-  document.getElementById('task-all').addEventListener('click',function(){setAllTasks(true)});
-  document.getElementById('task-none').addEventListener('click',function(){setAllTasks(false)});
-  document.getElementById('task-head-cb').addEventListener('change',function(e){setAllTasks(e.target.checked)});
+  $('task-all').addEventListener('click',function(){setAllTasks(true)});
+  $('task-none').addEventListener('click',function(){setAllTasks(false)});
+  $('task-head-cb').addEventListener('change',function(e){setAllTasks(e.target.checked)});
 
-  document.querySelectorAll('#color-seg button').forEach(function(b){
+  document.querySelectorAll('#color-seg [data-mode]').forEach(function(b){
     b.addEventListener('click',function(){
+      if(!currentData)return;
       currentData.colorMode=b.getAttribute('data-mode');
       setColorSeg(currentData.colorMode);
-      buildLegend();updateUI();
+      dirty=true;
+      updateUI();
     });
   });
 
-  document.getElementById('btn-download').addEventListener('click',function(){
-    if(currentLayout&&currentData){
-      if(!currentLayout.nT){showError('No tasks fall within the selected weeks. Adjust the week range or task selection to include at least one task.');return}
-      generatePPTX(currentLayout,currentData);
-    }
-  });
-  document.getElementById('btn-reset').addEventListener('click',function(){
-    currentData=null;currentLayout=null;
-    document.getElementById('result-section').classList.add('hidden');
-    document.getElementById('upload-section').classList.remove('hidden');
-    fi.value='';clearError();
+  $('btn-download').addEventListener('click',function(){
+    if(!currentData)return;
+    flushUI();
+    if(!currentLayout)return;
+    if(!currentLayout.nT){showError('No tasks fall within the selected weeks. Adjust the week range or task selection to include at least one task.');return}
+    generatePPTX(currentLayout,currentData);
+    RK.toast('PowerPoint on its way: '+plural(currentLayout.pages.length,'slide'));
   });
   window.addEventListener('resize',scalePreview);
 }

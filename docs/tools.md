@@ -10,9 +10,24 @@ PowerPoint Gantt chart. Bars are coloured by status or a single colour,
 grouped into category swimlanes, with a proportional "Today" marker and
 PowerPoint-safe margins.
 
+**Layout (v2.0.0, Report Kit 2).** The **Plan** view opens on a drop zone
+(click it, or Tab to it and press Enter or Space) with **Download blank
+template** beneath it. Once a plan is loaded it leads with a one-line answer
+about what is on the slides ("18 tasks across 4 workstreams, 3 at risk, Jan to
+Jun 2027", with the title and file name above it) and the **Weeks** picker
+beside it, then four cards: tasks on the slides (with how many are left out or
+not placed), workstreams (milestones, slides), at risk (a red pill when any
+are flagged; blocked, done) and weeks shown. Below them sit the **Tasks**
+table and the **Slide preview** with its key and **Copy image**. The header
+holds **Load plan** and **Download PPTX**. **Settings** has a **Slide** tab
+(title, Today line, bar colour, the timeline shown) and a **Spreadsheet** tab
+(the blank template, load another plan); the version shows there. Loading a
+plan over one you have edited here asks first, in the page; a file that cannot
+be read is refused with a reason and the plan open now stays.
+
 The plan is keyed on **real dates**: each task gets a Start Date and an End
 Date, and the slide's timeline is months across the top with week-commencing
-(w/c) dates beneath — so a task that starts mid-week starts mid-column rather
+(w/c) dates beneath, so a task that starts mid-week starts mid-column rather
 than being rounded to a sprint boundary. Weeks always commence **Monday**: set
 the plan's Start to a Wednesday and the timeline still runs Monday to Monday,
 opening from the Monday of that week. Plans written against the older
@@ -27,25 +42,30 @@ taken for them. With several sets of dates, the plain one is plotted first,
 then forecast or planned, then target, then baseline or actual, always as a
 matching pair. Lanes come from a Category, Section or Workstream column,
 and flags from columns such as `Milestone`, `Key Milestone`, `At Risk` or
-`Risk Flag`. A line under the title says which columns were used; if no
-Start or End column is found, the error lists the headers it did find.
+`Risk Flag`. A line above the Tasks table names the file and the columns
+used; if no Start or End column is found, the error lists the headers it did
+find.
 
-Every field in the Tasks table is **editable in the page** — name, category,
-status, start and end dates, and the milestone and at-risk flags — so a late
-change goes straight in without editing the spreadsheet and re-uploading.
-Moving a date past the end of the timeline extends it rather than dropping the
-task. A date with a mistyped year (2016 for 2026) doesn't drag the timeline
-with it: the task is listed under the preview with its dates so the typo can
-be found and fixed. A plan that genuinely runs past five years shows its
-first five and lists the tasks after that. A week range you pick yourself is
-kept when a date edit shortens the timeline: only the end that fell off is
-pulled in.
+Every field in the Tasks table is **editable in the page** (name, workstream,
+status, start and end dates, and the milestone and at-risk flags), so a late
+change goes straight in without editing the spreadsheet and re-uploading. The
+fields read as plain text until you hover or tab into them, and the table
+keeps the spreadsheet's order, which is the order on the slide. The tick box
+on each row leaves a task off the slides. Rows that are ticked but not placed
+carry a pill saying why: outside the chosen weeks, no dates, ends before it
+starts, or a date to check. Moving a date past the end of the timeline extends
+it rather than dropping the task. A date with a mistyped year (2016 for 2026)
+doesn't drag the timeline with it: the task is listed under the preview with
+its dates so the typo can be found and fixed. A plan that genuinely runs past
+five years shows its first five and lists the tasks after that. A week range
+you pick yourself is kept when a date edit shortens the timeline: only the end
+that fell off is pulled in.
 
-Tick **At Risk** (or set the column in the spreadsheet — `TRUE`, `Yes`, `Y`,
+Tick **At Risk** (or set the column in the spreadsheet: `TRUE`, `Yes`, `Y`,
 `1` or `x`, or a Status of `At Risk`) and the block keeps its status colour and
 gains a bold orange outline, so the flag reads as a warning on top of the state
-rather than replacing it. The key gains an **At Risk** entry only when
-something is actually flagged.
+rather than replacing it; in the table the row shows a red **At risk** pill.
+The key gains an **At Risk** entry only when something is actually flagged.
 
 A plan taller than one slide is **split across several**, breaking on swimlane
 boundaries where it can and repeating the band label where a lane has to run
@@ -54,10 +74,13 @@ marker, so it stands on its own if it gets lifted out of the deck. The preview
 shows each slide in turn and grows with the plan rather than clipping it.
 
 **Copy image** on the slide preview puts the plan and its key on the clipboard
-as a PNG — without the title, so it drops under whatever heading the slide or
+as a PNG, without the title, so it drops under whatever heading the slide or
 email already has, and on one continuous canvas however long the plan is (an
 image has no page to run off). Where the browser blocks clipboard writes (some
 `file://` setups), the image downloads instead.
+
+Nothing is saved in the browser: edits live in the page until you download
+the PowerPoint, so keep the spreadsheet as the source.
 
 ## `waqti-exceptions.html`
 
