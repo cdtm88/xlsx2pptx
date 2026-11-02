@@ -385,13 +385,142 @@ const FLOWS = {
     t("undo takes the delay back", (await page.$eval("#duration", (d) => d.value)) === "12" && !/later than/.test(await page.textContent("#headerSub")));
   },
   "pi-planning-capacity.html": async (page, t) => {
-    // "Load demo" lives in Settings and the export in a collapsible card: press them directly
-    await page.$eval("#demoBtn", (b) => b.click());
-    await page.waitForTimeout(300);
-    const dl = page.waitForEvent("download", { timeout: 5000 });
-    await page.$eval("#exportPeopleCsv", (b) => b.click());
-    const csv = fs.readFileSync(await (await dl).path(), "utf8");
-    t("loads the demo and exports the people CSV", csv.split("\n").length > 3);
+    const native = [];
+    page.on("dialog", (d) => native.push(d.type()));
+    const main = () => page.textContent("#summaryMain");
+    const ok = () => page.click(".modal-overlay:not([hidden]) [data-rk-ok]");
+    const settings = async (panel) => { await page.click('.app-nav-item[data-view="settings"]'); await page.click(`.settings-nav-item[data-panel="${panel}"]`); };
+    const back = () => page.click('.app-nav-item[data-view="main"]');
+    const tab = (name) => page.click(`#mainTabs [data-tab="${name}"]`);
+    const download = async (sel) => {
+      const dl = page.waitForEvent("download", { timeout: 5000 });
+      await page.click(sel);
+      const d = await dl;
+      return { name: d.suggestedFilename(), text: fs.readFileSync(await d.path(), "utf8") };
+    };
+    // a known plan in a file shared with a cost tracker project (the "other" key is the tracker's half);
+    // its figures were checked against v1.1.1, the last kit 1 version
+    const plan = { other: { keep: 1 }, piCapacity: { schemaVersion: 1, settings: { fy: "FY2627", quarter: 2, pointsPerDay: 2, hoursPerDay: 8 },
+      teams: [
+        { id: "t-a", name: "Alpha", focusFactor: 80, members: [
+          { id: "m-ann", name: "Ann Dev", roleId: "dev", locId: "uk", allocation: 100 },
+          { id: "m-raj", name: "Raj QA", roleId: "qa", locId: "in", allocation: 50 },
+          { id: "m-pat", name: "Pat PO", roleId: "po", locId: "uk", allocation: 100 }] },
+        { id: "t-b", name: "Beta", focusFactor: 100, members: [
+          { id: "m-lee", name: "Lee Dev", roleId: "dev", locId: "uae", allocation: 100, to: "2026-09-04" }] }],
+      leave: [
+        { id: "v1", memberId: "m-ann", from: "2026-07-13", to: "2026-07-17", type: "Annual leave" },
+        { id: "v2", memberId: "m-lee", from: "2026-08-24", to: "2026-08-26", halfDay: true, type: "Other" }] } };
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-cap-"));
+    const planFile = path.join(dir, "plan.json");
+    fs.writeFileSync(planFile, JSON.stringify(plan));
+
+    t("opens on the set-up prompt", await page.isVisible("#startView") && /^No teams yet for FY2627 Q\d$/.test(await main()), await main());
+    await page.setInputFiles("#jsonInput", planFile); await page.waitForTimeout(200);
+    t("the answer line totals the plan", (await main()) === "Team capacity for FY2627 Q2: 118.8 person-days across 2 teams", await main());
+    const cards = (await page.innerText("#statGrid")).replace(/\s+/g, " ");
+    t("the cards carry capacity, points, hours, leave, holidays and people",
+      /Capacity 118\.8 person-days Points 237\.6 Hours 950/.test(cards) && /Lost to leave 6\.0/.test(cards) && /2 to confirm 3\.0/.test(cards) && /People counted 3 of 4 on the teams/.test(cards), cards);
+    const rows = await page.$$eval("#matrixTable tr", (r) => r.map((x) => [...x.cells].map((c) => c.querySelector(".amt-value") ? c.querySelector(".amt-value").textContent : c.textContent.trim())));
+    t("capacity per team per sprint", JSON.stringify(rows.slice(1)) === JSON.stringify([
+      ["Alpha2 of 3 counted · focus 80%", "10.4", "9.6", "12.0", "12.0", "11.2", "11.6", "6.0", "72.8"],
+      ["Beta1 of 1 counted · focus 100%", "10.0", "10.0", "10.0", "8.5", "7.5", "0.0", "0.0", "46.0"],
+      ["All teams", "20.4", "19.6", "22.0", "20.5", "18.7", "11.6", "6.0", "118.8"]]), JSON.stringify(rows.slice(1)));
+    t("estimated holiday dates are called out", /2 public holiday dates in this PI are a seeded estimate/.test(await page.textContent("#alerts")));
+
+    // a team and a member added through the dialogs
+    await settings("panel-teams");
+    t("Settings shows the version", /^v2\.\d+\.\d+$/.test(await page.textContent(".app-version")));
+    await page.click("#addTeam");
+    await page.fill("#t_name", "Gamma"); await page.fill("#t_focus", "80"); await page.click("#t_ok");
+    await page.click('[data-add-m]:not([data-add-m="t-a"]):not([data-add-m="t-b"])');
+    t("the member dialog opens on the new team", await page.isVisible("#memberOverlay") && (await page.$eval("#m_team", (s) => s.selectedOptions[0].textContent)) === "Gamma");
+    await page.fill("#m_name", "Sam Smoke"); await page.selectOption("#m_role", "qa"); await page.selectOption("#m_loc", "uk");
+    await page.fill("#m_alloc", "50"); await page.click("#m_ok");
+    t("the member is listed under the team", /Sam Smoke/.test(await page.textContent("#teamsWrap")) && await page.isHidden("#memberOverlay"));
+    await back();
+    t("a new team and member add their capacity", (await main()) === "Team capacity for FY2627 Q2: 144.4 person-days across 3 teams", await main());
+
+    // leave added through the dialog takes capacity off (5 days x 50% x 80%)
+    await tab("leave");
+    await page.click("#addLeave");
+    await page.selectOption("#l_member", { label: "Sam Smoke, Gamma" });
+    await page.fill("#l_from", "2026-07-06"); await page.fill("#l_to", "2026-07-10");
+    t("the leave dialog previews the working days", (await page.textContent("#l_impact")) === "Takes 5.0 working days off FY2627 Q2.", await page.textContent("#l_impact"));
+    await page.click("#l_ok");
+    t("leave takes capacity off", (await main()) === "Team capacity for FY2627 Q2: 142.4 person-days across 3 teams", await main());
+    t("and is listed on the Leave tab", /Sam Smoke[\s\S]*6 Jul 2026[\s\S]*5\.0/.test(await page.textContent("#leaveBody")));
+
+    // by person: sorting and the drawer
+    await tab("people");
+    await page.click('#peopleTable th[data-sort="cap"]');
+    const caps = await page.$$eval("#peopleBody tr td:last-child .amt-value", (c) => c.map((x) => Number(x.textContent)));
+    t("the person table sorts from its header", (await page.getAttribute('#peopleTable th[data-sort="cap"]', "aria-sort")) === "ascending" &&
+      caps.length === 5 && caps.every((v, i) => !i || caps[i - 1] <= v), caps.join());
+    await page.focus('#peopleBody tr[data-person="m-ann"]'); await page.keyboard.press("Enter");
+    t("a person opens a drawer from the keyboard, with where their days went", await page.isVisible("#drawerOverlay") && (await page.textContent("#d_title")) === "Ann Dev" &&
+      /Q2\.2\s*10\s*0\s*0\s*3\.0\s*7\.0\s*5\.6/.test(await page.textContent("#d_body")), await page.textContent("#d_body"));
+    await page.keyboard.press("Escape");
+    t("Escape closes it", await page.isHidden("#drawerOverlay"));
+    const csv = await download("#exportPeopleCsv");
+    t("exports the person table as CSV", csv.name === "pi-per-person-FY2627Q2.csv" && csv.text.charCodeAt(0) === 0xFEFF && csv.text.split("\n").length === 7 &&
+      /\nCounted toward capacity,,,,,,[^\n]*,142\.4,284\.8/.test(csv.text), csv.text.slice(0, 300));
+    await page.evaluate(() => { window.__c = null; navigator.clipboard.write = async (items) => { window.__c = await (await items[0].getType("text/plain")).text(); }; });
+    await tab("teams"); await page.click("#copyMatrix"); await page.waitForTimeout(100);
+    t("copies the team table", /\nGamma\t2\.0\t4\.0\t4\.0\t4\.0\t3\.6\t4\.0\t2\.0\t23\.6\nAll teams\t[^\n]*\t142\.4$/.test(await page.evaluate(() => window.__c || "")), await page.evaluate(() => window.__c));
+
+    // save and load: the file holds both halves, and reads back to the same figures
+    const saved = await download("#topSave");
+    const doc = JSON.parse(saved.text);
+    t("Save JSON keeps the other tool's half and the schema", saved.name === "pi-capacity-FY2627Q2.json" && doc.other.keep === 1 && doc.piCapacity.schemaVersion === 1 &&
+      doc.piCapacity.teams.length === 3 && doc.piCapacity.leave.length === 3, saved.text.slice(0, 200));
+    await page.evaluate(() => localStorage.clear()); await page.reload(); await page.waitForTimeout(200);
+    t("a cleared browser opens empty", await page.isVisible("#startView"));
+    const savedFile = path.join(dir, saved.name); fs.writeFileSync(savedFile, saved.text);
+    await page.setInputFiles("#jsonInput", savedFile); await page.waitForTimeout(200);
+    t("the saved file loads back to the same figures", (await main()) === "Team capacity for FY2627 Q2: 142.4 person-days across 3 teams", await main());
+
+    // deleting asks in the page; Cancel keeps it
+    await tab("leave");
+    await page.click('#leaveBody tr:has-text("Sam Smoke") [data-del-leave]');
+    t("delete asks first, in the page", await page.isVisible(".modal-overlay:not([hidden]) [data-rk-ok]"));
+    await page.click(".modal-overlay:not([hidden]) [data-rk-cancel]");
+    t("Cancel keeps the leave", (await main()) === "Team capacity for FY2627 Q2: 142.4 person-days across 3 teams");
+    await page.click('#leaveBody tr:has-text("Sam Smoke") [data-del-leave]'); await ok();
+    t("and OK deletes it", (await main()) === "Team capacity for FY2627 Q2: 144.4 person-days across 3 teams", await main());
+    // loading over a plan asks before replacing it
+    await page.setInputFiles("#jsonInput", planFile); await page.waitForTimeout(200);
+    t("loading over a plan asks first", await page.isVisible(".modal-overlay:not([hidden]) [data-rk-ok]"));
+    await ok(); await page.waitForTimeout(100);
+    t("and replaces it", (await main()) === "Team capacity for FY2627 Q2: 118.8 person-days across 2 teams", await main());
+    t("every dialog field has a label", await page.$$eval(".modal input, .modal select", (els) => els.every((e) => e.labels.length || e.getAttribute("aria-label"))));
+
+    // phone width: no sideways page scroll; wide grids scroll inside their table
+    await page.setViewportSize({ width: 390, height: 844 });
+    let widest = 0;
+    for (const v of ["teams", "people", "leave"]) { await back(); await tab(v); widest = Math.max(widest, await page.evaluate(() => document.documentElement.scrollWidth)); }
+    for (const p of ["panel-teams", "panel-holidays", "panel-roles", "panel-cadence", "panel-data"]) { await settings(p); widest = Math.max(widest, await page.evaluate(() => document.documentElement.scrollWidth)); }
+    t("no sideways scroll at 390px", widest <= 390, String(widest));
+    await page.setViewportSize({ width: 1280, height: 800 });
+
+    // the demo asks first when it would replace a plan
+    await settings("panel-data");
+    await page.click("#demoBtn");
+    t("loading the demo asks first, in the page", await page.isVisible(".modal-overlay:not([hidden]) [data-rk-ok]"));
+    await ok();
+    t("the demo opens on its answer", /^Team capacity for FY2627 Q1: [\d.]+ person-days across 3 teams$/.test(await main()) && await page.isVisible("#mainView"), await main());
+
+    // a plan saved in the browser by v1.1.1 (same key and shape), and a flat file from before the envelope
+    await page.evaluate((s) => { localStorage.clear(); localStorage.setItem("pi-capacity:state:v1", s); },
+      JSON.stringify({ other: { keep: 1 }, piCapacity: Object.assign({ appVersion: "1.1.1", generatedAt: "2026-10-01T09:00:00.000Z" }, plan.piCapacity) }));
+    await page.reload(); await page.waitForTimeout(200);
+    t("a plan saved by v1.1.1 loads", (await main()) === "Team capacity for FY2627 Q2: 118.8 person-days across 2 teams" && /Saved in this browser/.test(await page.textContent("#saveState")), await main());
+    const flat = path.join(dir, "flat.json");
+    fs.writeFileSync(flat, JSON.stringify({ settings: { fy: "FY2627", quarter: 1 }, teams: [{ id: "t1", name: "Legacy", focusFactor: "80",
+      members: [{ id: "a", name: "Old Dev", roleId: "dev", locId: "uk", allocation: "100" }] }], leave: [{ id: "x", memberId: "a", from: "2026-04-03", to: "2026-04-10" }] }));
+    await page.setInputFiles("#jsonInput", flat); await page.waitForTimeout(200); await ok(); await page.waitForTimeout(100);
+    t("a file from before the envelope loads", (await main()) === "Team capacity for FY2627 Q1: 45.6 person-days across 1 team", await main());
+    t("no native alert, confirm or prompt", native.length === 0, native.join(","));
   },
   "uat-signoff-tracker.html": async (page, t, ctx) => {
     const lines = [];

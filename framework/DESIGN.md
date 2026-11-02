@@ -11,8 +11,8 @@ wins and this document gets fixed.
 - **Starting point:** [`starter.src.html`](starter.src.html), a small working
   page that uses every main part. Copy it to `reports/<name>.src.html`.
 
-`report-kit.css` (v1) is frozen. It stays only so the tools already built on it
-keep their look. Do not include both stylesheets in one page: kit 2 styles bare
+`report-kit.css` (v1) is frozen, and no tool includes it any more (the last one,
+PI capacity, moved in its v2.0.0). Do not include both stylesheets in one page: kit 2 styles bare
 `button`, `input`, `select` and `table` elements.
 
 ## Principles
@@ -89,8 +89,11 @@ Type scale (px): 22 page headline, 20 settings title, 18 dialog/drawer title,
 | `.status-pill` + `.pill-green` / `-yellow` / `-red` / `-teal` / `-grey` | state labels |
 | `.toolbar`, `.toolbar-spacer`, `.seg-tabs`, `.seg-tab` (+ `.active`), `.seg-tab-count`, `.filter-chip` (+ `.warn`, `.active`), `.filter-chip-x`, `.toolbar-select`, `.list-meta` | list controls: tabs with counts, removable filter chips, a count on the right |
 | `.table-container`, `table` (+ `.fixed`), `th[data-sort]`, `.sort-arrow`, `tr.clickable`, `td.wrap-cell`, `.cell-title`, `.cell-sub`, `td.amt`, `.amt-wrap`, `.amt-value`, `.amt-native`, `td.row-actions`, `.row-action-btn`, `.row-done-label`, `.empty-state` | data table with a sticky dark header. Never put `display:flex` on a `td`; wrap the content in a `div` |
+| `table.dense`, `th.sticky-col` / `td.sticky-col`, `tfoot tr.total-row` | a grid of figures (a sprint or month matrix): tighter cells and mono `td.num`; a first column that stays put while the table scrolls sideways; a shaded totals row pinned to the foot of its scroller. All three print flat (PI capacity) |
 | `.steps`, `.steps-top`, `.steps-label`, `.steps-count`, `.step-segs`, `.step-seg` | position in a fixed workflow (`RK.stepSegs`) |
 | `.step-track`, `-seg`, `-bar`, `-label` (+ `.done`, `.target`) | larger labelled workflow track for a "move to next step" dialog |
+| `.panel`, `.panel-head`, `.panel-title` (`h2`/`h3` + `.hint`), `.panel-actions` | a titled white section of a page, e.g. one team and its members, with its buttons on the right (PI capacity) |
+| `.save-state`, `.save-dot` (+ `.live`, `.warn`) | a dot and a few words in the header saying where edits are kept ("Saved in this browser"); give it `role="status"` |
 | `.settings-header`, `.settings-nav`, `.settings-nav-item`, `-label`, `-count`, `.settings-content` (+ `.wide`), `.settings-panel-head` | settings view |
 | `.setting-row`, `-label`, `.label-text`, `.label-hint`, `-control`, `.unit-suffix` | label left, control right |
 | `.settings-table`, `.settings-table-row` (+ `.header`), `.col-num`, `.col-actions`, `[data-label]` | light grid list; stacks on phones using `data-label` |
@@ -117,12 +120,12 @@ Type scale (px): 22 page headline, 20 settings title, 18 dialog/drawer title,
 | `.table-container.rk-name-editor` | home for `RK.NameEditor`: mono Staff IDs, the export name beneath, rows still missing a name in the watch colour; hidden while empty |
 | `footer`, `.signoff`, `.strapline`, `.app-version` | footer: the shared sign-off line (`framework/signoff.html`, principle 9), the offline strapline, and the version in mono |
 
-## Runtime (`window.RK`, kit 1.5.0)
+## Runtime (`window.RK`, kit 1.6.0)
 
 | Helper | Does |
 |---|---|
 | `RK.modal(overlay, { onClose })` | wires a `.modal-overlay`: role/aria, focus moved in on `open()`, Escape, Tab trap, focus returned on close, backdrop click closes only if nothing was typed. Returns `{ open(opener?), close(), markClean(), isOpen() }` |
-| `RK.confirm(message, onConfirm, { okLabel, title, danger })` | in-page confirm dialog; builds its own markup |
+| `RK.confirm(message, onConfirm, { okLabel, title, danger, onCancel })` | in-page confirm dialog; builds its own markup. `onCancel` (1.6.0) runs when it closes any other way: Cancel, Escape or the backdrop |
 | `RK.chipsFromSelect(select, row, labelFor?)` | chip buttons for a hidden select; returns `refresh()` |
 | `RK.sortable(table, state, onSort)` | `th[data-sort]` click / Enter / Space flips `state.key` / `state.dir`, keeps `aria-sort` and arrows; returns `update()` |
 | `RK.stepSegs(total, index)` | `.step-seg` HTML for `.step-segs` |

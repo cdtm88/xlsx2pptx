@@ -285,16 +285,17 @@ objective. Pick the financial year and quarter, list the teams and **everyone**
 on them, add the planned leave, and read the capacity per sprint.
 
 The cadence is fixed: a PI is one quarter of **seven sprints**, Wednesday to
-Tuesday — sprints 1&ndash;6 are two weeks (10 working days) and sprint 7 is one
-week (5). That makes a quarter exactly 13 weeks and a financial year 52, so
-sprint dates never drift. Sprints are named `Q2.4`, `Q2.7`, `Q3.1`; PIs are
-`FY2627Q1`. One **anchor** date &mdash; the Wednesday `Q1.1` opens, shipped as
-Wed 1 April 2026 &mdash; derives every sprint of every future year, and the tool
-says so if you set an anchor that is not a Wednesday.
+Tuesday. Sprints 1 to 6 are two weeks (10 working days) and sprint 7 is one week
+(5). That makes a quarter exactly 13 weeks and a financial year 52, so sprint
+dates never drift. Sprints are named `Q2.4`, `Q2.7`, `Q3.1`; PIs are
+`FY2627Q1`. One **anchor** date (the Wednesday `Q1.1` opens, shipped as
+Wed 1 April 2026) derives every sprint of every future year, and the tool says
+so if you set an anchor that is not a Wednesday, and by how many days every
+sprint moves.
 
 Capacity is **working days &minus; public holidays &minus; planned leave,
 &times; allocation, &times; the team's focus factor**, and it is reported in
-days, in hours, and &mdash; if you give it a points-per-day rate &mdash; in story
+person-days, in hours, and (if you give it a points-per-day rate) in story
 points. Leave is entered as real date ranges, with half days, so one entry counts
 against whichever sprints it actually falls in and follows you when you switch
 quarter. Nothing is deducted twice: a leave range spanning a bank holiday loses
@@ -302,51 +303,86 @@ the other days, not the holiday as well, and weekends never count.
 
 **The whole team is visible; only some of it is counted.** Product owners, scrum
 masters, BAs and designers are listed alongside the developers and QA, with their
-own leave and their own numbers, but only the roles ticked in **Roles** are summed
-into what a team commits to &mdash; developers and QA by default. Add teams
+own leave and their own numbers, but only the roles ticked in **Settings > Roles**
+are summed into what a team commits to: developers and QA by default. Add teams
 freely: each gets its own focus factor and its own totals, and where there is
 more than one they roll up into an all-teams row.
 
 Teams span **UK, UAE and India**, so public holidays are per location and come
 off only the people in that location. UK bank holidays are seeded as fact.
-The dates that move &mdash; Eid, Holi, Diwali, Dussehra, Ganesh Chaturthi &mdash;
-are seeded as an **estimate and flagged**: they still reduce capacity, but any
-falling inside the PI you are looking at raise an alert and appear in a
-tick-them-off worklist, so an approximate Eid date can never quietly change the
-number you commit to. Add locations of your own, and move the whole calendar
-between people with **Export / Import holidays**.
+The dates that move (Eid, Holi, Diwali, Dussehra, Ganesh Chaturthi) are seeded
+as an **estimate and flagged**: they still reduce capacity, but any falling
+inside the PI you are looking at raise an alert and appear in a tick-them-off
+worklist, so an approximate Eid date can never quietly change the number you
+commit to. Add locations of your own, and move the whole calendar between people
+with **Export / Import holidays**.
 
-The page opens as a report: the PI, the capacity, the per-person breakdown, the
-teams and the leave. The things you set once &mdash; the cadence anchor,
-locations and their holidays, and which roles count &mdash; live behind
-**Settings**. Collapsing the capacity card keeps its headline figures on screen,
-because they are the at-a-glance answer.
+**The Capacity page** opens on the answer: "Team capacity for FY2627 Q2: 497.6
+person-days across 4 teams", with the PI's dates above it and the financial year
+and quarter picker beside it. Four cards follow (capacity with its points and
+hours, days lost to leave, days lost to public holidays with how many dates are
+still to confirm, and people counted out of everyone on the teams), then the
+alerts, then three tabs:
+
+- **By team**: the capacity matrix, teams against the seven sprints with the PI
+  total, points beneath each figure when a rate is set, and an all-teams row.
+  **Copy table** puts it on the clipboard for an email or a slide.
+- **By person**: everyone on every team, their allocation, each sprint, their
+  holidays and leave and their capacity, sortable from any column header, with
+  **Everyone / Counted only**. Click a person (or press Enter on the row) for a
+  drawer showing where their days went, sprint by sprint, and their leave.
+- **Leave**: every leave entry with the working days it takes off this PI,
+  sortable, with **Only leave in this PI**. **Add leave** and a click on an entry
+  open a dialog that shows how many days it takes off before you save it.
+
+The search box in the header (press `/`) filters people and leave. Each of
+those tabs exports its own table as CSV: the same columns, filters, order and
+figures you are looking at, with a UTF-8 BOM so accented and Arabic names open
+cleanly in Excel, and any name or note starting `=`, `+`, `-` or `@` kept as text
+rather than run as a formula.
+
+Leave lives on the Capacity page rather than in Settings because it changes from
+one PI to the next and is what people update most just before planning; Settings
+holds what you set once.
+
+**Settings** has five tabs: **Teams** (each team with its focus factor and
+members; **Add team**, **Add member** and a click on a person open a dialog for
+name, team, role, location, allocation and the dates they are on the team),
+**Holidays** (locations, and the public holidays with **Only holidays in this
+PI** and **Only dates to confirm**, a confirmed tick box on each row, and Export
+/ Import holidays), **Roles** (which roles count), **Cadence** (the anchor date
+and financial year, points per day, hours per day and the sprint dates of the
+PI you are looking at) and **Saving & data**. Every delete asks first, in the
+page. A focus factor or allocation left blank counts as 100%, and is saved as 100.
 
 Alerts call out the things that silently wreck a plan: a team with nobody in a
 counting role, a focus factor of zero, someone allocated 0% or over 100%, someone
-with no capacity anywhere in the PI, and leave whose dates read backwards.
-**Copy table** puts the capacity matrix on the clipboard for an email or a slide,
-and the **Planned leave** and **Per-person breakdown** cards each export their
-own table as CSV &mdash; the same columns, filters and figures you are looking at,
-with a UTF-8 BOM so accented and Arabic names open cleanly in Excel, and any name
-or note starting `=`, `+`, `-` or `@` kept as text rather than run as a formula.
-A focus factor or allocation left blank counts as 100%, and the field fills in
-100 when you leave it, so a reload reads back exactly what was on screen.
+with no capacity anywhere in the PI, someone whose "until" date is before they
+join, and leave whose dates read backwards.
 
 **One file can hold this and a cost tracker project.** A saved file is an
 envelope: this tool owns the `piCapacity` key and copies every other key straight
 back out, and the [cost tracker](#project-cost-trackerhtml) already keeps keys it
 does not recognise. So the same `.json` opens in both, each editing its own half
-and leaving the other untouched &mdash; no changes to the tracker were needed.
+and leaving the other untouched; no changes to the tracker were needed.
 Load a tracker file here and it keeps the plan you have open and adopts the
 project alongside it, so the next **Save JSON** writes both halves into that file;
-it then offers to add the project's people as a team, matching their roles.
-**Load data** asks before it replaces a plan that has teams or leave in it, and a
-file that cannot be read or shown changes nothing &mdash; not the screen and not
-the copy saved in the browser.
+**Settings > Saving & data** then offers to add the project's people as a team,
+matching their roles. **Load data** asks before it replaces a plan that has teams
+or leave in it, or holidays, locations, roles or a cadence you have changed, and
+a file that cannot be read or shown changes nothing (not the screen and not the
+copy saved in the browser) and says why in a banner at the top of the page.
+**Load demo** asks first too whenever it would replace anything.
 
-Someone joining or leaving mid-PI gets **on team from / until** dates and is
+Someone joining or leaving mid-PI gets **on the team from / until** dates and is
 counted only for the part of the PI they are there.
+
+Printing gives the report on its own, whichever view is open: the answer, the
+cards, the alerts, capacity by team and capacity by person, on landscape pages.
+
+Built on Report Kit 2 since v2.0.0. Plans saved by earlier versions, in the
+browser or as files, load unchanged; the saved file, both CSVs, the holidays
+file and the copied table are the same as before.
 
 See [`docs/pi-capacity-cadence.md`](pi-capacity-cadence.md) for the sprint
 maths, the deduction rules, and which seeded holiday dates are confirmed and

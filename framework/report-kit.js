@@ -1,6 +1,6 @@
 /* ============================================================
    Report Kit — shared runtime for the browser report tools
-   kit-version: 1.5.0
+   kit-version: 1.6.0
    Exposes window.RK. Depends on window.XLSX (SheetJS) only for the
    xlsx.* helpers; everything else is standalone. Inlined into each
    report by framework/build.py so reports stay single-file/offline.
@@ -14,7 +14,7 @@
    ============================================================ */
 window.RK = (function () {
   "use strict";
-  var KIT_VERSION = "1.5.0";
+  var KIT_VERSION = "1.6.0";
 
   /* ---------- dom / format helpers ---------- */
   function $(id) { return document.getElementById(id); }
@@ -446,8 +446,9 @@ window.RK = (function () {
   }
 
   /* ---------- confirm dialog (in-page replacement for window.confirm) ----------
-     confirm(message, onConfirm, { okLabel, title, danger }). Builds its own markup on
-     first use. onConfirm runs only if the primary button is pressed. */
+     confirm(message, onConfirm, { okLabel, title, danger, onCancel }). Builds its own
+     markup on first use. onConfirm runs only if the primary button is pressed;
+     onCancel (1.6.0) runs if the dialog closes any other way (Cancel, Escape, backdrop). */
   var confirmUi = null;
   function confirmDialog(message, onConfirm, o) {
     o = o || {};
@@ -457,18 +458,18 @@ window.RK = (function () {
       ov.innerHTML = '<div class="modal modal-compact"><h2></h2><p class="modal-lead"></p>' +
         '<div class="modal-actions"><button type="button" data-rk-cancel>Cancel</button><button type="button" class="primary" data-rk-ok>Continue</button></div></div>';
       document.body.appendChild(ov);
-      var pending = null;
-      var ctl = modal(ov, { onClose: function () { pending = null; } });
+      var pending = null, cancelled = null;
+      var ctl = modal(ov, { onClose: function () { var c = cancelled; pending = null; cancelled = null; if (c) c(); } });
       ov.querySelector("[data-rk-cancel]").addEventListener("click", function () { ctl.close(); });
-      ov.querySelector("[data-rk-ok]").addEventListener("click", function () { var fn = pending; pending = null; ctl.close(); if (fn) fn(); });
-      confirmUi = { ov: ov, ctl: ctl, set: function (fn) { pending = fn; } };
+      ov.querySelector("[data-rk-ok]").addEventListener("click", function () { var fn = pending; pending = null; cancelled = null; ctl.close(); if (fn) fn(); });
+      confirmUi = { ov: ov, ctl: ctl, set: function (fn, cancel) { pending = fn; cancelled = cancel || null; } };
     }
     var ok = confirmUi.ov.querySelector("[data-rk-ok]");
     confirmUi.ov.querySelector("h2").textContent = o.title || "Are you sure?";
     confirmUi.ov.querySelector(".modal-lead").textContent = message;
     ok.textContent = o.okLabel || "Continue";
     ok.className = "primary" + (o.danger ? " danger-fill" : "");
-    confirmUi.set(onConfirm);
+    confirmUi.set(onConfirm, o.onCancel);
     confirmUi.ctl.open();
     ok.focus();
   }

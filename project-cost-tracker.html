@@ -13,7 +13,7 @@
 <style>
 /* ============================================================
    Report Kit 2: the design language for new browser tools
-   kit-version: 2.3.0
+   kit-version: 2.4.0
    Extracted from vendor-spend-tracker.html. Inlined into a report
    by framework/build.py. See framework/DESIGN.md for the rules and
    framework/starter.src.html for a page that uses every part.
@@ -461,6 +461,17 @@ tr.row-off td { opacity: .45; text-decoration: line-through; }
 tr.row-off td.row-check { opacity: 1; text-decoration: none; }
 td.row-check, th.row-check { width: 64px; text-align: center; padding-right: 6px; }
 
+/* dense: a grid of figures (a sprint or month matrix); numbers in it are mono */
+table.dense th { padding: 8px 10px; }
+table.dense td { padding: 6px 10px; font-size: 13px; }
+table.dense td.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+/* a first column that stays put while a wide table scrolls sideways */
+th.sticky-col, td.sticky-col { position: sticky; left: 0; z-index: 2; box-shadow: inset -1px 0 0 var(--border); }
+thead th.sticky-col { z-index: 3; }
+/* a totals row in a tfoot: shaded, and pinned to the foot of its scroller */
+tfoot tr.total-row td { position: sticky; bottom: 0; z-index: 1; background: var(--light-grey); font-weight: 600; box-shadow: inset 0 1px 0 var(--border); }
+tfoot tr.total-row td.sticky-col { z-index: 3; box-shadow: inset 0 1px 0 var(--border), inset -1px 0 0 var(--border); }
+
 /* ---- Step progress: a fixed workflow shown as segments ---- */
 .steps { display: flex; flex-direction: column; gap: 6px; }
 .steps-top { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
@@ -478,6 +489,21 @@ td.row-check, th.row-check { width: 64px; text-align: center; padding-right: 6px
 .step-track-bar.target { background: var(--teal); outline: 1.5px solid var(--teal); outline-offset: 2px; }
 .step-track-label { font-size: 10px; line-height: 1.25; color: var(--text-dim); }
 .step-track-label.target { color: var(--accent-dark); font-weight: 600; }
+
+/* ---- Panel: a titled section of a page (a team, a chart, a group of settings) ---- */
+.panel { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; margin-bottom: 16px; min-width: 0; }
+.panel-head { display: flex; align-items: center; justify-content: space-between; gap: 10px 16px; flex-wrap: wrap; margin-bottom: 14px; }
+.panel-head:last-child { margin-bottom: 0; }
+.panel-title { display: flex; align-items: baseline; gap: 4px 10px; flex-wrap: wrap; min-width: 0; }
+.panel-title h2, .panel-title h3 { font-size: 16px; font-weight: 700; color: var(--heading); margin: 0; overflow-wrap: anywhere; }
+.panel-title .hint { margin: 0; }
+.panel-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+/* ---- Save state: a dot and a few words in the header saying where edits are kept ---- */
+.save-state { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-dim); white-space: nowrap; }
+.save-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border-input); flex: none; }
+.save-dot.live { background: var(--green); }
+.save-dot.warn { background: var(--yellow); }
 
 /* ---- Settings view: underline tabs, setting rows, grid lists ---- */
 .settings-header { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
@@ -864,7 +890,7 @@ label.field { display: block; font-size: 12px; font-weight: 600; color: var(--te
 @media print {
   .app-header, .no-print { display: none !important; }
   .table-container { max-height: none; overflow: visible; }
-  th { position: static; }
+  th, th.sticky-col, td.sticky-col, tfoot tr.total-row td { position: static; }
 }
 
 /* ============================================================
@@ -1517,7 +1543,7 @@ parse_Primary(n.content)}catch(l){}a="/EncryptionInfo";n=Qe.find(e,a);if(!n||!n.
 <script>
 /* ============================================================
    Report Kit — shared runtime for the browser report tools
-   kit-version: 1.5.0
+   kit-version: 1.6.0
    Exposes window.RK. Depends on window.XLSX (SheetJS) only for the
    xlsx.* helpers; everything else is standalone. Inlined into each
    report by framework/build.py so reports stay single-file/offline.
@@ -1531,7 +1557,7 @@ parse_Primary(n.content)}catch(l){}a="/EncryptionInfo";n=Qe.find(e,a);if(!n||!n.
    ============================================================ */
 window.RK = (function () {
   "use strict";
-  var KIT_VERSION = "1.5.0";
+  var KIT_VERSION = "1.6.0";
 
   /* ---------- dom / format helpers ---------- */
   function $(id) { return document.getElementById(id); }
@@ -1963,8 +1989,9 @@ window.RK = (function () {
   }
 
   /* ---------- confirm dialog (in-page replacement for window.confirm) ----------
-     confirm(message, onConfirm, { okLabel, title, danger }). Builds its own markup on
-     first use. onConfirm runs only if the primary button is pressed. */
+     confirm(message, onConfirm, { okLabel, title, danger, onCancel }). Builds its own
+     markup on first use. onConfirm runs only if the primary button is pressed;
+     onCancel (1.6.0) runs if the dialog closes any other way (Cancel, Escape, backdrop). */
   var confirmUi = null;
   function confirmDialog(message, onConfirm, o) {
     o = o || {};
@@ -1974,18 +2001,18 @@ window.RK = (function () {
       ov.innerHTML = '<div class="modal modal-compact"><h2></h2><p class="modal-lead"></p>' +
         '<div class="modal-actions"><button type="button" data-rk-cancel>Cancel</button><button type="button" class="primary" data-rk-ok>Continue</button></div></div>';
       document.body.appendChild(ov);
-      var pending = null;
-      var ctl = modal(ov, { onClose: function () { pending = null; } });
+      var pending = null, cancelled = null;
+      var ctl = modal(ov, { onClose: function () { var c = cancelled; pending = null; cancelled = null; if (c) c(); } });
       ov.querySelector("[data-rk-cancel]").addEventListener("click", function () { ctl.close(); });
-      ov.querySelector("[data-rk-ok]").addEventListener("click", function () { var fn = pending; pending = null; ctl.close(); if (fn) fn(); });
-      confirmUi = { ov: ov, ctl: ctl, set: function (fn) { pending = fn; } };
+      ov.querySelector("[data-rk-ok]").addEventListener("click", function () { var fn = pending; pending = null; cancelled = null; ctl.close(); if (fn) fn(); });
+      confirmUi = { ov: ov, ctl: ctl, set: function (fn, cancel) { pending = fn; cancelled = cancel || null; } };
     }
     var ok = confirmUi.ov.querySelector("[data-rk-ok]");
     confirmUi.ov.querySelector("h2").textContent = o.title || "Are you sure?";
     confirmUi.ov.querySelector(".modal-lead").textContent = message;
     ok.textContent = o.okLabel || "Continue";
     ok.className = "primary" + (o.danger ? " danger-fill" : "");
-    confirmUi.set(onConfirm);
+    confirmUi.set(onConfirm, o.onCancel);
     confirmUi.ctl.open();
     ok.focus();
   }
