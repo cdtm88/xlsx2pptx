@@ -69,7 +69,17 @@ const FLOWS = {
       const slides = new Set((buf.toString("latin1").match(/ppt\/slides\/slide\d+\.xml/g) || [])).size;
       return { name: d.suggestedFilename(), pk: buf.slice(0, 2).toString() === "PK", slides };
     };
-    const load = async (fixture) => { await page.setInputFiles("#file-input", path.join(FIX, fixture)); await settle(); };
+    // wait for the load to finish (the file is read and parsed asynchronously): either the
+    // replace question shows, or the summary names the new file, or an error shows
+    const load = async (fixture) => {
+      await page.setInputFiles("#file-input", path.join(FIX, fixture));
+      await page.waitForFunction((name) => {
+        const ok = document.querySelector(".modal-overlay:not([hidden]) [data-rk-ok]");
+        const sub = document.getElementById("summarySub"), err = document.getElementById("error-msg");
+        return (ok && ok.offsetParent !== null) || (sub && sub.textContent.endsWith(name)) || (err && !err.hidden && err.textContent);
+      }, fixture, { timeout: 10000 }).catch(() => {});
+      await settle();
+    };
 
     // start view: a keyboard-reachable drop zone with nothing nested in it, and the template
     t("opens on the drop zone, with Download disabled", await page.isVisible("#drop-zone") && await page.isDisabled("#btn-download"));
