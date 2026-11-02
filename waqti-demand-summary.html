@@ -937,7 +937,7 @@ label.field { display: block; font-size: 12px; font-weight: 600; color: var(--te
 .wds-sum td { white-space: normal; vertical-align: top; }
 .wds-sum tbody tr:nth-child(even) td, .wds-sum tbody tr:hover td { background: #fff; }
 .wds-sum tbody tr.wds-gs td { border-top: 1px solid var(--border); }
-.wds-sum td.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.wds-sum td.num { white-space: nowrap; }
 .wds-sum td.wds-name { font-weight: 600; }
 .wds-sum td.wds-none { color: var(--text-dim); }
 .wds-sum tfoot td { font-weight: 700; background: var(--light-grey); border-bottom: none; }
@@ -968,8 +968,8 @@ label.field { display: block; font-size: 12px; font-weight: 600; color: var(--te
   <header class="app-header">
     <div class="app-logo"><img class="app-logo-mark" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMiIgaGVpZ2h0PSIzMiIgdmlld0JveD0iMCAwIDMyIDMyIj48cmVjdCB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHJ4PSI3IiBmaWxsPSIjMDBBOUNFIi8+PHBhdGggZD0iTTkgMTYuNSBsNCA0IEwyMyAxMSIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjMiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPjwvc3ZnPg==" alt="">Waqti Demand Summary</div>
     <nav class="app-nav" aria-label="Views">
-      <button type="button" class="app-nav-item active" data-view="main" aria-pressed="true">Summary</button>
-      <button type="button" class="app-nav-item" data-view="settings" aria-pressed="false">Settings</button>
+      <button type="button" class="app-nav-item active" data-view="main" aria-current="page">Summary</button>
+      <button type="button" class="app-nav-item" data-view="settings">Settings</button>
     </nav>
     <div class="app-header-spacer"></div>
     <div class="app-search" id="searchWrap" hidden>
@@ -2293,7 +2293,7 @@ window.RK = (function () {
 (function () {
   "use strict";
   var $ = RK.$, esc = RK.esc, show = RK.show, hide = RK.hide, fmtHrs = RK.fmtHrs;
-  var VERSION = "v2.0.0";
+  var VERSION = "v2.0.1";
   var LS = RK.store("waqti-demand-summary:v1");   // same key and shape as v1, so saved names carry over
   $("appVersion").textContent = VERSION;
 
@@ -2309,7 +2309,8 @@ window.RK = (function () {
     $("settingsView").hidden = view !== "settings";
     document.querySelectorAll(".app-nav-item").forEach(function (b) {
       var on = b.getAttribute("data-view") === view;
-      b.classList.toggle("active", on); b.setAttribute("aria-pressed", on ? "true" : "false");
+      b.classList.toggle("active", on);
+      if (on) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current");
     });
     if (view === "settings") nameEditor.render();
     syncHeader();

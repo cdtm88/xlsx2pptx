@@ -60,8 +60,8 @@ tr.dp-offplan .cell-input { color: var(--dim-grey); }
   <header class="app-header">
     <div class="app-logo"><img class="app-logo-mark" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMiIgaGVpZ2h0PSIzMiIgdmlld0JveD0iMCAwIDMyIDMyIj4KICA8cmVjdCB4PSIyIiB5PSI5IiB3aWR0aD0iNi41IiBoZWlnaHQ9IjYuNSIgcng9IjEuNCIgZmlsbD0iIzFlODI0YyI+PC9yZWN0PgogIDxyZWN0IHg9IjkuNSIgeT0iOSIgd2lkdGg9IjYuNSIgaGVpZ2h0PSI2LjUiIHJ4PSIxLjQiIGZpbGw9IiMxZTgyNGMiIG9wYWNpdHk9Ii41Ij48L3JlY3Q+CiAgPHJlY3QgeD0iMiIgeT0iMTYuNSIgd2lkdGg9IjYuNSIgaGVpZ2h0PSI2LjUiIHJ4PSIxLjQiIGZpbGw9IiMxZTgyNGMiIG9wYWNpdHk9Ii41Ij48L3JlY3Q+CiAgPHJlY3QgeD0iOS41IiB5PSIxNi41IiB3aWR0aD0iNi41IiBoZWlnaHQ9IjYuNSIgcng9IjEuNCIgZmlsbD0iIzFlODI0YyI+PC9yZWN0PgogIDxwYXRoIGQ9Ik0xNy41IDE0IEwyMC41IDE0IEwyMC41IDExLjUgTDI0LjUgMTYgTDIwLjUgMjAuNSBMMjAuNSAxOCBMMTcuNSAxOCBaIiBmaWxsPSIjZDI1ODJiIj48L3BhdGg+CiAgPHJlY3QgeD0iMjQuNSIgeT0iMTEuNSIgd2lkdGg9IjYiIGhlaWdodD0iOSIgcng9IjEuNCIgZmlsbD0iI2QyNTgyYiI+PC9yZWN0Pgo8L3N2Zz4=" alt="">Delivery Plan</div>
     <nav class="app-nav" aria-label="Views">
-      <button type="button" class="app-nav-item active" data-view="main" aria-pressed="true">Plan</button>
-      <button type="button" class="app-nav-item" data-view="settings" aria-pressed="false">Settings</button>
+      <button type="button" class="app-nav-item active" data-view="main" aria-current="page">Plan</button>
+      <button type="button" class="app-nav-item" data-view="settings">Settings</button>
     </nav>
     <div class="app-header-spacer"></div>
     <button type="button" id="btn-load">Load plan</button>
@@ -1275,7 +1275,7 @@ function legendFor(mode,hasRisk){
 }
 
 // ===== UI =====
-var APP_VERSION='2.0.0';
+var APP_VERSION='2.0.1';
 var $=RK.$, esc=RK.esc;
 var currentData=null, currentLayout=null, currentFile='';
 // Edits made on this page since the plan was loaded: loading another plan asks
@@ -1747,7 +1747,7 @@ function showView(v){
   document.querySelectorAll('.app-nav-item').forEach(function(b){
     var on=b.getAttribute('data-view')===v;
     b.classList.toggle('active',on);
-    b.setAttribute('aria-pressed',on?'true':'false');
+    if(on)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');
   });
   if(v==='main')scalePreview();     // a hidden preview has no width to scale to
 }

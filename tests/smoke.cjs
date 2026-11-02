@@ -117,7 +117,7 @@ const FLOWS = {
 
     // Settings: title, Today line, bar colour and the version
     await settings("panel-slide");
-    t("version shown in Settings", (await page.textContent("#appVersion")) === "v2.0.0");
+    t("version shown in Settings", (await page.textContent("#appVersion")) === "v2.0.1", await page.textContent("#appVersion"));
     await page.click('#color-seg [data-mode="single"]');
     t("single colour changes the key", /Scheduled/.test(await page.textContent("#legend")) && (await page.getAttribute('#color-seg [data-mode="single"]', "aria-pressed")) === "true");
     await page.fill("#cfg-title", ""); await settle();
@@ -828,6 +828,9 @@ async function openTool(browser, file, flow) {
     try { await flow(page, (n, c, w) => check(name + ": " + n, c, w), { url, phone }); }
     catch (e) { fail(name + ": main flow", e.message.split("\n")[0]); }
   }
+  // every tool with views marks the one showing for screen readers (DESIGN.md principle 2)
+  const marks = await page.$$eval(".app-nav-item[data-view]", (bs) => bs.map((b) => b.classList.contains("active") === (b.getAttribute("aria-current") === "page")));
+  check(name + ": the nav marks the current view with aria-current", marks.every(Boolean), JSON.stringify(marks));
   try { await phone("every view, after the flow"); }
   catch (e) { fail(name + ": no sideways scroll at 390px", e.message.split("\n")[0]); }
   check(name + ": no native alert, confirm or prompt", native.length === 0, native.join(" | "));

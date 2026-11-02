@@ -977,8 +977,8 @@ td.pic-act { width: 1%; text-align: right; }
   <header class="app-header">
     <div class="app-logo"><img class="app-logo-mark" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMiIgaGVpZ2h0PSIzMiIgdmlld0JveD0iMCAwIDMyIDMyIj48cmVjdCB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHJ4PSI3IiBmaWxsPSIjMDBBOUNFIi8+PHBhdGggZD0iTTkgMTYuNSBsNCA0IEwyMyAxMSIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjMiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPjwvc3ZnPg==" alt="">PI Planning Capacity</div>
     <nav class="app-nav" aria-label="Views">
-      <button type="button" class="app-nav-item active" data-view="main" aria-pressed="true">Capacity</button>
-      <button type="button" class="app-nav-item" data-view="settings" aria-pressed="false">Settings</button>
+      <button type="button" class="app-nav-item active" data-view="main" aria-current="page">Capacity</button>
+      <button type="button" class="app-nav-item" data-view="settings">Settings</button>
     </nav>
     <div class="app-header-spacer"></div>
     <span class="save-state" id="saveState" role="status"><span class="save-dot"></span>Starting up</span>
@@ -2428,7 +2428,7 @@ window.RK = (function () {
    ============================================================ */
 (function () {
   "use strict";
-  var APP_VERSION = "2.0.0";
+  var APP_VERSION = "2.0.1";
   var SCHEMA_VERSION = 1;
   var LS_KEY = "pi-capacity:state:v1";
   var $ = RK.$, esc = RK.esc, show = RK.show, hide = RK.hide, round1 = RK.round1, round2 = RK.round2;
@@ -3278,7 +3278,8 @@ window.RK = (function () {
     $("searchWrap").hidden = v !== "main";
     qa(".app-nav-item").forEach(function (b) {
       var on = b.getAttribute("data-view") === v;
-      b.classList.toggle("active", on); b.setAttribute("aria-pressed", on ? "true" : "false");
+      b.classList.toggle("active", on);
+      if (on) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current");
     });
     window.scrollTo(0, 0);
   }

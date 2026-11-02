@@ -22,7 +22,7 @@
 .wx-stats { grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
 .wx-tab-hint { margin: -4px 0 10px; }
 .wx-list td { white-space: normal; vertical-align: top; }
-.wx-list td.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.wx-list td.num { white-space: nowrap; }
 .wx-sid { display: block; margin-top: 2px; font: 400 11px var(--font-mono); color: var(--text-dim); }
 .wx-list .status-pill { margin-top: 4px; }
 .wx-notes { margin-top: 10px; }
@@ -52,7 +52,7 @@
 .wx-mono { font-family: var(--font-mono); }
 .wx-json { font: 12px/1.5 var(--font-mono); min-height: 360px; }
 .wx-drawer-table td { white-space: normal; }
-.wx-drawer-table td.num { font-family: var(--font-mono); white-space: nowrap; }
+.wx-drawer-table td.num { white-space: nowrap; }
 .wx-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .wx-chips .status-pill { font-family: var(--font-mono); font-weight: 500; }
 @media (max-width: 700px) {
@@ -75,8 +75,8 @@
   <header class="app-header">
     <div class="app-logo"><img class="app-logo-mark" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMiIgaGVpZ2h0PSIzMiIgdmlld0JveD0iMCAwIDMyIDMyIj48cmVjdCB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHJ4PSI3IiBmaWxsPSIjMDBBOUNFIi8+PHBhdGggZD0iTTkgMTYuNSBsNCA0IEwyMyAxMSIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjMiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPjwvc3ZnPg==" alt="">Waqti Exceptions</div>
     <nav class="app-nav" aria-label="Views">
-      <button type="button" class="app-nav-item active" data-view="main" aria-pressed="true">Exceptions</button>
-      <button type="button" class="app-nav-item" data-view="settings" aria-pressed="false">Settings</button>
+      <button type="button" class="app-nav-item active" data-view="main" aria-current="page">Exceptions</button>
+      <button type="button" class="app-nav-item" data-view="settings">Settings</button>
     </nav>
     <div class="app-header-spacer"></div>
     <div class="app-search" id="searchWrap" hidden>
@@ -713,7 +713,7 @@
 (function () {
   "use strict";
 
-  var VERSION = "v3.0.0";
+  var VERSION = "v3.0.1";
   var LS_KEY = "waqti-exceptions:v1";
   var LS_PREV = "waqti-exceptions:v1:previous";  // the rules set (and wording) set aside by the last switch
   var LS = RK.store(LS_KEY), PREV = RK.store(LS_PREV);
@@ -743,7 +743,8 @@
     $("settingsView").hidden = view !== "settings";
     document.querySelectorAll(".app-nav-item").forEach(function (b) {
       var on = b.getAttribute("data-view") === view;
-      b.classList.toggle("active", on); b.setAttribute("aria-pressed", on ? "true" : "false");
+      b.classList.toggle("active", on);
+      if (on) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current");
     });
     syncHeader();
     window.scrollTo(0, 0);
