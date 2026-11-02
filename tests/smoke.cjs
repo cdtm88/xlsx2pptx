@@ -637,11 +637,16 @@ const FLOWS = {
     const preview = await page.textContent("#emPreview");
     t("the email leads with the status and has the exit criteria", /AMBER/.test(preview) && /Exit criteria: \d+ of \d+ met/.test(preview));
     t("the suggested subject carries the status", /^\[UAT\] .* update: AMBER/.test(await page.getAttribute("#emSubject", "placeholder")));
+    t("the chip rows are named groups", (await page.getAttribute("#emTypeChips", "role")) === "group" &&
+      (await page.getAttribute("#emTypeChips", "aria-label")) === "Email type" && (await page.getAttribute("#emAudienceChips", "aria-label")) === "Audience");
+    t("the nav marks the current view", (await page.getAttribute('.app-nav-item[data-view="email"]', "aria-current")) === "page" &&
+      !(await page.getAttribute('.app-nav-item[data-view="overview"]', "aria-current")));
 
     // a status changed in the list moves the figures
     await page.click('.app-nav-item[data-view="tests"]');
     const passedTab = async () => Number(await page.textContent('#testTabs [data-tab="Passed"] .seg-tab-count'));
     const before = await passedTab();
+    t("each row's status select is named after its test", (await page.getAttribute('#testBody select[data-inline="test"]', "aria-label")) === "Status of UAT-001");
     const notRun = page.locator('#testBody select[data-inline="test"]', { has: page.locator('option:checked', { hasText: /^Not run$/ }) }).first();
     await notRun.selectOption("Passed");
     t("an in-row status change updates the counts", (await passedTab()) === before + 1);
