@@ -28,7 +28,7 @@
 .pem-compose .field { margin-bottom: 12px; }
 .pem-compose textarea { min-height: 64px; }
 .pem-compose .chip-row { margin-bottom: 0; }
-.pem-compose input[type="number"] { text-align: right; font-family: var(--font-mono); }
+.pem-compose input[type="number"] { text-align: right; }
 .pem-muted { color: var(--text-dim); font-weight: 400; }
 .pem-checks { display: flex; flex-direction: column; gap: 6px; font-size: 13px; margin-bottom: 12px; }
 .pem-checks label { display: flex; gap: 8px; align-items: center; cursor: pointer; }
@@ -50,8 +50,7 @@
 .pem-hidden-item { white-space: nowrap; margin-right: 8px; }
 .pem-frame { background: var(--light-grey); border: 1px solid var(--border); border-radius: 8px; padding: 16px; overflow-x: auto; }
 .pem-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 12px 0 0; }
-.copy-fallback textarea { width: 100%; min-height: 180px; font: 12px var(--font-mono); }
-.copy-fallback p { margin: 12px 0 6px; font-size: 12px; color: var(--text-dim); }
+#copyFallback:not(:empty) { margin-top: 12px; }
 .pem-empty { max-width: 640px; margin: 48px auto 0; }
 .pem-empty .pem-panel { padding: 24px 26px; }
 .pem-empty h2 { margin: 0 0 6px; font-size: 20px; font-weight: 600; }
@@ -220,7 +219,7 @@
             </select>
           </div>
           <div class="field">
-            <label>Project style</label>
+            <div class="field-label">Project style</div>
             <select id="f_layout" class="select-hidden-visually" aria-label="Project style" tabindex="-1" data-k="layout">
               <option value="table">Table</option>
               <option value="cards">Cards</option>
@@ -305,7 +304,7 @@
 (function () {
   "use strict";
   // Semver: MAJOR for a stored-data change normalise() cannot migrate, MINOR for features, PATCH for fixes.
-  var APP_VERSION = "1.0.0";
+  var APP_VERSION = "1.0.1";
   var $ = RK.$, esc = RK.esc;
   var store = RK.store("piEmailBuilder.v1"), dataStore = RK.store("piEmailBuilder.csv.v1");
   // the stand-alone builder this replaces kept its settings and last import under these keys

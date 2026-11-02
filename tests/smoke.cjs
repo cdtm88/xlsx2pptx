@@ -184,6 +184,7 @@ const FLOWS = {
     t("subject is suggested from the quarter", (await page.inputValue("#f_subject")) === "Quarterly Planning Commitments | FY26/27 Q3");
     t("data checks list what needs fixing", /6 projects have no JIRA ID/.test(await page.textContent("#checks")));
     await ctx.phone("sample loaded");
+    t("the project style chips are a named group", (await page.getAttribute("#layoutChips", "role")) === "group" && (await page.getAttribute("#layoutChips", "aria-label")) === "Project style");
 
     // chips open a dialog; the change is kept for this quarter only
     await page.click('#preview tr[data-rid^="agentaccountmanagement"] [data-f=status]');
