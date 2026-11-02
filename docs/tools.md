@@ -374,7 +374,11 @@ holds what you set once.
 
 **Settings** has five tabs: **Teams** (each team with its focus factor and
 members; **Add team**, **Add member** and a click on a person open a dialog for
-name, team, role, location, allocation and the dates they are on the team),
+name, team, role, location, allocation and the dates they are on the team; the
+allocation, the figure that changes every PI, can also be typed straight into
+the team's table: it saves when you press Enter or leave the field, Escape puts
+the old value back, Tab moves down to the next person's, and a blank or
+negative figure follows the same rule as the dialog),
 **Holidays** (locations, and the public holidays with **Only holidays in this
 PI** and **Only dates to confirm**, a confirmed tick box on each row, and Export
 / Import holidays), **Roles** (which roles count), **Cadence** (the anchor date
@@ -407,7 +411,8 @@ counted only for the part of the PI they are there.
 Printing gives the report on its own, whichever view is open: the answer, the
 cards, the alerts, capacity by team and capacity by person, on landscape pages.
 
-Built on Report Kit 2 since v2.0.0. Plans saved by earlier versions, in the
+Built on Report Kit 2 since v2.0.0; allocation is edited in the team table
+since v2.1.0, and saves exactly what the dialog saves. Plans saved by earlier versions, in the
 browser or as files, load unchanged; the saved file, both CSVs, the holidays
 file and the copied table are the same as before.
 

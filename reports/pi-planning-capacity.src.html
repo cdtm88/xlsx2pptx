@@ -36,6 +36,11 @@ tr.pic-bad td { background: var(--red-bg) !important; }
 td.pic-act { width: 1%; text-align: right; }
 .pic-team-table { min-width: 680px; }
 .pic-team-table td.sticky-col { min-width: 0; }
+/* allocation, edited in place: the one figure that changes every PI */
+.pic-alloc { display: flex; align-items: center; justify-content: flex-end; gap: 1px; font-family: var(--font-mono); }
+.pic-alloc .cell-input { flex: 0 1 64px; width: 64px; padding-right: 3px; color: inherit; text-align: right; -moz-appearance: textfield; appearance: textfield; }
+.pic-alloc .cell-input::-webkit-inner-spin-button, .pic-alloc .cell-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+td.pic-alloc-cell { cursor: text; }
 .pic-sprints { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
 .pic-sprint { border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; background: var(--panel); min-width: 120px; }
 .pic-sprint b { display: block; font: 600 12px var(--font-mono); color: var(--accent-dark); }
@@ -479,7 +484,7 @@ td.pic-act { width: 1%; text-align: right; }
    ============================================================ */
 (function () {
   "use strict";
-  var APP_VERSION = "2.0.1";
+  var APP_VERSION = "2.1.0";
   var SCHEMA_VERSION = 1;
   var LS_KEY = "pi-capacity:state:v1";
   var $ = RK.$, esc = RK.esc, show = RK.show, hide = RK.hide, round1 = RK.round1, round2 = RK.round2;
@@ -1156,12 +1161,45 @@ td.pic-act { width: 1%; text-align: right; }
   }
 
   /* ---------- render: Settings > Teams ---------- */
+  // The allocation as its field shows it: the stored figure, as the dialog shows it.
+  function allocText(m) { return m.allocation === null || m.allocation === undefined ? "" : String(m.allocation); }
+  // Redraw a block in place: nodes that did not change are kept, so a focused
+  // allocation field keeps its focus and caret, and a row clicked while a field
+  // commits is still the row that gets the click. A focused field keeps what is
+  // typed in it; any other field takes the new value.
+  function morphInto(el, html) {
+    var tpl = document.createElement("template");
+    tpl.innerHTML = html;
+    morphChildren(el, tpl.content);
+  }
+  function morphChildren(a, b) {
+    var ac = a.childNodes, bc = b.childNodes;
+    if (ac.length !== bc.length) {
+      while (a.firstChild) a.removeChild(a.firstChild);
+      while (b.firstChild) a.appendChild(b.firstChild);
+      return;
+    }
+    for (var i = 0; i < bc.length; i++) {
+      var x = ac[i], y = bc[i];
+      if (x.nodeType !== y.nodeType || x.nodeName !== y.nodeName) { a.replaceChild(y.cloneNode(true), x); continue; }
+      if (x.nodeType !== 1) { if (x.nodeValue !== y.nodeValue) x.nodeValue = y.nodeValue; continue; }
+      var k, at;
+      for (k = x.attributes.length - 1; k >= 0; k--) { at = x.attributes[k].name; if (!y.hasAttribute(at)) x.removeAttribute(at); }
+      for (k = 0; k < y.attributes.length; k++) {
+        at = y.attributes[k];
+        if (x.getAttribute(at.name) === at.value) continue;
+        x.setAttribute(at.name, at.value);
+        if (at.name === "value" && x.nodeName === "INPUT" && x !== document.activeElement) x.value = at.value;
+      }
+      morphChildren(x, y);
+    }
+  }
   function renderTeamsSettings(R) {
     var wrap = $("teamsWrap");
     if (!S.teams.length) {
       wrap.innerHTML = '<div class="panel"><p class="muted-empty" style="margin:0">No teams yet. <strong>Add team</strong> to start, then add its members: everyone, not just the developers and QA.</p></div>';
     } else {
-      wrap.innerHTML = S.teams.map(function (t, ti) {
+      var html = S.teams.map(function (t, ti) {
         var tt = R.teams[ti] || { rows: [], counting: [], total: 0 };
         var members = t.members || [], tname = t.name || "Unnamed team";
         var body = members.length
@@ -1175,7 +1213,8 @@ td.pic-act { width: 1%; text-align: right; }
                 '<td class="sticky-col"><span class="pic-name">' + esc(name) + "</span></td>" +
                 "<td>" + esc((role(m.roleId) || {}).name || "(no role)") + (r.counts ? "" : '<span class="pic-sub">not counted</span>') + "</td>" +
                 "<td>" + esc((loc(m.locId) || {}).name || "(no location)") + "</td>" +
-                '<td class="num">' + n0(clampPct(m.allocation, 100)) + "%</td>" +
+                '<td class="num pic-alloc-cell"><span class="pic-alloc"><input type="number" class="cell-input" min="0" step="any" data-alloc-m="' + esc(m.id) +
+                '" value="' + esc(allocText(m)) + '" aria-label="Allocation for ' + esc(name) + '"><span aria-hidden="true">%</span></span></td>' +
                 "<td>" + (datesBackwards(m) ? "Until is before from" : esc(onTeamText(m) || "Whole PI")) + "</td>" +
                 '<td class="num">' + n1(r.total) + "</td>" +
                 '<td class="pic-act"><button type="button" class="pic-del" data-del-m="' + esc(m.id) + '" aria-label="Remove ' + esc(name) + " from " + esc(tname) + '">&times;</button></td></tr>';
@@ -1189,6 +1228,7 @@ td.pic-act { width: 1%; text-align: right; }
           '<button type="button" class="small danger" data-del-t="' + esc(t.id) + '" aria-label="Delete ' + esc(tname) + '">Delete</button></div></div>' +
           body + "</div>";
       }).join("");
+      morphInto(wrap, html);
     }
     $("teamsSummary").textContent = plural(S.teams.length, "team") + " · " + plural(R.headcount, "person", "people") + " · " + R.counting + " counted";
   }
@@ -1299,8 +1339,9 @@ td.pic-act { width: 1%; text-align: right; }
   }
 
   /* ---------- render everything ----------
-     Every edit goes through a dialog or a single control and then redraws the
-     whole page from S, so no view can go stale (PI-04). keepInputs leaves the
+     Every edit goes through a dialog or a single control (a team grid's
+     allocation field is one) and then redraws the whole page from S, so no view
+     can go stale (PI-04). keepInputs leaves the
      cadence fields alone while they are being typed into. */
   function renderAll(keepInputs) {
     reindexHolidays();
@@ -1851,6 +1892,48 @@ td.pic-act { width: 1%; text-align: right; }
     }, { title: "Remove from the team?", okLabel: "Remove", danger: true });
   }
   $("m_delete").addEventListener("click", function () { if (editMemberId) delMember(editMemberId, memberDlg.close); });
+
+  /* ---------- allocation, edited in the team grid ----------
+     The one figure people change every PI, so it is a field in the row rather
+     than a dialog per person. It follows the dialog's rule exactly: blank is
+     100%, and anything that is not a percentage of 0 or more is refused (the
+     field goes back to what it was). It commits on change (leaving the field or
+     Enter), Escape puts the old value back, and Tab goes to the next person's. */
+  function commitAlloc(f) {
+    var mm = memberById(f.getAttribute("data-alloc-m"));
+    if (!mm) return;
+    var alloc = pctFromField(f.value.trim());
+    if (!isFinite(alloc) || alloc < 0) {
+      f.value = allocText(mm.m);
+      toast("The allocation is a percentage of 0 or more.");
+      return;
+    }
+    f.value = String(alloc);
+    if (alloc === mm.m.allocation) return;
+    mm.m.allocation = alloc;
+    persist(); renderAll();
+  }
+  $("teamsWrap").addEventListener("change", function (e) {
+    if (e.target.hasAttribute("data-alloc-m")) commitAlloc(e.target);
+  });
+  $("teamsWrap").addEventListener("keydown", function (e) {
+    var f = e.target;
+    if (!f.hasAttribute || !f.hasAttribute("data-alloc-m")) return;
+    if (e.key === "Enter") {
+      e.preventDefault(); e.stopPropagation();
+      commitAlloc(f); f.select();
+    } else if (e.key === "Escape") {
+      var mm = memberById(f.getAttribute("data-alloc-m"));
+      e.preventDefault(); e.stopPropagation();
+      if (mm) f.value = allocText(mm.m);
+      f.select();
+    } else if (e.key === "Tab" && !e.altKey && !e.ctrlKey && !e.metaKey) {
+      var all = qa("#teamsWrap input[data-alloc-m]"), next = all[all.indexOf(f) + (e.shiftKey ? -1 : 1)];
+      if (!next) return;                         // past the last field, Tab carries on as usual
+      e.preventDefault();
+      next.focus(); next.select();               // leaving the field commits it first (change)
+    }
+  });
   function delTeam(id) {
     var t = team(id); if (!t) return;
     RK.confirm("Delete " + (t.name || "this team") + " and its " + plural((t.members || []).length, "member") + "? Their leave is removed too.", function () {
@@ -2082,6 +2165,10 @@ td.pic-act { width: 1%; text-align: right; }
     if ((el = t.closest("[data-ren-role]"))) return openName("role", el.getAttribute("data-ren-role"), el);
     if ((el = t.closest("[data-del-role]"))) return delRole(el.getAttribute("data-del-role"));
     if (t.closest("#importTeamBtn")) return importForeignTeam();
+    if ((el = t.closest(".pic-alloc-cell"))) {          // the allocation cell edits in place; it never opens the dialog
+      if (!t.closest("input")) el.querySelector("input").focus();
+      return;
+    }
     if (t.closest("input, label, select")) return;       // a tick box inside a clickable row
     if ((el = t.closest("[data-person]"))) return openPerson(el.getAttribute("data-person"), el);
     if ((el = t.closest("[data-edit-m]"))) return openMember(el.getAttribute("data-edit-m"), null, el);

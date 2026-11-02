@@ -553,6 +553,47 @@ const FLOWS = {
     await page.fill("#m_name", "Sam Smoke"); await page.selectOption("#m_role", "qa"); await page.selectOption("#m_loc", "uk");
     await page.fill("#m_alloc", "50"); await page.click("#m_ok");
     t("the member is listed under the team", /Sam Smoke/.test(await page.textContent("#teamsWrap")) && await page.isHidden("#memberOverlay"));
+
+    // allocation is edited in the team grid (v2.1.0): it commits on Enter or on leaving the field, Escape puts it
+    // back, Tab goes down the allocations, it follows the dialog's rule, and it never opens the person dialog
+    const alloc = (id) => page.locator(`#teamsWrap input[data-alloc-m="${id}"]`);
+    const piDays = async (id) => Number(await page.textContent(`#teamsWrap tr[data-edit-m="${id}"] td:nth-child(6)`));
+    const teamDays = async (id) => Number(/· ([\d.]+) days this PI/.exec(await page.textContent(`.panel:has([data-add-m="${id}"]) .panel-title .hint`))[1]);
+    const answer = async () => Number(/: ([\d.]+) person-days/.exec(await main())[1]);
+    const stored = (id) => page.evaluate((m) => JSON.parse(localStorage.getItem("pi-capacity:state:v1")).piCapacity.teams
+      .flatMap((x) => x.members).find((x) => x.id === m).allocation, id);
+    const focused = () => page.evaluate(() => document.activeElement.getAttribute("data-alloc-m"));
+    t("each allocation is a field named after its person", (await alloc("m-raj").getAttribute("aria-label")) === "Allocation for Raj QA" &&
+      (await alloc("m-raj").inputValue()) === "50" && (await alloc("m-raj").evaluate((e) => e.classList.contains("cell-input"))));
+    const ann0 = await piDays("m-ann"), alpha0 = await teamDays("t-a"), all0 = await answer();
+    await alloc("m-ann").click();
+    t("clicking the allocation edits it in place, without the dialog", await page.isHidden("#memberOverlay") && (await focused()) === "m-ann");
+    await page.keyboard.press("Control+A"); await page.keyboard.type("50");
+    t("nothing changes while typing", (await piDays("m-ann")) === ann0 && (await stored("m-ann")) === 100);
+    await page.keyboard.press("Enter");
+    t("Enter commits it: the person's PI days halve, and the team and the Capacity view drop by as much",
+      Math.abs((await piDays("m-ann")) - ann0 / 2) < 0.06 && Math.abs((await teamDays("t-a")) - (alpha0 - ann0 / 2)) < 0.11 &&
+      Math.abs((await answer()) - (all0 - ann0 / 2)) < 0.11 && (await stored("m-ann")) === 50,
+      [ann0, await piDays("m-ann"), alpha0, await teamDays("t-a"), all0, await answer()].join(" "));
+    t("and Enter does not open the dialog either", await page.isHidden("#memberOverlay") && (await focused()) === "m-ann");
+    await page.keyboard.type("10"); await page.keyboard.press("Escape");
+    t("Escape puts the old value back", (await alloc("m-ann").inputValue()) === "50" && (await stored("m-ann")) === 50 && await page.isHidden("#memberOverlay"));
+    await page.keyboard.press("Tab");
+    t("Tab goes to the next person's allocation", (await focused()) === "m-raj");
+    const raj0 = await piDays("m-raj");
+    await page.keyboard.press("Backspace"); await page.keyboard.press("Backspace"); await page.keyboard.press("Tab");
+    t("a blank allocation is 100%, as in the dialog, and Tab commits it on the way", (await alloc("m-raj").inputValue()) === "100" &&
+      (await stored("m-raj")) === 100 && Math.abs((await piDays("m-raj")) - raj0 * 2) < 0.11 && (await focused()) === "m-pat", (await piDays("m-raj")) + " " + raj0);
+    await page.keyboard.type("-5"); await page.keyboard.press("Enter");
+    t("a negative allocation is refused with the dialog's message and the field goes back", (await alloc("m-pat").inputValue()) === "100" &&
+      (await stored("m-pat")) === 100 && /percentage of 0 or more/.test(await page.textContent(".toast")));
+    await page.keyboard.press("Tab");
+    t("Tab carries on into the next team", (await focused()) === "m-lee");
+    await alloc("m-ann").fill("100"); await alloc("m-raj").fill("50"); await alloc("m-raj").press("Enter");
+    t("put back, the figures are as they were", (await piDays("m-ann")) === ann0 && (await teamDays("t-a")) === alpha0 && (await answer()) === all0);
+    await page.click('#teamsWrap tr[data-edit-m="m-ann"] .pic-name');
+    t("a click elsewhere on the row still opens the dialog", await page.isVisible("#memberOverlay") && (await page.inputValue("#m_alloc")) === "100");
+    await page.keyboard.press("Escape");
     await back();
     t("a new team and member add their capacity", (await main()) === "Team capacity for FY2627 Q2: 144.4 person-days across 3 teams", await main());
 

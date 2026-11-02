@@ -155,7 +155,8 @@ has an upload-first tool with a sortable picker, the staff-name editor in Settin
 and a copied email table kept exactly as it was; Waqti exceptions has tabbed lists
 with row drawers, an editable grid in Settings, a "save this tool with my
 settings" copy and its own rules.json format kept byte for byte; PI capacity has
-inline grids turned into dialogs, a sprint matrix with a sticky first column and
+inline grids turned into dialogs, except the allocation, which stays a field in
+the team table (`.cell-input`) because it changes every PI, a sprint matrix with a sticky first column and
 totals row, a per-person drawer and a print view, with its saved file and CSVs
 unchanged; the delivery plan has a table edited in place (`.cell-input`) beside a
 slide preview, with the PowerPoint it writes unchanged part for part.
