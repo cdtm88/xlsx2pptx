@@ -33,13 +33,13 @@ Staff IDs are upper-cased, so matching against the People rules is case-insensit
 
 ### Track Logged Time flag
 
-Each person in rules.json has `"trackLoggedTime": true|false`, **on by default**. Untick **Track Logged Time** in Settings > People (grid column, or the collapsed "Not present in the current export" list) for people from other teams who book to our demands. Only tracked people can appear in No time logged. An entry with no `trackLoggedTime` field counts as tracked. When `waqti-demand-summary.html` exports rules.json, it uses the export loaded in it to write `"trackLoggedTime": false` for a named person with no `trackLoggedTime` field only when their Staff ART in that export is never its main team (the Staff ART with the most people; with a tie, or no Staff ART column, nobody is marked).
+Each person in rules.json has `"trackLoggedTime": true|false`, **on by default**. Untick **Track Logged Time** in Settings > People (grid column, or the collapsed "Not present in the current export" list), or press **Stop tracking** in a No time logged row's drawer, for people from other teams who book to our demands. Only tracked people can appear in No time logged. An entry with no `trackLoggedTime` field counts as tracked. When `waqti-demand-summary.html` exports rules.json, it uses the export loaded in it to write `"trackLoggedTime": false` for a named person with no `trackLoggedTime` field only when their Staff ART in that export is never its main team (the Staff ART with the most people; with a tie, or no Staff ART column, nobody is marked).
 
 Everyone else stays tracked, including own-team members, new joiners and anyone missing from the export: someone with no bookings at all is exactly who No time logged is for. With no export loaded, nobody is marked. An existing `trackLoggedTime` value is never changed. After the export, a note says how many people were marked "not tracked", which ones, and why.
 
 ### Ignored taxonomies
 
-Stored in rules.json as `ignoredTaxonomies` and edited in **Settings > Rules > Ignored taxonomies** (edit, delete, add; taxonomies in the loaded export that are still being checked are listed with one-click add). A rules.json without the field uses this default list:
+Stored in rules.json as `ignoredTaxonomies` and edited in **Settings > Ignored taxonomies** (edit, delete, add; taxonomies in the loaded export that are still being checked are listed with one-click add). A rules.json without the field uses this default list:
 
 - Annual Leave
 - Time Off In Lieu (TOIL)
@@ -57,7 +57,7 @@ Every row left after the filters above is checked against all of these:
 
 | # | Rule | Condition | Reason shown |
 |---|---|---|---|
-| 1 | Not approved | The demand code is not in the person's approved list in **Settings > People**. People not in the rules are approved for nothing. | `Not approved` |
+| 1 | Not approved | The demand code is not in the person's approved list in **Settings > People** (or added with **Approve for** in a row's drawer). People not in the rules are approved for nothing. | `Not approved` |
 | 2 | No application | The Application is blank. | `No application` |
 | 3 | System created | Created By is `GEN_LINES` (case-insensitive): a line Waqti created because some data was missing. | `System created (GEN_LINES)` |
 | 4 | No time logged | Someone with **Track Logged Time** ticked in Settings > People has no rows at all in the export (after the filters above). Untick it for people from other teams so they are never listed. | (own table) |
@@ -73,12 +73,12 @@ A **blank Demand** is a Waqti bug, not a rule: on its own it raises nothing. Suc
 
 ## 4. Tables (on screen)
 
-Every row has a Send checkbox. Unticked rows are left out of the email and its totals.
+One tab each on the Exceptions view. Every row has a Send checkbox. Unticked rows are left out of the email and its totals. Click a column header to sort a table another way (this does not change the email's order); click a row for the bookings behind it.
 
-| Table | Grouped by | Columns | Sorted by |
+| Table | Grouped by | Columns | Sorted by (until a header is clicked) |
 |---|---|---|---|
-| Demand exceptions | staff + demand + feature (hours summed) | Staff name, Demand (name; code on hover), Feature name, Hours | person's total hours (desc), then demand, feature |
-| Needs attention | reason + staff + taxonomy (hours summed) | Staff, Taxonomy, Reason, Hours | reason, Staff ID, taxonomy |
+| Demand exceptions | staff + demand + feature (hours summed) | Person (name, Staff ID), Demand (name, code), Feature name, Hours | person's total hours (desc), then demand, feature |
+| Needs attention | reason + staff + taxonomy (hours summed) | Person, Taxonomy, Reason, Hours | reason, Staff ID, taxonomy |
 | No time logged | person | Name, Staff ID | Staff ID |
 
 ## 5. Email
@@ -108,10 +108,11 @@ Empty sections are left out. Hours show to 1 decimal. Text is made Windows-1252 
 
 A baked copy with no people in it (email wording only) counts as having no rules baked: it never replaces this browser's rules, and its wording only fills blank email fields (in a browser with no autosave, its label and ignored taxonomies are used too).
 
-Whichever set is not used is kept in a second browser key (`waqti-exceptions:v1:previous`, one set). **Settings > Import & export** offers **Restore my previous rules** (or **Use the rules baked into this file**), which swaps the two sets, so switching back never loses either. After you choose, that copy opens without asking again. The baker's own browser counts as the source of the copy, so reopening it there keeps any later edits.
+Whichever set is not used is kept in a second browser key (`waqti-exceptions:v1:previous`, one set). **Settings > Rules file** offers **Restore my previous rules** (or **Use the rules baked into this file**), which swaps the two sets, so switching back never loses either. After you choose, that copy opens without asking again. The baker's own browser counts as the source of the copy, so reopening it there keeps any later edits.
 
 ## 7. Things worth knowing
 
 - **Anything not on the ignore list is checked.** A new leave-type taxonomy shows up in the tables (often as `No application`) until it is added to the list.
 - **The team (ART) name is hard-coded** in `TARGET_ART` and in the on-screen "Ignored" note.
+- **rules.json keeps its own shape.** This tool reads and writes rules.json itself rather than through `RK.rules`, so the file stays exactly as earlier versions wrote it (`trackLoggedTime` for everyone, `ignoredTaxonomies` before `staff`). It refuses a `schemaVersion` other than 1 and drops fields it does not know when it exports (BACKLOG WQ-04).
 - **No time-bounded approvals**: approvals apply to the whole export period.

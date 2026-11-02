@@ -13,7 +13,7 @@
 <style>
 /* ============================================================
    Report Kit 2: the design language for new browser tools
-   kit-version: 2.2.0
+   kit-version: 2.3.0
    Extracted from vendor-spend-tracker.html. Inlined into a report
    by framework/build.py. See framework/DESIGN.md for the rules and
    framework/starter.src.html for a page that uses every part.
@@ -456,6 +456,10 @@ td.row-actions { text-align: right; }
 .row-action-btn:hover { background: var(--teal); color: #fff; border-color: var(--teal); }
 .row-done-label { font-size: 12px; color: var(--green-fg); font-weight: 500; white-space: nowrap; }
 .empty-state { padding: 40px; text-align: center; color: var(--text-dim); }
+/* a row left out of an export or an email (its tick box unticked); the tick box cell stays clear */
+tr.row-off td { opacity: .45; text-decoration: line-through; }
+tr.row-off td.row-check { opacity: 1; text-decoration: none; }
+td.row-check, th.row-check { width: 64px; text-align: center; padding-right: 6px; }
 
 /* ---- Step progress: a fixed workflow shown as segments ---- */
 .steps { display: flex; flex-direction: column; gap: 6px; }
@@ -625,6 +629,11 @@ td.row-actions { text-align: right; }
 .upload-area:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
 .upload-area .big { font-size: 14px; font-weight: 600; color: var(--text); }
 .upload-area .or { font-size: 12px; color: var(--text-dim); margin: 6px 0; }
+/* an upload-first tool opens on this panel: a heading, a line of lead text, the drop zone */
+.start-view { max-width: 640px; margin: 48px auto 0; }
+.start-panel { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 24px 26px; }
+.start-panel h2 { margin: 0 0 6px; font-size: 20px; font-weight: 600; }
+.start-panel .upload-area { padding: 48px 24px; }
 /* RK.xlsx.renderMapper labels each column select with a bare label.field */
 label.field { display: block; font-size: 12px; font-weight: 600; color: var(--text); }
 
@@ -843,6 +852,11 @@ label.field { display: block; font-size: 12px; font-weight: 600; color: var(--te
   .toolbar-select { flex: 1 1 auto; }
   .list-meta { flex: 1 1 100%; text-align: left; order: 10; }
 }
+@media (max-width: 560px) {
+  .start-view { margin-top: 16px; }
+  .start-panel { padding: 18px 16px; }
+  .start-panel .upload-area { padding: 32px 16px; }
+}
 @media (max-width: 480px) {
   .setting-row { flex-wrap: wrap; }
   .setting-row-control { flex: 1 1 100%; justify-content: flex-end; }
@@ -1060,7 +1074,7 @@ parse_Primary(n.content)}catch(l){}a="/EncryptionInfo";n=Qe.find(e,a);if(!n||!n.
 <script>
 /* ============================================================
    Report Kit — shared runtime for the browser report tools
-   kit-version: 1.4.0
+   kit-version: 1.5.0
    Exposes window.RK. Depends on window.XLSX (SheetJS) only for the
    xlsx.* helpers; everything else is standalone. Inlined into each
    report by framework/build.py so reports stay single-file/offline.
@@ -1074,7 +1088,7 @@ parse_Primary(n.content)}catch(l){}a="/EncryptionInfo";n=Qe.find(e,a);if(!n||!n.
    ============================================================ */
 window.RK = (function () {
   "use strict";
-  var KIT_VERSION = "1.4.0";
+  var KIT_VERSION = "1.5.0";
 
   /* ---------- dom / format helpers ---------- */
   function $(id) { return document.getElementById(id); }
@@ -1125,6 +1139,14 @@ window.RK = (function () {
         });
         return navigator.clipboard.write([item]).then(function () { return "html"; });
       }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        return navigator.clipboard.writeText(text).then(function () { return "text"; });
+      }
+      return Promise.reject(new Error("no-clipboard"));
+    },
+    // writeText(text) -> Promise resolving to "text": plain text only, for a "copy as plain
+    // text" choice (write() above always offers HTML first). Rejects if blocked.
+    writeText: function (text) {
       if (navigator.clipboard && navigator.clipboard.writeText) {
         return navigator.clipboard.writeText(text).then(function () { return "text"; });
       }
@@ -1210,6 +1232,7 @@ window.RK = (function () {
     // container: el for the selects; fieldSpecs as above; onConfirm(mapping).
     renderMapper: function (opts) {
       var headers = opts.headers, fieldSpecs = opts.fieldSpecs;
+      var idBase = (opts.fieldsEl.id || "rk-map") + "-";   // each label names its select (for/id)
       var rows = fieldSpecs.map(function (f) {
         var guess = null;
         for (var i = 0; i < headers.length; i++) if (headers[i].name === f.canonical) { guess = headers[i].index; break; }
@@ -1217,7 +1240,8 @@ window.RK = (function () {
           return '<option value="' + h.index + '"' + (guess === h.index ? " selected" : "") + ">" + esc(h.name || ("(column " + (h.index + 1) + ")")) + " [col " + (h.index + 1) + "]</option>";
         }).join("");
         var label = f.label || (f.canonical + (f.required ? "" : " (optional)"));
-        return '<div style="margin:.5rem 0;"><label class="field" style="margin:0 0 .2rem;">' + esc(label) + '</label><select data-field="' + f.field + '">' + optsHtml + "</select></div>";
+        var id = idBase + f.field;
+        return '<div style="margin:.5rem 0;"><label class="field" for="' + esc(id) + '" style="margin:0 0 .2rem;">' + esc(label) + '</label><select id="' + esc(id) + '" data-field="' + f.field + '">' + optsHtml + "</select></div>";
       }).join("");
       opts.fieldsEl.innerHTML = rows;
       var errEl = opts.errorEl;

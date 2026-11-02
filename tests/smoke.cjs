@@ -154,11 +154,123 @@ const FLOWS = {
     t("a file without quarters is refused with a reason", /No quarters found in Quarter Planned/.test(await page.textContent("#emptyStatus")) && await page.isVisible("#dropBig"));
   },
   "waqti-exceptions.html": async (page, t) => {
-    await page.setInputFiles("#fileInput", path.join(FIX, "waqti-export.xlsx"));
-    await page.waitForFunction(() => /waqti-export/.test(document.getElementById("fileNameSub").textContent), null, { timeout: 5000 });
+    const native = [];
+    page.on("dialog", (d) => native.push(d.type()));
+    const main = () => page.textContent("#summaryMain");
+    const load = async () => {
+      await page.setInputFiles("#fileInput", path.join(FIX, "waqti-export.xlsx"));
+      await page.waitForSelector("#loadedView:not([hidden])", { timeout: 5000 });
+    };
+    const settings = async (panel) => { await page.click('.app-nav-item[data-view="settings"]'); await page.click(`.settings-nav-item[data-panel="${panel}"]`); };
+    const back = () => page.click('.app-nav-item[data-view="main"]');
+    const copied = async () => {
+      await page.evaluate(() => { window.__c = null; navigator.clipboard.writeText = async (x) => { window.__c = { text: x }; };
+        navigator.clipboard.write = async (items) => { window.__c = { html: await (await items[0].getType("text/html")).text(), text: await (await items[0].getType("text/plain")).text() }; }; });
+      await page.click("#copyBtn"); await page.waitForTimeout(150);
+      return page.evaluate(() => window.__c || { html: "", text: "" });
+    };
+    t("opens on the drop zone", await page.isVisible("#drop") && await page.isHidden("#loadedView") && await page.isDisabled("#copyBtn"));
+    await load();
+    t("the answer line counts exceptions, people and rows to check", (await main()) === "2 exceptions for 2 people, 1 row to check", await main());
+    t("the cards and tabs carry the counts", /Demand exceptions\s*Correct\s*10\.0\s*hrs of 12\.0 logged/.test(await page.textContent("#statGrid")) &&
+      (await page.textContent("#listTabs")) === "Demand exceptions2Needs attention1No time logged0", await page.textContent("#statGrid"));
+    t("no people rules is called out", await page.isVisible("#noRulesHint"));
     // scoped to the Needs attention table: the page's own script also contains the words
-    const attn = await page.textContent("#attnWrap");
-    t("reads the export and flags the GEN_LINES row", /S2/.test(attn) && /GEN_LINES|system created/i.test(attn), attn.slice(0, 120));
+    await page.click('#listTabs [data-tab="attn"]');
+    const attn = await page.textContent("#attnBody");
+    t("reads the export and flags the GEN_LINES row", /S2/.test(attn) && /System created \(GEN_LINES\); No application; Not approved for D200/.test(attn), attn.slice(0, 120));
+    await page.click('#listTabs [data-tab="ex"]');
+    await page.click('#exTable th[data-sort="hours"]');
+    t("the exceptions sort from the header", (await page.getAttribute('#exTable th[data-sort="hours"]', "aria-sort")) === "ascending" && /^S2/.test((await page.textContent("#exBody tr")).trim()));
+
+    // a row opens a drawer with the bookings behind it
+    await page.click('#exBody tr[data-i="0"] td:nth-child(3)');
+    t("a row opens its detail drawer", await page.isVisible("#drawerOverlay") && (await page.textContent("#d_title")) === "S1" && /2026-03-02\s*6\.0/.test(await page.textContent("#d_body")));
+    await page.keyboard.press("Escape");
+    t("Escape closes it", await page.isHidden("#drawerOverlay"));
+
+    // the drafted email, both flavours
+    let c = await copied();
+    t("copies the rich email with a plain-text twin", /<table role="presentation"/.test(c.html || "") && /^Timesheet corrections needed: Mar-26\n/.test(c.text) && await page.isVisible(".toast.on"));
+    await page.click("#segPlain");
+    t("the format switch is a pressed button", (await page.getAttribute("#segPlain", "aria-pressed")) === "true" && await page.isVisible("#plainArea"));
+    c = await copied();
+    t("copies the plain-text email unchanged", c.html === undefined && c.text === "Timesheet corrections needed: Mar-26\n\nThe following bookings were made against demands the person is not currently approved for.\n\nTotal to correct: 10.0 hours across 2 people.\n\nD100 - Alpha\nStaff  Feature        Hours\n-----  -----------  -------\nS1     Feature one  6.0 hrs\n\nD200 - Beta\nStaff  Feature        Hours\n-----  -----------  -------\nS2     Feature two  4.0 hrs\n\nNEEDS ATTENTION - please review and fix these in Waqti\nStaff  Taxonomy  Reason                                                               Hours\n-----  --------  -----------------------------------------------------------------  -------\nS2     Dev       System created (GEN_LINES); No application; Not approved for D200  2.0 hrs\n\nPlease correct these in Waqti by Tuesday 31st March.", JSON.stringify(c.text));
+    await page.click("#segRich");
+    await page.uncheck('#exBody tr[data-i="0"] input[data-kind]');
+    t("an unticked row leaves the email", !/S1\s+Feature one/.test(await page.textContent("#richPreview")) && /1 of 2 in the email/.test(await page.textContent("#listMeta")));
+    await page.check('#exBody tr[data-i="0"] input[data-kind]');
+
+    // Settings > People: an approval ticked in the grid clears that exception
+    await settings("panel-approvals");
+    t("Settings shows the version", /^v3\.\d+\.\d+$/.test(await page.textContent(".app-version")));
+    await page.check('#gridWrap input[data-sid="S1"][data-demand="D100"]');
+    await page.fill('#gridWrap input[data-name="S1"]', "Sam One");
+    await back();
+    t("approving in the grid changes the count", (await main()) === "1 exception for 1 person, 1 row to check", await main());
+    // and from the drawer
+    await page.click('#exBody tr[data-i="0"] td:nth-child(3)');
+    await page.click("#d_body [data-d-approve]");
+    t("Approve in the drawer clears the last exception", (await main()) === "No demand exceptions, 1 row to check" && /cleared/.test(await page.textContent(".toast")), await main());
+    await page.click('#listTabs [data-tab="attn"]');
+    await page.uncheck('#attnBody tr[data-i="0"] input[data-kind]');
+    t("with every row unticked there is nothing to copy", await page.isDisabled("#copyBtn") && /Nothing to email/.test(await page.textContent("#richPreview")));
+    await page.check('#attnBody tr[data-i="0"] input[data-kind]');
+
+    // email wording
+    await settings("panel-email");
+    await page.fill("#periodInput", "March 2026");
+    await back();
+    t("the period typed in Settings heads the email", /Timesheet corrections needed: March 2026/.test(await page.textContent("#richPreview")));
+
+    // rules.json export: same shape and key order as earlier versions
+    await settings("panel-file");
+    const dl = page.waitForEvent("download", { timeout: 5000 });
+    await page.click("#exportBtn");
+    const raw = fs.readFileSync(await (await dl).path(), "utf8"), rules = JSON.parse(raw);
+    t("exports rules.json with the edits", Object.keys(rules).join() === "schemaVersion,generatedAt,label,ignoredTaxonomies,staff" && rules.ignoredTaxonomies.length === 9 &&
+      JSON.stringify(rules.staff.S1) === '{"name":"Sam One","trackLoggedTime":true,"approvedDemands":["D100"]}' && rules.staff.S2.approvedDemands[0] === "D200", raw.slice(0, 300));
+
+    // Raw JSON: invalid text is refused and kept, not overwritten by edits elsewhere (WQ-03)
+    await settings("panel-json");
+    await page.fill("#jsonArea", "{ not json"); await page.click("#applyJson");
+    t("invalid raw JSON is refused in the page", await page.isVisible("#jsonError") && await page.isVisible("#revertJson"));
+    await settings("panel-approvals");
+    await page.uncheck('#gridWrap input[data-team="S1"]');
+    t("and kept while other rules change", (await page.inputValue("#jsonArea")) === "{ not json");
+    await settings("panel-json"); await page.click("#revertJson");
+    t("discard puts the live rules back", /"trackLoggedTime": false/.test(await page.inputValue("#jsonArea")));
+
+    // Save tool with rules: the copy carries the rules, no messages or loaded data
+    await settings("panel-file");
+    const bk = page.waitForEvent("download", { timeout: 5000 });
+    await page.click("#bakeBtn");
+    const baked = fs.readFileSync(await (await bk).path(), "utf8");
+    t("the baked copy carries the rules and wording, nothing loaded", /id="embeddedRules">\{[\s\S]*"S1"/.test(baked) && /id="embeddedEmail">\{"intro"/.test(baked) &&
+      !/class="toast/.test(baked) && !/Sam One<\/span>|value="Sam One"/.test(baked) && /id="jsonError" role="alert" hidden=""><\/div>/.test(baked));
+    const bakedFile = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "wx-bake-")), "waqti-exceptions.html");
+    fs.writeFileSync(bakedFile, baked);
+    const p2 = await page.context().newPage(), e2 = [];
+    p2.on("pageerror", (e) => e2.push(e.message));
+    await p2.goto("file://" + bakedFile); await p2.waitForTimeout(300);
+    await p2.setInputFiles("#fileInput", path.join(FIX, "waqti-export.xlsx")); await p2.waitForSelector("#loadedView:not([hidden])");
+    t("the baked copy opens clean and uses its rules", e2.length === 0 && await p2.isHidden("#bakedHint") && (await p2.textContent("#summaryMain")) === "No demand exceptions, 1 row to check", (await p2.textContent("#summaryMain")) + e2.join());
+    await p2.close();
+
+    // phone width: no sideways page scroll
+    await page.setViewportSize({ width: 390, height: 844 });
+    await back(); await page.waitForTimeout(100);
+    const wMain = await page.evaluate(() => document.documentElement.scrollWidth);
+    await settings("panel-approvals");
+    const wSet = await page.evaluate(() => document.documentElement.scrollWidth);
+    t("no sideways scroll at 390px", wMain <= 390 && wSet <= 390, wMain + " / " + wSet);
+    await page.setViewportSize({ width: 1280, height: 800 });
+
+    // an autosave from an earlier version (same key, lower-case id, no ignore list) still loads
+    await page.evaluate(() => { localStorage.clear(); localStorage.setItem("waqti-exceptions:v1", JSON.stringify({ rules: { label: "old set", staff: { s2: { name: "Sara Two", approvedDemands: ["D200"] } }, generatedAt: null }, source: "import", loadedAt: 1700000000000, email: { intro: "Old intro", closing: "Old closing by {deadline}" } })); });
+    await page.reload(); await page.waitForTimeout(300); await load();
+    t("rules saved by earlier versions load", (await main()) === "1 exception for 1 person, 1 row to check" && /Sara Two/.test(await page.textContent("#richPreview")) && /Old intro/.test(await page.textContent("#richPreview")), await main());
+    t("no native alert, confirm or prompt", native.length === 0, native.join(","));
   },
   "waqti-demand-summary.html": async (page, t) => {
     const native = [];

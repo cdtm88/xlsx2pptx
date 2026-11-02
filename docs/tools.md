@@ -63,14 +63,34 @@ image has no page to run off). Where the browser blocks clipboard writes (some
 
 Drop a Waqti timesheet export, apply a per-person approved-demand allowlist
 (`rules.json`, built or imported in **Settings**), and get a copy-paste email.
-Rows are sorted into a few tables — bookings against a demand the person isn't
-approved for, rows that need attention in Waqti, and staff with no time logged —
-following the classification rules in
-[`docs/waqti-exception-rules.md`](waqti-exception-rules.md): unapproved
-demands, lines with no Application or created by `GEN_LINES`, and people with no
-time logged, each with a reason. Untick any row to
-leave it out, then copy the email as rich HTML or plain text.
-**Settings > Import & export > Save tool with rules** downloads a copy of the
+The rules are in [`docs/waqti-exception-rules.md`](waqti-exception-rules.md):
+unapproved demands, lines with no Application or created by `GEN_LINES`, and
+people with no time logged, each with a reason.
+
+The **Exceptions** view opens on the drop zone; once a file is loaded it leads
+with a one-line answer ("5 exceptions for 3 people, 2 rows to check") and four
+cards: demand exception hours out of all hours logged, rows needing attention,
+people with no time logged, and how many people in the export are in the rules
+(click it to go to Settings > People). Warnings sit under the cards: people not
+in the rules, bad Booked Hours rows, a missing Application column, a multi-month
+export. Below them, three tabs (**Demand exceptions**, **Needs attention**, **No
+time logged**; the first three cards switch them too) each show one sortable
+table. Untick **Send** on a row to leave it out of the email. Click a row for a
+drawer with the bookings behind it; on a demand exception, **Approve for
+&lt;demand&gt;** adds that demand to the person's approvals, and on a No time
+logged row, **Stop tracking** unticks Track Logged Time. The search box in the
+header (press `/`) filters the rows. The **Email** panel previews the email as
+rich HTML or plain text; **Copy email** in the header (or **Copy** in the panel)
+copies the format shown, and a manual-copy box appears if the browser blocks the
+clipboard. **Load export** loads another file; if its headers need mapping,
+**Cancel** goes back to the previous file.
+
+**Settings** has five tabs: **People** (the staff-by-demand approval grid with
+names and Track Logged Time, plus people and demands in the rules but not in this
+export), **Ignored taxonomies**, **Email text** (period, deadline, opening and
+closing lines), **Rules file** (import, export, template, Save tool with rules,
+and which rules set is in use) and **Raw JSON**.
+**Settings > Rules file > Save tool with rules** downloads a copy of the
 tool with the rules and email wording built in. That copy opens on the upload
 screen. It uses its built-in rules when this browser has none, the same ones, or
 rules that came from that copy; if this browser has different rules, it asks
@@ -78,6 +98,8 @@ once which set to use. The set not used is kept, and **Restore my previous
 rules** in Settings switches back. A copy baked with no people only fills in
 blank email wording. Details:
 [`docs/waqti-exception-rules.md`](waqti-exception-rules.md#6-baked-copies-save-tool-with-rules).
+Built on Report Kit 2 since v3.0.0; rules and wording saved by earlier versions
+load unchanged, and the email and rules.json are the same as before.
 
 ## `waqti-demand-summary.html`
 

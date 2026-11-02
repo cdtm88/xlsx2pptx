@@ -1,6 +1,6 @@
 /* ============================================================
    Report Kit — shared runtime for the browser report tools
-   kit-version: 1.4.0
+   kit-version: 1.5.0
    Exposes window.RK. Depends on window.XLSX (SheetJS) only for the
    xlsx.* helpers; everything else is standalone. Inlined into each
    report by framework/build.py so reports stay single-file/offline.
@@ -14,7 +14,7 @@
    ============================================================ */
 window.RK = (function () {
   "use strict";
-  var KIT_VERSION = "1.4.0";
+  var KIT_VERSION = "1.5.0";
 
   /* ---------- dom / format helpers ---------- */
   function $(id) { return document.getElementById(id); }
@@ -65,6 +65,14 @@ window.RK = (function () {
         });
         return navigator.clipboard.write([item]).then(function () { return "html"; });
       }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        return navigator.clipboard.writeText(text).then(function () { return "text"; });
+      }
+      return Promise.reject(new Error("no-clipboard"));
+    },
+    // writeText(text) -> Promise resolving to "text": plain text only, for a "copy as plain
+    // text" choice (write() above always offers HTML first). Rejects if blocked.
+    writeText: function (text) {
       if (navigator.clipboard && navigator.clipboard.writeText) {
         return navigator.clipboard.writeText(text).then(function () { return "text"; });
       }
@@ -150,6 +158,7 @@ window.RK = (function () {
     // container: el for the selects; fieldSpecs as above; onConfirm(mapping).
     renderMapper: function (opts) {
       var headers = opts.headers, fieldSpecs = opts.fieldSpecs;
+      var idBase = (opts.fieldsEl.id || "rk-map") + "-";   // each label names its select (for/id)
       var rows = fieldSpecs.map(function (f) {
         var guess = null;
         for (var i = 0; i < headers.length; i++) if (headers[i].name === f.canonical) { guess = headers[i].index; break; }
@@ -157,7 +166,8 @@ window.RK = (function () {
           return '<option value="' + h.index + '"' + (guess === h.index ? " selected" : "") + ">" + esc(h.name || ("(column " + (h.index + 1) + ")")) + " [col " + (h.index + 1) + "]</option>";
         }).join("");
         var label = f.label || (f.canonical + (f.required ? "" : " (optional)"));
-        return '<div style="margin:.5rem 0;"><label class="field" style="margin:0 0 .2rem;">' + esc(label) + '</label><select data-field="' + f.field + '">' + optsHtml + "</select></div>";
+        var id = idBase + f.field;
+        return '<div style="margin:.5rem 0;"><label class="field" for="' + esc(id) + '" style="margin:0 0 .2rem;">' + esc(label) + '</label><select id="' + esc(id) + '" data-field="' + f.field + '">' + optsHtml + "</select></div>";
       }).join("");
       opts.fieldsEl.innerHTML = rows;
       var errEl = opts.errorEl;
