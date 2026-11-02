@@ -11,127 +11,198 @@
 <title>Waqti Demand Summary</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMiIgaGVpZ2h0PSIzMiIgdmlld0JveD0iMCAwIDMyIDMyIj48cmVjdCB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHJ4PSI3IiBmaWxsPSIjMDBBOUNFIi8+PHBhdGggZD0iTTkgMTYuNSBsNCA0IEwyMyAxMSIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjMiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPjwvc3ZnPg==">
 <style>
-/*@include framework/report-kit.css@*/
+/*@include framework/report-kit-2.css@*/
 
-/* ---- report-specific: demand multi-select + summary sections ---- */
-.demand-list{border:1px solid var(--line);border-radius:10px;max-height:340px;overflow-y:auto;background:#fff}
-.demand-item{display:flex;align-items:flex-start;gap:.7rem;padding:.6rem .85rem;border-bottom:1px solid var(--line-soft);cursor:pointer}
-.demand-item:last-child{border-bottom:none}
-.demand-item:hover{background:var(--light-grey)}
-.demand-item.on{background:var(--teal-tint)}
-.demand-item input[type=checkbox]{accent-color:var(--teal);width:17px;height:17px;cursor:pointer;margin-top:.15rem;flex:0 0 auto}
-.demand-item .d-main{flex:1;min-width:0}
-.demand-item .d-code{font-weight:700;color:var(--slate);font-size:.86rem}
-.demand-item .d-desc{color:var(--charcoal);font-size:.86rem}
-.demand-item .d-meta{display:block;font-size:.74rem;color:var(--mid);margin-top:.15rem}
-.demand-item .d-hrs{font-variant-numeric:tabular-nums;font-weight:700;color:var(--teal-dark);font-size:.82rem;white-space:nowrap;flex:0 0 auto;text-align:right}
-.demand-block{margin-bottom:1.4rem}
-.demand-block:last-child{margin-bottom:0}
-.demand-block .d-title{font-size:.95rem;font-weight:800;color:var(--teal-dark);letter-spacing:-.01em}
-.demand-block .d-title .code{color:var(--slate)}
-.demand-block .d-subline{font-size:.76rem;color:var(--mid);font-weight:600;margin:.15rem 0 .55rem}
+/* ---- Waqti demand summary (wds-*) ---- */
+.wds-empty { max-width: 640px; margin: 48px auto 0; }
+.wds-panel { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 24px 26px; }
+.wds-panel h2 { margin: 0 0 6px; font-size: 20px; font-weight: 600; }
+.wds-empty .upload-area { padding: 48px 24px; }
+.wds-mapper { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--divider); }
+.wds-mapper h3 { margin: 0 0 4px; font-size: 13px; font-weight: 700; }
+.wds-mapper select { margin-bottom: 2px; }
+.wds-err { white-space: pre-line; }
+.wds-grid { display: grid; grid-template-columns: minmax(340px, 460px) minmax(0, 1fr); gap: 20px; align-items: start; }
+.wds-picker { position: sticky; top: 16px; }
+.wds-picker .table-container { max-height: calc(100vh - 170px); }
+.wds-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.wds-head h2 { margin: 0; font-size: 16px; font-weight: 700; color: var(--heading); }
+.wds-head .hint { margin: 0; }
+#demandTable th.wds-tick, #demandTable td.wds-tick { width: 42px; padding-right: 0; }
+#demandTable tbody tr { cursor: pointer; }
+#demandTable tbody tr.wds-on td { background: var(--teal-tint); }
+.wds-stats { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+.wds-num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.wds-block + .wds-block { margin-top: 22px; }
+.wds-block-head { display: flex; align-items: baseline; gap: 4px 10px; flex-wrap: wrap; margin-bottom: 8px; }
+.wds-block-title { font-size: 14px; font-weight: 600; color: var(--text); }
+.wds-block-title .wds-code { font-family: var(--font-mono); color: var(--accent-dark); margin-right: 6px; }
+.wds-block-sub { font: 500 12px var(--font-mono); color: var(--text-dim); }
+.wds-block .table-container { max-height: none; }
+.wds-sum col.wds-col-hrs { width: 110px; }
+.wds-sum td { white-space: normal; vertical-align: top; }
+.wds-sum tbody tr:nth-child(even) td, .wds-sum tbody tr:hover td { background: #fff; }
+.wds-sum tbody tr.wds-gs td { border-top: 1px solid var(--border); }
+.wds-sum td.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.wds-sum td.wds-name { font-weight: 600; }
+.wds-sum td.wds-none { color: var(--text-dim); }
+.wds-sum tfoot td { font-weight: 700; background: var(--light-grey); border-bottom: none; }
+.wds-sid { display: block; font: 400 11px var(--font-mono); color: var(--text-dim); margin-top: 2px; }
+.wds-actions { display: flex; gap: 8px; flex-wrap: wrap; margin: 4px 0 14px; }
+.wds-search { width: 280px; max-width: 100%; }
+.wds-check { display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; }
+.wds-names { margin-top: 14px; grid-template-columns: 1fr; }
+.wds-names .settings-table-row { grid-template-columns: 140px minmax(0, 1fr); }
+.wds-names .col-id { font-family: var(--font-mono); }
+@media (max-width: 1100px) {
+  .wds-grid { grid-template-columns: minmax(0, 1fr); }
+  .wds-picker { position: static; }
+  .wds-picker .table-container { max-height: 55vh; }
+}
+@media (max-width: 560px) {
+  .wds-empty { margin-top: 16px; }
+  .wds-panel { padding: 18px 16px; }
+  .wds-empty .upload-area { padding: 32px 16px; }
+  .wds-search { width: 100%; }
+  .wds-sum col.wds-col-hrs { width: 76px; }
+}
 </style>
 </head>
 <body>
-<header class="app-header">
-  <div class="inner">
-    <div>
-      <h1>Waqti Demand Summary</h1>
-      <p>Hours booked by person and feature, grouped by demand</p>
-    </div>
-    <div class="spacer"></div>
-    <span class="ver" id="version">v0.0.0</span>
-    <button type="button" class="btn btn-ghost" id="navSettings" style="margin-left:.8rem;">Settings</button>
-    <button type="button" class="btn btn-ghost hidden" id="navDone">Back</button>
-  </div>
-</header>
+<div class="wrap">
 
-<div class="container" id="view-main">
-
-  <!-- ============ UPLOAD ============ -->
-  <section class="card">
-    <div class="card-head"><span class="title">Timesheet export</span><span class="sub" id="fileNameSub"></span></div>
-    <div class="upload-area" id="drop" tabindex="0" role="button" aria-label="Drop an xlsx file here, or press Enter to browse">
-      <div class="big">Drop an .xlsx export here</div>
-      <div class="or">or</div>
-      <button type="button" class="btn btn-primary" id="browseBtn">Browse for file</button>
-      <input type="file" id="fileInput" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" class="hidden">
+  <header class="app-header">
+    <div class="app-logo"><img class="app-logo-mark" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMiIgaGVpZ2h0PSIzMiIgdmlld0JveD0iMCAwIDMyIDMyIj48cmVjdCB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHJ4PSI3IiBmaWxsPSIjMDBBOUNFIi8+PHBhdGggZD0iTTkgMTYuNSBsNCA0IEwyMyAxMSIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjMiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPjwvc3ZnPg==" alt="">Waqti Demand Summary</div>
+    <nav class="app-nav" aria-label="Views">
+      <button type="button" class="app-nav-item active" data-view="main" aria-pressed="true">Summary</button>
+      <button type="button" class="app-nav-item" data-view="settings" aria-pressed="false">Settings</button>
+    </nav>
+    <div class="app-header-spacer"></div>
+    <div class="app-search" id="searchWrap" hidden>
+      <input type="search" id="demandSearch" placeholder="Filter demands by code or name" aria-label="Filter demands">
+      <span class="search-hint-key">/</span>
     </div>
-    <div class="loaded-bar hidden" id="loadedBar">
-      <span>Loaded <span class="fname" id="loadedName"></span></span>
-      <span class="spacer"></span>
-      <button type="button" class="mini-btn" id="replaceBtn">Replace file</button>
-    </div>
-    <div id="parseError" class="err hidden"></div>
-    <div id="parseStatus" style="margin-top:.8rem;"></div>
+    <button type="button" id="replaceBtn">Load export</button>
+    <button type="button" class="primary" id="copyBtn" disabled>Copy summary</button>
+    <input type="file" id="fileInput" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
+  </header>
 
-    <div id="mapper" class="hidden" style="margin-top:1rem;">
-      <div style="font-size:.74rem;font-weight:700;color:var(--slate);margin-bottom:.4rem;">Map the required columns</div>
-      <p class="sub">Not all expected headers were found. Match each field to a column, then confirm. Name and Recharge Cost are optional.</p>
-      <div id="mapperFields" style="margin-top:.5rem;"></div>
-      <div class="controls-row" style="margin-top:.7rem;"><button type="button" class="btn btn-primary" id="mapperConfirm">Confirm mapping</button></div>
-      <div id="mapperError" class="err hidden"></div>
-    </div>
-  </section>
+  <div class="callout danger wds-err" id="parseError" role="alert" hidden></div>
+  <div id="copyFallback"></div>
 
-  <!-- ============ DEMAND MULTI-SELECT ============ -->
-  <section class="card hidden" id="demandCard">
-    <div class="card-head"><span class="title">Demands</span><span class="sub">Tick the demands you want summarised</span></div>
-    <div class="ms-toolbar">
-      <input type="search" class="search" id="demandSearch" placeholder="Filter demands by code or description&hellip;" aria-label="Filter demands">
-      <button type="button" class="mini-btn" id="selectAllBtn">Select all</button>
-      <button type="button" class="mini-btn" id="clearAllBtn">Clear</button>
-      <span class="ms-count" id="demandCount"></span>
-    </div>
-    <div class="demand-list" id="demandList"></div>
-  </section>
+  <!-- ================= SUMMARY ================= -->
+  <div id="mainView">
 
-  <!-- ============ SUMMARY ============ -->
-  <section class="card hidden" id="summaryCard">
-    <div class="card-head">
-      <span class="title">Summary</span>
-      <div class="controls-row">
-        <button type="button" class="mini-btn" id="copyBtn">Copy summary</button>
-        <span class="copymsg" id="copyMsg" aria-live="polite"></span>
+    <!-- nothing loaded yet (or the columns need mapping): the drop zone is the page -->
+    <div class="wds-empty" id="emptyView">
+      <div class="wds-panel">
+        <h2>Start with a Waqti export</h2>
+        <p class="modal-lead">Drop the timesheet export, tick the demands you want, then copy the tables into an email or document.</p>
+        <div class="upload-area" id="drop" tabindex="0" role="button" aria-label="Choose a Waqti xlsx export">
+          <div class="big">Drop the Waqti .xlsx export here</div>
+          <div class="or">or click to choose a file</div>
+        </div>
+        <div class="wds-mapper" id="mapper" hidden>
+          <h3>Map the required columns</h3>
+          <p class="hint">Not all expected headers were found in <span id="mapperFile"></span>. Match each field to a column, then confirm. Name and Recharge Cost are optional.</p>
+          <div id="mapperFields"></div>
+          <div class="wds-actions" style="margin-top:12px;"><button type="button" class="primary" id="mapperConfirm">Confirm mapping</button></div>
+          <div class="callout danger" id="mapperError" role="alert" hidden></div>
+        </div>
       </div>
     </div>
-    <div id="summaryBody"></div>
-    <div id="copyFallback"></div>
-    <div class="note" id="dqNote" style="display:none;"></div>
-  </section>
 
-</div>
+    <div id="loadedView" hidden>
+      <div class="page-summary">
+        <div class="page-summary-text">
+          <span class="page-summary-sub" id="summarySub"></span>
+          <span class="page-summary-main" id="summaryMain"></span>
+        </div>
+        <div class="legend">
+          <span class="legend-item"><span class="legend-swatch swatch-solid"></span>Selected demands</span>
+          <span class="legend-item"><span class="legend-swatch"></span>Rest of the export</span>
+        </div>
+      </div>
+      <div class="stat-grid wds-stats" id="statGrid"></div>
+      <div class="callout warn" id="dqNote" hidden></div>
 
-<!-- ============ SETTINGS VIEW ============ -->
-<div class="container hidden" id="view-settings">
-  <section class="card">
-    <div class="card-head"><span class="title">Settings &middot; staff names</span><span class="sub">Map Staff ID &rarr; name</span></div>
-    <p class="sub" style="margin-bottom:.8rem;">Import the same <code>rules.json</code> used by Waqti Exceptions. Only each person&rsquo;s <strong>name</strong> is used here (the approved-demand lists are read but not applied). Names from the rules file take priority over any Name column in the export, and both fall back to the Staff ID. <strong>Export</strong> writes the names back out in the same format &mdash; any approved-demand lists from an imported file are kept, so the exported <code>rules.json</code> still works in Waqti Exceptions.</p>
-    <div class="controls-row">
-      <button type="button" class="btn btn-ghost" id="importRulesBtn">Import rules.json</button>
-      <input type="file" id="importRulesInput" accept=".json,application/json" class="hidden">
-      <button type="button" class="btn btn-ghost" id="exportRulesBtn">Export rules.json</button>
-      <button type="button" class="btn btn-ghost" id="clearRulesBtn">Clear names</button>
+      <div class="wds-grid">
+        <section class="wds-picker" aria-labelledby="demandsTitle">
+          <div class="wds-head"><h2 id="demandsTitle">Demands</h2><span class="hint">Tick the demands to summarise</span></div>
+          <div class="toolbar">
+            <div class="seg-tabs" id="demandTabs"></div>
+            <button type="button" class="small" id="selectAllBtn">Select all</button>
+            <button type="button" class="small" id="clearAllBtn">Clear</button>
+            <div class="toolbar-spacer"></div>
+            <span class="list-meta wds-num" id="demandCount"></span>
+          </div>
+          <div class="table-container">
+            <table id="demandTable">
+              <thead>
+                <tr>
+                  <th class="wds-tick"><span class="select-hidden-visually">Selected</span></th>
+                  <th data-sort="name">Demand</th>
+                  <th data-sort="people" class="num">People</th>
+                  <th data-sort="hours" class="num">Hours</th>
+                </tr>
+              </thead>
+              <tbody id="demandList"></tbody>
+            </table>
+            <div class="empty-state" id="demandEmpty" hidden></div>
+          </div>
+        </section>
+
+        <section aria-labelledby="sumTitle">
+          <div class="wds-head"><h2 id="sumTitle">Summary</h2><span class="hint">Hours per person and feature, as they will paste</span></div>
+          <div id="summaryBody"></div>
+        </section>
+      </div>
     </div>
-    <div id="rulesError" class="err hidden"></div>
-    <p class="sub hidden" id="exportRulesMsg" role="status" style="margin:.6rem 0 0;"></p>
-    <div class="note rules-status" id="rulesStatus" style="margin-top:.9rem;">No names loaded. Names fall back to the Name column, then the Staff ID.</div>
-    <div class="name-pills" id="namePills"></div>
-  </section>
+  </div>
 
-  <section class="card">
-    <div class="card-head"><span class="title">Staff names &middot; fill in the blanks</span><span class="sub">Set a name for any Staff ID</span></div>
-    <p class="sub" style="margin-bottom:.7rem;">Type a name for any Staff ID that has none. Manual names are saved alongside imported names and take priority over the export&rsquo;s Name column. Leave a field blank to fall back to the Name column, then the Staff ID.</p>
-    <div class="ms-toolbar">
-      <input type="search" class="search" id="staffSearch" placeholder="Filter by Staff ID or name&hellip;" aria-label="Filter staff">
-      <label class="chk-inline"><input type="checkbox" id="onlyMissing" checked> Only missing names</label>
+  <!-- ================= SETTINGS ================= -->
+  <div id="settingsView" hidden>
+    <div class="settings-header"><h2>Settings</h2><span class="app-version" id="appVersion"></span></div>
+    <nav class="settings-nav" aria-label="Settings sections">
+      <button type="button" class="settings-nav-item active" data-tab="names" aria-pressed="true"><span class="settings-nav-label">Staff names</span></button>
+      <button type="button" class="settings-nav-item" data-tab="rules" aria-pressed="false"><span class="settings-nav-label">Rules file</span><span class="settings-nav-count" id="namesCount"></span></button>
+    </nav>
+
+    <!-- staff names: the kit's name editor -->
+    <div class="settings-content wide" id="panel-names">
+      <div class="settings-panel-head"><h3>Staff names</h3><span class="hint">Set a name for any Staff ID in the loaded export</span></div>
+      <p class="hint" style="margin:0 0 14px;">Type a name for any Staff ID that has none. Typed names are saved with the imported ones and take priority over the export&rsquo;s Name column. Leave a field blank to fall back to the Name column, then the Staff ID.</p>
+      <div class="toolbar">
+        <input type="search" class="wds-search" id="staffSearch" placeholder="Filter by Staff ID or name" aria-label="Filter staff">
+        <label class="wds-check"><input type="checkbox" id="onlyMissing" checked> Only missing names</label>
+      </div>
+      <p class="hint" id="staffNamesHint" style="margin:0 0 10px;">Load a timesheet export to edit names for its staff.</p>
+      <div class="table-container rk-name-editor" id="staffNamesWrap"></div>
     </div>
-    <div class="note" id="staffNamesHint" style="margin:.2rem 0 .7rem;">Load a timesheet export to edit names for its staff.</div>
-    <div class="table-wrap rk-name-editor" id="staffNamesWrap"></div>
-  </section>
-</div>
 
-<footer class="app-footer"><!--@include framework/signoff.html@--></footer>
+    <!-- rules.json, shared with Waqti Exceptions -->
+    <div class="settings-content wide" id="panel-rules" hidden>
+      <div class="settings-panel-head"><h3>Rules file</h3><span class="hint">Staff ID to name, from the same rules.json as Waqti Exceptions</span></div>
+      <p class="hint" style="margin:0 0 14px;">Import the <code>rules.json</code> used by Waqti Exceptions. Only each person&rsquo;s <strong>name</strong> is used here; the approved-demand lists are read but not applied. Names from the rules file take priority over any Name column in the export, and both fall back to the Staff ID. <strong>Export</strong> writes the names back out in the same format and keeps any approved-demand lists from an imported file, so the exported <code>rules.json</code> still works in Waqti Exceptions.</p>
+      <div class="wds-actions">
+        <button type="button" id="importRulesBtn">Import rules.json</button>
+        <button type="button" id="exportRulesBtn">Export rules.json</button>
+        <button type="button" class="danger" id="clearRulesBtn">Clear names</button>
+        <input type="file" id="importRulesInput" accept=".json,application/json" hidden>
+      </div>
+      <div class="callout danger wds-err" id="rulesError" role="alert" hidden></div>
+      <div class="callout warn" id="rulesWarn" role="status" hidden></div>
+      <div class="callout ok" id="exportRulesMsg" role="status" hidden></div>
+      <div class="callout" id="rulesStatus">No names loaded. Names fall back to the Name column, then the Staff ID.</div>
+      <div class="settings-table wds-names" id="namePills"></div>
+    </div>
+  </div>
+
+  <footer>
+    <!--@include framework/signoff.html@-->
+    <div class="strapline">Single file, works offline. Your data never leaves this machine.</div>
+  </footer>
+</div>
 
 <script>
 /*@include framework/vendor/sheetjs.js@*/
@@ -147,6 +218,8 @@
    report-specific. Same column-mapping rules as Waqti Exceptions:
    Demand / Feature cells are "Code - Description" (split on " - ");
    Staff IDs are matched case-insensitively (uppercased).
+   Every lookup keyed by file data is an RK.dict(), so a code such
+   as "__proto__" or "constructor" stays a plain key.
    ============================================================ */
 (function () {
   "use strict";
@@ -171,7 +244,7 @@
     var res = RK.xlsx.resolve(sheet, FIELD_SPECS, mapping);
     if (res.missing.length) return { needsMapping: true, missing: res.missing, headers: sheet.headers, sheetName: sheet.sheetName, bookings: [], excluded: 0, dataQuality: [], period: null };
     var r = res.resolved, range = sheet.range, txt = sheet.txt, rawv = sheet.rawv;
-    var bookings = [], excluded = 0, dataQuality = [], months = [], seen = {};
+    var bookings = [], excluded = 0, dataQuality = [], months = [], seen = RK.dict();
     for (var row = range.s.r + 1; row <= range.e.r; row++) {
       var sid = txt(row, r.staffId).trim().toUpperCase();  // staff IDs are matched case-insensitively
       if (sid === "") { excluded++; continue; }
@@ -197,13 +270,13 @@
     return { needsMapping: false, missing: [], headers: sheet.headers, sheetName: sheet.sheetName, bookings: bookings, excluded: excluded, dataQuality: dataQuality, period: period };
   }
 
-  // per-demand stats for the multi-select list; blank (uncoded) demands are hidden
+  // per-demand stats for the demand picker; blank (uncoded) demands are hidden
   function demandIndex(bookings) {
-    var m = {};
+    var m = RK.dict();
     bookings.forEach(function (b) {
       if (!b.demandCode) return;
       var d = m[b.demandCode];
-      if (!d) { d = m[b.demandCode] = { code: b.demandCode, desc: b.demandDesc || "", hours: 0, people: {}, features: {} }; }
+      if (!d) { d = m[b.demandCode] = { code: b.demandCode, desc: b.demandDesc || "", hours: 0, people: RK.dict(), features: RK.dict() }; }
       if (!d.desc && b.demandDesc) d.desc = b.demandDesc;
       if (b.hours !== null) d.hours += b.hours;
       d.people[b.staffId] = 1;
@@ -223,12 +296,12 @@
   // summarise one demand: hours per person, then per feature (grouped by rowspan)
   function summariseDemand(bookings, demandCode, nameOf) {
     nameOf = nameOf || function (id, nm) { return nm || id; };
-    var persons = {}, total = 0;
+    var persons = RK.dict(), total = 0;
     bookings.forEach(function (b) {
       if (b.demandCode !== demandCode || b.hours === null) return;
       var feature = b.featureDesc || b.featureCode;
       var p = persons[b.staffId];
-      if (!p) { p = persons[b.staffId] = { staffId: b.staffId, exportName: b.name || "", total: 0, feats: {} }; }
+      if (!p) { p = persons[b.staffId] = { staffId: b.staffId, exportName: b.name || "", total: 0, feats: RK.dict() }; }
       if (!p.exportName && b.name) p.exportName = b.name;
       var f = p.feats[b.featureCode];
       if (!f) { f = p.feats[b.featureCode] = { feature: feature, hours: 0 }; }
@@ -256,18 +329,44 @@
 
 <script>
 /* ============================================================
-   waqti-demand-summary  UI — wired to the Report Kit (window.RK)
+   waqti-demand-summary  UI, wired to the Report Kit (window.RK)
    ============================================================ */
 (function () {
   "use strict";
   var $ = RK.$, esc = RK.esc, show = RK.show, hide = RK.hide, fmtHrs = RK.fmtHrs;
-  var VERSION = "v1.3.3";
-  var LS = RK.store("waqti-demand-summary:v1");
-  $("version").textContent = VERSION;
+  var VERSION = "v2.0.0";
+  var LS = RK.store("waqti-demand-summary:v1");   // same key and shape as v1, so saved names carry over
+  $("appVersion").textContent = VERSION;
 
-  var state = { buffer: null, fileName: "", mapping: null, parsed: null, demands: [], selected: {}, filter: "",
-    nameMap: {}, demandsById: {}, rulesStaff: {}, extraTop: {}, rulesLabel: "", staffFilter: "", onlyMissing: true };
+  var state = { buffer: null, fileName: "", mapping: null, parsed: null, demands: [], selected: RK.dict(), filter: "", tab: "all",
+    nameMap: RK.dict(), demandsById: RK.dict(), rulesStaff: RK.dict(), extraTop: RK.dict(), rulesLabel: "" };
+  var sortState = { key: "name", dir: 1 };
   function nameOf(staffId, exportName) { return (state.nameMap && state.nameMap[staffId]) || exportName || staffId; }
+  function plural(n, one, many) { return n + " " + (n === 1 ? one : (many || one + "s")); }
+
+  /* ---------- views ---------- */
+  function showView(view) {
+    $("mainView").hidden = view !== "main";
+    $("settingsView").hidden = view !== "settings";
+    document.querySelectorAll(".app-nav-item").forEach(function (b) {
+      var on = b.getAttribute("data-view") === view;
+      b.classList.toggle("active", on); b.setAttribute("aria-pressed", on ? "true" : "false");
+    });
+    if (view === "settings") nameEditor.render();
+    syncHeader();
+  }
+  function showTab(tab) {
+    document.querySelectorAll(".settings-nav-item").forEach(function (b) {
+      var on = b.getAttribute("data-tab") === tab;
+      b.classList.toggle("active", on); b.setAttribute("aria-pressed", on ? "true" : "false");
+    });
+    $("panel-names").hidden = tab !== "names";
+    $("panel-rules").hidden = tab !== "rules";
+  }
+  // the demand filter only means something on the Summary view once an export is loaded
+  function syncHeader() { $("searchWrap").hidden = !state.parsed || $("mainView").hidden; }
+  document.querySelectorAll(".app-nav-item").forEach(function (b) { b.addEventListener("click", function () { showView(b.getAttribute("data-view")); }); });
+  document.querySelectorAll(".settings-nav-item").forEach(function (b) { b.addEventListener("click", function () { showTab(b.getAttribute("data-tab")); }); });
 
   /* ---------- parsing ---------- */
   function showParseError(msg) { var el = $("parseError"); el.textContent = msg; show(el); }
@@ -279,24 +378,17 @@
     hide($("mapper"));
     state.parsed = result; state.mapping = mapping;
     state.demands = window.WDS.demandIndex(result.bookings);
-    state.selected = {}; state.filter = ""; $("demandSearch").value = "";
-    $("fileNameSub").textContent = state.fileName;
-    hide($("drop")); show($("loadedBar")); $("loadedName").textContent = state.fileName;
-    renderParseStatus(); renderDemandList();
-    show($("demandCard")); show($("summaryCard"));
-    renderSummary(); nameEditor.render();
-  }
-  function renderParseStatus() {
-    var p = state.parsed, bits = [];
-    bits.push('<span class="pill ok">' + p.bookings.length + " bookings</span>");
-    bits.push('<span class="pill">' + state.demands.length + " demand" + (state.demands.length === 1 ? "" : "s") + "</span>");
-    if (p.period && p.period.label) bits.push('<span class="pill">period: ' + esc(p.period.label) + (p.period.multiMonth ? " (multi-month)" : "") + "</span>");
-    if (p.dataQuality.length) bits.push('<span class="pill dq">' + p.dataQuality.length + " data-quality row" + (p.dataQuality.length === 1 ? "" : "s") + "</span>");
-    $("parseStatus").innerHTML = bits.join(" ");
+    state.selected = RK.dict(); state.filter = ""; state.tab = "all"; $("demandSearch").value = "";
+    RK.clipboard.clearFallback($("copyFallback"));
+    $("emptyView").hidden = true; $("loadedView").hidden = false;
+    showView("main");
+    renderDemandList(); renderSummary(); nameEditor.render();
   }
   function renderMapper(result) {
-    state.parsed = null; hide($("demandCard")); hide($("summaryCard"));
-    show($("drop")); hide($("loadedBar"));
+    state.parsed = null; $("loadedView").hidden = true; $("emptyView").hidden = false;
+    RK.clipboard.clearFallback($("copyFallback")); $("copyBtn").disabled = true;
+    showView("main");
+    $("mapperFile").textContent = state.fileName;
     RK.xlsx.renderMapper({
       headers: result.headers, fieldSpecs: window.WDS.FIELD_SPECS,
       fieldsEl: $("mapperFields"), confirmBtn: $("mapperConfirm"), errorEl: $("mapperError"),
@@ -305,87 +397,160 @@
     show($("mapper"));
   }
 
-  /* ---------- demand multi-select ---------- */
-  function selectedCount() { var n = 0; state.demands.forEach(function (d) { if (state.selected[d.code]) n++; }); return n; }
+  /* ---------- demand picker ---------- */
+  function selectedDemands() { return state.demands.filter(function (d) { return state.selected[d.code]; }); }
   function visibleDemands() {
     var f = state.filter.trim().toLowerCase();
-    if (!f) return state.demands;
-    return state.demands.filter(function (d) { return (d.code + " " + d.desc).toLowerCase().indexOf(f) !== -1; });
+    return state.demands.filter(function (d) {
+      if (state.tab === "selected" && !state.selected[d.code]) return false;
+      return !f || (d.code + " " + d.desc).toLowerCase().indexOf(f) !== -1;
+    });
+  }
+  function sortedDemands(list) {
+    if (sortState.key === "name") return sortState.dir === 1 ? list : list.slice().reverse();  // demandIndex order is by name
+    var k = sortState.key;
+    return list.slice().sort(function (a, b) { return (a[k] - b[k]) * sortState.dir || (state.demands.indexOf(a) - state.demands.indexOf(b)); });
   }
   function renderDemandList() {
-    var list = $("demandList"), vis = visibleDemands();
-    if (!state.demands.length) { list.innerHTML = '<div class="empty">No demands found in this export.</div>'; $("demandCount").textContent = ""; return; }
-    if (!vis.length) { list.innerHTML = '<div class="empty">No demands match &ldquo;' + esc(state.filter) + '&rdquo;.</div>'; }
-    else {
-      list.innerHTML = vis.map(function (d) {
-        var on = !!state.selected[d.code];
-        var meta = d.people + (d.people === 1 ? " person" : " people") + " &middot; " + d.features + (d.features === 1 ? " feature" : " features");
-        return '<label class="demand-item' + (on ? " on" : "") + '">' +
-          '<input type="checkbox" data-code="' + esc(d.code) + '"' + (on ? " checked" : "") + '>' +
-          '<span class="d-main"><span class="d-code">' + esc(d.code) + '</span>' + (d.desc ? ' <span class="d-desc">' + esc(d.desc) + "</span>" : "") +
-          '<span class="d-meta">' + meta + "</span></span>" +
-          '<span class="d-hrs">' + fmtHrs(d.hours) + " hrs</span></label>";
-      }).join("");
-      list.querySelectorAll('input[type=checkbox]').forEach(function (cb) {
-        cb.addEventListener("change", function () {
-          var code = cb.getAttribute("data-code");
-          if (cb.checked) state.selected[code] = true; else delete state.selected[code];
-          cb.closest(".demand-item").classList.toggle("on", cb.checked);
-          updateCount(); renderSummary();
-        });
-      });
+    var n = selectedDemands().length;
+    $("demandTabs").innerHTML = [["all", "All", state.demands.length], ["selected", "Selected", n]].map(function (t) {
+      return '<button type="button" class="seg-tab' + (state.tab === t[0] ? " active" : "") + '" data-tab="' + t[0] + '" aria-pressed="' + (state.tab === t[0]) + '">' +
+        t[1] + '<span class="seg-tab-count">' + t[2] + "</span></button>";
+    }).join("");
+    $("demandCount").textContent = n + " of " + state.demands.length + " selected";
+    var vis = sortedDemands(visibleDemands()), empty = $("demandEmpty");
+    if (!vis.length) {
+      $("demandList").innerHTML = "";
+      empty.innerHTML = !state.demands.length ? "No demands found in this export."
+        : state.filter.trim() ? "No demands match &ldquo;" + esc(state.filter) + "&rdquo;."
+        : "No demands selected yet.";
+      empty.hidden = false; return;
     }
-    updateCount();
+    empty.hidden = true;
+    $("demandList").innerHTML = vis.map(function (d) {
+      var on = !!state.selected[d.code], label = d.code + (d.desc ? " " + d.desc : "");
+      return '<tr data-code="' + esc(d.code) + '"' + (on ? ' class="wds-on"' : "") + ">" +
+        '<td class="wds-tick"><input type="checkbox" data-code="' + esc(d.code) + '"' + (on ? " checked" : "") + ' aria-label="' + esc(label) + '"></td>' +
+        '<td class="wrap-cell"><span class="cell-title"><span class="wds-num">' + esc(d.code) + "</span>" + (d.desc ? " " + esc(d.desc) : "") + "</span>" +
+        '<span class="cell-sub">' + plural(d.features, "feature") + "</span></td>" +
+        '<td class="num wds-num">' + d.people + "</td>" +
+        '<td class="num wds-num">' + fmtHrs(d.hours) + "</td></tr>";
+    }).join("");
   }
-  function updateCount() { $("demandCount").textContent = selectedCount() + " of " + state.demands.length + " selected"; }
+  function setSelected(code, on) { if (on) state.selected[code] = true; else delete state.selected[code]; }
+  $("demandList").addEventListener("change", function (e) {
+    var cb = e.target.closest("input[data-code]"); if (!cb) return;
+    setSelected(cb.getAttribute("data-code"), cb.checked);
+    cb.closest("tr").classList.toggle("wds-on", cb.checked);
+    if (state.tab === "selected") renderDemandList(); else renderDemandMeta();
+    renderSummary();
+  });
+  // a click anywhere on the row ticks it; the checkbox itself handles keyboard and direct clicks
+  $("demandList").addEventListener("click", function (e) {
+    if (e.target.closest("input")) return;
+    var tr = e.target.closest("tr[data-code]"); if (!tr) return;
+    var cb = tr.querySelector("input[data-code]"); cb.checked = !cb.checked;
+    cb.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  function renderDemandMeta() {
+    var n = selectedDemands().length;
+    $("demandCount").textContent = n + " of " + state.demands.length + " selected";
+    var c = document.querySelector('#demandTabs [data-tab="selected"] .seg-tab-count'); if (c) c.textContent = n;
+  }
+  $("demandTabs").addEventListener("click", function (e) { var b = e.target.closest("[data-tab]"); if (b) { state.tab = b.getAttribute("data-tab"); renderDemandList(); } });
   $("demandSearch").addEventListener("input", function () { state.filter = this.value; renderDemandList(); });
   $("selectAllBtn").addEventListener("click", function () { visibleDemands().forEach(function (d) { state.selected[d.code] = true; }); renderDemandList(); renderSummary(); });
   $("clearAllBtn").addEventListener("click", function () { visibleDemands().forEach(function (d) { delete state.selected[d.code]; }); renderDemandList(); renderSummary(); });
+  RK.sortable($("demandTable"), sortState, renderDemandList);
+  RK.searchShortcut($("demandSearch"), function () { return !$("searchWrap").hidden; });
 
-  /* ---------- summary ---------- */
+  /* ---------- answer line, cards, summary tables ---------- */
+  function renderTop(sums) {
+    var p = state.parsed, all = 0, sel = 0, people = RK.dict(), allPeople = RK.dict(), unnamed = RK.dict();
+    p.bookings.forEach(function (b) { if (b.hours !== null && b.demandCode) { all += b.hours; allPeople[b.staffId] = 1; } });
+    sums.forEach(function (s) {
+      sel += s.totalHours;
+      s.persons.forEach(function (x) { people[x.staffId] = 1; if (x.name === x.staffId) unnamed[x.staffId] = 1; });
+    });
+    all = RK.round2(all); sel = RK.round2(sel);
+    var nSel = sums.length, nPeople = Object.keys(people).length, nUnnamed = Object.keys(unnamed).length;
+    $("summarySub").textContent = [state.fileName, p.period && p.period.label ? p.period.label + (p.period.multiMonth ? " (multi-month)" : "") : "", plural(p.bookings.length, "booking")].filter(Boolean).join(" · ");
+    $("summaryMain").textContent = !nSel ? "Tick the demands you want summarised"
+      : fmtHrs(sel) + " hours on " + (nSel === 1 ? sums[0].code : nSel + " demands") + " by " + plural(nPeople, "person", "people");
+
+    var pct = all > 0 ? Math.min(100, sel / all * 100) : 0;
+    var dq = p.dataQuality.length, skipped = dq + p.excluded;
+    var cards = [];
+    cards.push('<div class="stat-card"><div class="stat-card-name"><span>Hours selected</span></div>' +
+      '<div class="stat-card-figure"><span class="stat-card-value">' + fmtHrs(sel) + '</span><span class="stat-card-of">of <span class="wds-num">' + fmtHrs(all) + "</span> hrs in the export</span></div>" +
+      '<div class="bar-track" aria-hidden="true"><div class="bar-fill solid" style="width:' + pct + '%"></div></div>' +
+      '<div class="stat-card-nums"><span>Demands<span class="stat-card-num">' + nSel + " of " + state.demands.length + "</span></span>" +
+      "<span>Rows in the tables<span class=\"stat-card-num\">" + sums.reduce(function (t, s) { return t + s.rowCount; }, 0) + "</span></span></div></div>");
+    cards.push('<div class="stat-card" role="button" tabindex="0" id="peopleCard" aria-label="People: open staff names in Settings"><div class="stat-card-name"><span>People</span>' +
+      (nUnnamed ? '<span class="status-pill pill-yellow">' + nUnnamed + " without a name</span>" : (nPeople ? '<span class="status-pill pill-green">All named</span>' : "")) + "</div>" +
+      '<div class="stat-card-figure"><span class="stat-card-value">' + nPeople + '</span><span class="stat-card-of">of <span class="wds-num">' + Object.keys(allPeople).length + "</span> in the export</span></div>" +
+      '<div class="stat-card-nums"><span>Named<span class="stat-card-num">' + (nPeople - nUnnamed) + "</span></span>" +
+      "<span>Showing a Staff ID<span class=\"stat-card-num\">" + nUnnamed + "</span></span></div></div>");
+    cards.push('<div class="stat-card"><div class="stat-card-name"><span>Rows left out</span>' +
+      (skipped ? '<span class="status-pill pill-yellow">Check</span>' : '<span class="status-pill pill-green">None</span>') + "</div>" +
+      '<div class="stat-card-figure"><span class="stat-card-value">' + skipped + '</span><span class="stat-card-of">of <span class="wds-num">' + (p.bookings.length + p.excluded) + "</span> rows</span></div>" +
+      '<div class="stat-card-nums"><span>Bad Booked Hours<span class="stat-card-num' + (dq ? " neg" : "") + '">' + dq + "</span></span>" +
+      "<span>No Staff ID<span class=\"stat-card-num\">" + p.excluded + "</span></span></div></div>");
+    $("statGrid").innerHTML = cards.join("");
+  }
+  $("statGrid").addEventListener("click", function (e) { if (e.target.closest("#peopleCard")) { showView("settings"); showTab("names"); } });
+  $("statGrid").addEventListener("keydown", function (e) {
+    if (e.target.id === "peopleCard" && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); showView("settings"); showTab("names"); }
+  });
+
   function renderSummary() {
     if (!state.parsed) return;
-    var codes = state.demands.filter(function (d) { return state.selected[d.code]; });
+    var codes = selectedDemands();
+    var sums = codes.map(function (d) { return window.WDS.summariseDemand(state.parsed.bookings, d.code, nameOf); });
+    renderTop(sums); renderDqNote();
     var body = $("summaryBody");
+    $("copyBtn").disabled = !codes.length;
     if (!codes.length) {
-      body.innerHTML = '<div class="empty">Select one or more demands above to see who booked how many hours to each feature.</div>';
-      $("copyBtn").disabled = true; RK.clipboard.clearFallback($("copyFallback")); renderDqNote(); return;
+      body.innerHTML = '<div class="table-container"><div class="empty-state">Tick one or more demands to see who booked how many hours to each feature.</div></div>';
+      RK.clipboard.clearFallback($("copyFallback")); return;
     }
-    $("copyBtn").disabled = false;
-    body.innerHTML = codes.map(function (d) {
-      var s = window.WDS.summariseDemand(state.parsed.bookings, d.code, nameOf);
-      var title = '<span class="code">' + esc(d.code) + "</span>" + (d.desc ? " &middot; " + esc(d.desc) : "");
-      var subline = fmtHrs(s.totalHours) + " hours &middot; " + s.people + (s.people === 1 ? " person" : " people") + " &middot; " + s.rowCount + " row" + (s.rowCount === 1 ? "" : "s");
+    body.innerHTML = codes.map(function (d, di) {
+      var s = sums[di];
+      var title = '<span class="wds-code">' + esc(d.code) + "</span>" + (d.desc ? esc(d.desc) : "");
+      var subline = fmtHrs(s.totalHours) + " hrs · " + plural(s.people, "person", "people") + " · " + plural(s.rowCount, "row");
       var tbody = "";
       if (!s.persons.length) {
-        tbody = '<tr><td colspan="3" style="color:var(--mid);">No booked hours for this demand.</td></tr>';
+        tbody = '<tr><td colspan="3" class="wds-none">No booked hours for this demand.</td></tr>';
       } else {
         s.persons.forEach(function (p) {
           var span = p.features.length;
           var showId = !state.nameMap[p.staffId] && p.name !== p.staffId;
-          var nameCell = esc(p.name) + (showId ? '<span class="sid">' + esc(p.staffId) + "</span>" : "");
+          var nameCell = esc(p.name) + (showId ? '<span class="wds-sid">' + esc(p.staffId) + "</span>" : "");
           p.features.forEach(function (f, i) {
-            var open = (i === 0) ? '<tr class="group-start">' : "<tr>";
-            var nc = (i === 0) ? '<td class="name-cell" rowspan="' + span + '">' + nameCell + "</td>" : "";
+            var open = (i === 0) ? '<tr class="wds-gs">' : "<tr>";
+            var nc = (i === 0) ? '<td class="wds-name" rowspan="' + span + '">' + nameCell + "</td>" : "";
             tbody += open + nc + "<td>" + esc(f.feature) + '</td><td class="num">' + fmtHrs(f.hours) + "</td></tr>";
           });
         });
       }
-      var table = '<div class="table-wrap"><table class="data"><thead><tr><th>Name</th><th>Feature</th><th class="num">Total Hours Booked</th></tr></thead><tbody>' +
+      var table = '<div class="table-container"><table class="wds-sum fixed"><colgroup><col style="width:30%"><col><col class="wds-col-hrs"></colgroup>' +
+        '<thead><tr><th scope="col">Name</th><th scope="col">Feature</th><th scope="col" class="num">Hours</th></tr></thead><tbody>' +
         tbody + '</tbody><tfoot><tr><td colspan="2">Demand total</td><td class="num">' + fmtHrs(s.totalHours) + "</td></tr></tfoot></table></div>";
-      return '<div class="demand-block"><div class="d-title">' + title + '</div><div class="d-subline">' + subline + "</div>" + table + "</div>";
+      return '<div class="wds-block"><div class="wds-block-head"><span class="wds-block-title">' + title + '</span><span class="wds-block-sub">' + subline + "</span></div>" + table + "</div>";
     }).join("");
-    renderDqNote();
   }
   function renderDqNote() {
     var dq = state.parsed && state.parsed.dataQuality, el = $("dqNote");
-    if (!dq || !dq.length) { el.style.display = "none"; return; }
-    el.style.display = "";
-    el.innerHTML = "<strong>" + dq.length + " row" + (dq.length === 1 ? "" : "s") + " with non-numeric or negative Booked Hours</strong> " +
-      "were excluded from the totals above. Fix them at the spreadsheet row shown, then re-upload.";
+    if (!dq || !dq.length) { el.hidden = true; return; }
+    var list = dq.slice(0, 10).map(function (q) {
+      return "row " + q.row + " (" + esc(q.staffId) + (q.demandCode ? ", " + esc(q.demandCode) : "") + (q.value !== "" ? ", &ldquo;" + esc(q.value) + "&rdquo;" : ", blank") + ")";
+    }).join("; ") + (dq.length > 10 ? "; and " + (dq.length - 10) + " more" : "");
+    el.innerHTML = "<strong>" + plural(dq.length, "row") + " with blank, non-numeric or negative Booked Hours " + (dq.length === 1 ? "was" : "were") +
+      " left out of the totals:</strong> " + list + ". Fix them in the spreadsheet, then load it again.";
+    el.hidden = false;
   }
 
-  /* ---------- copy summary (rich HTML, matches waqti-exceptions tables) ---------- */
+  /* ---------- copy summary (rich HTML + text; content unchanged since v1, matches waqti-exceptions tables) ---------- */
   function buildSummaryExport() {
     var codes = state.demands.filter(function (d) { return state.selected[d.code]; });
     var wrap = 'font-family:Arial,Helvetica,sans-serif;color:#1a1a1a;';
@@ -426,26 +591,20 @@
     html.push("</div>");
     return { html: html.join(""), text: text.join("\n").replace(/\n+$/, "") + "\n" };
   }
-  function flashCopy(msg, ok) {
-    var el = $("copyMsg"); el.textContent = msg; el.className = "copymsg " + (ok ? "ok" : "fail");
-    setTimeout(function () { if (el.textContent === msg) { el.textContent = ""; el.className = "copymsg"; } }, 4000);
-  }
   $("copyBtn").addEventListener("click", function () {
-    if ($("copyBtn").disabled) return;
+    if ($("copyBtn").disabled || !state.parsed) return;
     RK.clipboard.clearFallback($("copyFallback"));
     var out = buildSummaryExport();
     RK.clipboard.write(out).then(
-      function (kind) { flashCopy(kind === "html" ? "Copied — paste into an email, Word or Docs to keep the formatting." : "Copied as plain text.", true); },
-      function () { flashCopy("Copy blocked. Use the box below.", false); RK.clipboard.fallbackInto($("copyFallback"), out.text); }
+      function (kind) { RK.toast(kind === "html" ? "Copied. Paste into an email, Word or Docs to keep the formatting." : "Copied as plain text."); },
+      function () {
+        RK.toast("The browser blocked the copy. Use the box below the header.");
+        RK.clipboard.fallbackInto($("copyFallback"), out.text, "The browser blocked the copy. Select all and copy from here:");
+      }
     );
   });
 
   /* ---------- settings: staff-name rules ---------- */
-  function goSettings() { hide($("view-main")); show($("view-settings")); hide($("navSettings")); show($("navDone")); nameEditor.render(); window.scrollTo(0, 0); }
-  function goMain() { show($("view-main")); hide($("view-settings")); show($("navSettings")); hide($("navDone")); window.scrollTo(0, 0); }
-  $("navSettings").addEventListener("click", goSettings);
-  $("navDone").addEventListener("click", goMain);
-
   function saveRules() { LS.set({ names: state.nameMap, demands: state.demandsById, staff: state.rulesStaff, extraTop: state.extraTop, label: state.rulesLabel }); }
   function loadRules() {
     var o = LS.get(); if (!o) return;
@@ -453,20 +612,25 @@
       replaceMap(state.nameMap, upperKeys(o.names)); state.rulesLabel = o.label || "";  // in place: the name editor holds this ref
       if (o.demands && typeof o.demands === "object") state.demandsById = upperKeys(o.demands);
       if (o.staff && typeof o.staff === "object") state.rulesStaff = upperKeys(o.staff);
-      if (o.extraTop && typeof o.extraTop === "object") state.extraTop = o.extraTop;
+      if (o.extraTop && typeof o.extraTop === "object") state.extraTop = copyDict(o.extraTop);
     }
   }
-  function upperKeys(obj) { var out = {}; Object.keys(obj || {}).forEach(function (id) { out[RK.rules.normId(id)] = obj[id]; }); return out; }
+  function copyDict(obj) { var out = RK.dict(); Object.keys(obj || {}).forEach(function (k) { out[k] = obj[k]; }); return out; }
+  function upperKeys(obj) { var out = RK.dict(); Object.keys(obj || {}).forEach(function (id) { out[RK.rules.normId(id)] = obj[id]; }); return out; }
   function replaceMap(target, src) { Object.keys(target).forEach(function (k) { delete target[k]; }); Object.keys(src || {}).forEach(function (k) { target[k] = src[k]; }); }
 
   function renderRulesStatus() {
-    var n = Object.keys(state.nameMap).length, st = $("rulesStatus"), pills = $("namePills");
-    if (!n) { st.textContent = "No names loaded. Names fall back to the Name column, then the Staff ID."; pills.innerHTML = ""; return; }
-    st.innerHTML = "<strong>" + n + " name" + (n === 1 ? "" : "s") + " loaded</strong>" + (state.rulesLabel ? " from &ldquo;" + esc(state.rulesLabel) + "&rdquo;" : "") +
+    var n = Object.keys(state.nameMap).length, st = $("rulesStatus"), list = $("namePills");
+    $("namesCount").textContent = n ? n : "";
+    if (!n) { st.textContent = "No names loaded. Names fall back to the Name column, then the Staff ID."; list.innerHTML = ""; return; }
+    st.innerHTML = "<strong>" + plural(n, "name") + " loaded</strong>" + (state.rulesLabel ? " from &ldquo;" + esc(state.rulesLabel) + "&rdquo;" : "") +
       ". These override the Name column; unlisted staff fall back to the Name column, then the Staff ID.";
     var ids = Object.keys(state.nameMap).sort();
-    pills.innerHTML = ids.slice(0, 200).map(function (id) { return '<span class="pill">' + esc(state.nameMap[id]) + ' <span class="sid" style="display:inline;">' + esc(id) + "</span></span>"; }).join(" ") +
-      (ids.length > 200 ? ' <span class="sub">&hellip; and ' + (ids.length - 200) + " more</span>" : "");
+    list.innerHTML = '<div class="settings-table-row header"><span>Staff ID</span><span>Name</span></div>' +
+      ids.slice(0, 200).map(function (id) {
+        return '<div class="settings-table-row"><span class="col-id" data-label="Staff ID">' + esc(id) + '</span><span data-label="Name">' + esc(state.nameMap[id]) + "</span></div>";
+      }).join("") +
+      (ids.length > 200 ? '<div class="settings-table-row"><span class="hint">and ' + (ids.length - 200) + " more</span></div>" : "");
   }
   $("importRulesBtn").addEventListener("click", function () { $("importRulesInput").click(); });
   $("importRulesInput").addEventListener("change", function (ev) {
@@ -475,8 +639,8 @@
     reader.onload = function () {
       var parsed;
       try { parsed = RK.rules.parse(String(reader.result)); }
-      catch (e) { var el = $("rulesError"); el.textContent = e.message; show(el); return; }
-      hide($("rulesError"));
+      catch (e) { var el = $("rulesError"); el.textContent = e.message; show(el); hide($("rulesWarn")); return; }
+      hide($("rulesError")); hide($("exportRulesMsg"));
       // merge over existing so hand-typed names survive; keep unknown fields for round-trip
       Object.keys(parsed.names).forEach(function (id) { state.nameMap[id] = parsed.names[id]; });
       Object.keys(parsed.demands).forEach(function (id) { state.demandsById[id] = parsed.demands[id]; });
@@ -484,7 +648,8 @@
       Object.keys(parsed.extraTop).forEach(function (k) { state.extraTop[k] = parsed.extraTop[k]; });
       state.rulesLabel = parsed.label || f.name;
       saveRules(); renderRulesStatus(); nameEditor.render();
-      if (parsed.warning) { var w = $("rulesError"); w.textContent = parsed.warning; w.className = "note"; show(w); }
+      if (parsed.warning) { $("rulesWarn").textContent = parsed.warning; show($("rulesWarn")); } else hide($("rulesWarn"));
+      RK.toast("Imported " + plural(Object.keys(parsed.names).length, "name") + " from " + f.name);
       if (state.parsed) renderSummary();
     };
     reader.readAsText(f); ev.target.value = "";
@@ -492,32 +657,31 @@
   // waqti-exceptions treats a missing trackLoggedTime as true and lists such people under
   // "No time logged" whenever they have no rows from its team. Using the loaded export, write
   // trackLoggedTime:false only for named people who are clearly not in the main team:
-  //  - their Staff ART in this export is never the export's main team (the ART with the most
-  //    people), or
-  //  - they are not in this export at all and have no approved demands.
-  // Own-team members and anyone typed in for this export stay tracked. With no export loaded,
-  // nobody is marked. An explicit trackLoggedTime is never changed.
+  // their Staff ART in this export is never the export's main team (the ART with the most
+  // people). Own-team members, anyone absent from the export and anyone typed in for this
+  // export stay tracked. With no export loaded, nobody is marked. An explicit
+  // trackLoggedTime is never changed.
   function mainArt(bookings) {
-    var people = {}, counts = {}, best = null, bestN = 0, tie = false;
-    bookings.forEach(function (b) { var a = (b.staffArt || "").trim(); if (!a) return; var k = a.toLowerCase(); (people[k] = people[k] || { name: a, ids: {} }).ids[b.staffId] = 1; });
+    var people = RK.dict(), counts = RK.dict(), best = null, bestN = 0, tie = false;
+    bookings.forEach(function (b) { var a = (b.staffArt || "").trim(); if (!a) return; var k = a.toLowerCase(); (people[k] = people[k] || { name: a, ids: RK.dict() }).ids[b.staffId] = 1; });
     Object.keys(people).forEach(function (k) { counts[k] = Object.keys(people[k].ids).length; });
     Object.keys(counts).forEach(function (k) { if (counts[k] > bestN) { best = k; bestN = counts[k]; tie = false; } else if (counts[k] === bestN) tie = true; });
     return (best && !tie) ? { key: best, name: people[best].name } : null;  // a tie means no clear main team
   }
   function staffForExport() {
-    var out = {}, marked = { otherArt: [], absent: [] }, info = { loaded: !!state.parsed, hasArt: false, main: null };
+    var out = RK.dict(), marked = { otherArt: [], absent: [] }, info = { loaded: !!state.parsed, hasArt: false, main: null };
     Object.keys(state.rulesStaff).forEach(function (id) { out[id] = state.rulesStaff[id]; });
     if (!state.parsed) return { staff: out, marked: marked, info: info };
-    var arts = {}, inExport = {};  // staff ID -> { art: 1 } (lower-cased, non-blank)
+    var arts = RK.dict(), inExport = RK.dict();  // staff ID -> { art: 1 } (lower-cased, non-blank)
     state.parsed.bookings.forEach(function (b) {
       inExport[b.staffId] = 1;
       if (b.staffArt === null || b.staffArt === undefined) return;
       info.hasArt = true;
-      var a = b.staffArt.trim().toLowerCase(); if (a) (arts[b.staffId] = arts[b.staffId] || {})[a] = 1;
+      var a = b.staffArt.trim().toLowerCase(); if (a) (arts[b.staffId] = arts[b.staffId] || RK.dict())[a] = 1;
     });
     info.main = info.hasArt ? mainArt(state.parsed.bookings) : null;
     Object.keys(state.nameMap).sort().forEach(function (id) {
-      var base = out[id], dem = state.demandsById[id];
+      var base = out[id];
       if (!String(state.nameMap[id] || "").trim()) return;
       if (base && typeof base === "object" && base.trackLoggedTime !== undefined) return;
       var why = null;
@@ -544,18 +708,24 @@
     var r = staffForExport();
     RK.download("rules.json", RK.rules.serialise({ staff: r.staff, names: state.nameMap, demands: state.demandsById, label: state.rulesLabel, extraTop: state.extraTop }), "application/json");
     var m = $("exportRulesMsg"); m.textContent = exportNote(r); show(m);
+    RK.toast("rules.json exported");
   });
   $("clearRulesBtn").addEventListener("click", function () {
-    replaceMap(state.nameMap, {}); state.demandsById = {}; state.rulesStaff = {}; state.extraTop = {}; state.rulesLabel = "";  // clear name map in place
-    saveRules(); renderRulesStatus(); nameEditor.render();
-    if (state.parsed) renderSummary();
+    if (!Object.keys(state.nameMap).length && !Object.keys(state.rulesStaff).length && !Object.keys(state.demandsById).length) { RK.toast("No names to clear"); return; }
+    RK.confirm("Clear every staff name, typed or imported? The approved-demand lists from an imported rules.json are cleared too, so export it first if you still need them.", function () {
+      replaceMap(state.nameMap, {}); state.demandsById = RK.dict(); state.rulesStaff = RK.dict(); state.extraTop = RK.dict(); state.rulesLabel = "";  // clear name map in place
+      hide($("exportRulesMsg")); hide($("rulesWarn"));
+      saveRules(); renderRulesStatus(); nameEditor.render();
+      if (state.parsed) renderSummary();
+      RK.toast("Names cleared");
+    }, { title: "Clear staff names?", okLabel: "Clear names", danger: true });
   });
 
   /* ---------- staff-name editor (kit component) ---------- */
   function exportStaffMap() {
-    var m = {}; if (!state.parsed) return m;
+    var m = RK.dict(); if (!state.parsed) return m;
     state.parsed.bookings.forEach(function (b) {
-      if (!(b.staffId in m)) m[b.staffId] = b.name || "";
+      if (!RK.has(m, b.staffId)) m[b.staffId] = b.name || "";
       else if (!m[b.staffId] && b.name) m[b.staffId] = b.name;
     });
     return m;
@@ -568,11 +738,11 @@
 
   /* ---------- upload + init ---------- */
   RK.upload({
-    drop: $("drop"), fileInput: $("fileInput"), browseBtn: $("browseBtn"), replaceBtn: $("replaceBtn"),
+    drop: $("drop"), fileInput: $("fileInput"), replaceBtn: $("replaceBtn"),
     onFile: function (buf, filename) { hide($("parseError")); state.buffer = buf; state.fileName = filename; state.mapping = null; doParse(null); },
     onError: showParseError
   });
-  loadRules(); renderRulesStatus();
+  loadRules(); renderRulesStatus(); nameEditor.render(); syncHeader();
 })();
 </script>
 </body>

@@ -81,16 +81,32 @@ blank email wording. Details:
 
 ## `waqti-demand-summary.html`
 
-Drop the same Waqti export and read it on-screen: pick one or more demands and
-see who booked how many hours to which feature under each. Copy the selected
-tables to the clipboard (rich HTML plus plain text) for pasting into an email or
-doc. Staff names can be mapped from the same `rules.json` or typed by hand.
-When you export `rules.json` with an export loaded, a named person is written
-with `trackLoggedTime: false` (so `waqti-exceptions.html` does not list them
-under No time logged) only if their Staff ART in that export is not its main
-team. People missing from the export stay tracked, since they are who No time
-logged is for. Existing values are kept, and a note after the export says who
-was marked and why.
+Drop the same Waqti export and read it on-screen. The **Summary** view opens on
+the drop zone; once a file is loaded it leads with a one-line answer (hours on
+the ticked demands, and by how many people) and three cards: hours selected out
+of the whole export, people (with how many still show a Staff ID instead of a
+name; click it to go to the name editor), and rows left out (bad Booked Hours or
+no Staff ID). Rows with blank, non-numeric or negative Booked Hours are listed by
+spreadsheet row in a warning above the tables.
+
+Tick demands in the **Demands** list on the left (click a row or its checkbox;
+sort by demand, people or hours from the column headers; **All** / **Selected**
+tabs; **Select all** and **Clear** act on the demands showing). The search box in
+the header (press `/`) filters the list. The **Summary** column shows who booked
+how many hours to which feature under each ticked demand. **Copy summary** in the
+header copies the tables to the clipboard (rich HTML plus plain text) for pasting
+into an email or doc; **Load export** loads another file.
+
+**Settings > Staff names** is the name editor: type a name for any Staff ID in
+the loaded export. **Settings > Rules file** imports and exports the same
+`rules.json` as Waqti Exceptions and clears the names (it asks first). When you
+export `rules.json` with an export loaded, a named person is written with
+`trackLoggedTime: false` (so `waqti-exceptions.html` does not list them under No
+time logged) only if their Staff ART in that export is not its main team. People
+missing from the export stay tracked, since they are who No time logged is for.
+Existing values are kept, and a note after the export says who was marked and
+why. Built on Report Kit 2 since v2.0.0; names saved by earlier versions load
+unchanged, and the copied tables are the same as before.
 
 ## `project-cost-tracker.html`
 

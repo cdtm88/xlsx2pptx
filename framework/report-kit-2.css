@@ -1,6 +1,6 @@
 /* ============================================================
    Report Kit 2: the design language for new browser tools
-   kit-version: 2.1.0
+   kit-version: 2.2.0
    Extracted from vendor-spend-tracker.html. Inlined into a report
    by framework/build.py. See framework/DESIGN.md for the rules and
    framework/starter.src.html for a page that uses every part.
@@ -614,6 +614,18 @@ td.row-actions { text-align: right; }
 .upload-area .or { font-size: 12px; color: var(--text-dim); margin: 6px 0; }
 /* RK.xlsx.renderMapper labels each column select with a bare label.field */
 label.field { display: block; font-size: 12px; font-weight: 600; color: var(--text); }
+
+/* ---- Copy fallback: the manual-copy box RK.clipboard.fallbackInto draws ---- */
+.copy-fallback textarea { width: 100%; min-height: 180px; font: 12px var(--font-mono); }
+.copy-fallback p { margin: 0 0 6px; font-size: 12px; color: var(--text-dim); }
+
+/* ---- Staff-name editor (RK.NameEditor): put it in a .table-container.rk-name-editor ---- */
+.rk-name-editor:empty { display: none; }
+.rk-name-editor td { white-space: normal; }
+.rk-name-editor td.staff-id { width: 40%; font: 500 13px var(--font-mono); }
+.rk-name-editor .sid { display: block; margin-top: 2px; font: 400 11px var(--font-ui); color: var(--text-dim); }
+.rk-name-editor tr.missing-row td { background: var(--yellow-bg); }
+.rk-name-editor .empty { padding: 24px; text-align: center; color: var(--text-dim); }
 
 /* ---- Toast: a short confirmation at the foot of the screen (RK.toast) ---- */
 .toast {

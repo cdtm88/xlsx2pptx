@@ -161,9 +161,67 @@ const FLOWS = {
     t("reads the export and flags the GEN_LINES row", /S2/.test(attn) && /GEN_LINES|system created/i.test(attn), attn.slice(0, 120));
   },
   "waqti-demand-summary.html": async (page, t) => {
-    await page.setInputFiles("#fileInput", path.join(FIX, "waqti-export.xlsx"));
-    await page.waitForSelector("#demandCard:not(.hidden)", { timeout: 5000 });
-    t("lists the export's demands", /D100/.test(await page.textContent("#demandCard")) && /D200/.test(await page.textContent("#demandCard")));
+    const native = [];
+    page.on("dialog", (d) => native.push(d.type()));
+    const load = async () => {
+      await page.setInputFiles("#fileInput", path.join(FIX, "waqti-export.xlsx"));
+      await page.waitForSelector("#loadedView:not([hidden])", { timeout: 5000 });
+    };
+    const copied = async () => {
+      await page.evaluate(() => { window.__c = null; navigator.clipboard.write = async (items) => { window.__c = { html: await (await items[0].getType("text/html")).text(), text: await (await items[0].getType("text/plain")).text() }; }; });
+      await page.click("#copyBtn"); await page.waitForTimeout(150);
+      return page.evaluate(() => window.__c || { html: "", text: "" });
+    };
+    t("opens on the drop zone", await page.isVisible("#drop") && await page.isHidden("#loadedView"));
+    await load();
+    const list = await page.textContent("#demandList");
+    t("lists the export's demands", /D100/.test(list) && /D200/.test(list), list);
+    t("asks for a pick before anything is selected", /Tick the demands/.test(await page.textContent("#summaryMain")) && await page.isDisabled("#copyBtn"));
+
+    await page.click("#selectAllBtn");
+    t("the answer line totals the selected demands", (await page.textContent("#summaryMain")) === "12.0 hours on 2 demands by 2 people", await page.textContent("#summaryMain"));
+    t("the hours card shows the selected hours", /Hours selected\s*12\.0\s*of 12\.0 hrs/.test(await page.textContent("#statGrid")), await page.textContent("#statGrid"));
+    const sum = await page.textContent("#summaryBody");
+    t("a table per demand with the person, feature and total", /D100\s*Alpha[\s\S]*S1\s*Feature one\s*6\.0\s*Demand total\s*6\.0/.test(sum) && /D200\s*Beta[\s\S]*S2\s*Feature two\s*6\.0/.test(sum), sum.slice(0, 200));
+    await page.click('#demandTable th[data-sort="hours"]');
+    t("the demand list sorts from its header", (await page.getAttribute('#demandTable th[data-sort="hours"]', "aria-sort")) === "ascending");
+    await page.fill("#demandSearch", "beta");
+    t("the header search filters the demands", (await page.$$("#demandList tr")).length === 1 && /D200/.test(await page.textContent("#demandList")));
+    await page.fill("#demandSearch", "");
+
+    let c = await copied();
+    t("copies the tables as HTML and text", /<table role="presentation"/.test(c.html) && c.text === "D100 · Alpha\nName\tFeature\tTotal Hours Booked\nS1\tFeature one\t6.0\nDemand total\t\t6.0\n\nD200 · Beta\nName\tFeature\tTotal Hours Booked\nS2\tFeature two\t6.0\nDemand total\t\t6.0\n", JSON.stringify(c.text));
+    t("says it copied", await page.isVisible(".toast.on"));
+
+    // staff names live in Settings; a typed name reaches the summary and the copy
+    await page.click('.app-nav-item[data-view="settings"]');
+    t("Settings opens on the staff-name editor", await page.isVisible("#staffNamesWrap input.name-input[data-sid=S1]") && /v\d+\.\d+\.\d+/.test(await page.textContent(".app-version")));
+    await page.fill("#staffNamesWrap input.name-input[data-sid=S1]", "Sam One");
+    await page.click('.app-nav-item[data-view="main"]');
+    t("a typed name shows in the summary", /Sam One\s*Feature one/.test(await page.textContent("#summaryBody")));
+    c = await copied();
+    t("and in the copied text", /\nSam One\tFeature one\t6\.0\n/.test(c.text) && /Sam One/.test(c.html));
+    await page.reload(); await load();
+    await page.click("#selectAllBtn");
+    t("names are kept for next time", /Sam One/.test(await page.textContent("#summaryBody")));
+
+    await page.click('.app-nav-item[data-view="settings"]');
+    await page.click('.settings-nav-item[data-tab="rules"]');
+    const dl = page.waitForEvent("download", { timeout: 5000 });
+    await page.click("#exportRulesBtn");
+    const rules = JSON.parse(fs.readFileSync(await (await dl).path(), "utf8"));
+    t("exports rules.json with the typed name", rules.schemaVersion === 1 && rules.staff.S1 && rules.staff.S1.name === "Sam One" && /Exported rules\.json/.test(await page.textContent("#exportRulesMsg")));
+    await page.click("#clearRulesBtn");
+    t("clearing names asks first, in the page", await page.isVisible(".modal-overlay:not([hidden]) [data-rk-ok]"));
+    await page.click(".modal-overlay:not([hidden]) [data-rk-ok]");
+    t("and then clears them", /No names loaded/.test(await page.textContent("#rulesStatus")));
+
+    // names saved by v1 (same key and shape) still load
+    await page.evaluate(() => localStorage.setItem("waqti-demand-summary:v1", JSON.stringify({ names: { s2: "Sara Two" }, demands: {}, staff: {}, extraTop: {}, label: "old" })));
+    await page.reload(); await load();
+    await page.click("#selectAllBtn");
+    t("names saved by the kit 1 version load", /Sara Two\s*Feature two/.test(await page.textContent("#summaryBody")));
+    t("no native alert or confirm", native.length === 0, native.join(","));
   },
   "project-cost-tracker.html": async (page, t) => {
     // Demo and the CSV export live under Settings, Saving & data

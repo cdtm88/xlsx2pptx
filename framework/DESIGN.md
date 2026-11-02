@@ -111,6 +111,8 @@ Type scale (px): 22 page headline, 20 settings title, 18 dialog/drawer title,
 | `.date-pair` | two date fields side by side |
 | `.upload-area` (+ `.dragover`), `.big`, `.or`, `label.field` | file drop zone for `RK.upload`; `label.field` is what `RK.xlsx.renderMapper` emits |
 | `.toast` (+ `.on`) | short confirmation at the foot of the screen, made by `RK.toast` |
+| `.copy-fallback` | the manual-copy box `RK.clipboard.fallbackInto` draws when the browser blocks the clipboard |
+| `.table-container.rk-name-editor` | home for `RK.NameEditor`: mono Staff IDs, the export name beneath, rows still missing a name in the watch colour; hidden while empty |
 | `footer`, `.signoff`, `.strapline`, `.app-version` | footer: the shared sign-off line (`framework/signoff.html`, principle 9), the offline strapline, and the version in mono |
 
 ## Runtime (`window.RK`, kit 1.4.0)
@@ -130,6 +132,7 @@ Type scale (px): 22 page headline, 20 settings title, 18 dialog/drawer title,
 | `RK.toast(message, ms?)` | shows a `.toast` and fades it after `ms` (default 2600); a new message replaces the one showing |
 | `RK.fileDoc(opts)` | binds the page to one project file on disk (File System Access API) and writes every change into it: create, open, recent files, reconnect after a restart, one tab per file, stale-file and crash-copy handling, policy-block detection. The page supplies `serialise()` and `load(text)` and draws `status()` / `info()`; see the comment above it in `report-kit.js` and [`docs/storage-design.md`](../docs/storage-design.md). The UAT sign-off tracker and the project cost tracker use it; the UAT tracker is the simpler reference |
 | `RK.download(filename, text, type)`, `RK.store(key)`, `RK.esc` | from kit 1, unchanged |
+| `RK.xlsx`, `RK.upload`, `RK.rules`, `RK.NameEditor`, `RK.clipboard` | from kit 1, unchanged; styled under kit 2 by `.upload-area`, `label.field`, `.rk-name-editor` and `.copy-fallback`. The Waqti demand summary uses all of them |
 
 ## Checklist for a new tool
 
