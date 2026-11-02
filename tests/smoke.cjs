@@ -164,6 +164,8 @@ const FLOWS = {
     await page.click('[data-add="defects"]');
     await page.fill("#r_defects_0_ref", "D-1"); await page.fill("#r_defects_0_title", "Login fails");
     t("an added defect shows in the email", /D-1\s*Login fails/.test(await preview()));
+    t("the chip rows are named groups", (await page.getAttribute("#emTypeChips", "aria-label")) === "Email type" &&
+      (await page.getAttribute("#statusChips", "role")) === "group" && (await page.getAttribute("#emSections", "aria-labelledby")) === "emSectionsLabel");
     await page.click('#emTypeChips [data-chip-value="request"]');
     t("sign-off request asks for a fixed reply", /Please reply with one of: Approved/.test(await preview()));
     await page.reload();
