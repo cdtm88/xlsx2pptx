@@ -11,10 +11,10 @@ wins and this document gets fixed.
 - **Starting point:** [`starter.src.html`](starter.src.html), a small working
   page that uses every main part. Copy it to `reports/<name>.src.html`.
 
-`report-kit.css` (v1) is frozen, and no tool includes it any more (the last on it,
-PI capacity, moved in its v2.0.0; the delivery plan, which used no kit, moved in
-its v2.0.0). Every tool is on kit 2. Do not include both stylesheets in one page:
-kit 2 styles bare `button`, `input`, `select` and `table` elements.
+Every tool is on kit 2. Kit 1 (`report-kit.css`) was removed once the last tool
+moved off it; it is in the git history if you ever need to see the old look.
+Kit 2 styles bare `button`, `input`, `select` and `table` elements, so do not mix
+it with another stylesheet that does the same.
 
 ## Principles
 

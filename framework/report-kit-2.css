@@ -5,9 +5,7 @@
    by framework/build.py. See framework/DESIGN.md for the rules and
    framework/starter.src.html for a page that uses every part.
 
-   Unlike report-kit.css (v1, kept for the tools built on it), this
-   file styles bare elements (button, input, select, table), so a
-   page includes one kit stylesheet or the other, never both.
+   This file styles bare elements (button, input, select, table).
    Report-specific styles go in the report's own <style> block,
    after this include, with report-specific class names.
    ============================================================ */

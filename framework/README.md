@@ -13,8 +13,7 @@ no build step *for the user*, and no external requests.
 | `starter.src.html` | A small working page in the kit 2 language. Copy it to start a new tool. |
 | `signoff.html` | The sign-off line every tool ends with ("Dreamt up by Christian, built with Claude…"). Pulled into each footer with `<!--@include framework/signoff.html@-->`; edit it here and rebuild to change it everywhere. |
 | `DESIGN.md` | The design language: principles, tokens, every component, the runtime helpers, a checklist for new tools. |
-| `report-kit.css` | Kit 1, **frozen and unused**: the original look (cards, light-header tables, upload zone, KPIs, staff-name editor). No tool includes it since the delivery plan moved to kit 2; kept for reference, not for new tools. |
-| `report-kit.js` | `window.RK`: DOM/format helpers, file download, namespaced `localStorage`, clipboard (rich HTML + text), upload wiring, xlsx plumbing, the **rules JSON module**, the reusable **staff-name editor**, and (since 1.1.0) the kit 2 runtime: `RK.modal`, `RK.confirm`, `RK.sortable`, `RK.chipsFromSelect`, `RK.stepSegs`, `RK.searchShortcut`, CSV and number/date helpers, and (1.2.0) `RK.dict`/`RK.has` for lookups keyed by file data, and (1.3.0) `RK.toast`, and (1.4.0) `RK.fileDoc`, one project file per project on disk with autosave (see `docs/storage-design.md`), and (1.5.0) `RK.clipboard.writeText` for a plain-text-only copy and column-mapper labels tied to their selects, and (1.6.0) an `onCancel` for `RK.confirm`, and (1.7.0) a named `role="group"` on every `RK.chipsFromSelect` row. The kit 1 helpers and `RK.show`/`RK.hide` work under either stylesheet; the kit 2 helpers (`RK.modal`, `RK.confirm`, chips, steps) are styled only by `report-kit-2.css`. |
+| `report-kit.js` | `window.RK`: DOM/format helpers, file download, namespaced `localStorage`, clipboard (rich HTML + text), upload wiring, xlsx plumbing, the **rules JSON module**, the reusable **staff-name editor**, and (since 1.1.0) the kit 2 runtime: `RK.modal`, `RK.confirm`, `RK.sortable`, `RK.chipsFromSelect`, `RK.stepSegs`, `RK.searchShortcut`, CSV and number/date helpers, and (1.2.0) `RK.dict`/`RK.has` for lookups keyed by file data, and (1.3.0) `RK.toast`, and (1.4.0) `RK.fileDoc`, one project file per project on disk with autosave (see `docs/storage-design.md`), and (1.5.0) `RK.clipboard.writeText` for a plain-text-only copy and column-mapper labels tied to their selects, and (1.6.0) an `onCancel` for `RK.confirm`, and (1.7.0) a named `role="group"` on every `RK.chipsFromSelect` row. Its older helpers (`RK.xlsx`, `RK.upload`, `RK.rules`, `RK.NameEditor`, `RK.clipboard`) are styled under kit 2 too (see `DESIGN.md`). |
 | `vendor/sheetjs.js` | The vendored SheetJS mini build (read-only), inlined where a report reads `.xlsx`. One copy for all reports. |
 | `build.py` | The inliner. Turns a `reports/<name>.src.html` into the shipped single-file `<name>.html`. |
 
@@ -148,10 +147,9 @@ across versions:
    `DESIGN.md` checklist.
 
 Every tool now uses kit 2: the delivery plan, the last one, moved in its v2.0.0
-(it had used no kit at all). `report-kit.css` (kit 1) is no longer included by any
-tool; it stays in the repo, frozen and unused, for reference only, and could be
-deleted. Moving a tool over means switching its stylesheet include and its markup
-to the kit 2 classes. The ones that moved show how: the cost tracker's source has
+(it had used no kit at all), and kit 1 (`report-kit.css`) was then removed; it is
+in the git history. The tools that moved show how a page is carried over to the
+kit 2 classes: the cost tracker's source has
 a kit 1 tool's cards, dialogs and dense grids carried over; the demand summary's
 has an upload-first tool with a sortable picker, the staff-name editor in Settings
 and a copied email table kept exactly as it was; Waqti exceptions has tabbed lists

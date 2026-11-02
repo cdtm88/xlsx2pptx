@@ -18,9 +18,7 @@
    by framework/build.py. See framework/DESIGN.md for the rules and
    framework/starter.src.html for a page that uses every part.
 
-   Unlike report-kit.css (v1, kept for the tools built on it), this
-   file styles bare elements (button, input, select, table), so a
-   page includes one kit stylesheet or the other, never both.
+   This file styles bare elements (button, input, select, table).
    Report-specific styles go in the report's own <style> block,
    after this include, with report-specific class names.
    ============================================================ */
@@ -1136,8 +1134,8 @@ window.RK = (function () {
     return String(s === null || s === undefined ? "" : s)
       .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
   }
-  // Both the .hidden class (kit 1 CSS) and the hidden attribute (kit 2 CSS), so either
-  // stylesheet honours it.
+  // Sets the hidden attribute (what kit 2 CSS honours) and keeps a .hidden class in step,
+  // so a report's own `.hidden` rule still works.
   function show(el) { if (el) { el.classList.remove("hidden"); el.hidden = false; } }
   function hide(el) { if (el) { el.classList.add("hidden"); el.hidden = true; } }
   // A lookup table with no prototype: keys from files ("__proto__", "constructor",
