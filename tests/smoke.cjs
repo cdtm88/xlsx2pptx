@@ -645,6 +645,75 @@ const FLOWS = {
     const m = /(\d+)\/(\d+) passed/.exec(summary);
     t("built-in self tests pass (" + (m ? m[0] : "none ran") + ")", !!m && m[1] === m[2] && Number(m[2]) > 0,
       lines.filter((l) => /^FAIL/.test(l)).join("; ") || summary);
+
+    // a fresh install: the empty list names the real first step, and New goes there
+    await page.goto(ctx.url); await page.evaluate(() => localStorage.clear()); await page.reload(); await page.waitForTimeout(200);
+    t("the empty list starts with a budget", /Start with a budget, then a vendor, in Settings/.test(await page.textContent("#emptyState")));
+    await page.click("#btnNewItem");
+    t("New line item with no budget opens Settings on Budgets, and says why", await page.isVisible("#panel-budgets") &&
+      /Create a budget first/.test(await page.textContent(".toast")));
+    await page.click('.app-nav-item[data-view="items"]');
+    await page.click('#emptyState [data-goto-panel]');
+    t("the empty list's link goes to Budgets too", await page.isVisible("#panel-budgets") &&
+      (await page.getAttribute('.app-nav-item[data-view="settings"]', "aria-current")) === "page");
+
+    // a workspace with data
+    await page.evaluate(() => localStorage.setItem("vendorSpendTracker.v1", JSON.stringify({
+      budgets: [{ id: "b1", name: "Marketing", total: 500000, adjustments: [] }, { id: "b2", name: "Spare", total: 1000, adjustments: [] }],
+      vendors: [{ id: "v1", name: "Acme Ltd", systemName: "", defaultCurrency: "USD", defaultBudgetId: "b1" }, { id: "v2", name: "Unused", systemName: "", defaultCurrency: "AED", defaultBudgetId: "" }],
+      items: [{ id: "i1", vendorId: "v1", budgetId: "b1", description: "Retainer", stage: "PO issued", currency: "USD", currentAmount: 1000, invoicedAmount: 0, dateEntered: "2026-04-02", dateUpdated: "2026-04-10", notes: [] }],
+      settings: { rates: { AED: 1, USD: 3.673, GBP: 4.5, EUR: 4.1 } } })));
+    await page.reload(); await page.waitForTimeout(200);
+    const row = await page.$eval('#itemsBody tr[data-detail-item="i1"]', (r) => ({ role: r.getAttribute("role"), tab: r.getAttribute("tabindex"), date: r.cells[5].className }));
+    t("a row is a focusable row, not a button holding buttons", row.role === null && row.tab === "0", JSON.stringify(row));
+    t("the Updated date is mono", row.date === "mono");
+    await page.focus('#itemsBody tr[data-detail-item="i1"]'); await page.keyboard.press("Enter");
+    t("Enter on a row opens its drawer", await page.isVisible("#detailModalOverlay"));
+    await page.click("#btnDetailDelete");
+    t("deleting a line item asks in the page, as a danger", await page.isVisible(".modal-overlay:not([hidden]) [data-rk-ok].danger-fill"));
+    await page.click(".modal-overlay:not([hidden]) [data-rk-cancel]");
+    t("Cancel keeps it", (await page.$$("#itemsBody tr")).length === 1);
+    await page.keyboard.press("Escape");
+
+    // the invoiced-over-amount question is asked in the page, and Save anyway saves
+    await page.click('#itemsBody tr[data-detail-item="i1"] td:nth-child(2)'); await page.click("#btnDetailEdit");
+    await page.fill("#f_invoicedAmount", "5000");
+    await page.click("#itemForm button[type=submit]");
+    t("more invoiced than the amount asks first", /greater than Current Amount/.test(await page.textContent(".modal-overlay:not([hidden]) .modal-lead")));
+    await page.click(".modal-overlay:not([hidden]) [data-rk-ok]"); await page.waitForTimeout(100);
+    t("and Save anyway saves", await page.isHidden("#itemModalOverlay") &&
+      (await page.evaluate(() => JSON.parse(localStorage.getItem("vendorSpendTracker.v1")).items[0].invoicedAmount)) === 5000);
+    await page.click('#itemsBody tr[data-detail-item="i1"] td:nth-child(2)'); await page.click("#btnDetailEdit");
+    await page.click('#f_stageChips [data-chip-value="Initial invoice received"]'); await page.fill("#f_invoicedAmount", "");
+    await page.click("#itemForm button[type=submit]");
+    t("a missing invoiced amount is explained in the form", await page.isVisible("#f_formError") && /must be greater than 0/.test(await page.textContent("#f_formError")));
+    await page.click("#btnCancelItem");
+    if (await page.isVisible(".modal-overlay:not([hidden]) [data-rk-ok]")) await page.click(".modal-overlay:not([hidden]) [data-rk-ok]");
+
+    // Settings: rates, and deletes that ask in the page
+    await page.click('.app-nav-item[data-view="settings"]');
+    await page.fill("#rate_USD", "0"); await page.click("#btnSaveRates");
+    t("a bad rate is explained beside the rates", await page.isVisible("#ratesError"));
+    await page.fill("#rate_USD", "3.7"); await page.click("#btnSaveRates");
+    t("saved rates say so in a toast", await page.isHidden("#ratesError") && /Rates saved/.test(await page.textContent(".toast")));
+    await page.click('[data-settings-panel="panel-vendors"]');
+    await page.click('[data-del-vendor="v2"]');
+    await page.click(".modal-overlay:not([hidden]) [data-rk-ok]");
+    t("an unused vendor is deleted after asking", !(await page.$('[data-del-vendor="v2"]')));
+    await page.click('[data-settings-panel="panel-budgets"]');
+    t("budget figures are mono", (await page.$eval("#settingsBudgetList .settings-table-row:not(.header) .col-num", (e) => getComputedStyle(e).fontFamily)).includes("monospace"));
+    const unnamed = await page.$$eval("input:not([type=hidden]):not([hidden]), select, textarea", (els) =>
+      els.filter((e) => !(e.labels && e.labels.length) && !e.getAttribute("aria-label") && !e.getAttribute("aria-labelledby")).map((e) => e.id).join(", "));
+    t("every field has a name", unnamed === "", unnamed);
+
+    // another tab's save: a dismissable note, not the red banner
+    await page.evaluate(() => {
+      const s = JSON.parse(localStorage.getItem("vendorSpendTracker.v1")); s.saveToken = "other"; s.rev = 99;
+      window.dispatchEvent(new StorageEvent("storage", { key: "vendorSpendTracker.v1", newValue: JSON.stringify(s) }));
+    });
+    t("a change in another tab is a note in the watch colour", await page.isVisible("#otherTabNote.warn") && await page.isHidden("#corruptDataBanner"));
+    await page.click("#otherTabDismiss");
+    t("and it can be dismissed", await page.isHidden("#otherTabNote"));
   },
 };
 
@@ -663,7 +732,8 @@ function watchDialogs(page) {
 
 // Phone width: the widest page, at 390px, across every view in the header and every
 // Settings tab, so that nothing makes the whole page scroll sideways (a wide table
-// scrolls inside its own container). Leaves the page on its first view, at its old size.
+// scrolls inside its own container). Each view must show the sign-off footer too.
+// Leaves the page on its first view, at its old size.
 async function phoneOverflow(page) {
   const size = page.viewportSize();
   await page.setViewportSize({ width: 390, height: 844 });
@@ -679,6 +749,8 @@ async function phoneOverflow(page) {
   for (const v of views) {
     await page.click(`.app-nav-item[data-view="${v}"]`);
     await measure(v);
+    // the sign-off footer shows on every view (DESIGN.md principle 9)
+    if (!(await page.isVisible("footer .signoff"))) over.push(v + " has no footer");
     const tabs = page.locator(".settings-nav-item:visible");
     const n = await tabs.count();
     for (let i = 0; i < n; i++) {
@@ -716,7 +788,7 @@ async function openTool(browser, file, flow) {
   // a flow can check phone width at a point of its own as well (ctx.phone)
   const phone = async (label) => {
     const over = await phoneOverflow(page);
-    check(name + ": no sideways scroll at 390px" + (label ? " (" + label + ")" : ""), over.length === 0, over.join(", "));
+    check(name + ": no sideways scroll at 390px, footer on every view" + (label ? " (" + label + ")" : ""), over.length === 0, over.join(", "));
   };
   if (flow) {
     try { await flow(page, (n, c, w) => check(name + ": " + n, c, w), { url, phone }); }
