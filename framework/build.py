@@ -19,7 +19,7 @@ Source conventions:
   - Put the report source at reports/<name>.src.html
   - Optional first-line directive `<!-- @out: <path> -->` sets the output file;
     otherwise it defaults to <name>.html at the repo root.
-  - Use `/*@include framework/report-kit.css@*/` inside a <style> block,
+  - Use `/*@include framework/report-kit-2.css@*/` inside a <style> block,
     `/*@include framework/vendor/sheetjs.js@*/` and
     `/*@include framework/report-kit.js@*/` inside <script> blocks.
     The whole line containing the directive is replaced by the file's contents.

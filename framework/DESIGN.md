@@ -11,9 +11,10 @@ wins and this document gets fixed.
 - **Starting point:** [`starter.src.html`](starter.src.html), a small working
   page that uses every main part. Copy it to `reports/<name>.src.html`.
 
-`report-kit.css` (v1) is frozen. It stays only so the tools already built on it
-keep their look. Do not include both stylesheets in one page: kit 2 styles bare
-`button`, `input`, `select` and `table` elements.
+Every tool is on kit 2. Kit 1 (`report-kit.css`) was removed once the last tool
+moved off it; it is in the git history if you ever need to see the old look.
+Kit 2 styles bare `button`, `input`, `select` and `table` elements, so do not mix
+it with another stylesheet that does the same.
 
 ## Principles
 
@@ -21,13 +22,17 @@ keep their look. Do not include both stylesheets in one page: kit 2 styles bare
    `page-summary` states the headline ("AED 682,245 of AED 800,000 committed or
    invoiced"), then the cards, then the detail. Set-up lives in **Settings**.
 2. **Two views, one header.** Main view and Settings, switched by underline tabs
-   in the header (`app-nav`). Search, secondary actions and one primary action
+   in the header (`app-nav`, labelled `aria-label="Views"`). The current tab
+   carries `aria-current="page"` as well as `.active`, so a screen reader hears
+   which view is showing. Search, secondary actions and one primary action
    sit on the right of the header. Exactly one `button.primary` in the header.
 3. **Detail in a drawer, edits in a dialog.** Clicking a row opens a right-hand
    drawer (`.modal.drawer`) to read; Edit / New open a centred `.modal` to write.
    Never navigate away from the list.
 4. **Numbers are mono.** Every money figure, percentage, count and timestamp is in
-   `--font-mono` with tabular figures. Words are in the UI font. Money is shown in
+   `--font-mono` with tabular figures. Words are in the UI font. The kit does this
+   for `td.num`, `.amt-value`, `.col-num` in a settings list and every
+   `input[type=number]`; anything else takes `.mono`. Money is shown in
    the base currency first, with the native currency as a smaller grey line
    beneath (`amt-value` / `amt-native`).
 5. **Colour means state.** Teal is the brand and "selected". Green / yellow / red
@@ -37,7 +42,9 @@ keep their look. Do not include both stylesheets in one page: kit 2 styles bare
 6. **Quiet chrome.** White panels on a `#F6F7F7` page, 1px `--border` lines,
    10px card radius, 6px control radius, no heavy shadows except on dialogs.
 7. **Keyboard and screen reader work.** Every clickable thing is a `button` or
-   has `role="button"` + `tabindex="0"` + Enter/Space. Dialogs move focus in,
+   has `role="button"` + `tabindex="0"` + Enter/Space. Never put a control inside
+   a `role="button"`: its children become presentational, so a table row that
+   opens a drawer gets `tabindex="0"` and the key handler, not the role. Dialogs move focus in,
    trap it, close on Escape and return focus (all done by `RK.modal`). `/`
    focuses search (`RK.searchShortcut`).
 8. **Single file, offline, enforced.** No external URLs, including icons: images
@@ -51,8 +58,12 @@ keep their look. Do not include both stylesheets in one page: kit 2 styles bare
    It lives once, in [`signoff.html`](signoff.html), and a page pulls it in with
    `<!--@include framework/signoff.html@-->` inside its `footer`, so changing it
    there changes every tool on the next build. The starter already has it; keep
-   it in one footer that shows on every view. `tests/smoke.cjs` fails any built
-   tool without it.
+   it in one footer that shows on every view: after the last view, inside `.wrap`,
+   never inside one view. `tests/smoke.cjs` fails any built tool without it.
+10. **In-page feedback only.** No native `alert`, `confirm` or `prompt`: ask with
+   `RK.confirm` (`danger` for a delete), confirm with `RK.toast`, and explain a
+   field that cannot be saved next to it, or in a `.callout`. `tests/smoke.cjs`
+   fails any tool that opens a native dialog.
 
 ## Tokens
 
@@ -79,30 +90,33 @@ Type scale (px): 22 page headline, 20 settings title, 18 dialog/drawer title,
 | Class(es) | What it is |
 |---|---|
 | `.wrap` | page container, max 1400px |
-| `.app-header`, `.app-logo`, `.app-logo-mark`, `.app-nav`, `.app-nav-item`, `.app-header-spacer`, `.app-search`, `.search-hint-key` | header bar; collapses into ordered rows on narrow screens |
+| `.app-header`, `.app-logo`, `.app-logo-mark`, `.app-nav`, `.app-nav-item` (+ `.active` / `[aria-current="page"]`), `.app-header-spacer`, `.app-search`, `.search-hint-key` | header bar; collapses into ordered rows on narrow screens, where the nav takes a row of its own and wraps (2.6.0), so no view is off the edge |
 | `button`, `.primary`, `.danger`, `.danger-fill`, `.small`, `.icon-btn`, `.link-action` | buttons (icon-only buttons need an `aria-label`) |
 | `.page-summary`, `-text`, `-sub`, `-main` | the one-line answer above the cards |
 | `.legend`, `.legend-item`, `.legend-swatch` + `.swatch-solid` / `-hatched` / `-tint` | key for bar fills |
-| `.stat-grid`, `.stat-card` (+ `.active`), `-name`, `-figure`, `-value`, `-of`, `-nums`, `-num` (+ `.neg`) | grid of headline cards; make them filters with `role="button"` |
+| `.stat-grid`, `.stat-card` (+ `.active`), `-name`, `-figure`, `-value` (+ `.neg`, 2.6.1), `-of`, `-nums`, `-num` (+ `.neg`) | grid of headline cards; make them filters with `role="button"` |
 | `.bar-track`, `.bar-fill` + `.solid` / `.hatched` / `.tint` / `.status-*`, `.bar-limit` | stacked bar. **Scale every segment to one maximum** (`max(limit, total)`) and put `.bar-limit` at `limit / max` |
 | `.row-bar-cell`, `.row-bar-track`, `.row-bar-fill` | thin inline bar in a list row |
 | `.status-pill` + `.pill-green` / `-yellow` / `-red` / `-teal` / `-grey` | state labels |
-| `.toolbar`, `.toolbar-spacer`, `.seg-tabs`, `.seg-tab` (+ `.active`), `.seg-tab-count`, `.filter-chip` (+ `.warn`, `.active`), `.filter-chip-x`, `.toolbar-select`, `.list-meta` | list controls: tabs with counts, removable filter chips, a count on the right |
+| `.toolbar`, `.toolbar-spacer`, `.seg-tabs`, `.seg-tab` (+ `.active`), `.seg-tab-count`, `.filter-chip` (+ `.warn`, `.active`), `.filter-chip-x`, `.toolbar-select`, `.list-meta` | list controls: tabs with counts, removable filter chips, a count on the right. `.seg-tabs` wraps onto a second row on a narrow screen (2.6.0) |
 | `.table-container`, `table` (+ `.fixed`), `th[data-sort]`, `.sort-arrow`, `tr.clickable`, `td.wrap-cell`, `.cell-title`, `.cell-sub`, `td.amt`, `.amt-wrap`, `.amt-value`, `.amt-native`, `td.row-actions`, `.row-action-btn`, `.row-done-label`, `.empty-state` | data table with a sticky dark header. Never put `display:flex` on a `td`; wrap the content in a `div` |
+| `table.dense`, `th.sticky-col` / `td.sticky-col`, `tfoot tr.total-row` | a grid of figures (a sprint or month matrix): tighter cells (every `td.num` is mono, dense or not, since 2.6.0); a first column that stays put while the table scrolls sideways; a shaded totals row pinned to the foot of its scroller. All three print flat (PI capacity) |
 | `.steps`, `.steps-top`, `.steps-label`, `.steps-count`, `.step-segs`, `.step-seg` | position in a fixed workflow (`RK.stepSegs`) |
 | `.step-track`, `-seg`, `-bar`, `-label` (+ `.done`, `.target`) | larger labelled workflow track for a "move to next step" dialog |
+| `.panel`, `.panel-head`, `.panel-title` (`h2`/`h3` + `.hint`), `.panel-actions` | a titled white section of a page, e.g. one team and its members, with its buttons on the right (PI capacity) |
+| `.save-state`, `.save-dot` (+ `.live`, `.warn`) | a dot and a few words in the header saying where edits are kept ("Saved in this browser"); give it `role="status"` |
 | `.settings-header`, `.settings-nav`, `.settings-nav-item`, `-label`, `-count`, `.settings-content` (+ `.wide`), `.settings-panel-head` | settings view |
 | `.setting-row`, `-label`, `.label-text`, `.label-hint`, `-control`, `.unit-suffix` | label left, control right |
 | `.settings-table`, `.settings-table-row` (+ `.header`), `.col-num`, `.col-actions`, `[data-label]` | light grid list; stacks on phones using `data-label` |
 | `.avatar-chip`, `.entity`, `.entity-text`, `.entity-name`, `.entity-sub` | a named thing with initials |
-| `.modal-overlay`, `.modal` (+ `.modal-compact`, `.modal-wide`), `.modal-lead`, `.modal-actions` (+ `.start`), `.field`, `.field-row`, `.field-row-3`, `.hint`, `.callout` (+ `.ok`, `.warn`, `.danger`) | dialogs and forms; `.modal-wide` (980px) is for a dialog that holds a table |
+| `.modal-overlay`, `.modal` (+ `.modal-compact`, `.modal-wide`), `.modal-lead`, `.modal-actions` (+ `.start`), `.field`, `.field-label`, `.field-row`, `.field-row-3`, `.hint`, `.callout` (+ `.ok`, `.warn`, `.danger`) | dialogs and forms; `.modal-wide` (980px) is for a dialog that holds a table. A `label` must name a control (`for`); over a group of chips, checkboxes or cards use `<div class="field-label" id>` instead, looks the same, and point the group's `aria-labelledby` at it |
 | `.drawer-overlay`, `.drawer`, `.drawer-head`, `-head-top`, `-head-actions`, `-title-sub`, `-title`, `-close`, `-body`, `-section`, `-section-label`, `-foot` | right-hand detail drawer |
 | `.figure-strip`, `.figure-box`, `.figure` | three headline figures in a bordered strip |
 | `.detail-grid`, `.detail-label`, `.detail-value` | read-only key/value pairs |
 | `.dist-row`, `.dist-label`, `.dist-count` | small ranked distribution |
 | `.list-row`, `-main`, `-title`, `-sub`, `-figure`, `.muted-empty` | compact clickable list inside a drawer |
 | `.tl-row`, `.tl-rail`, `.tl-dot` (+ `.note`), `.tl-line`, `.tl-body`, `.tl-title`, `.tl-time`, `.tl-text` | activity timeline: solid dot for system events, hollow for notes |
-| `.chip-row`, `.chip` (+ `.active`) | choices that drive a hidden select (`RK.chipsFromSelect` + `.select-hidden-visually`) |
+| `.chip-row`, `.chip` (+ `.active`) | choices that drive a hidden select (`RK.chipsFromSelect` + `.select-hidden-visually`); give the select an `aria-label` and the row is named after it |
 | `.preset-row`, `.preset-chip` | presets such as date ranges (active = charcoal) |
 | `.quick-chip-row`, `.quick-chip` | quick-fill values such as 25% / 50% / 100% |
 | `.amt-input-box`, `.amt-input-tag` | money input with its currency; a `.chip-row` inside it becomes a currency switch |
@@ -110,16 +124,21 @@ Type scale (px): 22 page headline, 20 settings title, 18 dialog/drawer title,
 | `.option-cards`, `.option-card`, `-title`, `-desc` | radio cards, e.g. export format |
 | `.date-pair` | two date fields side by side |
 | `.upload-area` (+ `.dragover`), `.big`, `.or`, `label.field` | file drop zone for `RK.upload`; `label.field` is what `RK.xlsx.renderMapper` emits |
+| `.start-view`, `.start-panel`, `.start-actions` | the opening panel of an upload-first tool: a heading, one lead line (`.modal-lead`) and the drop zone, centred (Waqti exceptions); `.start-actions` is a row of secondary actions under the drop zone, such as a blank template to start from (delivery plan). Never put a button inside the drop zone |
+| `tr.row-off`, `td.row-check` / `th.row-check` | a row the user left out of an email or export (its tick box unticked): faded and struck through, except the tick box cell |
+| `.cell-input` | a field edited in place in a table cell (`input` or `select`): reads as plain text until hovered or focused, struck through in a `tr.row-off` (delivery plan) |
 | `.toast` (+ `.on`) | short confirmation at the foot of the screen, made by `RK.toast` |
+| `.copy-fallback` | the manual-copy box `RK.clipboard.fallbackInto` draws when the browser blocks the clipboard |
+| `.table-container.rk-name-editor` | home for `RK.NameEditor`: mono Staff IDs, the export name beneath, rows still missing a name in the watch colour; hidden while empty |
 | `footer`, `.signoff`, `.strapline`, `.app-version` | footer: the shared sign-off line (`framework/signoff.html`, principle 9), the offline strapline, and the version in mono |
 
-## Runtime (`window.RK`, kit 1.4.0)
+## Runtime (`window.RK`, kit 1.7.0)
 
 | Helper | Does |
 |---|---|
 | `RK.modal(overlay, { onClose })` | wires a `.modal-overlay`: role/aria, focus moved in on `open()`, Escape, Tab trap, focus returned on close, backdrop click closes only if nothing was typed. Returns `{ open(opener?), close(), markClean(), isOpen() }` |
-| `RK.confirm(message, onConfirm, { okLabel, title, danger })` | in-page confirm dialog; builds its own markup |
-| `RK.chipsFromSelect(select, row, labelFor?)` | chip buttons for a hidden select; returns `refresh()` |
+| `RK.confirm(message, onConfirm, { okLabel, title, danger, onCancel })` | in-page confirm dialog; builds its own markup. `onCancel` (1.6.0) runs when it closes any other way: Cancel, Escape or the backdrop |
+| `RK.chipsFromSelect(select, row, labelFor?, groupLabel?)` | chip buttons for a hidden select; returns `refresh()`. Since 1.7.0 the row is `role="group"`, named by `groupLabel`, else the select's `aria-label`, else its `<label for>` (unless the row already has a name) |
 | `RK.sortable(table, state, onSort)` | `th[data-sort]` click / Enter / Space flips `state.key` / `state.dir`, keeps `aria-sort` and arrows; returns `update()` |
 | `RK.stepSegs(total, index)` | `.step-seg` HTML for `.step-segs` |
 | `RK.searchShortcut(input, isActive?)` | `/` focuses the search box when nothing else has the keyboard |
@@ -129,7 +148,8 @@ Type scale (px): 22 page headline, 20 settings title, 18 dialog/drawer title,
 | `RK.dict()`, `RK.has(o, k)` | a lookup with no prototype, and an own-key test: use them for anything keyed by file or user data |
 | `RK.toast(message, ms?)` | shows a `.toast` and fades it after `ms` (default 2600); a new message replaces the one showing |
 | `RK.fileDoc(opts)` | binds the page to one project file on disk (File System Access API) and writes every change into it: create, open, recent files, reconnect after a restart, one tab per file, stale-file and crash-copy handling, policy-block detection. The page supplies `serialise()` and `load(text)` and draws `status()` / `info()`; see the comment above it in `report-kit.js` and [`docs/storage-design.md`](../docs/storage-design.md). The UAT sign-off tracker and the project cost tracker use it; the UAT tracker is the simpler reference |
-| `RK.download(filename, text, type)`, `RK.store(key)`, `RK.esc` | from kit 1, unchanged |
+| `RK.download(filename, text, type)`, `RK.store(key)`, `RK.esc` | from kit 1, unchanged. `RK.download` takes a string, bytes (`Uint8Array`) or a `Blob`, so it also saves a built file or an image (the delivery plan's template and PNG) |
+| `RK.xlsx`, `RK.upload`, `RK.rules`, `RK.NameEditor`, `RK.clipboard` | from kit 1; styled under kit 2 by `.upload-area`, `label.field`, `.rk-name-editor` and `.copy-fallback`. The Waqti demand summary uses all of them; Waqti exceptions uses all but `RK.rules` and `RK.NameEditor`. Since 1.5.0 `RK.xlsx.renderMapper` ties each label to its select (`for`/`id`, named after the fields container's id) and `RK.clipboard.writeText(text)` copies plain text only, for a "copy as plain text" choice |
 
 ## Checklist for a new tool
 
@@ -143,9 +163,11 @@ Type scale (px): 22 page headline, 20 settings title, 18 dialog/drawer title,
 - [ ] Bar fills match their legend and share one scale
 - [ ] Status colours used only for status
 - [ ] Rows open a drawer; New / Edit open a dialog through `RK.modal`
-- [ ] Everything clickable works with Enter and Space; icon buttons have `aria-label`
+- [ ] Everything clickable works with Enter and Space; icon buttons have `aria-label`; nothing interactive inside a `role="button"`
+- [ ] The nav marks the current view with `aria-current="page"`; every input, select and chip group has a name
+- [ ] No native `alert`, `confirm` or `prompt` (principle 10)
 - [ ] Empty states say why they are empty (nothing yet vs. filtered out)
-- [ ] Works at phone width (header groups wrap in order, grids stack)
-- [ ] Footer includes `framework/signoff.html` (the sign-off line) and shows on every view
+- [ ] Works at phone width (header groups wrap in order, grids stack); a grid column that holds something wide is `minmax(0, 1fr)`, not `1fr`, and no view scrolls sideways at 390px (the smoke test checks every view and Settings tab)
+- [ ] Footer includes `framework/signoff.html` (the sign-off line), sits outside the views and shows on every one
 - [ ] Version shown in Settings (`.app-version`), semver, bumped on release
 - [ ] Report-specific CSS is short and prefixed; anything reusable goes into the kit instead

@@ -1,6 +1,6 @@
 /* ============================================================
    Report Kit — shared runtime for the browser report tools
-   kit-version: 1.4.0
+   kit-version: 1.7.0
    Exposes window.RK. Depends on window.XLSX (SheetJS) only for the
    xlsx.* helpers; everything else is standalone. Inlined into each
    report by framework/build.py so reports stay single-file/offline.
@@ -14,7 +14,7 @@
    ============================================================ */
 window.RK = (function () {
   "use strict";
-  var KIT_VERSION = "1.4.0";
+  var KIT_VERSION = "1.7.0";
 
   /* ---------- dom / format helpers ---------- */
   function $(id) { return document.getElementById(id); }
@@ -22,8 +22,8 @@ window.RK = (function () {
     return String(s === null || s === undefined ? "" : s)
       .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
   }
-  // Both the .hidden class (kit 1 CSS) and the hidden attribute (kit 2 CSS), so either
-  // stylesheet honours it.
+  // Sets the hidden attribute (what kit 2 CSS honours) and keeps a .hidden class in step,
+  // so a report's own `.hidden` rule still works.
   function show(el) { if (el) { el.classList.remove("hidden"); el.hidden = false; } }
   function hide(el) { if (el) { el.classList.add("hidden"); el.hidden = true; } }
   // A lookup table with no prototype: keys from files ("__proto__", "constructor",
@@ -65,6 +65,14 @@ window.RK = (function () {
         });
         return navigator.clipboard.write([item]).then(function () { return "html"; });
       }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        return navigator.clipboard.writeText(text).then(function () { return "text"; });
+      }
+      return Promise.reject(new Error("no-clipboard"));
+    },
+    // writeText(text) -> Promise resolving to "text": plain text only, for a "copy as plain
+    // text" choice (write() above always offers HTML first). Rejects if blocked.
+    writeText: function (text) {
       if (navigator.clipboard && navigator.clipboard.writeText) {
         return navigator.clipboard.writeText(text).then(function () { return "text"; });
       }
@@ -150,6 +158,7 @@ window.RK = (function () {
     // container: el for the selects; fieldSpecs as above; onConfirm(mapping).
     renderMapper: function (opts) {
       var headers = opts.headers, fieldSpecs = opts.fieldSpecs;
+      var idBase = (opts.fieldsEl.id || "rk-map") + "-";   // each label names its select (for/id)
       var rows = fieldSpecs.map(function (f) {
         var guess = null;
         for (var i = 0; i < headers.length; i++) if (headers[i].name === f.canonical) { guess = headers[i].index; break; }
@@ -157,7 +166,8 @@ window.RK = (function () {
           return '<option value="' + h.index + '"' + (guess === h.index ? " selected" : "") + ">" + esc(h.name || ("(column " + (h.index + 1) + ")")) + " [col " + (h.index + 1) + "]</option>";
         }).join("");
         var label = f.label || (f.canonical + (f.required ? "" : " (optional)"));
-        return '<div style="margin:.5rem 0;"><label class="field" style="margin:0 0 .2rem;">' + esc(label) + '</label><select data-field="' + f.field + '">' + optsHtml + "</select></div>";
+        var id = idBase + f.field;
+        return '<div style="margin:.5rem 0;"><label class="field" for="' + esc(id) + '" style="margin:0 0 .2rem;">' + esc(label) + '</label><select id="' + esc(id) + '" data-field="' + f.field + '">' + optsHtml + "</select></div>";
       }).join("");
       opts.fieldsEl.innerHTML = rows;
       var errEl = opts.errorEl;
@@ -436,8 +446,9 @@ window.RK = (function () {
   }
 
   /* ---------- confirm dialog (in-page replacement for window.confirm) ----------
-     confirm(message, onConfirm, { okLabel, title, danger }). Builds its own markup on
-     first use. onConfirm runs only if the primary button is pressed. */
+     confirm(message, onConfirm, { okLabel, title, danger, onCancel }). Builds its own
+     markup on first use. onConfirm runs only if the primary button is pressed;
+     onCancel (1.6.0) runs if the dialog closes any other way (Cancel, Escape, backdrop). */
   var confirmUi = null;
   function confirmDialog(message, onConfirm, o) {
     o = o || {};
@@ -447,18 +458,18 @@ window.RK = (function () {
       ov.innerHTML = '<div class="modal modal-compact"><h2></h2><p class="modal-lead"></p>' +
         '<div class="modal-actions"><button type="button" data-rk-cancel>Cancel</button><button type="button" class="primary" data-rk-ok>Continue</button></div></div>';
       document.body.appendChild(ov);
-      var pending = null;
-      var ctl = modal(ov, { onClose: function () { pending = null; } });
+      var pending = null, cancelled = null;
+      var ctl = modal(ov, { onClose: function () { var c = cancelled; pending = null; cancelled = null; if (c) c(); } });
       ov.querySelector("[data-rk-cancel]").addEventListener("click", function () { ctl.close(); });
-      ov.querySelector("[data-rk-ok]").addEventListener("click", function () { var fn = pending; pending = null; ctl.close(); if (fn) fn(); });
-      confirmUi = { ov: ov, ctl: ctl, set: function (fn) { pending = fn; } };
+      ov.querySelector("[data-rk-ok]").addEventListener("click", function () { var fn = pending; pending = null; cancelled = null; ctl.close(); if (fn) fn(); });
+      confirmUi = { ov: ov, ctl: ctl, set: function (fn, cancel) { pending = fn; cancelled = cancel || null; } };
     }
     var ok = confirmUi.ov.querySelector("[data-rk-ok]");
     confirmUi.ov.querySelector("h2").textContent = o.title || "Are you sure?";
     confirmUi.ov.querySelector(".modal-lead").textContent = message;
     ok.textContent = o.okLabel || "Continue";
     ok.className = "primary" + (o.danger ? " danger-fill" : "");
-    confirmUi.set(onConfirm);
+    confirmUi.set(onConfirm, o.onCancel);
     confirmUi.ctl.open();
     ok.focus();
   }
@@ -466,9 +477,23 @@ window.RK = (function () {
   /* ---------- choice chips that drive a hidden <select> ----------
      One .chip button per <option>. Clicking sets the select and fires "change", so
      listeners on the select keep working. Returns refresh(); call it after setting
-     the select's value in code. */
-  function chipsFromSelect(select, row, labelFor) {
+     the select's value in code.
+     The row becomes role="group" with the question as its name (1.7.0), so a screen
+     reader hears "Email type, group" before "Request, toggle button, pressed". The
+     name comes from, in order: an aria-label or aria-labelledby already on the row,
+     groupLabel, the select's aria-label, or a <label for> the select. */
+  function chipsFromSelect(select, row, labelFor, groupLabel) {
     var chips = [];
+    row.setAttribute("role", "group");
+    if (!row.hasAttribute("aria-label") && !row.hasAttribute("aria-labelledby")) {
+      var lab = select.labels && select.labels[0];
+      if (groupLabel) row.setAttribute("aria-label", groupLabel);
+      else if (select.getAttribute("aria-label")) row.setAttribute("aria-label", select.getAttribute("aria-label"));
+      else if (lab) {
+        if (!lab.id) lab.id = "rk-lbl-" + uid();
+        row.setAttribute("aria-labelledby", lab.id);
+      }
+    }
     Array.prototype.forEach.call(select.options, function (opt) {
       var b = document.createElement("button");
       b.type = "button"; b.className = "chip";

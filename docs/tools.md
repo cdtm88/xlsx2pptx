@@ -10,9 +10,24 @@ PowerPoint Gantt chart. Bars are coloured by status or a single colour,
 grouped into category swimlanes, with a proportional "Today" marker and
 PowerPoint-safe margins.
 
+**Layout (v2.0.0, Report Kit 2).** The **Plan** view opens on a drop zone
+(click it, or Tab to it and press Enter or Space) with **Download blank
+template** beneath it. Once a plan is loaded it leads with a one-line answer
+about what is on the slides ("18 tasks across 4 workstreams, 3 at risk, Jan to
+Jun 2027", with the title and file name above it) and the **Weeks** picker
+beside it, then four cards: tasks on the slides (with how many are left out or
+not placed), workstreams (milestones, slides), at risk (a red pill when any
+are flagged; blocked, done) and weeks shown. Below them sit the **Tasks**
+table and the **Slide preview** with its key and **Copy image**. The header
+holds **Load plan** and **Download PPTX**. **Settings** has a **Slide** tab
+(title, Today line, bar colour, the timeline shown) and a **Spreadsheet** tab
+(the blank template, load another plan); the version shows there. Loading a
+plan over one you have edited here asks first, in the page; a file that cannot
+be read is refused with a reason and the plan open now stays.
+
 The plan is keyed on **real dates**: each task gets a Start Date and an End
 Date, and the slide's timeline is months across the top with week-commencing
-(w/c) dates beneath — so a task that starts mid-week starts mid-column rather
+(w/c) dates beneath, so a task that starts mid-week starts mid-column rather
 than being rounded to a sprint boundary. Weeks always commence **Monday**: set
 the plan's Start to a Wednesday and the timeline still runs Monday to Monday,
 opening from the Monday of that week. Plans written against the older
@@ -27,25 +42,30 @@ taken for them. With several sets of dates, the plain one is plotted first,
 then forecast or planned, then target, then baseline or actual, always as a
 matching pair. Lanes come from a Category, Section or Workstream column,
 and flags from columns such as `Milestone`, `Key Milestone`, `At Risk` or
-`Risk Flag`. A line under the title says which columns were used; if no
-Start or End column is found, the error lists the headers it did find.
+`Risk Flag`. A line above the Tasks table names the file and the columns
+used; if no Start or End column is found, the error lists the headers it did
+find.
 
-Every field in the Tasks table is **editable in the page** — name, category,
-status, start and end dates, and the milestone and at-risk flags — so a late
-change goes straight in without editing the spreadsheet and re-uploading.
-Moving a date past the end of the timeline extends it rather than dropping the
-task. A date with a mistyped year (2016 for 2026) doesn't drag the timeline
-with it: the task is listed under the preview with its dates so the typo can
-be found and fixed. A plan that genuinely runs past five years shows its
-first five and lists the tasks after that. A week range you pick yourself is
-kept when a date edit shortens the timeline: only the end that fell off is
-pulled in.
+Every field in the Tasks table is **editable in the page** (name, workstream,
+status, start and end dates, and the milestone and at-risk flags), so a late
+change goes straight in without editing the spreadsheet and re-uploading. The
+fields read as plain text until you hover or tab into them, and the table
+keeps the spreadsheet's order, which is the order on the slide. The tick box
+on each row leaves a task off the slides. Rows that are ticked but not placed
+carry a pill saying why: outside the chosen weeks, no dates, ends before it
+starts, or a date to check. Moving a date past the end of the timeline extends
+it rather than dropping the task. A date with a mistyped year (2016 for 2026)
+doesn't drag the timeline with it: the task is listed under the preview with
+its dates so the typo can be found and fixed. A plan that genuinely runs past
+five years shows its first five and lists the tasks after that. A week range
+you pick yourself is kept when a date edit shortens the timeline: only the end
+that fell off is pulled in.
 
-Tick **At Risk** (or set the column in the spreadsheet — `TRUE`, `Yes`, `Y`,
+Tick **At Risk** (or set the column in the spreadsheet: `TRUE`, `Yes`, `Y`,
 `1` or `x`, or a Status of `At Risk`) and the block keeps its status colour and
 gains a bold orange outline, so the flag reads as a warning on top of the state
-rather than replacing it. The key gains an **At Risk** entry only when
-something is actually flagged.
+rather than replacing it; in the table the row shows a red **At risk** pill.
+The key gains an **At Risk** entry only when something is actually flagged.
 
 A plan taller than one slide is **split across several**, breaking on swimlane
 boundaries where it can and repeating the band label where a lane has to run
@@ -54,23 +74,46 @@ marker, so it stands on its own if it gets lifted out of the deck. The preview
 shows each slide in turn and grows with the plan rather than clipping it.
 
 **Copy image** on the slide preview puts the plan and its key on the clipboard
-as a PNG — without the title, so it drops under whatever heading the slide or
+as a PNG, without the title, so it drops under whatever heading the slide or
 email already has, and on one continuous canvas however long the plan is (an
 image has no page to run off). Where the browser blocks clipboard writes (some
 `file://` setups), the image downloads instead.
+
+Nothing is saved in the browser: edits live in the page until you download
+the PowerPoint, so keep the spreadsheet as the source.
 
 ## `waqti-exceptions.html`
 
 Drop a Waqti timesheet export, apply a per-person approved-demand allowlist
 (`rules.json`, built or imported in **Settings**), and get a copy-paste email.
-Rows are sorted into a few tables — bookings against a demand the person isn't
-approved for, rows that need attention in Waqti, and staff with no time logged —
-following the classification rules in
-[`docs/waqti-exception-rules.md`](waqti-exception-rules.md): unapproved
-demands, lines with no Application or created by `GEN_LINES`, and people with no
-time logged, each with a reason. Untick any row to
-leave it out, then copy the email as rich HTML or plain text.
-**Settings > Import & export > Save tool with rules** downloads a copy of the
+The rules are in [`docs/waqti-exception-rules.md`](waqti-exception-rules.md):
+unapproved demands, lines with no Application or created by `GEN_LINES`, and
+people with no time logged, each with a reason.
+
+The **Exceptions** view opens on the drop zone; once a file is loaded it leads
+with a one-line answer ("5 exceptions for 3 people, 2 rows to check") and four
+cards: demand exception hours out of all hours logged, rows needing attention,
+people with no time logged, and how many people in the export are in the rules
+(click it to go to Settings > People). Warnings sit under the cards: people not
+in the rules, bad Booked Hours rows, a missing Application column, a multi-month
+export. Below them, three tabs (**Demand exceptions**, **Needs attention**, **No
+time logged**; the first three cards switch them too) each show one sortable
+table. Untick **Send** on a row to leave it out of the email. Click a row for a
+drawer with the bookings behind it; on a demand exception, **Approve for
+&lt;demand&gt;** adds that demand to the person's approvals, and on a No time
+logged row, **Stop tracking** unticks Track Logged Time. The search box in the
+header (press `/`) filters the rows. The **Email** panel previews the email as
+rich HTML or plain text; **Copy email** in the header (or **Copy** in the panel)
+copies the format shown, and a manual-copy box appears if the browser blocks the
+clipboard. **Load export** loads another file; if its headers need mapping,
+**Cancel** goes back to the previous file.
+
+**Settings** has five tabs: **People** (the staff-by-demand approval grid with
+names and Track Logged Time, plus people and demands in the rules but not in this
+export), **Ignored taxonomies**, **Email text** (period, deadline, opening and
+closing lines), **Rules file** (import, export, template, Save tool with rules,
+and which rules set is in use) and **Raw JSON**.
+**Settings > Rules file > Save tool with rules** downloads a copy of the
 tool with the rules and email wording built in. That copy opens on the upload
 screen. It uses its built-in rules when this browser has none, the same ones, or
 rules that came from that copy; if this browser has different rules, it asks
@@ -78,19 +121,37 @@ once which set to use. The set not used is kept, and **Restore my previous
 rules** in Settings switches back. A copy baked with no people only fills in
 blank email wording. Details:
 [`docs/waqti-exception-rules.md`](waqti-exception-rules.md#6-baked-copies-save-tool-with-rules).
+Built on Report Kit 2 since v3.0.0; rules and wording saved by earlier versions
+load unchanged, and the email and rules.json are the same as before.
 
 ## `waqti-demand-summary.html`
 
-Drop the same Waqti export and read it on-screen: pick one or more demands and
-see who booked how many hours to which feature under each. Copy the selected
-tables to the clipboard (rich HTML plus plain text) for pasting into an email or
-doc. Staff names can be mapped from the same `rules.json` or typed by hand.
-When you export `rules.json` with an export loaded, a named person is written
-with `trackLoggedTime: false` (so `waqti-exceptions.html` does not list them
-under No time logged) only if their Staff ART in that export is not its main
-team. People missing from the export stay tracked, since they are who No time
-logged is for. Existing values are kept, and a note after the export says who
-was marked and why.
+Drop the same Waqti export and read it on-screen. The **Summary** view opens on
+the drop zone; once a file is loaded it leads with a one-line answer (hours on
+the ticked demands, and by how many people) and three cards: hours selected out
+of the whole export, people (with how many still show a Staff ID instead of a
+name; click it to go to the name editor), and rows left out (bad Booked Hours or
+no Staff ID). Rows with blank, non-numeric or negative Booked Hours are listed by
+spreadsheet row in a warning above the tables.
+
+Tick demands in the **Demands** list on the left (click a row or its checkbox;
+sort by demand, people or hours from the column headers; **All** / **Selected**
+tabs; **Select all** and **Clear** act on the demands showing). The search box in
+the header (press `/`) filters the list. The **Summary** column shows who booked
+how many hours to which feature under each ticked demand. **Copy summary** in the
+header copies the tables to the clipboard (rich HTML plus plain text) for pasting
+into an email or doc; **Load export** loads another file.
+
+**Settings > Staff names** is the name editor: type a name for any Staff ID in
+the loaded export. **Settings > Rules file** imports and exports the same
+`rules.json` as Waqti Exceptions and clears the names (it asks first). When you
+export `rules.json` with an export loaded, a named person is written with
+`trackLoggedTime: false` (so `waqti-exceptions.html` does not list them under No
+time logged) only if their Staff ART in that export is not its main team. People
+missing from the export stay tracked, since they are who No time logged is for.
+Existing values are kept, and a note after the export says who was marked and
+why. Built on Report Kit 2 since v2.0.0; names saved by earlier versions load
+unchanged, and the copied tables are the same as before.
 
 ## `project-cost-tracker.html`
 
@@ -104,6 +165,10 @@ invoices per month, and let the tool cost them), and the remainder is forecast
 at the worse of the plan and the observed burn rate. The burn rate is only
 charged to months that have planned spend, so a month planned at nothing
 forecasts nothing.
+
+A new tracker, with no estimate and no team, opens on a short **Set up this
+project** panel that links to Settings, to opening a saved project, and to the
+demo.
 
 **Adding months.** Raising Months asks how to cost the team in the new months:
 **zero the team costs** (the default; the months start empty) or **carry on the
@@ -247,16 +312,17 @@ objective. Pick the financial year and quarter, list the teams and **everyone**
 on them, add the planned leave, and read the capacity per sprint.
 
 The cadence is fixed: a PI is one quarter of **seven sprints**, Wednesday to
-Tuesday — sprints 1&ndash;6 are two weeks (10 working days) and sprint 7 is one
-week (5). That makes a quarter exactly 13 weeks and a financial year 52, so
-sprint dates never drift. Sprints are named `Q2.4`, `Q2.7`, `Q3.1`; PIs are
-`FY2627Q1`. One **anchor** date &mdash; the Wednesday `Q1.1` opens, shipped as
-Wed 1 April 2026 &mdash; derives every sprint of every future year, and the tool
-says so if you set an anchor that is not a Wednesday.
+Tuesday. Sprints 1 to 6 are two weeks (10 working days) and sprint 7 is one week
+(5). That makes a quarter exactly 13 weeks and a financial year 52, so sprint
+dates never drift. Sprints are named `Q2.4`, `Q2.7`, `Q3.1`; PIs are
+`FY2627Q1`. One **anchor** date (the Wednesday `Q1.1` opens, shipped as
+Wed 1 April 2026) derives every sprint of every future year, and the tool says
+so if you set an anchor that is not a Wednesday, and by how many days every
+sprint moves.
 
 Capacity is **working days &minus; public holidays &minus; planned leave,
 &times; allocation, &times; the team's focus factor**, and it is reported in
-days, in hours, and &mdash; if you give it a points-per-day rate &mdash; in story
+person-days, in hours, and (if you give it a points-per-day rate) in story
 points. Leave is entered as real date ranges, with half days, so one entry counts
 against whichever sprints it actually falls in and follows you when you switch
 quarter. Nothing is deducted twice: a leave range spanning a bank holiday loses
@@ -264,51 +330,91 @@ the other days, not the holiday as well, and weekends never count.
 
 **The whole team is visible; only some of it is counted.** Product owners, scrum
 masters, BAs and designers are listed alongside the developers and QA, with their
-own leave and their own numbers, but only the roles ticked in **Roles** are summed
-into what a team commits to &mdash; developers and QA by default. Add teams
+own leave and their own numbers, but only the roles ticked in **Settings > Roles**
+are summed into what a team commits to: developers and QA by default. Add teams
 freely: each gets its own focus factor and its own totals, and where there is
 more than one they roll up into an all-teams row.
 
 Teams span **UK, UAE and India**, so public holidays are per location and come
 off only the people in that location. UK bank holidays are seeded as fact.
-The dates that move &mdash; Eid, Holi, Diwali, Dussehra, Ganesh Chaturthi &mdash;
-are seeded as an **estimate and flagged**: they still reduce capacity, but any
-falling inside the PI you are looking at raise an alert and appear in a
-tick-them-off worklist, so an approximate Eid date can never quietly change the
-number you commit to. Add locations of your own, and move the whole calendar
-between people with **Export / Import holidays**.
+The dates that move (Eid, Holi, Diwali, Dussehra, Ganesh Chaturthi) are seeded
+as an **estimate and flagged**: they still reduce capacity, but any falling
+inside the PI you are looking at raise an alert and appear in a tick-them-off
+worklist, so an approximate Eid date can never quietly change the number you
+commit to. Add locations of your own, and move the whole calendar between people
+with **Export / Import holidays**.
 
-The page opens as a report: the PI, the capacity, the per-person breakdown, the
-teams and the leave. The things you set once &mdash; the cadence anchor,
-locations and their holidays, and which roles count &mdash; live behind
-**Settings**. Collapsing the capacity card keeps its headline figures on screen,
-because they are the at-a-glance answer.
+**The Capacity page** opens on the answer: "Team capacity for FY2627 Q2: 497.6
+person-days across 4 teams", with the PI's dates above it and the financial year
+and quarter picker beside it. Four cards follow (capacity with its points and
+hours, days lost to leave, days lost to public holidays with how many dates are
+still to confirm, and people counted out of everyone on the teams), then the
+alerts, then three tabs:
+
+- **By team**: the capacity matrix, teams against the seven sprints with the PI
+  total, points beneath each figure when a rate is set, and an all-teams row.
+  **Copy table** puts it on the clipboard for an email or a slide.
+- **By person**: everyone on every team, their allocation, each sprint, their
+  holidays and leave and their capacity, sortable from any column header, with
+  **Everyone / Counted only**. Click a person (or press Enter on the row) for a
+  drawer showing where their days went, sprint by sprint, and their leave.
+- **Leave**: every leave entry with the working days it takes off this PI,
+  sortable, with **Only leave in this PI**. **Add leave** and a click on an entry
+  open a dialog that shows how many days it takes off before you save it.
+
+The search box in the header (press `/`) filters people and leave. Each of
+those tabs exports its own table as CSV: the same columns, filters, order and
+figures you are looking at, with a UTF-8 BOM so accented and Arabic names open
+cleanly in Excel, and any name or note starting `=`, `+`, `-` or `@` kept as text
+rather than run as a formula.
+
+Leave lives on the Capacity page rather than in Settings because it changes from
+one PI to the next and is what people update most just before planning; Settings
+holds what you set once.
+
+**Settings** has five tabs: **Teams** (each team with its focus factor and
+members; **Add team**, **Add member** and a click on a person open a dialog for
+name, team, role, location, allocation and the dates they are on the team; the
+allocation, the figure that changes every PI, can also be typed straight into
+the team's table: it saves when you press Enter or leave the field, Escape puts
+the old value back, Tab moves down to the next person's, and a blank or
+negative figure follows the same rule as the dialog),
+**Holidays** (locations, and the public holidays with **Only holidays in this
+PI** and **Only dates to confirm**, a confirmed tick box on each row, and Export
+/ Import holidays), **Roles** (which roles count), **Cadence** (the anchor date
+and financial year, points per day, hours per day and the sprint dates of the
+PI you are looking at) and **Saving & data**. Every delete asks first, in the
+page. A focus factor or allocation left blank counts as 100%, and is saved as 100.
 
 Alerts call out the things that silently wreck a plan: a team with nobody in a
 counting role, a focus factor of zero, someone allocated 0% or over 100%, someone
-with no capacity anywhere in the PI, and leave whose dates read backwards.
-**Copy table** puts the capacity matrix on the clipboard for an email or a slide,
-and the **Planned leave** and **Per-person breakdown** cards each export their
-own table as CSV &mdash; the same columns, filters and figures you are looking at,
-with a UTF-8 BOM so accented and Arabic names open cleanly in Excel, and any name
-or note starting `=`, `+`, `-` or `@` kept as text rather than run as a formula.
-A focus factor or allocation left blank counts as 100%, and the field fills in
-100 when you leave it, so a reload reads back exactly what was on screen.
+with no capacity anywhere in the PI, someone whose "until" date is before they
+join, and leave whose dates read backwards.
 
 **One file can hold this and a cost tracker project.** A saved file is an
 envelope: this tool owns the `piCapacity` key and copies every other key straight
 back out, and the [cost tracker](#project-cost-trackerhtml) already keeps keys it
 does not recognise. So the same `.json` opens in both, each editing its own half
-and leaving the other untouched &mdash; no changes to the tracker were needed.
+and leaving the other untouched; no changes to the tracker were needed.
 Load a tracker file here and it keeps the plan you have open and adopts the
 project alongside it, so the next **Save JSON** writes both halves into that file;
-it then offers to add the project's people as a team, matching their roles.
-**Load data** asks before it replaces a plan that has teams or leave in it, and a
-file that cannot be read or shown changes nothing &mdash; not the screen and not
-the copy saved in the browser.
+**Settings > Saving & data** then offers to add the project's people as a team,
+matching their roles. **Load data** asks before it replaces a plan that has teams
+or leave in it, or holidays, locations, roles or a cadence you have changed, and
+a file that cannot be read or shown changes nothing (not the screen and not the
+copy saved in the browser) and says why in a banner at the top of the page.
+**Load demo** asks first too whenever it would replace anything.
 
-Someone joining or leaving mid-PI gets **on team from / until** dates and is
+Someone joining or leaving mid-PI gets **on the team from / until** dates and is
 counted only for the part of the PI they are there.
+
+Printing gives the report on its own, whichever view is open: the answer, the
+cards, the alerts, capacity by team and capacity by person, on landscape pages.
+
+Built on Report Kit 2 since v2.0.0; allocation is edited in the team table
+since v2.1.0, and saves exactly what the dialog saves. Plans saved by earlier versions, in the
+browser or as files, load unchanged; the saved file, both CSVs, the holidays
+file and the copied table are the same as before.
 
 See [`docs/pi-capacity-cadence.md`](pi-capacity-cadence.md) for the sprint
 maths, the deduction rules, and which seeded holiday dates are confirmed and
@@ -317,8 +423,9 @@ which are estimates.
 ## `vendor-spend-tracker.html`
 
 Track third-party spend against annual budgets, line item by line item. Set the
-budgets and vendors once in **Settings** (a vendor can carry a default currency
-and budget, which a new line item picks up), then log each piece of work as it
+budgets and vendors once in **Settings**, budgets first (a vendor can carry a
+default currency and budget, which a new line item picks up; on a fresh install
+the empty list links to the step that comes next), then log each piece of work as it
 moves through eight stages: Estimate received, Approved with business, CR
 raised, MRE raised, PO issued, Initial invoice received, Final invoice received,
 Closed.
@@ -362,7 +469,8 @@ spend split, items by stage, and the average time from entry to first invoice.
 The new-item form previews what the amount does to its budget before you save.
 
 **Saving.** Data autosaves in the browser (`localStorage`), and two open tabs
-stay in step. As with the cost tracker, every `file://` page shares that storage,
+stay in step: a note (which you can dismiss) says when the other tab changed
+something. As with the cost tracker, every `file://` page shares that storage,
 so it holds one workspace per browser: use **Full backup** to keep a copy, and
 **Import** to restore it (Replace keeps the overwritten data under a backup key;
 Merge adds budgets, vendors and items without duplicating ones that match).

@@ -34,8 +34,10 @@ sprint n end   = start + 13 days   (sprint 7: + 6 days)
 So FY2627 Q1.1 opens Wed 1 Apr 2026, FY2627 Q4.7 closes Tue 30 Mar 2027, and
 FY2728 Q1.1 opens Wed 31 Mar 2027 — the next day, with no gap.
 
-Change the anchor and every PI moves with it. The tool warns if the anchor is
-not a Wednesday, because sprints are defined as Wednesday-to-Tuesday.
+Change the anchor (**Settings > Cadence**) and every PI moves with it. The tool
+warns if the anchor is not a Wednesday, because sprints are defined as
+Wednesday-to-Tuesday, and says how many days earlier or later every sprint starts
+than it would from the Wednesday of that week.
 
 ## What the capacity number is
 
@@ -68,7 +70,7 @@ Three rules are worth stating explicitly:
 - **Everyone is shown; only some are counted.** Every member of a team appears
   in the breakdown for visibility. Only members whose **role** is ticked as
   counting — developers and QA by default — are summed into what the team
-  commits to. Change which roles count in the **Roles** card.
+  commits to. Change which roles count in **Settings > Roles**.
 
 ## Public holidays
 
@@ -86,7 +88,7 @@ The seeded dates come in two kinds, and the difference matters:
 Estimated dates still reduce capacity — leaving them out would overstate it —
 but the tool never lets them pass quietly. Any that fall inside the PI you are
 looking at raise an alert on the capacity report and are listed by name under
-**Settings → Locations and public holidays**, where **Only dates to confirm**
+**Settings > Holidays**, where **Only dates to confirm**
 gives you the worklist. Correct each date and tick **confirmed**; it leaves the
 list as you go.
 
@@ -124,11 +126,11 @@ either, and each edits its own half while carrying the other's along untouched.
 
 Practically:
 
-- Open a cost tracker project file here and the Data card says so. It offers to
-  **add the tracker's people as a team**, matching each person's free-text role
-  ("Engineering", "Quality") to a role here. Specific titles win over generic
-  ones, so a tech lead on an "Engineering" line lands on Tech Lead rather than
-  Developer — an import should never quietly add capacity.
+- Open a cost tracker project file here and **Settings > Saving & data** says so.
+  It offers to **add the tracker's people as a team**, matching each person's
+  free-text role ("Engineering", "Quality") to a role here. Specific titles win
+  over generic ones, so a tech lead on an "Engineering" line lands on Tech Lead
+  rather than Developer: an import should never quietly add capacity.
 - Save, and the file now holds both. The filename becomes `project-<name>.json`
   rather than `pi-capacity-<PI>.json`, because it is no longer only ours.
 - Open that file in the tracker: the project is exactly as it was, and the
@@ -141,20 +143,21 @@ adopted alongside it, so the next **Save JSON** writes both into one file. If yo
 already have teams or leave, it asks first.
 
 Loading a file that does have a `piCapacity` asks before it replaces a plan with
-teams or leave in it. The file is checked and drawn before anything is replaced
-or autosaved, so a file that cannot be read or shown leaves the plan, and the copy
-in the browser, exactly as they were.
+teams or leave in it, or holidays, locations, roles or a cadence you have
+changed. The file is checked and drawn before anything is replaced or autosaved,
+so a file that cannot be read or shown leaves the plan, and the copy in the
+browser, exactly as they were, and a banner at the top of the page says why.
 
 ## Exports
 
-Two CSVs, each the table as it is on screen — same columns, same order, same
-filters, same figures to one decimal place. Both start with a UTF-8 BOM so Excel
+Two CSVs, each the table as it is on screen: same columns, same order (including
+a sort you picked), same filters, same figures to one decimal place. Both start with a UTF-8 BOM so Excel
 shows accented and Arabic names correctly, and a text cell starting `=`, `+`, `-`
 or `@` (a name such as `=1+2`) is prefixed with `'` so Excel keeps it as text;
 numbers are written as they are:
 
-- **Planned leave** — the rows the grid is showing, with the working days each
-  entry actually removes inside this PI.
-- **Per-person breakdown** — every person, the seven sprint columns for this PI,
-  holidays, leave and capacity, plus the counted total, honouring the
-  **Only counting roles** toggle.
+- **Leave** (the Leave tab): the rows the table is showing, with the working
+  days each entry actually removes inside this PI.
+- **By person** (the By person tab): every person, the seven sprint columns for
+  this PI, holidays, leave and capacity, plus the counted total, honouring
+  **Everyone / Counted only** and the search box.

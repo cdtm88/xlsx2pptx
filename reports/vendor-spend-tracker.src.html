@@ -52,13 +52,13 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
 
   <header class="app-header">
     <div class="app-logo"><img class="app-logo-mark" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMiIgaGVpZ2h0PSIzMiIgdmlld0JveD0iMCAwIDMyIDMyIj48cmVjdCB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHJ4PSI3IiBmaWxsPSIjMDBBOUNFIi8+PHBhdGggZD0iTTkgMTYuNSBsNCA0IEwyMyAxMSIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjMiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPjwvc3ZnPg==" alt="">Vendor Spend</div>
-    <nav class="app-nav">
-      <button type="button" class="app-nav-item active" data-view="items">Line items</button>
+    <nav class="app-nav" aria-label="Views">
+      <button type="button" class="app-nav-item active" data-view="items" aria-current="page">Line items</button>
       <button type="button" class="app-nav-item" data-view="settings">Settings</button>
     </nav>
     <div class="app-header-spacer"></div>
     <div class="app-search">
-      <input type="text" id="searchBox" placeholder="Search vendor, PO, note…">
+      <input type="text" id="searchBox" placeholder="Search vendor, PO, note…" aria-label="Search line items">
       <span class="search-hint-key">/</span>
     </div>
     <button id="btnFullBackup" title="Download everything as one .json file">Full backup</button>
@@ -69,6 +69,7 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
   </header>
 
   <div class="callout danger" id="corruptDataBanner" role="status" hidden></div>
+  <div class="callout warn" id="otherTabNote" role="status" hidden><span id="otherTabText"></span> <button type="button" class="link-action" id="otherTabDismiss">Dismiss</button></div>
 
   <div id="mainView">
 
@@ -90,8 +91,8 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
     <div class="seg-tabs" id="phaseTabs"></div>
     <button type="button" class="filter-chip warn" id="stuckChip" hidden></button>
     <button type="button" class="filter-chip" id="budgetChip" title="Clear the budget filter" hidden></button>
-    <select id="filterBudget" class="toolbar-select"><option value="">All budgets</option></select>
-    <select id="filterStage" class="toolbar-select">
+    <select id="filterBudget" class="toolbar-select" aria-label="Filter by budget"><option value="">All budgets</option></select>
+    <select id="filterStage" class="toolbar-select" aria-label="Filter by stage">
       <option value="">All stages</option>
       <option value="Estimate received">Estimate received</option>
       <option value="Approved with business">Approved with business</option>
@@ -128,10 +129,6 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
     <div class="empty-state" id="emptyState" hidden></div>
   </div>
 
-  <footer>
-    <!--@include framework/signoff.html@-->
-  </footer>
-
   </div>
 
   <div id="settingsView" hidden>
@@ -152,16 +149,15 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
       </button>
     </nav>
 
-    <div class="settings-shell">
-      <div class="settings-content">
-        <div class="settings-panel" id="panel-rates">
+    <div class="settings-content">
+        <div data-panel id="panel-rates">
           <div class="settings-panel-head">
             <h3>Currency &amp; Exchange Rates</h3>
             <span class="hint">Base currency is AED. Rates below are AED per 1 unit of currency.</span>
           </div>
           <div class="setting-row">
             <div class="setting-row-label">
-              <span class="label-text">AED</span>
+              <label class="label-text" for="rate_AED">AED</label>
               <span class="label-hint">Base currency — fixed at 1.00</span>
             </div>
             <div class="setting-row-control">
@@ -170,7 +166,7 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
           </div>
           <div class="setting-row">
             <div class="setting-row-label">
-              <span class="label-text">USD</span>
+              <label class="label-text" for="rate_USD">USD</label>
               <span class="label-hint">US Dollar</span>
             </div>
             <div class="setting-row-control">
@@ -180,7 +176,7 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
           </div>
           <div class="setting-row">
             <div class="setting-row-label">
-              <span class="label-text">GBP</span>
+              <label class="label-text" for="rate_GBP">GBP</label>
               <span class="label-hint">British Pound</span>
             </div>
             <div class="setting-row-control">
@@ -190,7 +186,7 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
           </div>
           <div class="setting-row">
             <div class="setting-row-label">
-              <span class="label-text">EUR</span>
+              <label class="label-text" for="rate_EUR">EUR</label>
               <span class="label-hint">Euro</span>
             </div>
             <div class="setting-row-control">
@@ -198,13 +194,14 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
               <span class="unit-suffix">AED</span>
             </div>
           </div>
+          <div class="callout danger" id="ratesError" role="alert" hidden></div>
           <div class="modal-actions start">
             <button class="primary" id="btnSaveRates">Save Rates</button>
             <button id="btnResetRates">Reset to Defaults</button>
           </div>
         </div>
 
-        <div class="settings-panel" id="panel-budgets" hidden>
+        <div data-panel id="panel-budgets" hidden>
           <div class="settings-panel-head">
             <h3>Budgets</h3>
             <span class="hint">Set annually; shown on the main page. Use &ldquo;+&rdquo; to add approved money to a budget while keeping its original figure.</span>
@@ -213,7 +210,7 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
           <div id="settingsBudgetList" class="settings-table"></div>
         </div>
 
-        <div class="settings-panel" id="panel-vendors" hidden>
+        <div data-panel id="panel-vendors" hidden>
           <div class="settings-panel-head">
             <h3>Vendors</h3>
             <span class="hint">Picking a vendor on a line item auto-fills currency &amp; budget.</span>
@@ -221,9 +218,13 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
           </div>
           <div id="vendorList" class="settings-table"></div>
         </div>
-      </div>
     </div>
   </div>
+
+  <footer>
+    <!--@include framework/signoff.html@-->
+    <div class="strapline">Single file, works offline. Your data never leaves this machine.</div>
+  </footer>
 </div>
 
 <div class="modal-overlay" id="itemModalOverlay" hidden>
@@ -246,7 +247,7 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
         <label for="f_description">Description</label>
         <input type="text" id="f_description" required placeholder="e.g. Q4 paid social retainer">
       </div>
-      <select id="f_currency" required class="select-hidden-visually">
+      <select id="f_currency" required class="select-hidden-visually" aria-label="Currency" tabindex="-1">
         <option value="AED">AED</option>
         <option value="USD">USD</option>
         <option value="GBP">GBP</option>
@@ -256,7 +257,7 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
         <div class="field">
           <label for="f_currentAmount">Amount</label>
           <div class="amt-input-box">
-            <div class="chip-row chip-row-inbox" id="f_currencyChips"></div>
+            <div class="chip-row" id="f_currencyChips"></div>
             <input type="number" step="0.01" min="0" id="f_currentAmount" required>
           </div>
           <div class="hint" id="aedPreview"></div>
@@ -284,7 +285,7 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
       <div class="field">
         <label for="f_stage" id="f_stageLabel">Starting stage</label>
         <div class="chip-row" id="f_stageChips"></div>
-        <select id="f_stage" required class="select-hidden-visually">
+        <select id="f_stage" required class="select-hidden-visually" tabindex="-1">
           <option value="Estimate received">Estimate received</option>
           <option value="Approved with business">Approved with business</option>
           <option value="CR raised">CR raised</option>
@@ -310,6 +311,7 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
         </div>
       </div>
       <div class="hint">Notes are logged as timestamped entries — add them from the item's detail view (click its description) or when advancing a stage.</div>
+      <div class="callout danger" id="f_formError" role="alert" hidden></div>
       <div class="modal-actions">
         <button type="button" id="btnCancelItem">Cancel</button>
         <button type="submit" class="primary">Save</button>
@@ -325,7 +327,7 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
       <input type="hidden" id="v_id">
       <div class="setting-row">
         <div class="setting-row-label">
-          <span class="label-text">Vendor Name *</span>
+          <label class="label-text" for="v_name">Vendor Name *</label>
         </div>
         <div class="setting-row-control">
           <input type="text" id="v_name" required>
@@ -333,7 +335,7 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
       </div>
       <div class="setting-row">
         <div class="setting-row-label">
-          <span class="label-text">System Name</span>
+          <label class="label-text" for="v_systemName">System Name</label>
           <span class="label-hint">Name used in finance/ERP system</span>
         </div>
         <div class="setting-row-control">
@@ -342,7 +344,7 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
       </div>
       <div class="setting-row">
         <div class="setting-row-label">
-          <span class="label-text">Default Currency *</span>
+          <label class="label-text" for="v_defaultCurrency">Default Currency *</label>
         </div>
         <div class="setting-row-control">
           <select id="v_defaultCurrency" required>
@@ -355,7 +357,7 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
       </div>
       <div class="setting-row">
         <div class="setting-row-label">
-          <span class="label-text">Default Budget</span>
+          <label class="label-text" for="v_defaultBudgetId">Default Budget</label>
         </div>
         <div class="setting-row-control">
           <select id="v_defaultBudgetId">
@@ -396,6 +398,7 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
         <label for="adv_note">Note (optional)</label>
         <textarea id="adv_note" placeholder="Add context for this stage change..."></textarea>
       </div>
+      <div class="callout danger" id="adv_formError" role="alert" hidden></div>
       <div class="modal-actions">
         <button type="button" id="btnCancelAdvance">Cancel</button>
         <button type="submit" class="primary" id="btnConfirmAdvance">Confirm Advance</button>
@@ -599,8 +602,8 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
     <div class="callout">This export applies the filters below, it is not a full backup. Use "Full backup" in the header to export everything.</div>
     <form id="exportForm">
       <div class="field">
-        <label>Date entered</label>
-        <div class="preset-row" id="exp_presetRow">
+        <div class="field-label" id="exp_dateLabel">Date entered</div>
+        <div class="preset-row" id="exp_presetRow" role="group" aria-labelledby="exp_dateLabel">
           <button type="button" class="preset-chip" data-exp-preset="month">This month</button>
           <button type="button" class="preset-chip" data-exp-preset="fy">This fiscal year</button>
           <button type="button" class="preset-chip" data-exp-preset="all">All time</button>
@@ -608,11 +611,11 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
         </div>
         <div class="date-pair" id="exp_customDates" hidden>
           <div>
-            <span class="label-hint">From</span>
+            <label class="label-hint" for="exp_dateFrom">From</label>
             <input type="date" id="exp_dateFrom">
           </div>
           <div>
-            <span class="label-hint">To</span>
+            <label class="label-hint" for="exp_dateTo">To</label>
             <input type="date" id="exp_dateTo">
           </div>
         </div>
@@ -633,8 +636,8 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
         </div>
       </div>
       <div class="field">
-        <label>Format</label>
-        <div class="option-cards">
+        <div class="field-label" id="exp_formatLabel">Format</div>
+        <div class="option-cards" role="radiogroup" aria-labelledby="exp_formatLabel">
           <label class="option-card">
             <input type="radio" name="exp_format" value="json" checked>
             <span class="option-card-title">.json</span>
@@ -648,6 +651,7 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
         </div>
       </div>
       <button type="button" class="link-action" id="btnExportRestoreLink">Restore from a .json backup…</button>
+      <div class="callout danger" id="exp_error" role="alert" style="margin:14px 0 0;" hidden></div>
       <div class="modal-actions">
         <button type="button" id="btnCancelExport">Cancel</button>
         <button type="submit" class="primary">Export</button>
@@ -663,7 +667,7 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
       <input type="hidden" id="b_id">
       <div class="setting-row">
         <div class="setting-row-label">
-          <span class="label-text">Budget Name *</span>
+          <label class="label-text" for="b_name">Budget Name *</label>
           <span class="label-hint">Vendor or category</span>
         </div>
         <div class="setting-row-control">
@@ -672,7 +676,7 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
       </div>
       <div class="setting-row">
         <div class="setting-row-label">
-          <span class="label-text">Original Budget *</span>
+          <label class="label-text" for="b_total">Original Budget *</label>
           <span class="label-hint">As first approved</span>
         </div>
         <div class="setting-row-control">
@@ -759,6 +763,15 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
   function bindModal(overlay, onClose) { return RK.modal(overlay, { onClose: onClose }); }
   function showConfirm(message, onConfirm, okLabel) { RK.confirm(message, onConfirm, { okLabel: okLabel }); }
 
+  // A reason a form cannot be saved, shown in the form above its buttons (no native
+  // alert: framework/DESIGN.md principle 10). formError(id) with no message hides it.
+  function formError(id, message, focusId) {
+    var el = document.getElementById(id);
+    el.textContent = message || "";
+    el.hidden = !message;
+    if (message && focusId) document.getElementById(focusId).focus();
+  }
+
   // ---------- Edits from another tab ----------
   // Every save stamps state.saveToken with a fresh random token (and bumps state.rev), and
   // the storage listener swaps in the other tab's state. A form remembers the version it
@@ -805,7 +818,7 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
   // user-facing features that stay backward compatible, PATCH for fixes with no
   // behavior/schema change. Bump this by hand on each release; it is not read or
   // written anywhere else, so changing it never affects stored data.
-  var APP_VERSION = "1.4.0";
+  var APP_VERSION = "1.5.0";
 
   // The 8-segment stage-progress bar used in the items table and the detail drawer:
   // filled up to the current stage, all green once Closed.
@@ -997,7 +1010,7 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
     try {
       localStorage.setItem(STORE_KEY, JSON.stringify(state));
     } catch (e) {
-      alert("Could not save to browser storage. Your changes may not persist.");
+      showStorageBanner("Could not save to browser storage. Your changes may not persist.");
     }
   }
 
@@ -1522,9 +1535,14 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
 
     var empty = document.getElementById("emptyState");
     empty.hidden = rows.length !== 0;
-    empty.textContent = state.items.length === 0
-      ? 'No line items yet. Click "+ New line item" to add one.'
-      : "No line items match these filters.";
+    // name the real first step: a line item needs a budget and a vendor, and a
+    // vendor's default budget is picked from the budgets
+    if (state.items.length) empty.textContent = "No line items match these filters.";
+    else if (!state.budgets.length) empty.innerHTML = "No line items yet. Start with a budget, then a vendor, in Settings. " +
+      "<button type='button' class='link-action' data-goto-panel='panel-budgets'>Add a budget</button>";
+    else if (!state.vendors.length) empty.innerHTML = "No line items yet. Next, add a vendor in Settings. " +
+      "<button type='button' class='link-action' data-goto-panel='panel-vendors'>Add a vendor</button>";
+    else empty.textContent = 'No line items yet. Click "+ New line item" to add one.';
 
     var listTotal = rows.reduce(function (t, row) { return t + row.currentAmountAed; }, 0);
     document.getElementById("listMeta").textContent =
@@ -1538,9 +1556,10 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
       var tr = document.createElement("tr");
       tr.className = "clickable";
       tr.setAttribute("data-detail-item", it.id);
+      // a focusable row with Enter/Space (see the keydown handler), not role="button":
+      // a button's children are presentational, so the cells and the buttons in
+      // them would be lost to a screen reader
       tr.setAttribute("tabindex", "0");
-      tr.setAttribute("role", "button");
-      tr.setAttribute("aria-label", "View details for " + (it.description || "line item"));
       tr.innerHTML =
         "<td class='wrap-cell'>" +
           "<button type='button' class='cell-title link-action' data-vendor-open='" + escapeHtml(it.vendorId) + "'>" + escapeHtml(row.vendorName) + "</button>" +
@@ -1554,7 +1573,7 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
         "</div></td>" +
         "<td class='amt'>" + amtCellAedPrimary(row.currentAmountAed, it.currentAmount, it.currency) + (unknownCcy ? " <span class='status-pill pill-red' title='Unknown currency, rate 1 used'>?</span>" : "") + "</td>" +
         "<td class='amt'>" + amtCellAedPrimary(row.invoicedAmountAed, it.invoicedAmount, it.currency) + "</td>" +
-        "<td>" + escapeHtml(it.dateUpdated) + "</td>" +
+        "<td class='mono'>" + escapeHtml(it.dateUpdated) + "</td>" +
         "<td class='row-actions'>" +
           (isClosed
             ? "<span class='row-done-label'>✓ Closed</span>"
@@ -1640,14 +1659,19 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
   }
 
   function openItemModal(item) {
-    if (state.vendors.length === 0) {
-      alert("Create a vendor first in Settings before adding line items.");
-      return;
-    }
+    // nothing to pick from yet: go to the Settings panel that comes first, and say why
     if (state.budgets.length === 0) {
-      alert("Create a budget first before adding line items.");
+      showSettings("panel-budgets");
+      RK.toast("Create a budget first before adding line items.", 5000);
       return;
     }
+    if (state.vendors.length === 0) {
+      showSettings("panel-vendors");
+      RK.toast("Create a vendor first in Settings before adding line items.", 5000);
+      return;
+    }
+    formError("f_formError");
+    itemOverInvoiceOk = false;
 
     document.getElementById("itemModalTitle").textContent = item ? "Edit line item" : "New line item";
     document.getElementById("f_stageLabel").textContent = item ? "Stage" : "Starting stage";
@@ -1772,6 +1796,8 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
   document.getElementById("btnNewItem").addEventListener("click", function () { openItemModal(null); });
   document.getElementById("btnCancelItem").addEventListener("click", closeItemModal);
 
+  // set once the user has said yes to saving more invoiced than the amount
+  var itemOverInvoiceOk = false;
   itemForm.addEventListener("submit", function (e) {
     e.preventDefault();
     if (guardStale("item", "Line items were changed in another tab after you opened this form. Saving now writes every field in this form over those changes.",
@@ -1785,14 +1811,18 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
     var stage = document.getElementById("f_stage").value;
 
     if (INVOICE_STAGES.indexOf(stage) !== -1 && !(invoicedAmount > 0)) {
-      alert("Invoiced Amount must be greater than 0 for stage \"" + stage + "\".");
+      formError("f_formError", "Invoiced Amount must be greater than 0 for stage \"" + stage + "\".", "f_invoicedAmount");
       return;
     }
-    if (!isNaN(invoicedAmount) && !isNaN(currentAmount) && invoicedAmount > currentAmount) {
-      if (!confirm("Invoiced Amount (" + invoicedAmount + ") is greater than Current Amount (" + currentAmount + "). Save anyway?")) {
-        return;
-      }
+    formError("f_formError");
+    if (!itemOverInvoiceOk && !isNaN(invoicedAmount) && !isNaN(currentAmount) && invoicedAmount > currentAmount) {
+      RK.confirm("Invoiced Amount (" + invoicedAmount + ") is greater than Current Amount (" + currentAmount + "). Save anyway?", function () {
+        itemOverInvoiceOk = true;
+        itemForm.requestSubmit();
+      }, { okLabel: "Save anyway" });
+      return;
     }
+    itemOverInvoiceOk = false;
 
     var data = {
       id: id || uid(),
@@ -2035,7 +2065,7 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
       if (inUse) {
         var others = state.budgets.filter(function (x) { return x.id !== delId; });
         if (others.length === 0) {
-          alert("This budget has line items assigned to it, and there is no other budget to reassign them to. Create another budget first, or delete the line items.");
+          RK.toast("This budget has line items assigned to it, and there is no other budget to reassign them to. Create another budget first, or delete the line items.", 7000);
           return;
         }
         openReassignModal({
@@ -2049,8 +2079,8 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
             deleteBudget(delId);
           }
         });
-      } else if (confirm("Delete this budget?")) {
-        deleteBudget(delId);
+      } else {
+        RK.confirm("Delete this budget?", function () { deleteBudget(delId); }, { title: "Delete budget", okLabel: "Delete", danger: true });
       }
     }
   });
@@ -2215,7 +2245,7 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
       if (inUse) {
         var others = state.vendors.filter(function (x) { return x.id !== delId; });
         if (others.length === 0) {
-          alert("This vendor has line items assigned to it, and there is no other vendor to reassign them to. Create another vendor first, or delete the line items.");
+          RK.toast("This vendor has line items assigned to it, and there is no other vendor to reassign them to. Create another vendor first, or delete the line items.", 7000);
           return;
         }
         openReassignModal({
@@ -2229,8 +2259,8 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
             deleteVendor(delId);
           }
         });
-      } else if (confirm("Delete this vendor?")) {
-        deleteVendor(delId);
+      } else {
+        RK.confirm("Delete this vendor?", function () { deleteVendor(delId); }, { title: "Delete vendor", okLabel: "Delete", danger: true });
       }
     }
   });
@@ -2271,6 +2301,7 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
     var idx = STAGES.indexOf(it.stage);
     if (idx === -1 || idx >= STAGES.length - 1) return;
     var nextStage = STAGES[idx + 1];
+    formError("adv_formError");
 
     document.getElementById("adv_itemId").value = it.id;
     document.getElementById("advanceModalTitle").textContent = "Advance: " + it.stage + " → " + nextStage;
@@ -2350,9 +2381,10 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
     if (INVOICE_STAGES.indexOf(nextStage) !== -1) {
       var invoicedAmount = parseFloat(document.getElementById("adv_invoicedAmount").value);
       if (isNaN(invoicedAmount) || !(invoicedAmount > 0)) {
-        alert("Invoiced Amount must be greater than 0 to advance to " + nextStage + ".");
+        formError("adv_formError", "Invoiced Amount must be greater than 0 to advance to " + nextStage + ".", "adv_invoicedAmount");
         return;
       }
+      formError("adv_formError");
       if (invoicedAmount > (Number(it.currentAmount) || 0)) {
         showConfirm(
           "Invoiced Amount (" + fmtNum(invoicedAmount) + ") is greater than Current Amount (" + fmtNum(it.currentAmount) + "). Advance anyway?",
@@ -2669,11 +2701,12 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
   // Shared by the detail drawer's "Delete line item" link. Closes the drawer first if
   // it's the one open for this item, so the overlay doesn't linger pointing at nothing.
   function deleteItemWithConfirm(id) {
-    if (!confirm("Delete this line item? This cannot be undone.")) return;
-    state.items = state.items.filter(function (it) { return it.id !== id; });
-    save();
-    renderAll();
-    if (!detailModal.hidden && document.getElementById("d_itemId").value === id) closeDetailModal();
+    RK.confirm("Delete this line item? This cannot be undone.", function () {
+      state.items = state.items.filter(function (it) { return it.id !== id; });
+      save();
+      renderAll();
+      if (!detailModal.hidden && document.getElementById("d_itemId").value === id) closeDetailModal();
+    }, { title: "Delete line item", okLabel: "Delete", danger: true });
   }
 
   document.getElementById("itemsBody").addEventListener("click", function (e) {
@@ -2795,6 +2828,7 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
     fillOptions(budgetSel, state.budgets, '<option value="">All budgets</option>');
 
     applyExportPreset("fy");
+    formError("exp_error");
     exportModalCtl.open();
   }
 
@@ -2866,7 +2900,7 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
     });
 
     if (items.length === 0) {
-      alert("No line items match these filters.");
+      formError("exp_error", "No line items match these filters.");
       return;
     }
 
@@ -2998,8 +3032,8 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
     if (!parsed) return;
     var normalised = normaliseState(parsed);
     if (!normalised) {
-      alert("Could not import file: unrecognised format.");
       closeImportChoiceModal();
+      RK.toast("Could not import file: unrecognised format.", 6000);
       return;
     }
     backupCurrentState();
@@ -3007,7 +3041,7 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
     save();
     renderAll();
     closeImportChoiceModal();
-    alert("Replace complete. Your previous data was saved to the \"" + STORE_KEY + ".backup\" storage key.");
+    RK.toast("Replace complete. Your previous data was saved to the \"" + STORE_KEY + ".backup\" storage key.", 6000);
   });
 
   document.getElementById("btnImportMerge").addEventListener("click", function () {
@@ -3015,15 +3049,15 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
     if (!parsed) return;
     var normalised = normaliseState(parsed);
     if (!normalised) {
-      alert("Could not import file: unrecognised format.");
       closeImportChoiceModal();
+      RK.toast("Could not import file: unrecognised format.", 6000);
       return;
     }
     mergeState(normalised);
     save();
     renderAll();
     closeImportChoiceModal();
-    alert("Merge complete.");
+    RK.toast("Merge complete.");
   });
 
   document.getElementById("btnImport").addEventListener("click", function () {
@@ -3042,7 +3076,7 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
         }
         openImportChoiceModal(parsed);
       } catch (err) {
-        alert("Could not import file: " + err.message);
+        RK.toast("Could not import file: " + err.message, 6000);
       }
       e.target.value = "";
     };
@@ -3064,7 +3098,7 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
   var WIDE_SETTINGS_PANELS = ["panel-vendors"];
 
   function showSettingsPanel(panelId) {
-    document.querySelectorAll(".settings-panel").forEach(function (p) {
+    document.querySelectorAll("#settingsView [data-panel]").forEach(function (p) {
       p.hidden = (p.id !== panelId);
     });
     document.querySelectorAll(".settings-nav-item").forEach(function (btn) {
@@ -3083,18 +3117,21 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
 
   function setAppNavActive(view) {
     document.querySelectorAll(".app-nav-item[data-view]").forEach(function (btn) {
-      btn.classList.toggle("active", btn.getAttribute("data-view") === view);
+      var on = btn.getAttribute("data-view") === view;
+      btn.classList.toggle("active", on);
+      if (on) btn.setAttribute("aria-current", "page"); else btn.removeAttribute("aria-current");
     });
   }
 
-  function showSettings() {
+  function showSettings(panelId) {
     document.getElementById("settingsBudgetsCount").textContent = state.budgets.length;
     document.getElementById("settingsVendorsCount").textContent = state.vendors.length;
     document.getElementById("appVersion").textContent = "v" + APP_VERSION;
     populateRateInputs();
     renderVendorList();
     renderSettingsBudgetList();
-    showSettingsPanel("panel-rates");
+    showSettingsPanel(panelId || "panel-rates");
+    formError("ratesError");
     mainView.hidden = true;
     settingsView.hidden = false;
     setAppNavActive("settings");
@@ -3114,6 +3151,11 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
       else showMain();
     });
   });
+  // the empty list's "Add a budget" / "Add a vendor" go to that Settings panel
+  document.getElementById("emptyState").addEventListener("click", function (e) {
+    var b = e.target.closest("[data-goto-panel]");
+    if (b) showSettings(b.getAttribute("data-goto-panel"));
+  });
 
   // Rates typed but not yet saved survive another tab's save.
   var ratesDirty = false;
@@ -3126,24 +3168,27 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
     var gbp = parseFloat(document.getElementById("rate_GBP").value);
     var eur = parseFloat(document.getElementById("rate_EUR").value);
     if (!usd || !gbp || !eur || usd <= 0 || gbp <= 0 || eur <= 0) {
-      alert("Please enter valid positive rates for USD, GBP, and EUR.");
+      formError("ratesError", "Please enter valid positive rates for USD, GBP, and EUR.");
       return;
     }
+    formError("ratesError");
     state.settings.rates.USD = usd;
     state.settings.rates.GBP = gbp;
     state.settings.rates.EUR = eur;
     state.settings.rates.AED = 1;
     ratesDirty = false;
     save();
-    alert("Rates saved.");
+    RK.toast("Rates saved.");
   });
 
   document.getElementById("btnResetRates").addEventListener("click", function () {
-    if (!confirm("Reset exchange rates to defaults (USD 3.673, GBP 4.5, EUR 4.1)?")) return;
-    state.settings.rates = Object.assign({}, DEFAULT_RATES);
-    ratesDirty = false;
-    populateRateInputs();
-    save();
+    RK.confirm("Reset exchange rates to defaults (USD 3.673, GBP 4.5, EUR 4.1)?", function () {
+      state.settings.rates = Object.assign({}, DEFAULT_RATES);
+      ratesDirty = false;
+      formError("ratesError");
+      populateRateInputs();
+      save();
+    }, { title: "Reset exchange rates", okLabel: "Reset", danger: true });
   });
 
   // ---------- Keyboard shortcuts ----------
@@ -3176,10 +3221,16 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
       if (state.items.some(function (x) { return x.id === openId; })) openDetailModal(openId);
       else closeDetailModal();
     }
-    showStorageBanner("Data was changed in another tab and has been reloaded here." +
-      (document.querySelector(".modal-overlay:not([hidden])") ? " A form you have open was filled before that change; you will be asked before it overwrites anything." : ""));
+    // a note, not an error: the watch colour, and it can be dismissed
+    document.getElementById("otherTabText").textContent = "Data was changed in another tab and has been reloaded here." +
+      (document.querySelector(".modal-overlay:not([hidden])") ? " A form you have open was filled before that change; you will be asked before it overwrites anything." : "");
+    document.getElementById("otherTabNote").hidden = false;
+  });
+  document.getElementById("otherTabDismiss").addEventListener("click", function () {
+    document.getElementById("otherTabNote").hidden = true;
   });
 
+  // Stored data that could not be read, or a save that failed: the act colour
   function showStorageBanner(text) {
     var banner = document.getElementById("corruptDataBanner");
     banner.textContent = text;

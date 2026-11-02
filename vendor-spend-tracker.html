@@ -13,14 +13,12 @@
 <style>
 /* ============================================================
    Report Kit 2: the design language for new browser tools
-   kit-version: 2.1.0
+   kit-version: 2.6.1
    Extracted from vendor-spend-tracker.html. Inlined into a report
    by framework/build.py. See framework/DESIGN.md for the rules and
    framework/starter.src.html for a page that uses every part.
 
-   Unlike report-kit.css (v1, kept for the tools built on it), this
-   file styles bare elements (button, input, select, table), so a
-   page includes one kit stylesheet or the other, never both.
+   This file styles bare elements (button, input, select, table).
    Report-specific styles go in the report's own <style> block,
    after this include, with report-specific class names.
    ============================================================ */
@@ -134,7 +132,7 @@ body {
   color: var(--text-dim);
 }
 .app-nav-item:hover { background: transparent; border-color: var(--border); color: var(--text); }
-.app-nav-item.active { font-weight: 600; color: var(--text); border-color: var(--teal); }
+.app-nav-item.active, .app-nav-item[aria-current="page"] { font-weight: 600; color: var(--text); border-color: var(--teal); }
 .app-header-spacer { flex: 1; min-width: 8px; }
 .app-search {
   position: relative;
@@ -222,6 +220,8 @@ input:focus, select:focus, textarea:focus {
   box-shadow: 0 0 0 3px var(--teal-tint);
 }
 input:disabled { background: var(--light-grey); color: var(--text-dim); }
+/* figures typed in are figures too: mono, like the ones on the page (principle 4) */
+input[type="number"] { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 textarea { resize: vertical; min-height: 50px; }
 .select-hidden-visually {
   position: absolute;
@@ -294,7 +294,7 @@ textarea { resize: vertical; min-height: 50px; }
 }
 .stat-card-nums > span { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .stat-card-num { display: block; font: 500 12px var(--font-mono); color: var(--text); white-space: nowrap; }
-.stat-card-num.neg { color: var(--red); }
+.stat-card-num.neg, .stat-card-value.neg { color: var(--red); }
 
 /* ---- Bars: stacked segments on a track, all scaled to one maximum ---- */
 .bar-track {
@@ -354,7 +354,8 @@ textarea { resize: vertical; min-height: 50px; }
   margin-bottom: 12px;
 }
 .toolbar-spacer { flex: 1; }
-.seg-tabs { display: flex; background: #F1F3F4; border-radius: 7px; padding: 3px; gap: 2px; }
+/* wraps onto a second row rather than push a phone-width page sideways */
+.seg-tabs { display: flex; flex-wrap: wrap; max-width: 100%; background: #F1F3F4; border-radius: 7px; padding: 3px; gap: 2px; }
 .seg-tab {
   border: none;
   background: transparent;
@@ -423,6 +424,7 @@ th {
   border-bottom: none;
 }
 th.num, td.num { text-align: right; }
+td.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 th[data-sort] { cursor: pointer; }
 th[data-sort]:hover { background: var(--teal); }
 th[data-sort]:focus-visible { outline: 2px solid #fff; outline-offset: -2px; }
@@ -456,6 +458,25 @@ td.row-actions { text-align: right; }
 .row-action-btn:hover { background: var(--teal); color: #fff; border-color: var(--teal); }
 .row-done-label { font-size: 12px; color: var(--green-fg); font-weight: 500; white-space: nowrap; }
 .empty-state { padding: 40px; text-align: center; color: var(--text-dim); }
+/* a row left out of an export or an email (its tick box unticked); the tick box cell stays clear */
+tr.row-off td { opacity: .45; text-decoration: line-through; }
+tr.row-off td.row-check { opacity: 1; text-decoration: none; }
+td.row-check, th.row-check { width: 64px; text-align: center; padding-right: 6px; }
+/* inline editing: a field in a cell that reads as plain text until hovered or focused */
+.cell-input { width: 100%; min-width: 0; padding: 4px 6px; background: transparent; border-color: transparent; }
+.cell-input:hover { border-color: var(--border-input); background: var(--panel); }
+.cell-input:focus { border-color: var(--accent); background: var(--panel); }
+tr.row-off .cell-input { text-decoration: line-through; }
+
+/* dense: a grid of figures (a sprint or month matrix), with tighter cells */
+table.dense th { padding: 8px 10px; }
+table.dense td { padding: 6px 10px; font-size: 13px; }
+/* a first column that stays put while a wide table scrolls sideways */
+th.sticky-col, td.sticky-col { position: sticky; left: 0; z-index: 2; box-shadow: inset -1px 0 0 var(--border); }
+thead th.sticky-col { z-index: 3; }
+/* a totals row in a tfoot: shaded, and pinned to the foot of its scroller */
+tfoot tr.total-row td { position: sticky; bottom: 0; z-index: 1; background: var(--light-grey); font-weight: 600; box-shadow: inset 0 1px 0 var(--border); }
+tfoot tr.total-row td.sticky-col { z-index: 3; box-shadow: inset 0 1px 0 var(--border), inset -1px 0 0 var(--border); }
 
 /* ---- Step progress: a fixed workflow shown as segments ---- */
 .steps { display: flex; flex-direction: column; gap: 6px; }
@@ -474,6 +495,21 @@ td.row-actions { text-align: right; }
 .step-track-bar.target { background: var(--teal); outline: 1.5px solid var(--teal); outline-offset: 2px; }
 .step-track-label { font-size: 10px; line-height: 1.25; color: var(--text-dim); }
 .step-track-label.target { color: var(--accent-dark); font-weight: 600; }
+
+/* ---- Panel: a titled section of a page (a team, a chart, a group of settings) ---- */
+.panel { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; margin-bottom: 16px; min-width: 0; }
+.panel-head { display: flex; align-items: center; justify-content: space-between; gap: 10px 16px; flex-wrap: wrap; margin-bottom: 14px; }
+.panel-head:last-child { margin-bottom: 0; }
+.panel-title { display: flex; align-items: baseline; gap: 4px 10px; flex-wrap: wrap; min-width: 0; }
+.panel-title h2, .panel-title h3 { font-size: 16px; font-weight: 700; color: var(--heading); margin: 0; overflow-wrap: anywhere; }
+.panel-title .hint { margin: 0; }
+.panel-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+/* ---- Save state: a dot and a few words in the header saying where edits are kept ---- */
+.save-state { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-dim); white-space: nowrap; }
+.save-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border-input); flex: none; }
+.save-dot.live { background: var(--green); }
+.save-dot.warn { background: var(--yellow); }
 
 /* ---- Settings view: underline tabs, setting rows, grid lists ---- */
 .settings-header { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
@@ -537,6 +573,7 @@ td.row-actions { text-align: right; }
   padding-bottom: 8px;
 }
 .settings-table-row .col-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.settings-table-row:not(.header) .col-num { font-family: var(--font-mono); }
 .settings-table-row .col-actions { display: flex; justify-content: flex-end; gap: 4px; }
 .settings-empty-state { padding: 24px 10px; }
 .avatar-chip {
@@ -594,7 +631,7 @@ td.row-actions { text-align: right; }
 }
 .modal-actions.start { justify-content: flex-start; }
 .field { margin-bottom: 14px; }
-.field > label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px; color: var(--text); }
+.field > label, .field > .field-label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px; color: var(--text); }
 .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .field-row-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
 .hint { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
@@ -625,8 +662,28 @@ td.row-actions { text-align: right; }
 .upload-area:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
 .upload-area .big { font-size: 14px; font-weight: 600; color: var(--text); }
 .upload-area .or { font-size: 12px; color: var(--text-dim); margin: 6px 0; }
+/* an upload-first tool opens on this panel: a heading, a line of lead text, the drop zone */
+.start-view { max-width: 640px; margin: 48px auto 0; }
+.start-panel { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 24px 26px; }
+.start-panel h2 { margin: 0 0 6px; font-size: 20px; font-weight: 600; }
+.start-panel .upload-area { padding: 48px 24px; }
+/* secondary actions under the drop zone, e.g. a blank template to start from */
+.start-actions { display: flex; align-items: center; gap: 8px 12px; flex-wrap: wrap; margin-top: 14px; }
+.start-actions .hint { margin: 0; }
 /* RK.xlsx.renderMapper labels each column select with a bare label.field */
 label.field { display: block; font-size: 12px; font-weight: 600; color: var(--text); }
+
+/* ---- Copy fallback: the manual-copy box RK.clipboard.fallbackInto draws ---- */
+.copy-fallback textarea { width: 100%; min-height: 180px; font: 12px var(--font-mono); }
+.copy-fallback p { margin: 0 0 6px; font-size: 12px; color: var(--text-dim); }
+
+/* ---- Staff-name editor (RK.NameEditor): put it in a .table-container.rk-name-editor ---- */
+.rk-name-editor:empty { display: none; }
+.rk-name-editor td { white-space: normal; }
+.rk-name-editor td.staff-id { width: 40%; font: 500 13px var(--font-mono); }
+.rk-name-editor .sid { display: block; margin-top: 2px; font: 400 11px var(--font-ui); color: var(--text-dim); }
+.rk-name-editor tr.missing-row td { background: var(--yellow-bg); }
+.rk-name-editor .empty { padding: 24px; text-align: center; color: var(--text-dim); }
 
 /* ---- Toast: a short confirmation at the foot of the screen (RK.toast) ---- */
 .toast {
@@ -824,12 +881,19 @@ label.field { display: block; font-size: 12px; font-weight: 600; color: var(--te
 @media (max-width: 560px) {
   .wrap { padding: 0 16px 60px; }
   .app-header { margin: 0 -16px 16px; }
-  .app-nav { order: 2; width: 100%; margin-top: 2px; }
+  /* the nav gets its own row and wraps, so every view stays in sight */
+  .app-nav { order: 2; width: 100%; margin-top: 2px; flex-wrap: wrap; height: auto; }
+  .app-nav-item { height: 34px; padding: 0 10px; }
   .page-summary-main { font-size: 18px; }
   .stat-grid { grid-template-columns: 1fr; }
   .toolbar { gap: 8px; }
   .toolbar-select { flex: 1 1 auto; }
   .list-meta { flex: 1 1 100%; text-align: left; order: 10; }
+}
+@media (max-width: 560px) {
+  .start-view { margin-top: 16px; }
+  .start-panel { padding: 18px 16px; }
+  .start-panel .upload-area { padding: 32px 16px; }
 }
 @media (max-width: 480px) {
   .setting-row { flex-wrap: wrap; }
@@ -838,7 +902,7 @@ label.field { display: block; font-size: 12px; font-weight: 600; color: var(--te
 @media print {
   .app-header, .no-print { display: none !important; }
   .table-container { max-height: none; overflow: visible; }
-  th { position: static; }
+  th, th.sticky-col, td.sticky-col, tfoot tr.total-row td { position: static; }
 }
 
 /* ============================================================
@@ -880,13 +944,13 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
 
   <header class="app-header">
     <div class="app-logo"><img class="app-logo-mark" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMiIgaGVpZ2h0PSIzMiIgdmlld0JveD0iMCAwIDMyIDMyIj48cmVjdCB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHJ4PSI3IiBmaWxsPSIjMDBBOUNFIi8+PHBhdGggZD0iTTkgMTYuNSBsNCA0IEwyMyAxMSIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjMiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPjwvc3ZnPg==" alt="">Vendor Spend</div>
-    <nav class="app-nav">
-      <button type="button" class="app-nav-item active" data-view="items">Line items</button>
+    <nav class="app-nav" aria-label="Views">
+      <button type="button" class="app-nav-item active" data-view="items" aria-current="page">Line items</button>
       <button type="button" class="app-nav-item" data-view="settings">Settings</button>
     </nav>
     <div class="app-header-spacer"></div>
     <div class="app-search">
-      <input type="text" id="searchBox" placeholder="Search vendor, PO, note…">
+      <input type="text" id="searchBox" placeholder="Search vendor, PO, note…" aria-label="Search line items">
       <span class="search-hint-key">/</span>
     </div>
     <button id="btnFullBackup" title="Download everything as one .json file">Full backup</button>
@@ -897,6 +961,7 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
   </header>
 
   <div class="callout danger" id="corruptDataBanner" role="status" hidden></div>
+  <div class="callout warn" id="otherTabNote" role="status" hidden><span id="otherTabText"></span> <button type="button" class="link-action" id="otherTabDismiss">Dismiss</button></div>
 
   <div id="mainView">
 
@@ -918,8 +983,8 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
     <div class="seg-tabs" id="phaseTabs"></div>
     <button type="button" class="filter-chip warn" id="stuckChip" hidden></button>
     <button type="button" class="filter-chip" id="budgetChip" title="Clear the budget filter" hidden></button>
-    <select id="filterBudget" class="toolbar-select"><option value="">All budgets</option></select>
-    <select id="filterStage" class="toolbar-select">
+    <select id="filterBudget" class="toolbar-select" aria-label="Filter by budget"><option value="">All budgets</option></select>
+    <select id="filterStage" class="toolbar-select" aria-label="Filter by stage">
       <option value="">All stages</option>
       <option value="Estimate received">Estimate received</option>
       <option value="Approved with business">Approved with business</option>
@@ -956,10 +1021,6 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
     <div class="empty-state" id="emptyState" hidden></div>
   </div>
 
-  <footer>
-    <div class="signoff">Dreamt up by Christian, built with Claude: a human and AI double act 🤝</div>
-  </footer>
-
   </div>
 
   <div id="settingsView" hidden>
@@ -980,16 +1041,15 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
       </button>
     </nav>
 
-    <div class="settings-shell">
-      <div class="settings-content">
-        <div class="settings-panel" id="panel-rates">
+    <div class="settings-content">
+        <div data-panel id="panel-rates">
           <div class="settings-panel-head">
             <h3>Currency &amp; Exchange Rates</h3>
             <span class="hint">Base currency is AED. Rates below are AED per 1 unit of currency.</span>
           </div>
           <div class="setting-row">
             <div class="setting-row-label">
-              <span class="label-text">AED</span>
+              <label class="label-text" for="rate_AED">AED</label>
               <span class="label-hint">Base currency — fixed at 1.00</span>
             </div>
             <div class="setting-row-control">
@@ -998,7 +1058,7 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
           </div>
           <div class="setting-row">
             <div class="setting-row-label">
-              <span class="label-text">USD</span>
+              <label class="label-text" for="rate_USD">USD</label>
               <span class="label-hint">US Dollar</span>
             </div>
             <div class="setting-row-control">
@@ -1008,7 +1068,7 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
           </div>
           <div class="setting-row">
             <div class="setting-row-label">
-              <span class="label-text">GBP</span>
+              <label class="label-text" for="rate_GBP">GBP</label>
               <span class="label-hint">British Pound</span>
             </div>
             <div class="setting-row-control">
@@ -1018,7 +1078,7 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
           </div>
           <div class="setting-row">
             <div class="setting-row-label">
-              <span class="label-text">EUR</span>
+              <label class="label-text" for="rate_EUR">EUR</label>
               <span class="label-hint">Euro</span>
             </div>
             <div class="setting-row-control">
@@ -1026,13 +1086,14 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
               <span class="unit-suffix">AED</span>
             </div>
           </div>
+          <div class="callout danger" id="ratesError" role="alert" hidden></div>
           <div class="modal-actions start">
             <button class="primary" id="btnSaveRates">Save Rates</button>
             <button id="btnResetRates">Reset to Defaults</button>
           </div>
         </div>
 
-        <div class="settings-panel" id="panel-budgets" hidden>
+        <div data-panel id="panel-budgets" hidden>
           <div class="settings-panel-head">
             <h3>Budgets</h3>
             <span class="hint">Set annually; shown on the main page. Use &ldquo;+&rdquo; to add approved money to a budget while keeping its original figure.</span>
@@ -1041,7 +1102,7 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
           <div id="settingsBudgetList" class="settings-table"></div>
         </div>
 
-        <div class="settings-panel" id="panel-vendors" hidden>
+        <div data-panel id="panel-vendors" hidden>
           <div class="settings-panel-head">
             <h3>Vendors</h3>
             <span class="hint">Picking a vendor on a line item auto-fills currency &amp; budget.</span>
@@ -1049,9 +1110,13 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
           </div>
           <div id="vendorList" class="settings-table"></div>
         </div>
-      </div>
     </div>
   </div>
+
+  <footer>
+    <div class="signoff">Dreamt up by Christian, built with Claude: a human and AI double act 🤝</div>
+    <div class="strapline">Single file, works offline. Your data never leaves this machine.</div>
+  </footer>
 </div>
 
 <div class="modal-overlay" id="itemModalOverlay" hidden>
@@ -1074,7 +1139,7 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
         <label for="f_description">Description</label>
         <input type="text" id="f_description" required placeholder="e.g. Q4 paid social retainer">
       </div>
-      <select id="f_currency" required class="select-hidden-visually">
+      <select id="f_currency" required class="select-hidden-visually" aria-label="Currency" tabindex="-1">
         <option value="AED">AED</option>
         <option value="USD">USD</option>
         <option value="GBP">GBP</option>
@@ -1084,7 +1149,7 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
         <div class="field">
           <label for="f_currentAmount">Amount</label>
           <div class="amt-input-box">
-            <div class="chip-row chip-row-inbox" id="f_currencyChips"></div>
+            <div class="chip-row" id="f_currencyChips"></div>
             <input type="number" step="0.01" min="0" id="f_currentAmount" required>
           </div>
           <div class="hint" id="aedPreview"></div>
@@ -1112,7 +1177,7 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
       <div class="field">
         <label for="f_stage" id="f_stageLabel">Starting stage</label>
         <div class="chip-row" id="f_stageChips"></div>
-        <select id="f_stage" required class="select-hidden-visually">
+        <select id="f_stage" required class="select-hidden-visually" tabindex="-1">
           <option value="Estimate received">Estimate received</option>
           <option value="Approved with business">Approved with business</option>
           <option value="CR raised">CR raised</option>
@@ -1138,6 +1203,7 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
         </div>
       </div>
       <div class="hint">Notes are logged as timestamped entries — add them from the item's detail view (click its description) or when advancing a stage.</div>
+      <div class="callout danger" id="f_formError" role="alert" hidden></div>
       <div class="modal-actions">
         <button type="button" id="btnCancelItem">Cancel</button>
         <button type="submit" class="primary">Save</button>
@@ -1153,7 +1219,7 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
       <input type="hidden" id="v_id">
       <div class="setting-row">
         <div class="setting-row-label">
-          <span class="label-text">Vendor Name *</span>
+          <label class="label-text" for="v_name">Vendor Name *</label>
         </div>
         <div class="setting-row-control">
           <input type="text" id="v_name" required>
@@ -1161,7 +1227,7 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
       </div>
       <div class="setting-row">
         <div class="setting-row-label">
-          <span class="label-text">System Name</span>
+          <label class="label-text" for="v_systemName">System Name</label>
           <span class="label-hint">Name used in finance/ERP system</span>
         </div>
         <div class="setting-row-control">
@@ -1170,7 +1236,7 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
       </div>
       <div class="setting-row">
         <div class="setting-row-label">
-          <span class="label-text">Default Currency *</span>
+          <label class="label-text" for="v_defaultCurrency">Default Currency *</label>
         </div>
         <div class="setting-row-control">
           <select id="v_defaultCurrency" required>
@@ -1183,7 +1249,7 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
       </div>
       <div class="setting-row">
         <div class="setting-row-label">
-          <span class="label-text">Default Budget</span>
+          <label class="label-text" for="v_defaultBudgetId">Default Budget</label>
         </div>
         <div class="setting-row-control">
           <select id="v_defaultBudgetId">
@@ -1224,6 +1290,7 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
         <label for="adv_note">Note (optional)</label>
         <textarea id="adv_note" placeholder="Add context for this stage change..."></textarea>
       </div>
+      <div class="callout danger" id="adv_formError" role="alert" hidden></div>
       <div class="modal-actions">
         <button type="button" id="btnCancelAdvance">Cancel</button>
         <button type="submit" class="primary" id="btnConfirmAdvance">Confirm Advance</button>
@@ -1427,8 +1494,8 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
     <div class="callout">This export applies the filters below, it is not a full backup. Use "Full backup" in the header to export everything.</div>
     <form id="exportForm">
       <div class="field">
-        <label>Date entered</label>
-        <div class="preset-row" id="exp_presetRow">
+        <div class="field-label" id="exp_dateLabel">Date entered</div>
+        <div class="preset-row" id="exp_presetRow" role="group" aria-labelledby="exp_dateLabel">
           <button type="button" class="preset-chip" data-exp-preset="month">This month</button>
           <button type="button" class="preset-chip" data-exp-preset="fy">This fiscal year</button>
           <button type="button" class="preset-chip" data-exp-preset="all">All time</button>
@@ -1436,11 +1503,11 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
         </div>
         <div class="date-pair" id="exp_customDates" hidden>
           <div>
-            <span class="label-hint">From</span>
+            <label class="label-hint" for="exp_dateFrom">From</label>
             <input type="date" id="exp_dateFrom">
           </div>
           <div>
-            <span class="label-hint">To</span>
+            <label class="label-hint" for="exp_dateTo">To</label>
             <input type="date" id="exp_dateTo">
           </div>
         </div>
@@ -1461,8 +1528,8 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
         </div>
       </div>
       <div class="field">
-        <label>Format</label>
-        <div class="option-cards">
+        <div class="field-label" id="exp_formatLabel">Format</div>
+        <div class="option-cards" role="radiogroup" aria-labelledby="exp_formatLabel">
           <label class="option-card">
             <input type="radio" name="exp_format" value="json" checked>
             <span class="option-card-title">.json</span>
@@ -1476,6 +1543,7 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
         </div>
       </div>
       <button type="button" class="link-action" id="btnExportRestoreLink">Restore from a .json backup…</button>
+      <div class="callout danger" id="exp_error" role="alert" style="margin:14px 0 0;" hidden></div>
       <div class="modal-actions">
         <button type="button" id="btnCancelExport">Cancel</button>
         <button type="submit" class="primary">Export</button>
@@ -1491,7 +1559,7 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
       <input type="hidden" id="b_id">
       <div class="setting-row">
         <div class="setting-row-label">
-          <span class="label-text">Budget Name *</span>
+          <label class="label-text" for="b_name">Budget Name *</label>
           <span class="label-hint">Vendor or category</span>
         </div>
         <div class="setting-row-control">
@@ -1500,7 +1568,7 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
       </div>
       <div class="setting-row">
         <div class="setting-row-label">
-          <span class="label-text">Original Budget *</span>
+          <label class="label-text" for="b_total">Original Budget *</label>
           <span class="label-hint">As first approved</span>
         </div>
         <div class="setting-row-control">
@@ -1576,7 +1644,7 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
 <script>
 /* ============================================================
    Report Kit — shared runtime for the browser report tools
-   kit-version: 1.4.0
+   kit-version: 1.7.0
    Exposes window.RK. Depends on window.XLSX (SheetJS) only for the
    xlsx.* helpers; everything else is standalone. Inlined into each
    report by framework/build.py so reports stay single-file/offline.
@@ -1590,7 +1658,7 @@ button.small.vst-card-open { height: 24px; padding: 0 8px; font-size: 11px; }
    ============================================================ */
 window.RK = (function () {
   "use strict";
-  var KIT_VERSION = "1.4.0";
+  var KIT_VERSION = "1.7.0";
 
   /* ---------- dom / format helpers ---------- */
   function $(id) { return document.getElementById(id); }
@@ -1598,8 +1666,8 @@ window.RK = (function () {
     return String(s === null || s === undefined ? "" : s)
       .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
   }
-  // Both the .hidden class (kit 1 CSS) and the hidden attribute (kit 2 CSS), so either
-  // stylesheet honours it.
+  // Sets the hidden attribute (what kit 2 CSS honours) and keeps a .hidden class in step,
+  // so a report's own `.hidden` rule still works.
   function show(el) { if (el) { el.classList.remove("hidden"); el.hidden = false; } }
   function hide(el) { if (el) { el.classList.add("hidden"); el.hidden = true; } }
   // A lookup table with no prototype: keys from files ("__proto__", "constructor",
@@ -1641,6 +1709,14 @@ window.RK = (function () {
         });
         return navigator.clipboard.write([item]).then(function () { return "html"; });
       }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        return navigator.clipboard.writeText(text).then(function () { return "text"; });
+      }
+      return Promise.reject(new Error("no-clipboard"));
+    },
+    // writeText(text) -> Promise resolving to "text": plain text only, for a "copy as plain
+    // text" choice (write() above always offers HTML first). Rejects if blocked.
+    writeText: function (text) {
       if (navigator.clipboard && navigator.clipboard.writeText) {
         return navigator.clipboard.writeText(text).then(function () { return "text"; });
       }
@@ -1726,6 +1802,7 @@ window.RK = (function () {
     // container: el for the selects; fieldSpecs as above; onConfirm(mapping).
     renderMapper: function (opts) {
       var headers = opts.headers, fieldSpecs = opts.fieldSpecs;
+      var idBase = (opts.fieldsEl.id || "rk-map") + "-";   // each label names its select (for/id)
       var rows = fieldSpecs.map(function (f) {
         var guess = null;
         for (var i = 0; i < headers.length; i++) if (headers[i].name === f.canonical) { guess = headers[i].index; break; }
@@ -1733,7 +1810,8 @@ window.RK = (function () {
           return '<option value="' + h.index + '"' + (guess === h.index ? " selected" : "") + ">" + esc(h.name || ("(column " + (h.index + 1) + ")")) + " [col " + (h.index + 1) + "]</option>";
         }).join("");
         var label = f.label || (f.canonical + (f.required ? "" : " (optional)"));
-        return '<div style="margin:.5rem 0;"><label class="field" style="margin:0 0 .2rem;">' + esc(label) + '</label><select data-field="' + f.field + '">' + optsHtml + "</select></div>";
+        var id = idBase + f.field;
+        return '<div style="margin:.5rem 0;"><label class="field" for="' + esc(id) + '" style="margin:0 0 .2rem;">' + esc(label) + '</label><select id="' + esc(id) + '" data-field="' + f.field + '">' + optsHtml + "</select></div>";
       }).join("");
       opts.fieldsEl.innerHTML = rows;
       var errEl = opts.errorEl;
@@ -2012,8 +2090,9 @@ window.RK = (function () {
   }
 
   /* ---------- confirm dialog (in-page replacement for window.confirm) ----------
-     confirm(message, onConfirm, { okLabel, title, danger }). Builds its own markup on
-     first use. onConfirm runs only if the primary button is pressed. */
+     confirm(message, onConfirm, { okLabel, title, danger, onCancel }). Builds its own
+     markup on first use. onConfirm runs only if the primary button is pressed;
+     onCancel (1.6.0) runs if the dialog closes any other way (Cancel, Escape, backdrop). */
   var confirmUi = null;
   function confirmDialog(message, onConfirm, o) {
     o = o || {};
@@ -2023,18 +2102,18 @@ window.RK = (function () {
       ov.innerHTML = '<div class="modal modal-compact"><h2></h2><p class="modal-lead"></p>' +
         '<div class="modal-actions"><button type="button" data-rk-cancel>Cancel</button><button type="button" class="primary" data-rk-ok>Continue</button></div></div>';
       document.body.appendChild(ov);
-      var pending = null;
-      var ctl = modal(ov, { onClose: function () { pending = null; } });
+      var pending = null, cancelled = null;
+      var ctl = modal(ov, { onClose: function () { var c = cancelled; pending = null; cancelled = null; if (c) c(); } });
       ov.querySelector("[data-rk-cancel]").addEventListener("click", function () { ctl.close(); });
-      ov.querySelector("[data-rk-ok]").addEventListener("click", function () { var fn = pending; pending = null; ctl.close(); if (fn) fn(); });
-      confirmUi = { ov: ov, ctl: ctl, set: function (fn) { pending = fn; } };
+      ov.querySelector("[data-rk-ok]").addEventListener("click", function () { var fn = pending; pending = null; cancelled = null; ctl.close(); if (fn) fn(); });
+      confirmUi = { ov: ov, ctl: ctl, set: function (fn, cancel) { pending = fn; cancelled = cancel || null; } };
     }
     var ok = confirmUi.ov.querySelector("[data-rk-ok]");
     confirmUi.ov.querySelector("h2").textContent = o.title || "Are you sure?";
     confirmUi.ov.querySelector(".modal-lead").textContent = message;
     ok.textContent = o.okLabel || "Continue";
     ok.className = "primary" + (o.danger ? " danger-fill" : "");
-    confirmUi.set(onConfirm);
+    confirmUi.set(onConfirm, o.onCancel);
     confirmUi.ctl.open();
     ok.focus();
   }
@@ -2042,9 +2121,23 @@ window.RK = (function () {
   /* ---------- choice chips that drive a hidden <select> ----------
      One .chip button per <option>. Clicking sets the select and fires "change", so
      listeners on the select keep working. Returns refresh(); call it after setting
-     the select's value in code. */
-  function chipsFromSelect(select, row, labelFor) {
+     the select's value in code.
+     The row becomes role="group" with the question as its name (1.7.0), so a screen
+     reader hears "Email type, group" before "Request, toggle button, pressed". The
+     name comes from, in order: an aria-label or aria-labelledby already on the row,
+     groupLabel, the select's aria-label, or a <label for> the select. */
+  function chipsFromSelect(select, row, labelFor, groupLabel) {
     var chips = [];
+    row.setAttribute("role", "group");
+    if (!row.hasAttribute("aria-label") && !row.hasAttribute("aria-labelledby")) {
+      var lab = select.labels && select.labels[0];
+      if (groupLabel) row.setAttribute("aria-label", groupLabel);
+      else if (select.getAttribute("aria-label")) row.setAttribute("aria-label", select.getAttribute("aria-label"));
+      else if (lab) {
+        if (!lab.id) lab.id = "rk-lbl-" + uid();
+        row.setAttribute("aria-labelledby", lab.id);
+      }
+    }
     Array.prototype.forEach.call(select.options, function (opt) {
       var b = document.createElement("button");
       b.type = "button"; b.className = "chip";
@@ -2617,6 +2710,15 @@ window.RK = (function () {
   function bindModal(overlay, onClose) { return RK.modal(overlay, { onClose: onClose }); }
   function showConfirm(message, onConfirm, okLabel) { RK.confirm(message, onConfirm, { okLabel: okLabel }); }
 
+  // A reason a form cannot be saved, shown in the form above its buttons (no native
+  // alert: framework/DESIGN.md principle 10). formError(id) with no message hides it.
+  function formError(id, message, focusId) {
+    var el = document.getElementById(id);
+    el.textContent = message || "";
+    el.hidden = !message;
+    if (message && focusId) document.getElementById(focusId).focus();
+  }
+
   // ---------- Edits from another tab ----------
   // Every save stamps state.saveToken with a fresh random token (and bumps state.rev), and
   // the storage listener swaps in the other tab's state. A form remembers the version it
@@ -2663,7 +2765,7 @@ window.RK = (function () {
   // user-facing features that stay backward compatible, PATCH for fixes with no
   // behavior/schema change. Bump this by hand on each release; it is not read or
   // written anywhere else, so changing it never affects stored data.
-  var APP_VERSION = "1.4.0";
+  var APP_VERSION = "1.5.0";
 
   // The 8-segment stage-progress bar used in the items table and the detail drawer:
   // filled up to the current stage, all green once Closed.
@@ -2855,7 +2957,7 @@ window.RK = (function () {
     try {
       localStorage.setItem(STORE_KEY, JSON.stringify(state));
     } catch (e) {
-      alert("Could not save to browser storage. Your changes may not persist.");
+      showStorageBanner("Could not save to browser storage. Your changes may not persist.");
     }
   }
 
@@ -3380,9 +3482,14 @@ window.RK = (function () {
 
     var empty = document.getElementById("emptyState");
     empty.hidden = rows.length !== 0;
-    empty.textContent = state.items.length === 0
-      ? 'No line items yet. Click "+ New line item" to add one.'
-      : "No line items match these filters.";
+    // name the real first step: a line item needs a budget and a vendor, and a
+    // vendor's default budget is picked from the budgets
+    if (state.items.length) empty.textContent = "No line items match these filters.";
+    else if (!state.budgets.length) empty.innerHTML = "No line items yet. Start with a budget, then a vendor, in Settings. " +
+      "<button type='button' class='link-action' data-goto-panel='panel-budgets'>Add a budget</button>";
+    else if (!state.vendors.length) empty.innerHTML = "No line items yet. Next, add a vendor in Settings. " +
+      "<button type='button' class='link-action' data-goto-panel='panel-vendors'>Add a vendor</button>";
+    else empty.textContent = 'No line items yet. Click "+ New line item" to add one.';
 
     var listTotal = rows.reduce(function (t, row) { return t + row.currentAmountAed; }, 0);
     document.getElementById("listMeta").textContent =
@@ -3396,9 +3503,10 @@ window.RK = (function () {
       var tr = document.createElement("tr");
       tr.className = "clickable";
       tr.setAttribute("data-detail-item", it.id);
+      // a focusable row with Enter/Space (see the keydown handler), not role="button":
+      // a button's children are presentational, so the cells and the buttons in
+      // them would be lost to a screen reader
       tr.setAttribute("tabindex", "0");
-      tr.setAttribute("role", "button");
-      tr.setAttribute("aria-label", "View details for " + (it.description || "line item"));
       tr.innerHTML =
         "<td class='wrap-cell'>" +
           "<button type='button' class='cell-title link-action' data-vendor-open='" + escapeHtml(it.vendorId) + "'>" + escapeHtml(row.vendorName) + "</button>" +
@@ -3412,7 +3520,7 @@ window.RK = (function () {
         "</div></td>" +
         "<td class='amt'>" + amtCellAedPrimary(row.currentAmountAed, it.currentAmount, it.currency) + (unknownCcy ? " <span class='status-pill pill-red' title='Unknown currency, rate 1 used'>?</span>" : "") + "</td>" +
         "<td class='amt'>" + amtCellAedPrimary(row.invoicedAmountAed, it.invoicedAmount, it.currency) + "</td>" +
-        "<td>" + escapeHtml(it.dateUpdated) + "</td>" +
+        "<td class='mono'>" + escapeHtml(it.dateUpdated) + "</td>" +
         "<td class='row-actions'>" +
           (isClosed
             ? "<span class='row-done-label'>✓ Closed</span>"
@@ -3498,14 +3606,19 @@ window.RK = (function () {
   }
 
   function openItemModal(item) {
-    if (state.vendors.length === 0) {
-      alert("Create a vendor first in Settings before adding line items.");
-      return;
-    }
+    // nothing to pick from yet: go to the Settings panel that comes first, and say why
     if (state.budgets.length === 0) {
-      alert("Create a budget first before adding line items.");
+      showSettings("panel-budgets");
+      RK.toast("Create a budget first before adding line items.", 5000);
       return;
     }
+    if (state.vendors.length === 0) {
+      showSettings("panel-vendors");
+      RK.toast("Create a vendor first in Settings before adding line items.", 5000);
+      return;
+    }
+    formError("f_formError");
+    itemOverInvoiceOk = false;
 
     document.getElementById("itemModalTitle").textContent = item ? "Edit line item" : "New line item";
     document.getElementById("f_stageLabel").textContent = item ? "Stage" : "Starting stage";
@@ -3630,6 +3743,8 @@ window.RK = (function () {
   document.getElementById("btnNewItem").addEventListener("click", function () { openItemModal(null); });
   document.getElementById("btnCancelItem").addEventListener("click", closeItemModal);
 
+  // set once the user has said yes to saving more invoiced than the amount
+  var itemOverInvoiceOk = false;
   itemForm.addEventListener("submit", function (e) {
     e.preventDefault();
     if (guardStale("item", "Line items were changed in another tab after you opened this form. Saving now writes every field in this form over those changes.",
@@ -3643,14 +3758,18 @@ window.RK = (function () {
     var stage = document.getElementById("f_stage").value;
 
     if (INVOICE_STAGES.indexOf(stage) !== -1 && !(invoicedAmount > 0)) {
-      alert("Invoiced Amount must be greater than 0 for stage \"" + stage + "\".");
+      formError("f_formError", "Invoiced Amount must be greater than 0 for stage \"" + stage + "\".", "f_invoicedAmount");
       return;
     }
-    if (!isNaN(invoicedAmount) && !isNaN(currentAmount) && invoicedAmount > currentAmount) {
-      if (!confirm("Invoiced Amount (" + invoicedAmount + ") is greater than Current Amount (" + currentAmount + "). Save anyway?")) {
-        return;
-      }
+    formError("f_formError");
+    if (!itemOverInvoiceOk && !isNaN(invoicedAmount) && !isNaN(currentAmount) && invoicedAmount > currentAmount) {
+      RK.confirm("Invoiced Amount (" + invoicedAmount + ") is greater than Current Amount (" + currentAmount + "). Save anyway?", function () {
+        itemOverInvoiceOk = true;
+        itemForm.requestSubmit();
+      }, { okLabel: "Save anyway" });
+      return;
     }
+    itemOverInvoiceOk = false;
 
     var data = {
       id: id || uid(),
@@ -3893,7 +4012,7 @@ window.RK = (function () {
       if (inUse) {
         var others = state.budgets.filter(function (x) { return x.id !== delId; });
         if (others.length === 0) {
-          alert("This budget has line items assigned to it, and there is no other budget to reassign them to. Create another budget first, or delete the line items.");
+          RK.toast("This budget has line items assigned to it, and there is no other budget to reassign them to. Create another budget first, or delete the line items.", 7000);
           return;
         }
         openReassignModal({
@@ -3907,8 +4026,8 @@ window.RK = (function () {
             deleteBudget(delId);
           }
         });
-      } else if (confirm("Delete this budget?")) {
-        deleteBudget(delId);
+      } else {
+        RK.confirm("Delete this budget?", function () { deleteBudget(delId); }, { title: "Delete budget", okLabel: "Delete", danger: true });
       }
     }
   });
@@ -4073,7 +4192,7 @@ window.RK = (function () {
       if (inUse) {
         var others = state.vendors.filter(function (x) { return x.id !== delId; });
         if (others.length === 0) {
-          alert("This vendor has line items assigned to it, and there is no other vendor to reassign them to. Create another vendor first, or delete the line items.");
+          RK.toast("This vendor has line items assigned to it, and there is no other vendor to reassign them to. Create another vendor first, or delete the line items.", 7000);
           return;
         }
         openReassignModal({
@@ -4087,8 +4206,8 @@ window.RK = (function () {
             deleteVendor(delId);
           }
         });
-      } else if (confirm("Delete this vendor?")) {
-        deleteVendor(delId);
+      } else {
+        RK.confirm("Delete this vendor?", function () { deleteVendor(delId); }, { title: "Delete vendor", okLabel: "Delete", danger: true });
       }
     }
   });
@@ -4129,6 +4248,7 @@ window.RK = (function () {
     var idx = STAGES.indexOf(it.stage);
     if (idx === -1 || idx >= STAGES.length - 1) return;
     var nextStage = STAGES[idx + 1];
+    formError("adv_formError");
 
     document.getElementById("adv_itemId").value = it.id;
     document.getElementById("advanceModalTitle").textContent = "Advance: " + it.stage + " → " + nextStage;
@@ -4208,9 +4328,10 @@ window.RK = (function () {
     if (INVOICE_STAGES.indexOf(nextStage) !== -1) {
       var invoicedAmount = parseFloat(document.getElementById("adv_invoicedAmount").value);
       if (isNaN(invoicedAmount) || !(invoicedAmount > 0)) {
-        alert("Invoiced Amount must be greater than 0 to advance to " + nextStage + ".");
+        formError("adv_formError", "Invoiced Amount must be greater than 0 to advance to " + nextStage + ".", "adv_invoicedAmount");
         return;
       }
+      formError("adv_formError");
       if (invoicedAmount > (Number(it.currentAmount) || 0)) {
         showConfirm(
           "Invoiced Amount (" + fmtNum(invoicedAmount) + ") is greater than Current Amount (" + fmtNum(it.currentAmount) + "). Advance anyway?",
@@ -4527,11 +4648,12 @@ window.RK = (function () {
   // Shared by the detail drawer's "Delete line item" link. Closes the drawer first if
   // it's the one open for this item, so the overlay doesn't linger pointing at nothing.
   function deleteItemWithConfirm(id) {
-    if (!confirm("Delete this line item? This cannot be undone.")) return;
-    state.items = state.items.filter(function (it) { return it.id !== id; });
-    save();
-    renderAll();
-    if (!detailModal.hidden && document.getElementById("d_itemId").value === id) closeDetailModal();
+    RK.confirm("Delete this line item? This cannot be undone.", function () {
+      state.items = state.items.filter(function (it) { return it.id !== id; });
+      save();
+      renderAll();
+      if (!detailModal.hidden && document.getElementById("d_itemId").value === id) closeDetailModal();
+    }, { title: "Delete line item", okLabel: "Delete", danger: true });
   }
 
   document.getElementById("itemsBody").addEventListener("click", function (e) {
@@ -4653,6 +4775,7 @@ window.RK = (function () {
     fillOptions(budgetSel, state.budgets, '<option value="">All budgets</option>');
 
     applyExportPreset("fy");
+    formError("exp_error");
     exportModalCtl.open();
   }
 
@@ -4724,7 +4847,7 @@ window.RK = (function () {
     });
 
     if (items.length === 0) {
-      alert("No line items match these filters.");
+      formError("exp_error", "No line items match these filters.");
       return;
     }
 
@@ -4856,8 +4979,8 @@ window.RK = (function () {
     if (!parsed) return;
     var normalised = normaliseState(parsed);
     if (!normalised) {
-      alert("Could not import file: unrecognised format.");
       closeImportChoiceModal();
+      RK.toast("Could not import file: unrecognised format.", 6000);
       return;
     }
     backupCurrentState();
@@ -4865,7 +4988,7 @@ window.RK = (function () {
     save();
     renderAll();
     closeImportChoiceModal();
-    alert("Replace complete. Your previous data was saved to the \"" + STORE_KEY + ".backup\" storage key.");
+    RK.toast("Replace complete. Your previous data was saved to the \"" + STORE_KEY + ".backup\" storage key.", 6000);
   });
 
   document.getElementById("btnImportMerge").addEventListener("click", function () {
@@ -4873,15 +4996,15 @@ window.RK = (function () {
     if (!parsed) return;
     var normalised = normaliseState(parsed);
     if (!normalised) {
-      alert("Could not import file: unrecognised format.");
       closeImportChoiceModal();
+      RK.toast("Could not import file: unrecognised format.", 6000);
       return;
     }
     mergeState(normalised);
     save();
     renderAll();
     closeImportChoiceModal();
-    alert("Merge complete.");
+    RK.toast("Merge complete.");
   });
 
   document.getElementById("btnImport").addEventListener("click", function () {
@@ -4900,7 +5023,7 @@ window.RK = (function () {
         }
         openImportChoiceModal(parsed);
       } catch (err) {
-        alert("Could not import file: " + err.message);
+        RK.toast("Could not import file: " + err.message, 6000);
       }
       e.target.value = "";
     };
@@ -4922,7 +5045,7 @@ window.RK = (function () {
   var WIDE_SETTINGS_PANELS = ["panel-vendors"];
 
   function showSettingsPanel(panelId) {
-    document.querySelectorAll(".settings-panel").forEach(function (p) {
+    document.querySelectorAll("#settingsView [data-panel]").forEach(function (p) {
       p.hidden = (p.id !== panelId);
     });
     document.querySelectorAll(".settings-nav-item").forEach(function (btn) {
@@ -4941,18 +5064,21 @@ window.RK = (function () {
 
   function setAppNavActive(view) {
     document.querySelectorAll(".app-nav-item[data-view]").forEach(function (btn) {
-      btn.classList.toggle("active", btn.getAttribute("data-view") === view);
+      var on = btn.getAttribute("data-view") === view;
+      btn.classList.toggle("active", on);
+      if (on) btn.setAttribute("aria-current", "page"); else btn.removeAttribute("aria-current");
     });
   }
 
-  function showSettings() {
+  function showSettings(panelId) {
     document.getElementById("settingsBudgetsCount").textContent = state.budgets.length;
     document.getElementById("settingsVendorsCount").textContent = state.vendors.length;
     document.getElementById("appVersion").textContent = "v" + APP_VERSION;
     populateRateInputs();
     renderVendorList();
     renderSettingsBudgetList();
-    showSettingsPanel("panel-rates");
+    showSettingsPanel(panelId || "panel-rates");
+    formError("ratesError");
     mainView.hidden = true;
     settingsView.hidden = false;
     setAppNavActive("settings");
@@ -4972,6 +5098,11 @@ window.RK = (function () {
       else showMain();
     });
   });
+  // the empty list's "Add a budget" / "Add a vendor" go to that Settings panel
+  document.getElementById("emptyState").addEventListener("click", function (e) {
+    var b = e.target.closest("[data-goto-panel]");
+    if (b) showSettings(b.getAttribute("data-goto-panel"));
+  });
 
   // Rates typed but not yet saved survive another tab's save.
   var ratesDirty = false;
@@ -4984,24 +5115,27 @@ window.RK = (function () {
     var gbp = parseFloat(document.getElementById("rate_GBP").value);
     var eur = parseFloat(document.getElementById("rate_EUR").value);
     if (!usd || !gbp || !eur || usd <= 0 || gbp <= 0 || eur <= 0) {
-      alert("Please enter valid positive rates for USD, GBP, and EUR.");
+      formError("ratesError", "Please enter valid positive rates for USD, GBP, and EUR.");
       return;
     }
+    formError("ratesError");
     state.settings.rates.USD = usd;
     state.settings.rates.GBP = gbp;
     state.settings.rates.EUR = eur;
     state.settings.rates.AED = 1;
     ratesDirty = false;
     save();
-    alert("Rates saved.");
+    RK.toast("Rates saved.");
   });
 
   document.getElementById("btnResetRates").addEventListener("click", function () {
-    if (!confirm("Reset exchange rates to defaults (USD 3.673, GBP 4.5, EUR 4.1)?")) return;
-    state.settings.rates = Object.assign({}, DEFAULT_RATES);
-    ratesDirty = false;
-    populateRateInputs();
-    save();
+    RK.confirm("Reset exchange rates to defaults (USD 3.673, GBP 4.5, EUR 4.1)?", function () {
+      state.settings.rates = Object.assign({}, DEFAULT_RATES);
+      ratesDirty = false;
+      formError("ratesError");
+      populateRateInputs();
+      save();
+    }, { title: "Reset exchange rates", okLabel: "Reset", danger: true });
   });
 
   // ---------- Keyboard shortcuts ----------
@@ -5034,10 +5168,16 @@ window.RK = (function () {
       if (state.items.some(function (x) { return x.id === openId; })) openDetailModal(openId);
       else closeDetailModal();
     }
-    showStorageBanner("Data was changed in another tab and has been reloaded here." +
-      (document.querySelector(".modal-overlay:not([hidden])") ? " A form you have open was filled before that change; you will be asked before it overwrites anything." : ""));
+    // a note, not an error: the watch colour, and it can be dismissed
+    document.getElementById("otherTabText").textContent = "Data was changed in another tab and has been reloaded here." +
+      (document.querySelector(".modal-overlay:not([hidden])") ? " A form you have open was filled before that change; you will be asked before it overwrites anything." : "");
+    document.getElementById("otherTabNote").hidden = false;
+  });
+  document.getElementById("otherTabDismiss").addEventListener("click", function () {
+    document.getElementById("otherTabNote").hidden = true;
   });
 
+  // Stored data that could not be read, or a save that failed: the act colour
   function showStorageBanner(text) {
     var banner = document.getElementById("corruptDataBanner");
     banner.textContent = text;

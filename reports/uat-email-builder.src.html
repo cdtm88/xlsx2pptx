@@ -45,8 +45,6 @@
 .uem-preview table { width: auto; }
 .uem-preview th, .uem-preview td { white-space: normal; text-transform: none; letter-spacing: normal; font-size: inherit; position: static; user-select: auto; }
 .uem-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 12px 0; }
-.copy-fallback textarea { width: 100%; min-height: 180px; font: 12px var(--font-mono); }
-.copy-fallback p { margin: 0 0 6px; font-size: 12px; color: var(--text-dim); }
 .uem-intro { margin: -4px 0 14px; font-size: 13px; color: var(--slate); }
 /* side by side, Compose and Preview each scroll on their own inside the window
    (sizeGrid sets the height); stacked on narrower screens, the page scrolls */
@@ -55,7 +53,7 @@
   .uem-col { min-height: 0; max-height: 100%; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
 }
 @media (max-width: 1000px) {
-  .uem-grid { grid-template-columns: 1fr; }
+  .uem-grid { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 560px) {
   .uem-sections, .uem-row { grid-template-columns: 1fr; }
@@ -83,7 +81,7 @@
       <div class="uem-panel-head"><h3>Compose</h3><span class="hint">Every figure and the status are yours to set.</span></div>
 
       <div class="field">
-        <label>Email type</label>
+        <div class="field-label">Email type</div>
         <select id="emType" class="select-hidden-visually" aria-label="Email type" tabindex="-1" data-k="type">
           <option value="update">Progress update</option>
           <option value="request">Sign-off request</option>
@@ -91,8 +89,8 @@
         <div class="chip-row" id="emTypeChips"></div>
       </div>
       <div class="field">
-        <label>Sections</label>
-        <div class="uem-sections" id="emSections"></div>
+        <div class="field-label" id="emSectionsLabel">Sections</div>
+        <div class="uem-sections" id="emSections" role="group" aria-labelledby="emSectionsLabel"></div>
         <div class="hint">Changing the email type picks a set; change any of them after.</div>
       </div>
 
@@ -256,7 +254,7 @@
 (function () {
   "use strict";
   // Semver: MAJOR for a stored-data change normalise() cannot migrate, MINOR for features, PATCH for fixes.
-  var APP_VERSION = "1.0.0";
+  var APP_VERSION = "1.0.1";
   var store = RK.store("uatEmailBuilder.v1");
   var $ = RK.$, esc = RK.esc;
 
@@ -606,7 +604,7 @@
         if (Array.isArray(f[2])) input = "<select" + attrs + ">" + f[2].map(function (o) { return "<option" + (r[f[0]] === o ? " selected" : "") + ">" + esc(o) + "</option>"; }).join("") + "</select>";
         else input = '<input type="' + f[2] + '"' + attrs + ' value="' + esc(r[f[0]]) + '">';
         return '<div class="field' + (f[3] ? " wide" : "") + '"><label for="' + id + '">' + esc(f[1]) + "</label>" + input + "</div>";
-      }).join("") + '<button type="button" class="uem-row-x" data-remove="' + list + '" data-i="' + i + '" aria-label="Remove">×</button></div>';
+      }).join("") + '<button type="button" class="uem-row-x" data-remove="' + list + '" data-i="' + i + '" aria-label="' + esc("Remove " + (r[fields[0][0]] || "this row")) + '">×</button></div>';
     }).join("");
   }
 
