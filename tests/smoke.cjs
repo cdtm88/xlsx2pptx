@@ -414,6 +414,16 @@ const FLOWS = {
     t("names saved by the kit 1 version load", /Sara Two\s*Feature two/.test(await page.textContent("#summaryBody")));
   },
   "project-cost-tracker.html": async (page, t) => {
+    // first open: nothing set up, so a panel says where to start
+    t("a fresh tracker opens on the set-up panel", await page.isVisible("#onboard"));
+    await page.click('#onboard button[data-goto-tab="project"]');
+    t("which goes to Settings, Project", await page.isVisible("#panel-setup") &&
+      (await page.getAttribute('.app-nav-item[data-view="settings"]', "aria-current")) === "page");
+    await page.click('.app-nav-item[data-view="report"]');
+    await page.click("#onboardDemo");
+    t("and offers the demo", await page.isVisible(".modal-overlay:not([hidden]) [data-rk-ok]"));
+    await page.click(".modal-overlay:not([hidden]) [data-rk-cancel]");
+
     // Demo and the CSV export live under Settings, Saving & data
     await page.click('.app-nav-item[data-view="settings"]');
     await page.click('.settings-nav-item[data-tab="data"]');
@@ -461,6 +471,22 @@ const FLOWS = {
     t("the delay is logged with its reason", /Delayed 3 months from Aug 26[\s\S]*Vendor environment not ready/.test(await page.textContent("#timelineHistory")));
     await page.click("#undoBtn");
     t("undo takes the delay back", (await page.$eval("#duration", (d) => d.value)) === "12" && !/later than/.test(await page.textContent("#headerSub")));
+    t("the set-up panel is gone once there is a project", await page.isHidden("#onboard"));
+
+    // A timesheet whose ProjectName cells are names on Object.prototype imports like
+    // any other (it used to stop the whole import, or write onto Object.prototype),
+    // and a saved code of "valueOf" (also on Object.prototype, not in the file) asks for the right one.
+    await page.click('.app-nav-item[data-view="settings"]'); await page.click('.settings-nav-item[data-tab="project"]');
+    await page.fill("#ukCode", "valueOf");
+    await page.click('.settings-nav-item[data-tab="import"]');
+    await page.setInputFiles("#tsFile", path.join(FIX, "ct-timesheet-proto.xlsx")); await page.waitForTimeout(300);
+    const codes = await page.$$eval("#tsCodeList [data-code]", (b) => b.map((x) => x.getAttribute("data-code")).sort().join(","));
+    t("a timesheet with constructor and __proto__ projects opens its code list", await page.isVisible("#tsPickCode") &&
+      codes === "Smoke Project,__proto__,constructor,toString", codes);
+    t("and leaves Object.prototype alone", await page.evaluate(() => { const o = {}; return o.rows === undefined && o.hours === undefined && o.people === undefined; }));
+    await page.click('#tsCodeList [data-code="constructor"]'); await page.waitForTimeout(100);
+    t("a project called constructor reviews like any other", await page.isVisible("#tsReview") && /Ann Lee/.test(await page.textContent("#tsBody")) && !(await page.isDisabled("#tsAccept")));
+    await page.click("#tsClose");
   },
   "pi-planning-capacity.html": async (page, t, ctx) => {
     const main = () => page.textContent("#summaryMain");

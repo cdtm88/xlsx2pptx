@@ -122,4 +122,24 @@ def dp_legacy_sprint(name="dp-legacy-sprint.xlsx"):
 
 
 dp_legacy_sprint()
+
+
+# A UK timesheet export for the cost tracker whose ProjectName cells include names
+# that live on Object.prototype ("constructor", "__proto__", "toString"). Before
+# RK.dict they stopped the whole import, or wrote onto Object.prototype.
+def ct_timesheet_proto():
+    wb = openpyxl.Workbook(); ws = wb.active; ws.title = "Export"
+    ws.append(["Date", "Name", "EmployeeNumber", "Hours (Standard)", "ProjectName"])
+    for row in [[D(2026, 3, 3), "Ann Lee", "E1", 7.5, "constructor"],
+                [D(2026, 3, 4), "Ann Lee", "E1", 7.5, "__proto__"],
+                [D(2026, 3, 5), "Ann Lee", "E1", 7.5, "toString"],
+                [D(2026, 3, 9), "Ann Lee", "E1", 7.5, "Smoke Project"],
+                [D(2026, 3, 10), "Bo Chan", "E2", 6, "Smoke Project"]]:
+        ws.append(row)
+    for r in ws.iter_rows(min_row=2, max_col=1):
+        r[0].number_format = "dd/mm/yyyy"
+    save(wb, "ct-timesheet-proto.xlsx")
+
+
+ct_timesheet_proto()
 print("fixtures written to", HERE)

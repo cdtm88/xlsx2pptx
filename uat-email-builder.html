@@ -12,7 +12,7 @@
 <style>
 /* ============================================================
    Report Kit 2: the design language for new browser tools
-   kit-version: 2.6.0
+   kit-version: 2.6.1
    Extracted from vendor-spend-tracker.html. Inlined into a report
    by framework/build.py. See framework/DESIGN.md for the rules and
    framework/starter.src.html for a page that uses every part.
@@ -295,7 +295,7 @@ textarea { resize: vertical; min-height: 50px; }
 }
 .stat-card-nums > span { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .stat-card-num { display: block; font: 500 12px var(--font-mono); color: var(--text); white-space: nowrap; }
-.stat-card-num.neg { color: var(--red); }
+.stat-card-num.neg, .stat-card-value.neg { color: var(--red); }
 
 /* ---- Bars: stacked segments on a track, all scaled to one maximum ---- */
 .bar-track {

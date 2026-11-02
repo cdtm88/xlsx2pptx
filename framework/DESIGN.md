@@ -94,7 +94,7 @@ Type scale (px): 22 page headline, 20 settings title, 18 dialog/drawer title,
 | `button`, `.primary`, `.danger`, `.danger-fill`, `.small`, `.icon-btn`, `.link-action` | buttons (icon-only buttons need an `aria-label`) |
 | `.page-summary`, `-text`, `-sub`, `-main` | the one-line answer above the cards |
 | `.legend`, `.legend-item`, `.legend-swatch` + `.swatch-solid` / `-hatched` / `-tint` | key for bar fills |
-| `.stat-grid`, `.stat-card` (+ `.active`), `-name`, `-figure`, `-value`, `-of`, `-nums`, `-num` (+ `.neg`) | grid of headline cards; make them filters with `role="button"` |
+| `.stat-grid`, `.stat-card` (+ `.active`), `-name`, `-figure`, `-value` (+ `.neg`, 2.6.1), `-of`, `-nums`, `-num` (+ `.neg`) | grid of headline cards; make them filters with `role="button"` |
 | `.bar-track`, `.bar-fill` + `.solid` / `.hatched` / `.tint` / `.status-*`, `.bar-limit` | stacked bar. **Scale every segment to one maximum** (`max(limit, total)`) and put `.bar-limit` at `limit / max` |
 | `.row-bar-cell`, `.row-bar-track`, `.row-bar-fill` | thin inline bar in a list row |
 | `.status-pill` + `.pill-green` / `-yellow` / `-red` / `-teal` / `-grey` | state labels |
