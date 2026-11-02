@@ -166,6 +166,10 @@ at the worse of the plan and the observed burn rate. The burn rate is only
 charged to months that have planned spend, so a month planned at nothing
 forecasts nothing.
 
+A new tracker, with no estimate and no team, opens on a short **Set up this
+project** panel that links to Settings, to opening a saved project, and to the
+demo.
+
 **Adding months.** Raising Months asks how to cost the team in the new months:
 **zero the team costs** (the default; the months start empty) or **carry on the
 team costs**, where each person repeats their last month's days. The dialog
@@ -414,8 +418,9 @@ which are estimates.
 ## `vendor-spend-tracker.html`
 
 Track third-party spend against annual budgets, line item by line item. Set the
-budgets and vendors once in **Settings** (a vendor can carry a default currency
-and budget, which a new line item picks up), then log each piece of work as it
+budgets and vendors once in **Settings**, budgets first (a vendor can carry a
+default currency and budget, which a new line item picks up; on a fresh install
+the empty list links to the step that comes next), then log each piece of work as it
 moves through eight stages: Estimate received, Approved with business, CR
 raised, MRE raised, PO issued, Initial invoice received, Final invoice received,
 Closed.
@@ -459,7 +464,8 @@ spend split, items by stage, and the average time from entry to first invoice.
 The new-item form previews what the amount does to its budget before you save.
 
 **Saving.** Data autosaves in the browser (`localStorage`), and two open tabs
-stay in step. As with the cost tracker, every `file://` page shares that storage,
+stay in step: a note (which you can dismiss) says when the other tab changed
+something. As with the cost tracker, every `file://` page shares that storage,
 so it holds one workspace per browser: use **Full backup** to keep a copy, and
 **Import** to restore it (Replace keeps the overwritten data under a backup key;
 Merge adds budgets, vendors and items without duplicating ones that match).
