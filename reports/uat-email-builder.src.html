@@ -55,7 +55,7 @@
   .uem-col { min-height: 0; max-height: 100%; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
 }
 @media (max-width: 1000px) {
-  .uem-grid { grid-template-columns: 1fr; }
+  .uem-grid { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 560px) {
   .uem-sections, .uem-row { grid-template-columns: 1fr; }

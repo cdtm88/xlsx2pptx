@@ -54,8 +54,6 @@ function kitUnits() {
 /* ---------- per-tool main flows ---------- */
 const FLOWS = {
   "delivery-plan.html": async (page, t) => {
-    const native = [];
-    page.on("dialog", (d) => native.push(d.type()));
     const main = () => page.textContent("#summaryMain");
     const values = () => page.$$eval("#statGrid .stat-card-value", (els) => els.map((e) => e.textContent).join(" "));
     const row = (n, f) => "#task-tbody tr:nth-child(" + n + ") ." + f;
@@ -149,15 +147,8 @@ const FLOWS = {
     t("a sheet with no date columns is refused with the headers found, and the plan stays",
       await page.isVisible("#error-msg") && /Headers found:/.test(await page.textContent("#error-msg")) && (await main()).startsWith("2 tasks"));
 
-    // phone width: no sideways page scroll on either view
+    // the harness checks phone width on both views once the flow ends, on this plan
     await load("dp-multi-slide.xlsx");
-    await page.setViewportSize({ width: 390, height: 844 });
-    let widest = await page.evaluate(() => document.documentElement.scrollWidth);
-    for (const p of ["panel-slide", "panel-sheet"]) { await settings(p); widest = Math.max(widest, await page.evaluate(() => document.documentElement.scrollWidth)); }
-    await back();
-    t("no sideways scroll at 390px", widest <= 390, String(widest));
-    await page.setViewportSize({ width: 1280, height: 800 });
-    t("no native dialogs", native.length === 0, native.join(", "));
   },
   "uat-email-builder.html": async (page, t) => {
     const preview = () => page.textContent("#preview");
@@ -181,7 +172,7 @@ const FLOWS = {
     await page.click(".modal-overlay:not([hidden]) [data-rk-ok]");
     t("the example replaces it after asking", /Customer Portal R4\.2 UAT/.test(await preview()) && /CP-212/.test(await preview()));
   },
-  "pi-email-builder.html": async (page, t) => {
+  "pi-email-builder.html": async (page, t, ctx) => {
     const preview = () => page.textContent("#preview");
     const names = () => page.$$eval("#preview tr[data-rid]", (r) => r.map((x) => x.querySelector("[data-edit=name]").textContent));
     t("opens on the drop zone", await page.isVisible("#dropBig") && await page.isHidden("#mainView"));
@@ -190,6 +181,7 @@ const FLOWS = {
       /Booking Portal\s*12 commitments/.test(await preview()), await page.textContent("#summaryMain"));
     t("subject is suggested from the quarter", (await page.inputValue("#f_subject")) === "Quarterly Planning Commitments | FY26/27 Q3");
     t("data checks list what needs fixing", /6 projects have no JIRA ID/.test(await page.textContent("#checks")));
+    await ctx.phone("sample loaded");
 
     // chips open a dialog; the change is kept for this quarter only
     await page.click('#preview tr[data-rid^="agentaccountmanagement"] [data-f=status]');
@@ -251,9 +243,7 @@ const FLOWS = {
     await page.click("#emptyPaste"); await page.fill("#emptyPasteText", "Name,Status\nOnly,UAT"); await page.click("#emptyPasteGo");
     t("a file without quarters is refused with a reason", /No quarters found in Quarter Planned/.test(await page.textContent("#emptyStatus")) && await page.isVisible("#dropBig"));
   },
-  "waqti-exceptions.html": async (page, t) => {
-    const native = [];
-    page.on("dialog", (d) => native.push(d.type()));
+  "waqti-exceptions.html": async (page, t, ctx) => {
     const main = () => page.textContent("#summaryMain");
     const load = async () => {
       await page.setInputFiles("#fileInput", path.join(FIX, "waqti-export.xlsx"));
@@ -355,24 +345,15 @@ const FLOWS = {
     t("the baked copy opens clean and uses its rules", e2.length === 0 && await p2.isHidden("#bakedHint") && (await p2.textContent("#summaryMain")) === "No demand exceptions, 1 row to check", (await p2.textContent("#summaryMain")) + e2.join());
     await p2.close();
 
-    // phone width: no sideways page scroll
-    await page.setViewportSize({ width: 390, height: 844 });
-    await back(); await page.waitForTimeout(100);
-    const wMain = await page.evaluate(() => document.documentElement.scrollWidth);
-    await settings("panel-approvals");
-    const wSet = await page.evaluate(() => document.documentElement.scrollWidth);
-    t("no sideways scroll at 390px", wMain <= 390 && wSet <= 390, wMain + " / " + wSet);
-    await page.setViewportSize({ width: 1280, height: 800 });
+    // phone width, with the baked rules loaded
+    await ctx.phone("rules loaded");
 
     // an autosave from an earlier version (same key, lower-case id, no ignore list) still loads
     await page.evaluate(() => { localStorage.clear(); localStorage.setItem("waqti-exceptions:v1", JSON.stringify({ rules: { label: "old set", staff: { s2: { name: "Sara Two", approvedDemands: ["D200"] } }, generatedAt: null }, source: "import", loadedAt: 1700000000000, email: { intro: "Old intro", closing: "Old closing by {deadline}" } })); });
     await page.reload(); await page.waitForTimeout(300); await load();
     t("rules saved by earlier versions load", (await main()) === "1 exception for 1 person, 1 row to check" && /Sara Two/.test(await page.textContent("#richPreview")) && /Old intro/.test(await page.textContent("#richPreview")), await main());
-    t("no native alert, confirm or prompt", native.length === 0, native.join(","));
   },
   "waqti-demand-summary.html": async (page, t) => {
-    const native = [];
-    page.on("dialog", (d) => native.push(d.type()));
     const load = async () => {
       await page.setInputFiles("#fileInput", path.join(FIX, "waqti-export.xlsx"));
       await page.waitForSelector("#loadedView:not([hidden])", { timeout: 5000 });
@@ -431,7 +412,6 @@ const FLOWS = {
     await page.reload(); await load();
     await page.click("#selectAllBtn");
     t("names saved by the kit 1 version load", /Sara Two\s*Feature two/.test(await page.textContent("#summaryBody")));
-    t("no native alert or confirm", native.length === 0, native.join(","));
   },
   "project-cost-tracker.html": async (page, t) => {
     // Demo and the CSV export live under Settings, Saving & data
@@ -482,9 +462,7 @@ const FLOWS = {
     await page.click("#undoBtn");
     t("undo takes the delay back", (await page.$eval("#duration", (d) => d.value)) === "12" && !/later than/.test(await page.textContent("#headerSub")));
   },
-  "pi-planning-capacity.html": async (page, t) => {
-    const native = [];
-    page.on("dialog", (d) => native.push(d.type()));
+  "pi-planning-capacity.html": async (page, t, ctx) => {
     const main = () => page.textContent("#summaryMain");
     const ok = () => page.click(".modal-overlay:not([hidden]) [data-rk-ok]");
     const settings = async (panel) => { await page.click('.app-nav-item[data-view="settings"]'); await page.click(`.settings-nav-item[data-panel="${panel}"]`); };
@@ -593,13 +571,9 @@ const FLOWS = {
     t("and replaces it", (await main()) === "Team capacity for FY2627 Q2: 118.8 person-days across 2 teams", await main());
     t("every dialog field has a label", await page.$$eval(".modal input, .modal select", (els) => els.every((e) => e.labels.length || e.getAttribute("aria-label"))));
 
-    // phone width: no sideways page scroll; wide grids scroll inside their table
-    await page.setViewportSize({ width: 390, height: 844 });
-    let widest = 0;
-    for (const v of ["teams", "people", "leave"]) { await back(); await tab(v); widest = Math.max(widest, await page.evaluate(() => document.documentElement.scrollWidth)); }
-    for (const p of ["panel-teams", "panel-holidays", "panel-roles", "panel-cadence", "panel-data"]) { await settings(p); widest = Math.max(widest, await page.evaluate(() => document.documentElement.scrollWidth)); }
-    t("no sideways scroll at 390px", widest <= 390, String(widest));
-    await page.setViewportSize({ width: 1280, height: 800 });
+    // phone width on each of the main tabs: wide grids scroll inside their table
+    for (const v of ["teams", "people", "leave"]) { await back(); await tab(v); await ctx.phone(v + " tab"); }
+    await back();
 
     // the demo asks first when it would replace a plan
     await settings("panel-data");
@@ -618,7 +592,6 @@ const FLOWS = {
       members: [{ id: "a", name: "Old Dev", roleId: "dev", locId: "uk", allocation: "100" }] }], leave: [{ id: "x", memberId: "a", from: "2026-04-03", to: "2026-04-10" }] }));
     await page.setInputFiles("#jsonInput", flat); await page.waitForTimeout(200); await ok(); await page.waitForTimeout(100);
     t("a file from before the envelope loads", (await main()) === "Team capacity for FY2627 Q1: 45.6 person-days across 1 team", await main());
-    t("no native alert, confirm or prompt", native.length === 0, native.join(","));
   },
   "uat-signoff-tracker.html": async (page, t, ctx) => {
     const lines = [];
@@ -675,12 +648,55 @@ const FLOWS = {
   },
 };
 
+// Native alert, confirm and prompt are banned in every tool (they block the page and
+// cannot be styled or tested): each one is recorded, dismissed and fails the run.
+// The browser's own "leave this page?" (beforeunload, asked while a file write is
+// pending) is not one of them: it is accepted so a reload goes ahead.
+function watchDialogs(page) {
+  const seen = [];
+  page.on("dialog", (d) => {
+    if (d.type() === "beforeunload") { d.accept().catch(() => {}); return; }
+    seen.push(d.type() + " \"" + d.message().slice(0, 60) + "\""); d.dismiss().catch(() => {});
+  });
+  return seen;
+}
+
+// Phone width: the widest page, at 390px, across every view in the header and every
+// Settings tab, so that nothing makes the whole page scroll sideways (a wide table
+// scrolls inside its own container). Leaves the page on its first view, at its old size.
+async function phoneOverflow(page) {
+  const size = page.viewportSize();
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (let i = 0; i < 3 && await page.$(".modal-overlay:not([hidden])"); i++) { await page.keyboard.press("Escape"); await page.waitForTimeout(50); }
+  const over = [];
+  const measure = async (label) => {
+    await page.waitForTimeout(80);
+    const w = await page.evaluate(() => document.documentElement.scrollWidth);
+    if (w > 390) over.push(label + " " + w + "px");
+  };
+  const views = await page.$$eval(".app-nav-item[data-view]", (bs) => bs.filter((b) => b.offsetParent).map((b) => b.getAttribute("data-view")));
+  if (!views.length) await measure("page");
+  for (const v of views) {
+    await page.click(`.app-nav-item[data-view="${v}"]`);
+    await measure(v);
+    const tabs = page.locator(".settings-nav-item:visible");
+    const n = await tabs.count();
+    for (let i = 0; i < n; i++) {
+      await tabs.nth(i).click();
+      await measure(v + " > " + (await tabs.nth(i).textContent()).trim());
+    }
+  }
+  if (views.length) await page.click(`.app-nav-item[data-view="${views[0]}"]`);
+  await page.setViewportSize(size || { width: 1280, height: 720 });
+  return over;
+}
+
 async function openTool(browser, file, flow) {
   const url = "file://" + file;
   const ctx = await browser.newContext({ acceptDownloads: true });
   const page = await ctx.newPage();
   const errors = [], external = [];
-  page.on("dialog", (d) => d.accept());
+  const native = watchDialogs(page);
   page.on("pageerror", (e) => errors.push("pageerror: " + e.message));
   page.on("console", (m) => { if (m.type() === "error") errors.push("console: " + m.text()); });
   page.on("request", (r) => { if (!/^(file|data|blob|about):/.test(r.url())) external.push(r.url()); });
@@ -697,10 +713,18 @@ async function openTool(browser, file, flow) {
   check(name + ": footer carries the sign-off line", !!SIGNOFF && signoff === SIGNOFF, signoff || "no footer .signoff (include framework/signoff.html)");
   check(name + ": offline CSP present, unchanged and first", !!CSP && csp === CSP && /^<meta charset/i.test(head[0] || "") &&
     /Content-Security-Policy/.test(head[1] || ""), "policy differs from the starter's or is not first: " + (csp || "none"));
+  // a flow can check phone width at a point of its own as well (ctx.phone)
+  const phone = async (label) => {
+    const over = await phoneOverflow(page);
+    check(name + ": no sideways scroll at 390px" + (label ? " (" + label + ")" : ""), over.length === 0, over.join(", "));
+  };
   if (flow) {
-    try { await flow(page, (n, c, w) => check(name + ": " + n, c, w), { url }); }
+    try { await flow(page, (n, c, w) => check(name + ": " + n, c, w), { url, phone }); }
     catch (e) { fail(name + ": main flow", e.message.split("\n")[0]); }
   }
+  try { await phone("every view, after the flow"); }
+  catch (e) { fail(name + ": no sideways scroll at 390px", e.message.split("\n")[0]); }
+  check(name + ": no native alert, confirm or prompt", native.length === 0, native.join(" | "));
   check(name + ": no page errors", errors.length === 0, errors.slice(0, 3).join(" | "));
   check(name + ": no network requests", external.length === 0, external.slice(0, 3).join(" "));
   await ctx.close();
@@ -723,12 +747,14 @@ async function deliveryRegressions(browser) {
   async function load(fixture, fn) {
     const ctx = await browser.newContext({ acceptDownloads: true });
     const p = await ctx.newPage(), errors = [];
+    const native = watchDialogs(p);
     p.on("pageerror", (e) => errors.push(e.message));
     await p.goto(url);
     await p.setInputFiles("#file-input", path.join(FIX, fixture));
     await p.waitForTimeout(400);
     try { await fn(p); } catch (e) { t(fixture + ": flow", false, e.message.split("\n")[0]); }
     t(fixture + ": no page errors", errors.length === 0, errors.slice(0, 2).join(" | "));
+    t(fixture + ": no native dialogs", native.length === 0, native.join(" | "));
     await ctx.close();
   }
   const row = (n, f) => "#task-tbody tr:nth-child(" + n + ") ." + f;
@@ -826,11 +852,11 @@ async function uatFileRegressions(browser) {
   const t = (n, c, w) => check("uat files: " + n, c, w);
   const ctx = await browser.newContext();
   await ctx.addInitScript(fakeFs);
-  const errors = [];
+  const errors = [], native = [];
   const open = async () => {
     const p = await ctx.newPage();
     p.on("pageerror", (e) => errors.push(e.message));
-    p.on("dialog", (d) => d.accept());
+    native.push(watchDialogs(p));
     await p.goto(url); await p.waitForTimeout(400);
     return p;
   };
@@ -922,6 +948,7 @@ async function uatFileRegressions(browser) {
     t("try again brings file saving back", (await a.isVisible("#fileActions")) && /Save to a project file/.test(await a.textContent("#saveAction")));
   } catch (e) { t("flow", false, e.message.split("\n")[0]); }
   t("no page errors", errors.length === 0, errors.slice(0, 3).join(" | "));
+  t("no native dialogs", native.flat().length === 0, native.flat().join(" | "));
   await ctx.close();
 }
 
@@ -935,6 +962,7 @@ async function costFileRegressions(browser) {
   await ctx.addInitScript(fakeFs);
   const errors = [];
   const p = await ctx.newPage();
+  const native = watchDialogs(p);
   p.on("pageerror", (e) => errors.push(e.message));
   const file = (n) => p.evaluate((n) => { const r = window.__fakefs.read(n); return r && r.text ? JSON.parse(r.text) : null; }, n);
   const status = () => p.textContent("#saveState");
@@ -1000,6 +1028,7 @@ async function costFileRegressions(browser) {
       (await file("legacy.json")).name === "Legacy on disk" && /Saved to legacy\.json/.test(await status()), await status());
   } catch (e) { t("flow", false, e.message.split("\n")[0]); }
   t("no page errors", errors.length === 0, errors.slice(0, 3).join(" | "));
+  t("no native dialogs", native.length === 0, native.join(" | "));
   await ctx.close();
 }
 

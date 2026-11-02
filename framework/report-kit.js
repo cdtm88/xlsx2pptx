@@ -1,6 +1,6 @@
 /* ============================================================
    Report Kit — shared runtime for the browser report tools
-   kit-version: 1.6.0
+   kit-version: 1.7.0
    Exposes window.RK. Depends on window.XLSX (SheetJS) only for the
    xlsx.* helpers; everything else is standalone. Inlined into each
    report by framework/build.py so reports stay single-file/offline.
@@ -14,7 +14,7 @@
    ============================================================ */
 window.RK = (function () {
   "use strict";
-  var KIT_VERSION = "1.6.0";
+  var KIT_VERSION = "1.7.0";
 
   /* ---------- dom / format helpers ---------- */
   function $(id) { return document.getElementById(id); }
@@ -477,9 +477,23 @@ window.RK = (function () {
   /* ---------- choice chips that drive a hidden <select> ----------
      One .chip button per <option>. Clicking sets the select and fires "change", so
      listeners on the select keep working. Returns refresh(); call it after setting
-     the select's value in code. */
-  function chipsFromSelect(select, row, labelFor) {
+     the select's value in code.
+     The row becomes role="group" with the question as its name (1.7.0), so a screen
+     reader hears "Email type, group" before "Request, toggle button, pressed". The
+     name comes from, in order: an aria-label or aria-labelledby already on the row,
+     groupLabel, the select's aria-label, or a <label for> the select. */
+  function chipsFromSelect(select, row, labelFor, groupLabel) {
     var chips = [];
+    row.setAttribute("role", "group");
+    if (!row.hasAttribute("aria-label") && !row.hasAttribute("aria-labelledby")) {
+      var lab = select.labels && select.labels[0];
+      if (groupLabel) row.setAttribute("aria-label", groupLabel);
+      else if (select.getAttribute("aria-label")) row.setAttribute("aria-label", select.getAttribute("aria-label"));
+      else if (lab) {
+        if (!lab.id) lab.id = "rk-lbl-" + uid();
+        row.setAttribute("aria-labelledby", lab.id);
+      }
+    }
     Array.prototype.forEach.call(select.options, function (opt) {
       var b = document.createElement("button");
       b.type = "button"; b.className = "chip";

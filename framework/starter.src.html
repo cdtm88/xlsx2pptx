@@ -24,8 +24,8 @@
 
   <header class="app-header">
     <div class="app-logo"><img class="app-logo-mark" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMiIgaGVpZ2h0PSIzMiIgdmlld0JveD0iMCAwIDMyIDMyIj48cmVjdCB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHJ4PSI3IiBmaWxsPSIjMDBBOUNFIi8+PHBhdGggZD0iTTkgMTYuNSBsNCA0IEwyMyAxMSIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjMiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPjwvc3ZnPg==" alt="">New Tool</div>
-    <nav class="app-nav">
-      <button type="button" class="app-nav-item active" data-view="main">Overview</button>
+    <nav class="app-nav" aria-label="Views">
+      <button type="button" class="app-nav-item active" data-view="main" aria-current="page">Overview</button>
       <button type="button" class="app-nav-item" data-view="settings">Settings</button>
     </nav>
     <div class="app-header-spacer"></div>
@@ -73,12 +73,6 @@
       </table>
       <div class="empty-state" id="emptyState" hidden>Nothing matches these filters.</div>
     </div>
-
-    <!-- every tool ends with the sign-off line, shared from framework/signoff.html (DESIGN.md) -->
-    <footer>
-      <!--@include framework/signoff.html@-->
-      <div class="strapline">Single file, works offline. Your data never leaves this machine.</div>
-    </footer>
   </div>
 
   <div id="settingsView" hidden>
@@ -89,11 +83,18 @@
     <div class="settings-content">
       <div class="settings-panel-head"><h3>General</h3><span class="hint">Set once; used everywhere.</span></div>
       <div class="setting-row">
-        <div class="setting-row-label"><span class="label-text">Target</span><span class="label-hint">What "100%" means on the cards</span></div>
+        <div class="setting-row-label"><label class="label-text" for="setTarget">Target</label><span class="label-hint">What "100%" means on the cards</span></div>
         <div class="setting-row-control"><input type="number" id="setTarget" min="0"><span class="unit-suffix">AED</span></div>
       </div>
     </div>
   </div>
+
+  <!-- every tool ends with the sign-off line, shared from framework/signoff.html (DESIGN.md);
+       outside the views, so it shows on every one of them -->
+  <footer>
+    <!--@include framework/signoff.html@-->
+    <div class="strapline">Single file, works offline. Your data never leaves this machine.</div>
+  </footer>
 </div>
 
 <!-- dialog -->
@@ -209,7 +210,12 @@
   function show(view) {
     $("mainView").hidden = view !== "main";
     $("settingsView").hidden = view !== "settings";
-    document.querySelectorAll(".app-nav-item").forEach(function (b) { b.classList.toggle("active", b.getAttribute("data-view") === view); });
+    // the current view is marked for screen readers with aria-current, and styled by .active
+    document.querySelectorAll(".app-nav-item").forEach(function (b) {
+      var on = b.getAttribute("data-view") === view;
+      b.classList.toggle("active", on);
+      if (on) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current");
+    });
     $("setTarget").value = state.target;
   }
   document.querySelectorAll(".app-nav-item").forEach(function (b) { b.addEventListener("click", function () { show(b.getAttribute("data-view")); render(); }); });

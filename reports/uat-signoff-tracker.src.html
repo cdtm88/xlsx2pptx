@@ -115,7 +115,7 @@ td.uat-cb input, th.uat-cb input { margin: 0; vertical-align: middle; }
   .uat-email-col { min-height: 0; max-height: 100%; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
 }
 @media (max-width: 1000px) {
-  .uat-two, .uat-email-grid { grid-template-columns: 1fr; }
+  .uat-two, .uat-email-grid { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 900px) {
   #cycleSelect { order: 3; max-width: none; flex: 1 1 160px; }

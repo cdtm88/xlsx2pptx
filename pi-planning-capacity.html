@@ -13,7 +13,7 @@
 <style>
 /* ============================================================
    Report Kit 2: the design language for new browser tools
-   kit-version: 2.5.0
+   kit-version: 2.6.0
    Extracted from vendor-spend-tracker.html. Inlined into a report
    by framework/build.py. See framework/DESIGN.md for the rules and
    framework/starter.src.html for a page that uses every part.
@@ -134,7 +134,7 @@ body {
   color: var(--text-dim);
 }
 .app-nav-item:hover { background: transparent; border-color: var(--border); color: var(--text); }
-.app-nav-item.active { font-weight: 600; color: var(--text); border-color: var(--teal); }
+.app-nav-item.active, .app-nav-item[aria-current="page"] { font-weight: 600; color: var(--text); border-color: var(--teal); }
 .app-header-spacer { flex: 1; min-width: 8px; }
 .app-search {
   position: relative;
@@ -222,6 +222,8 @@ input:focus, select:focus, textarea:focus {
   box-shadow: 0 0 0 3px var(--teal-tint);
 }
 input:disabled { background: var(--light-grey); color: var(--text-dim); }
+/* figures typed in are figures too: mono, like the ones on the page (principle 4) */
+input[type="number"] { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 textarea { resize: vertical; min-height: 50px; }
 .select-hidden-visually {
   position: absolute;
@@ -354,7 +356,8 @@ textarea { resize: vertical; min-height: 50px; }
   margin-bottom: 12px;
 }
 .toolbar-spacer { flex: 1; }
-.seg-tabs { display: flex; background: #F1F3F4; border-radius: 7px; padding: 3px; gap: 2px; }
+/* wraps onto a second row rather than push a phone-width page sideways */
+.seg-tabs { display: flex; flex-wrap: wrap; max-width: 100%; background: #F1F3F4; border-radius: 7px; padding: 3px; gap: 2px; }
 .seg-tab {
   border: none;
   background: transparent;
@@ -423,6 +426,7 @@ th {
   border-bottom: none;
 }
 th.num, td.num { text-align: right; }
+td.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 th[data-sort] { cursor: pointer; }
 th[data-sort]:hover { background: var(--teal); }
 th[data-sort]:focus-visible { outline: 2px solid #fff; outline-offset: -2px; }
@@ -466,10 +470,9 @@ td.row-check, th.row-check { width: 64px; text-align: center; padding-right: 6px
 .cell-input:focus { border-color: var(--accent); background: var(--panel); }
 tr.row-off .cell-input { text-decoration: line-through; }
 
-/* dense: a grid of figures (a sprint or month matrix); numbers in it are mono */
+/* dense: a grid of figures (a sprint or month matrix), with tighter cells */
 table.dense th { padding: 8px 10px; }
 table.dense td { padding: 6px 10px; font-size: 13px; }
-table.dense td.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 /* a first column that stays put while a wide table scrolls sideways */
 th.sticky-col, td.sticky-col { position: sticky; left: 0; z-index: 2; box-shadow: inset -1px 0 0 var(--border); }
 thead th.sticky-col { z-index: 3; }
@@ -572,6 +575,7 @@ tfoot tr.total-row td.sticky-col { z-index: 3; box-shadow: inset 0 1px 0 var(--b
   padding-bottom: 8px;
 }
 .settings-table-row .col-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.settings-table-row:not(.header) .col-num { font-family: var(--font-mono); }
 .settings-table-row .col-actions { display: flex; justify-content: flex-end; gap: 4px; }
 .settings-empty-state { padding: 24px 10px; }
 .avatar-chip {
@@ -629,7 +633,7 @@ tfoot tr.total-row td.sticky-col { z-index: 3; box-shadow: inset 0 1px 0 var(--b
 }
 .modal-actions.start { justify-content: flex-start; }
 .field { margin-bottom: 14px; }
-.field > label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px; color: var(--text); }
+.field > label, .field > .field-label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px; color: var(--text); }
 .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .field-row-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
 .hint { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
@@ -879,7 +883,9 @@ label.field { display: block; font-size: 12px; font-weight: 600; color: var(--te
 @media (max-width: 560px) {
   .wrap { padding: 0 16px 60px; }
   .app-header { margin: 0 -16px 16px; }
-  .app-nav { order: 2; width: 100%; margin-top: 2px; }
+  /* the nav gets its own row and wraps, so every view stays in sight */
+  .app-nav { order: 2; width: 100%; margin-top: 2px; flex-wrap: wrap; height: auto; }
+  .app-nav-item { height: 34px; padding: 0 10px; }
   .page-summary-main { font-size: 18px; }
   .stat-grid { grid-template-columns: 1fr; }
   .toolbar { gap: 8px; }
@@ -1341,7 +1347,7 @@ td.pic-act { width: 1%; text-align: right; }
 <script>
 /* ============================================================
    Report Kit — shared runtime for the browser report tools
-   kit-version: 1.6.0
+   kit-version: 1.7.0
    Exposes window.RK. Depends on window.XLSX (SheetJS) only for the
    xlsx.* helpers; everything else is standalone. Inlined into each
    report by framework/build.py so reports stay single-file/offline.
@@ -1355,7 +1361,7 @@ td.pic-act { width: 1%; text-align: right; }
    ============================================================ */
 window.RK = (function () {
   "use strict";
-  var KIT_VERSION = "1.6.0";
+  var KIT_VERSION = "1.7.0";
 
   /* ---------- dom / format helpers ---------- */
   function $(id) { return document.getElementById(id); }
@@ -1818,9 +1824,23 @@ window.RK = (function () {
   /* ---------- choice chips that drive a hidden <select> ----------
      One .chip button per <option>. Clicking sets the select and fires "change", so
      listeners on the select keep working. Returns refresh(); call it after setting
-     the select's value in code. */
-  function chipsFromSelect(select, row, labelFor) {
+     the select's value in code.
+     The row becomes role="group" with the question as its name (1.7.0), so a screen
+     reader hears "Email type, group" before "Request, toggle button, pressed". The
+     name comes from, in order: an aria-label or aria-labelledby already on the row,
+     groupLabel, the select's aria-label, or a <label for> the select. */
+  function chipsFromSelect(select, row, labelFor, groupLabel) {
     var chips = [];
+    row.setAttribute("role", "group");
+    if (!row.hasAttribute("aria-label") && !row.hasAttribute("aria-labelledby")) {
+      var lab = select.labels && select.labels[0];
+      if (groupLabel) row.setAttribute("aria-label", groupLabel);
+      else if (select.getAttribute("aria-label")) row.setAttribute("aria-label", select.getAttribute("aria-label"));
+      else if (lab) {
+        if (!lab.id) lab.id = "rk-lbl-" + uid();
+        row.setAttribute("aria-labelledby", lab.id);
+      }
+    }
     Array.prototype.forEach.call(select.options, function (opt) {
       var b = document.createElement("button");
       b.type = "button"; b.className = "chip";
