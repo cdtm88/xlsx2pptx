@@ -9,7 +9,7 @@ no build step *for the user*, and no external requests.
 
 | File | Role |
 |---|---|
-| `report-kit-2.css` | **The current design language** (kit 2): header with nav tabs and search, page summary, stat cards and stacked bars, toolbar with segmented tabs and filter chips, sticky dark-header tables, step progress, settings rows, dialogs, the detail drawer, timeline, chips and money inputs. Rules and the full class list are in [`DESIGN.md`](DESIGN.md). |
+| `report-kit-2.css` | **The current design language** (kit 2): role-based colour tokens with an opt-in dark theme, a `rem` type scale, spacing tokens, header with nav tabs and search, page summary, stat cards and stacked bars, toolbar with segmented tabs and filter chips, sticky dark-header tables, step progress, settings rows, dialogs, the detail drawer, timeline, chips and money inputs. Rules and the full class list are in [`DESIGN.md`](DESIGN.md). |
 | `starter.src.html` | A small working page in the kit 2 language. Copy it to start a new tool. |
 | `signoff.html` | The sign-off line every tool ends with ("Dreamt up by Christian, built with Claude…"). Pulled into each footer with `<!--@include framework/signoff.html@-->`; edit it here and rebuild to change it everywhere. |
 | `DESIGN.md` | The design language: principles, tokens, every component, the runtime helpers, a checklist for new tools. |
