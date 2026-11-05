@@ -67,7 +67,7 @@
    and the totals row pinned, so a long team or a 60-month project never pushes
    the rest of the page down. max-height, so short tables stay short. */
 .table-container.pct-scroll{max-height:22rem}
-.pct-scroll tfoot td{position:sticky;bottom:0;z-index:1;background:var(--light-grey);font-weight:600;
+.pct-scroll tfoot td{position:sticky;bottom:0;z-index:1;background:var(--surface-quiet);font-weight:600;
   box-shadow:inset 0 1px 0 var(--border)}
 @media print{ .table-container.pct-scroll{max-height:none;overflow:visible} .pct-scroll tfoot td{position:static} }
 
@@ -96,8 +96,8 @@ td.money,td.foot-num,.pct-ledger td.num,.pct-drivers td.num{font-family:var(--fo
 .pct-matrix th.mhead{text-align:center;padding:8px 4px}
 .pct-matrix td.mcell{padding:4px 3px}
 .pct-matrix td.mcell input{width:60px;padding-left:3px;padding-right:3px;text-align:center}
-.pct-matrix td.money{text-align:right;font-weight:600;color:var(--accent-dark)}
-.pct-matrix td.foot-num{text-align:center;font-size:11px;color:var(--slate)}
+.pct-matrix td.money{text-align:right;font-weight:600;color:var(--accent)}
+.pct-matrix td.foot-num{text-align:center;font-size:11px;color:var(--text-secondary)}
 .pct-matrix .c-role input{min-width:110px}
 .pct-matrix .c-ccy select{min-width:76px;width:auto}
 .pct-matrix .c-rate input{min-width:92px}
@@ -115,13 +115,13 @@ td.money,td.foot-num,.pct-ledger td.num,.pct-drivers td.num{font-family:var(--fo
 /* monthly ledger */
 .pct-ledger{min-width:820px}
 .pct-ledger td.act input{width:124px}
-.pct-ledger tbody tr.now td{background:var(--teal-tint);font-weight:600}
+.pct-ledger tbody tr.now td{background:var(--accent-tint);font-weight:600}
 
 /* cost drivers */
 .pct-drivers{min-width:720px}
 .pct-drivers td.line{font-weight:600}
 .pct-drivers .row-bar-track{min-width:90px}
-.pct-drivers .row-bar-fill{background:var(--teal-dark)}
+.pct-drivers .row-bar-fill{background:var(--bar-done)}
 .pct-drivers tr.gone td{color:var(--text-dim);font-style:italic}
 .pct-kind{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.03em;color:var(--text-dim)}
 .sub2{display:block;font-size:11px;font-weight:400;color:var(--text-dim)}
@@ -143,7 +143,7 @@ td.money,td.foot-num,.pct-ledger td.num,.pct-drivers td.num{font-family:var(--fo
   border-bottom:1px solid var(--divider)}
 .modal .pct-dialog-head h2{margin:0 0 2px}
 .pct-dialog-body{padding:16px 24px;overflow:auto;min-height:0}
-.pct-dialog .modal-actions{margin:0;padding:14px 24px;align-items:center;background:var(--lighter-grey)}
+.pct-dialog .modal-actions{margin:0;padding:14px 24px;align-items:center;background:var(--surface-zebra)}
 .pct-foot-note{margin-right:auto;font-size:12px;color:var(--text-dim)}
 #tsFlags{display:flex;flex-direction:column;gap:8px}
 #tsFlags:not(:empty){margin-bottom:14px}
@@ -151,7 +151,7 @@ td.money,td.foot-num,.pct-ledger td.num,.pct-drivers td.num{font-family:var(--fo
 
 /* code picker */
 .pct-code{display:flex;align-items:center;gap:12px;width:100%;height:auto;text-align:left;padding:10px 12px;margin-bottom:6px}
-.pct-code:hover{background:var(--teal-tint)}
+.pct-code:hover{background:var(--accent-tint)}
 .pct-code .c-name{flex:1;font-weight:600;word-break:break-word}
 .pct-code .c-meta{font:400 12px var(--font-mono);color:var(--text-dim);white-space:nowrap}
 .pct-code.leave{opacity:.65}
@@ -182,7 +182,7 @@ td.money,td.foot-num,.pct-ledger td.num,.pct-drivers td.num{font-family:var(--fo
 .pct-opts{display:flex;flex-direction:column;gap:6px}
 .pct-opt{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px}
 .pct-opt:hover{border-color:var(--accent)}
-.pct-opt:has(input:checked){border-color:var(--teal);background:var(--teal-tint)}
+.pct-opt:has(input:checked){border-color:var(--accent);background:var(--accent-tint)}
 .pct-opt input{margin-top:3px;flex:none}
 .pct-ext-clear{display:flex;align-items:center;gap:8px;margin-top:8px;font-weight:600;cursor:pointer}
 .pct-ext-clear input{width:16px;height:16px}

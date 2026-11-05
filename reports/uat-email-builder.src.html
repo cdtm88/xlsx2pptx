@@ -19,19 +19,19 @@
 .uem-panel-head .hint { margin: 0; }
 .uem-grid { display: grid; grid-template-columns: minmax(320px, 460px) minmax(0, 1fr); gap: 16px; align-items: start; }
 .uem-group { border-top: 1px solid var(--divider); padding-top: 14px; margin-top: 4px; }
-.uem-group > h4 { margin: 0 0 10px; font-size: 13px; font-weight: 700; color: var(--accent-dark); text-transform: uppercase; letter-spacing: .4px; }
+.uem-group > h4 { margin: 0 0 10px; font-size: 13px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: .4px; }
 .uem-compose .field { margin-bottom: 12px; }
 .uem-compose textarea { min-height: 64px; }
 .uem-compose .chip-row { margin-bottom: 0; }
 .uem-compose input[type="number"] { text-align: right; }
 .uem-field-row-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
-.uem-derived { font-size: 12px; color: var(--slate); background: var(--light-grey); border-radius: 6px; padding: 6px 10px; margin: -2px 0 12px; }
+.uem-derived { font-size: 12px; color: var(--text-secondary); background: var(--surface-quiet); border-radius: 6px; padding: 6px 10px; margin: -2px 0 12px; }
 .uem-warn { color: var(--red); font-weight: 600; }
 .uem-muted { color: var(--text-dim); font-weight: 400; }
 .uem-sections { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; font-size: 13px; }
 .uem-sections label { display: flex; gap: 6px; align-items: center; cursor: pointer; }
 .uem-rows { display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; }
-.uem-row { position: relative; border: 1px solid var(--border); border-radius: 8px; padding: 10px 34px 4px 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 0 10px; background: var(--lighter-grey); }
+.uem-row { position: relative; border: 1px solid var(--border); border-radius: 8px; padding: 10px 34px 4px 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 0 10px; background: var(--surface-zebra); }
 .uem-row .field { margin-bottom: 8px; }
 .uem-row .field > label { font-size: 11px; margin-bottom: 3px; }
 .uem-row .field.wide { grid-column: 1 / -1; }
@@ -47,7 +47,7 @@
 .uem-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 12px 0; }
 .copy-fallback textarea { width: 100%; min-height: 180px; font: 12px var(--font-mono); }
 .copy-fallback p { margin: 0 0 6px; font-size: 12px; color: var(--text-dim); }
-.uem-intro { margin: -4px 0 14px; font-size: 13px; color: var(--slate); }
+.uem-intro { margin: -4px 0 14px; font-size: 13px; color: var(--text-secondary); }
 /* side by side, Compose and Preview each scroll on their own inside the window
    (sizeGrid sets the height); stacked on narrower screens, the page scrolls */
 @media (min-width: 1001px) {

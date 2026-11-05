@@ -30,16 +30,20 @@ keep their look. Do not include both stylesheets in one page: kit 2 styles bare
    `--font-mono` with tabular figures. Words are in the UI font. Money is shown in
    the base currency first, with the native currency as a smaller grey line
    beneath (`amt-value` / `amt-native`).
-5. **Colour means state.** Teal is the brand and "selected". Green / yellow / red
-   are reserved for status (fine / watch / act) and appear as `status-pill`s, never
-   as decoration. A legend sits next to anything that uses fills, and the fills
-   must match the legend exactly.
-6. **Quiet chrome.** White panels on a `#F6F7F7` page, 1px `--border` lines,
-   10px card radius, 6px control radius, no heavy shadows except on dialogs.
-7. **Keyboard and screen reader work.** Every clickable thing is a `button` or
-   has `role="button"` + `tabindex="0"` + Enter/Space. Dialogs move focus in,
-   trap it, close on Escape and return focus (all done by `RK.modal`). `/`
-   focuses search (`RK.searchShortcut`).
+5. **Colour means state.** Teal is the brand, used as fill; `--accent` marks
+   interaction and "selected". Green / yellow / red are reserved for status
+   (fine / watch / act) and appear as `status-pill`s, never as decoration. A legend
+   sits next to anything that uses fills, and the fills must match the legend
+   exactly.
+6. **Quiet chrome.** `--panel` surfaces on a `--bg` page, 1px `--border` lines,
+   `--radius-card` cards, `--radius-control` controls, no heavy shadows except on
+   dialogs. Gaps, padding and margins come from the `--space-*` scale.
+7. **Everyone can use it.** Every clickable thing is a `button` or has
+   `role="button"` + `tabindex="0"` + Enter/Space. Dialogs move focus in, trap it,
+   close on Escape and return focus (all done by `RK.modal`). `/` focuses search
+   (`RK.searchShortcut`). Text meets 4.5:1 in both themes, field edges and focus
+   rings 3:1; controls grow to 40px on touch screens; transitions stop under
+   `prefers-reduced-motion`.
 8. **Single file, offline, enforced.** No external URLs, including icons: images
    are inlined as data URIs. The starter's `Content-Security-Policy` meta makes the
    browser refuse every request and load to the network (fetch, images, scripts,
@@ -56,23 +60,46 @@ keep their look. Do not include both stylesheets in one page: kit 2 styles bare
 
 ## Tokens
 
-| Token | Value | Use |
+Colour comes in two layers. The **palette** (`--teal`, `--teal-dark`,
+`--teal-deep`, `--teal-tint`, `--teal-tint-border`, `--charcoal`, `--slate`, the
+greys) holds brand constants that never change. **Roles** say what a colour is for
+and switch with the theme. Rules, in the kit and in a report's own CSS, use roles
+only: never palette names or raw hex.
+
+| Role | Light value | Use |
 |---|---|---|
-| `--teal` / `--accent` | `#00A9CE` | primary buttons, selected states, focus |
-| `--teal-dark` / `--accent-dark` | `#007A99` | table header, links, solid bar segments |
-| `--teal-tint` / `--teal-tint-border` | `#E6F6FA` / `#BFE6F0` | selected backgrounds, soft chips, pipeline fill |
-| `--charcoal` / `--text` | `#1A1A1A` | body text |
-| `--slate` | `#3D3D3D` | secondary text in cells |
-| `--mid-grey` / `--text-dim` | `#6B6B6B` | labels, hints |
-| `--dim-grey` | `#8C8C8C` | mono counts, timestamps |
 | `--bg` / `--panel` | `#F6F7F7` / `#fff` | page / surfaces |
-| `--border`, `--border-input`, `--divider`, `--track` | greys | lines, inputs, row rules, empty bar |
-| `--green*`, `--yellow*`, `--red*` | | status only |
+| `--surface-quiet` / `--surface-zebra` | light-grey / lighter-grey | quiet fills (grey pills, disabled controls, currency tags) / zebra rows |
+| `--border`, `--border-input`, `--divider`, `--track`, `--seg-track` | greys | decorative lines, field edges (3:1), row rules, empty bar, seg-tab track |
+| `--text`, `--heading` | charcoal `#1A1A1A` | body text and headings |
+| `--text-secondary` | slate `#3D3D3D` | secondary text in cells |
+| `--text-dim` | mid-grey `#6B6B6B` | labels, hints |
+| `--text-faint` | dim-grey `#6E6E6E` | small mono counts and timestamps |
+| `--accent` / `--accent-hover` | teal-dark `#007694` / teal-deep `#005F77` | primary buttons, focus, selected borders, links and accent text / primary hover |
+| `--accent-tint` / `--accent-tint-border` | `#E6F6FA` / `#BFE6F0` | selected backgrounds, soft chips |
+| `--on-accent` | `#fff` | text on accent and red fills |
+| `--inverse` / `--on-inverse` | charcoal / `#fff` | the toast, the active preset chip |
+| `--table-head` / `--table-head-hover` / `--on-table-head` | teal-dark / teal-deep / `#fff` | sticky table header |
+| `--bar-done` / `--bar-planned` | teal-dark / `#BFE6F0` | solid and planned bar segments; hatched in-flight uses brand `--teal` |
+| `--green*`, `--yellow*`, `--red*`, `--red-hover`, `--red-soft` | | status only |
 | `--font-ui`, `--font-mono` | Segoe UI stack, ui-monospace stack | |
 
-Type scale (px): 22 page headline, 20 settings title, 18 dialog/drawer title,
-16 panel title, 14 body, 13 controls and cells, 12 secondary, 11 labels
-(uppercase, letter-spaced) and pills.
+Also `--space-2` to `--space-60`, `--radius-*`, the size tokens
+(`--control-height`, `--dialog-width`, `--touch-target`…) and the shadows, including
+`--focus-line` (a 2px accent ring with a 2px gap) and `--focus-halo` (inputs).
+
+**Dark theme.** Every role has a dark value. Tools are light by default; a tool
+opts in with `data-theme="dark"` on `<html>` (set it from
+`matchMedia("(prefers-color-scheme: dark)")` in the first inline script to follow
+the operating system) and changes its `color-scheme` meta to `light dark`. Check the
+tool's own CSS uses roles first, or those parts will stay light.
+
+Type scale, in `rem` (1rem = 16px) so a reader's browser text size is respected:
+28 stat figure, 20 page headline and settings title, 16 dialog, drawer and panel
+titles, 14 body, 13 controls and cells, 12 secondary text, pills, counts and
+timestamps, and 11 for uppercase, letter-spaced labels only. Nothing in sentence
+case is smaller than 12px. Line height is 1.5 for body text and hints, 1.3 for
+headings and controls, 1.4 for table cells.
 
 ## Components
 
@@ -80,7 +107,7 @@ Type scale (px): 22 page headline, 20 settings title, 18 dialog/drawer title,
 |---|---|
 | `.wrap` | page container, max 1400px |
 | `.app-header`, `.app-logo`, `.app-logo-mark`, `.app-nav`, `.app-nav-item`, `.app-header-spacer`, `.app-search`, `.search-hint-key` | header bar; collapses into ordered rows on narrow screens |
-| `button`, `.primary`, `.danger`, `.danger-fill`, `.small`, `.icon-btn`, `.link-action` | buttons (icon-only buttons need an `aria-label`) |
+| `button`, `.primary`, `.danger`, `.danger-fill`, `.small`, `.icon-btn`, `.link-action` (+ `.inline` inside a sentence), `a` | buttons (icon-only buttons need an `aria-label`; disabled ones turn grey rather than fading); links are underlined |
 | `.page-summary`, `-text`, `-sub`, `-main` | the one-line answer above the cards |
 | `.legend`, `.legend-item`, `.legend-swatch` + `.swatch-solid` / `-hatched` / `-tint` | key for bar fills |
 | `.stat-grid`, `.stat-card` (+ `.active`), `-name`, `-figure`, `-value`, `-of`, `-nums`, `-num` (+ `.neg`) | grid of headline cards; make them filters with `role="button"` |
@@ -88,7 +115,7 @@ Type scale (px): 22 page headline, 20 settings title, 18 dialog/drawer title,
 | `.row-bar-cell`, `.row-bar-track`, `.row-bar-fill` | thin inline bar in a list row |
 | `.status-pill` + `.pill-green` / `-yellow` / `-red` / `-teal` / `-grey` | state labels |
 | `.toolbar`, `.toolbar-spacer`, `.seg-tabs`, `.seg-tab` (+ `.active`), `.seg-tab-count`, `.filter-chip` (+ `.warn`, `.active`), `.filter-chip-x`, `.toolbar-select`, `.list-meta` | list controls: tabs with counts, removable filter chips, a count on the right |
-| `.table-container`, `table` (+ `.fixed`), `th[data-sort]`, `.sort-arrow`, `tr.clickable`, `td.wrap-cell`, `.cell-title`, `.cell-sub`, `td.amt`, `.amt-wrap`, `.amt-value`, `.amt-native`, `td.row-actions`, `.row-action-btn`, `.row-done-label`, `.empty-state` | data table with a sticky dark header. Never put `display:flex` on a `td`; wrap the content in a `div` |
+| `.table-container`, `table` (+ `.fixed`), `th[data-sort]`, `.sort-arrow`, `tr.clickable`, `td.nowrap`, `.cell-title`, `.cell-sub`, `td.amt`, `.amt-wrap`, `.amt-value`, `.amt-native`, `td.row-actions`, `.row-action-btn`, `.row-done-label`, `.empty-state` | data table with a sticky dark header. Text cells wrap; `td.num`, `td.amt`, `td.row-actions` and `td.nowrap` stay on one line (`td.wrap-cell` is now the default and kept for old markup). Never put `display:flex` on a `td`; wrap the content in a `div` |
 | `.steps`, `.steps-top`, `.steps-label`, `.steps-count`, `.step-segs`, `.step-seg` | position in a fixed workflow (`RK.stepSegs`) |
 | `.step-track`, `-seg`, `-bar`, `-label` (+ `.done`, `.target`) | larger labelled workflow track for a "move to next step" dialog |
 | `.settings-header`, `.settings-nav`, `.settings-nav-item`, `-label`, `-count`, `.settings-content` (+ `.wide`), `.settings-panel-head` | settings view |
@@ -142,6 +169,7 @@ Type scale (px): 22 page headline, 20 settings title, 18 dialog/drawer title,
 - [ ] Every figure is mono; money shows base currency first
 - [ ] Bar fills match their legend and share one scale
 - [ ] Status colours used only for status
+- [ ] The tool's own CSS uses role and spacing tokens (`--text-secondary`, `--surface-quiet`, `--space-12`…), never palette names, raw hex or pixel gaps
 - [ ] Rows open a drawer; New / Edit open a dialog through `RK.modal`
 - [ ] Everything clickable works with Enter and Space; icon buttons have `aria-label`
 - [ ] Empty states say why they are empty (nothing yet vs. filtered out)
